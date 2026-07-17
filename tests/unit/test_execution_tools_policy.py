@@ -1,0 +1,96 @@
+from pathlib import Path
+
+import pytest
+
+from bot.config.models import PermissionsConfig
+from bot.execution import LocalExecutionTarget, ProcessEventKind, ProcessSpec
+from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
+from bot.tools import ToolContext
+from bot.tools.builtins import ApplyPatchTool, ReadFileTool
+from bot.tools.kunpeng import KsysTool, TunerTool
+
+
+@pytest.mark.asyncio
+async def test_local_execution_uses_argv_and_captures_streams(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    events = [
+        event
+        async for event in target.execute(
+            ProcessSpec(
+                argv=["/bin/sh", "-c", "printf out; printf err >&2"],
+                cwd=tmp_path,
+            )
+        )
+    ]
+
+    assert any(event.kind == ProcessEventKind.STDOUT and event.data == "out" for event in events)
+    assert any(event.kind == ProcessEventKind.STDERR and event.data == "err" for event in events)
+    assert events[-1].returncode == 0
+
+
+@pytest.mark.asyncio
+async def test_file_tools_enforce_workspace_and_exact_patch(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("old\n", encoding="utf-8")
+    context = ToolContext(
+        workspace=tmp_path,
+        execution_target=LocalExecutionTarget(),
+        workspace_only=True,
+    )
+    patch = await ApplyPatchTool().execute(
+        context, {"path": "a.txt", "old_text": "old", "new_text": "new"}
+    )
+    read = await ReadFileTool().execute(context, {"path": "a.txt"})
+    escaped = await ReadFileTool().execute(context, {"path": "../outside.txt"})
+
+    assert patch.success
+    assert read.output == "new\n"
+    assert not escaped.success
+    assert "超出工作区" in (escaped.error or "")
+
+
+def test_policy_requires_approval_for_unknown_command_and_denies_escape(tmp_path: Path) -> None:
+    policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
+    command = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["python", "script.py"]},
+        annotations=ApplyPatchTool.annotations,
+    )
+    escape = ToolAction(
+        tool_name="read_file",
+        arguments={"path": "../secret"},
+        annotations=ReadFileTool.annotations,
+    )
+
+    assert policy.evaluate(command).kind == PolicyDecisionKind.ASK
+    assert policy.evaluate(escape).kind == PolicyDecisionKind.DENY
+
+
+def test_ksys_and_tuner_build_structured_argv(tmp_path: Path) -> None:
+    input_one = tmp_path / "one.json"
+    input_two = tmp_path / "two.json"
+    input_one.write_text("{}", encoding="utf-8")
+    input_two.write_text("{}", encoding="utf-8")
+    context = ToolContext(workspace=tmp_path, execution_target=LocalExecutionTarget())
+
+    ksys = KsysTool().build_argv(
+        context,
+        {
+            "operation": "diff",
+            "input_paths": ["one.json", "two.json"],
+            "output_path": "reports",
+            "log_level": 2,
+        },
+    )
+    tuner = TunerTool().build_argv(
+        context,
+        {
+            "task": "top-down",
+            "duration": 10,
+            "topdown_level": 2,
+            "pid": "123",
+        },
+    )
+
+    assert ksys[:3] == ["ksys", "diff", "-i"]
+    assert ksys[-4:] == ["-o", str(tmp_path / "reports"), "-l", "2"]
+    assert tuner == ["devkit", "tuner", "top-down", "-d", "10", "-p", "123", "-L", "2"]

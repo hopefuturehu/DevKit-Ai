@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kunpeng-cli-agent"
+version = "0.1.0"
+description = "A general-purpose CLI agent with extensible skills and tools"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Kunpeng CLI Agent Team" }]
+dependencies = [
+  "httpx>=0.27,<1",
+  "jsonschema>=4.23,<5",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0,<7",
+  "rich>=13.9,<15",
+  "typer>=0.15,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<10",
+  "pytest-asyncio>=0.24,<2",
+  "ruff>=0.9,<1",
+]
+
+[project.scripts]
+bot = "bot.cli.app:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bot"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = ["ASYNC240"]
