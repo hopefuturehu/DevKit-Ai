@@ -34,6 +34,9 @@ bot = "bot.cli.app:app"
 [tool.hatch.build.targets.wheel]
 packages = ["src/bot"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"skills" = "bot/assets/skills"
+
 [tool.pytest.ini_options]
 addopts = "-q"
 asyncio_mode = "auto"

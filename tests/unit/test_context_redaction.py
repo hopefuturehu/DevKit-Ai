@@ -1,8 +1,33 @@
-from bot.core.context import compact_messages, estimate_tokens
+from pathlib import Path
+
+from bot.core.context import ContextAssembler, compact_messages, estimate_tokens
 from bot.core.events import AgentEvent, EventType
 from bot.core.models import ChatMessage, Role
 from bot.observability import Redactor
+from bot.skills import SkillCatalog
 from bot.tools import ToolResult
+
+
+def test_context_manifest_reports_instruction_sources(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("project rule", encoding="utf-8")
+    skill_dir = tmp_path / "skills" / "demo"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: Demo skill.\n---\nInstructions.",
+        encoding="utf-8",
+    )
+    catalog = SkillCatalog(tmp_path / "skills")
+    catalog.scan()
+    assembler = ContextAssembler(workspace=tmp_path, skill_catalog=catalog)
+
+    manifest = assembler.manifest()
+
+    assert [entry["layer"] for entry in manifest] == [
+        "core_policy",
+        "project_context",
+        "skill_catalog",
+    ]
+    assert manifest[-1]["items"] == 1
 
 
 def test_context_compaction_preserves_system_and_recent_messages() -> None:

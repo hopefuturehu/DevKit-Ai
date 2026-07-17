@@ -40,6 +40,8 @@ output_cost_per_million = 0.0
 [agent]
 max_steps = 30
 max_wall_time_seconds = 1800
+max_tool_output_bytes = 1000000
+max_total_tool_output_bytes = 5000000
 # max_cost_usd = 2.0
 
 [skills]
@@ -57,6 +59,9 @@ export BOT_MODEL_API_KEY='...'
 bot doctor
 bot
 ```
+
+`bot init` 会创建项目配置，并在目标 Skill 不存在时把随包发布的
+`kunpeng-performance-analysis` 脚手架到工作区 `./skills`；已有同名目录不会被覆盖。
 
 也可以执行单次任务：
 

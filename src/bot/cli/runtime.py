@@ -26,6 +26,7 @@ class Runtime:
     skills: SkillManager
     tools: ToolRegistry
     target: LocalExecutionTarget
+    context: ContextAssembler
     store: SQLiteSessionStore
     runner: AgentRunner
     approval_handler: ApprovalHandler | None = None
@@ -91,6 +92,7 @@ def build_runtime(
         skills=skills,
         tools=tools,
         target=target,
+        context=context,
         store=store,
         runner=runner,
         approval_handler=approval_handler,

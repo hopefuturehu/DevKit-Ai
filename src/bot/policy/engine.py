@@ -181,6 +181,9 @@ class DefaultPolicyEngine:
                 kind=PolicyDecisionKind.ASK,
                 reason=f"命令 {command} 可能修改或破坏系统状态",
             )
+        command_path_decision = self._check_command_paths(argv[1:])
+        if command_path_decision:
+            return command_path_decision
         if command == "git":
             subcommand = argv[1] if len(argv) > 1 else ""
             if subcommand not in {"status", "diff", "log", "show", "rev-parse"}:
@@ -207,14 +210,35 @@ class DefaultPolicyEngine:
             reason=f"命令 {command} 不在自动允许列表中",
         )
 
+    def _check_command_paths(self, arguments: list[Any]) -> PolicyDecision | None:
+        for value in arguments:
+            if not isinstance(value, str) or not value or value.startswith("-"):
+                continue
+            if "://" in value:
+                continue
+            raw = Path(value).expanduser()
+            candidate = raw if raw.is_absolute() else self.workspace / raw
+            looks_like_path = (
+                raw.is_absolute()
+                or value.startswith((".", "~"))
+                or "/" in value
+                or candidate.exists()
+            )
+            if not looks_like_path:
+                continue
+            decision = self._check_paths({"path": value})
+            if decision:
+                return decision
+        return None
+
     def _evaluate_shell(self, arguments: dict[str, Any]) -> PolicyDecision:
         script = arguments.get("script")
         if not isinstance(script, str) or not script.strip():
             return PolicyDecision(kind=PolicyDecisionKind.DENY, reason="Shell script 不能为空")
-        if any(marker in script for marker in ("`", "$(", ">", "<")):
+        if any(marker in script for marker in ("`", "$", ">", "<")):
             return PolicyDecision(
                 kind=PolicyDecisionKind.ASK,
-                reason="Shell 脚本包含命令替换或重定向",
+                reason="Shell 脚本包含变量展开、命令替换或重定向",
             )
         if "\n" in script or "\r" in script:
             return PolicyDecision(

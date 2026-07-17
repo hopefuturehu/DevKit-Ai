@@ -179,8 +179,11 @@ class AgentRunner:
 
         failures = 0
         failed_fingerprints: dict[str, int] = {}
+        last_idempotent_result: str | None = None
+        repeated_idempotent_results = 0
         input_tokens = 0
         output_tokens = 0
+        tool_output_bytes = 0
         cost_usd: float | None = None
         started_at = monotonic()
         for step in range(1, self.config.agent.max_steps + 1):
@@ -333,6 +336,32 @@ class AgentRunner:
             if not tool_calls and steered_after_model:
                 continue
             if not tool_calls:
+                if finish_reason in {"length", "max_tokens"}:
+                    error = "模型输出达到长度限制，答案可能不完整"
+                    await self._fail_event(session_id, run_id, error)
+                    return RunResult(
+                        session_id=session_id,
+                        status="limit_reached",
+                        final_text=assistant_text,
+                        steps=step,
+                        error=error,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
+                if finish_reason not in {None, "stop", "eof"}:
+                    error = f"模型以非正常原因结束: {finish_reason}"
+                    await self._fail_event(session_id, run_id, error)
+                    return RunResult(
+                        session_id=session_id,
+                        status="failed",
+                        final_text=assistant_text,
+                        steps=step,
+                        error=error,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
                 await self.event_bus.emit(
                     EventType.ASSISTANT_MESSAGE,
                     session_id=session_id,
@@ -387,12 +416,67 @@ class AgentRunner:
                 )
                 messages.append(result_message)
                 self.store.append_message(session_id, run_id, result_message)
+                tool_output_bytes += len(result_message.model_dump_json().encode("utf-8"))
+                if tool_output_bytes > self.config.agent.max_total_tool_output_bytes:
+                    error = (
+                        f"累计 Tool 输出达到 {tool_output_bytes} bytes，超过运行上限 "
+                        f"{self.config.agent.max_total_tool_output_bytes} bytes"
+                    )
+                    await self._fail_event(session_id, run_id, error)
+                    return RunResult(
+                        session_id=session_id,
+                        status="limit_reached",
+                        final_text=assistant_text,
+                        steps=step,
+                        error=error,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
 
                 fingerprint = self._fingerprint(tool_call)
                 if result.success:
                     failures = 0
                     failed_fingerprints.pop(fingerprint, None)
+                    tool = self.tool_registry.get(tool_call.name)
+                    if tool is not None and tool.annotations.idempotent:
+                        result_fingerprint = self._result_fingerprint(tool_call.name, result)
+                        if result_fingerprint == last_idempotent_result:
+                            repeated_idempotent_results += 1
+                        else:
+                            last_idempotent_result = result_fingerprint
+                            repeated_idempotent_results = 1
+                        if repeated_idempotent_results == 2:
+                            messages.append(
+                                ChatMessage(
+                                    role=Role.SYSTEM,
+                                    content=(
+                                        f"幂等 Tool {tool_call.name} 已连续返回相同结果。"
+                                        "当前方案没有产生新证据，请改变下一步。"
+                                    ),
+                                )
+                            )
+                        elif repeated_idempotent_results >= 3:
+                            error = (
+                                f"幂等 Tool {tool_call.name} 连续返回相同结果，运行因无进展而熔断"
+                            )
+                            await self._fail_event(session_id, run_id, error)
+                            return RunResult(
+                                session_id=session_id,
+                                status="failed",
+                                final_text=assistant_text,
+                                steps=step,
+                                error=error,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                cost_usd=cost_usd,
+                            )
+                    else:
+                        last_idempotent_result = None
+                        repeated_idempotent_results = 0
                 else:
+                    last_idempotent_result = None
+                    repeated_idempotent_results = 0
                     failures += 1
                     failed_fingerprints[fingerprint] = failed_fingerprints.get(fingerprint, 0) + 1
                     if failed_fingerprints[fingerprint] >= 2:
@@ -660,10 +744,22 @@ class AgentRunner:
             arguments = {"_invalid_arguments": arguments}
         return ToolCall(id=call_id, name=buffer.name, arguments=arguments)
 
-    @staticmethod
-    def _fingerprint(tool_call: ToolCall) -> str:
+    def _fingerprint(self, tool_call: ToolCall) -> str:
         payload = json.dumps(
-            {"name": tool_call.name, "arguments": tool_call.arguments},
+            {
+                "workspace": str(self.workspace),
+                "name": tool_call.name,
+                "arguments": tool_call.arguments,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    @staticmethod
+    def _result_fingerprint(tool_name: str, result: ToolResult) -> str:
+        payload = json.dumps(
+            {"name": tool_name, "result": result.model_dump(mode="json")},
             sort_keys=True,
             ensure_ascii=False,
         )

@@ -66,6 +66,45 @@ def tool_turn(call_id: str, name: str, arguments: str) -> list[ModelEvent]:
     ]
 
 
+def make_test_runner(
+    tmp_path: Path,
+    provider: ModelProvider,
+    *,
+    agent_config: dict | None = None,
+    model_config: dict | None = None,
+    tools: list | None = None,
+):
+    model = {"base_url": "https://unused", "name": "mock"}
+    model.update(model_config or {})
+    config = AppConfig.model_validate(
+        {
+            "model": model,
+            "agent": agent_config or {},
+            "storage": {"state_path": str(tmp_path / "state.db")},
+            "skills": {"path": str(tmp_path / "skills")},
+        }
+    )
+    catalog = SkillCatalog(tmp_path / "skills")
+    catalog.scan()
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    registry = ToolRegistry()
+    for tool in tools or []:
+        registry.register(tool)
+    runner = AgentRunner(
+        config=config,
+        workspace=tmp_path,
+        provider=provider,
+        tool_registry=registry,
+        policy=DefaultPolicyEngine(config.permissions, tmp_path),
+        execution_target=LocalExecutionTarget(),
+        skills=SkillManager(catalog),
+        context=ContextAssembler(workspace=tmp_path, skill_catalog=catalog),
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    return runner, store
+
+
 @pytest.mark.asyncio
 async def test_agent_activates_skill_calls_tool_and_finishes(tmp_path: Path) -> None:
     (tmp_path / "input.txt").write_text("evidence", encoding="utf-8")
@@ -189,4 +228,122 @@ async def test_agent_applies_steering_at_model_boundary(tmp_path: Path) -> None:
         "focus on the new requirement" in (message.content or "")
         for message in provider.requests[1].messages
     )
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
+    (tmp_path / "input.txt").write_text("unchanged", encoding="utf-8")
+    provider = ScriptedProvider(
+        [
+            tool_turn("read-1", "read_file", '{"path":"input.txt"}'),
+            tool_turn("read-2", "read_file", '{"path":"input.txt"}'),
+            tool_turn("read-3", "read_file", '{"path":"input.txt"}'),
+        ]
+    )
+    config = AppConfig.model_validate(
+        {
+            "model": {"base_url": "https://unused", "name": "mock"},
+            "storage": {"state_path": str(tmp_path / "state.db")},
+            "skills": {"path": str(tmp_path / "skills")},
+            "agent": {"max_steps": 5},
+        }
+    )
+    catalog = SkillCatalog(tmp_path / "skills")
+    catalog.scan()
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    registry = ToolRegistry()
+    registry.register(ReadFileTool())
+    runner = AgentRunner(
+        config=config,
+        workspace=tmp_path,
+        provider=provider,
+        tool_registry=registry,
+        policy=DefaultPolicyEngine(config.permissions, tmp_path),
+        execution_target=LocalExecutionTarget(),
+        skills=SkillManager(catalog),
+        context=ContextAssembler(workspace=tmp_path, skill_catalog=catalog),
+        store=store,
+        event_bus=EventBus([store]),
+    )
+
+    result = await runner.run(RunRequest(prompt="read until it changes"))
+
+    assert result.status == "failed"
+    assert "无进展" in (result.error or "")
+    assert len(provider.requests) == 3
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_treats_length_finish_as_limit(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="partial"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="length"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider)
+
+    result = await runner.run(RunRequest(prompt="answer"))
+
+    assert result.status == "limit_reached"
+    assert result.final_text == "partial"
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_enforces_cost_before_requested_tool_runs(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(
+                    kind=ModelEventKind.TOOL_CALL_DELTA,
+                    tool_index=0,
+                    tool_call_id="read",
+                    tool_name="read_file",
+                    arguments_delta='{"path":"input.txt"}',
+                ),
+                ModelEvent(
+                    kind=ModelEventKind.USAGE,
+                    input_tokens=1_000_000,
+                    output_tokens=0,
+                ),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="tool_calls"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={"max_cost_usd": 0.5},
+        model_config={"input_cost_per_million": 1, "output_cost_per_million": 1},
+        tools=[ReadFileTool()],
+    )
+
+    result = await runner.run(RunRequest(prompt="read"))
+
+    assert result.status == "limit_reached"
+    assert result.cost_usd == 1
+    assert store.list_events(result.session_id)[-1]["type"] == "run.failed"
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_enforces_cumulative_tool_output_limit(tmp_path: Path) -> None:
+    (tmp_path / "input.txt").write_text("x" * 200, encoding="utf-8")
+    provider = ScriptedProvider([tool_turn("read", "read_file", '{"path":"input.txt"}')])
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={"max_total_tool_output_bytes": 100},
+        tools=[ReadFileTool()],
+    )
+
+    result = await runner.run(RunRequest(prompt="read"))
+
+    assert result.status == "limit_reached"
+    assert "累计 Tool 输出" in (result.error or "")
     store.close()

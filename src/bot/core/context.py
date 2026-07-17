@@ -31,6 +31,34 @@ class ContextAssembler:
         self.skill_catalog = skill_catalog
         self.max_skill_catalog_chars = max_skill_catalog_chars
 
+    def manifest(self) -> list[dict[str, str | int]]:
+        entries: list[dict[str, str | int]] = [
+            {
+                "layer": "core_policy",
+                "source": "built-in",
+                "characters": len(CORE_POLICY),
+            }
+        ]
+        agents = self.workspace / "AGENTS.md"
+        if agents.is_file():
+            entries.append(
+                {
+                    "layer": "project_context",
+                    "source": str(agents),
+                    "characters": agents.stat().st_size,
+                }
+            )
+        catalog_summary = self.skill_catalog.summary(self.max_skill_catalog_chars)
+        entries.append(
+            {
+                "layer": "skill_catalog",
+                "source": str(self.skill_catalog.root),
+                "characters": len(catalog_summary),
+                "items": len(self.skill_catalog.skills),
+            }
+        )
+        return entries
+
     def system_messages(self, environment: EnvironmentCapabilities) -> list[ChatMessage]:
         messages = [ChatMessage(role=Role.SYSTEM, content=CORE_POLICY)]
         agents = self.workspace / "AGENTS.md"

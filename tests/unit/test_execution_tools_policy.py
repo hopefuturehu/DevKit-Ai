@@ -1,3 +1,5 @@
+import os
+import signal
 from pathlib import Path
 
 import pytest
@@ -38,6 +40,43 @@ async def test_local_execution_uses_argv_and_captures_streams(tmp_path: Path) ->
     assert any(event.kind == ProcessEventKind.STDOUT and event.data == "out" for event in events)
     assert any(event.kind == ProcessEventKind.STDERR and event.data == "err" for event in events)
     assert events[-1].returncode == 0
+
+
+@pytest.mark.asyncio
+async def test_local_execution_timeout_terminates_process(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+
+    with pytest.raises(TimeoutError, match="命令执行超过"):
+        _ = [
+            event
+            async for event in target.execute(
+                ProcessSpec(
+                    argv=["/bin/sh", "-c", "sleep 5"],
+                    cwd=tmp_path,
+                    timeout_seconds=0.05,
+                )
+            )
+        ]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
+@pytest.mark.asyncio
+async def test_local_termination_signals_the_process_group(monkeypatch) -> None:
+    signals: list[tuple[int, signal.Signals]] = []
+
+    class FakeProcess:
+        pid = 4242
+        returncode = None
+
+        async def wait(self):
+            self.returncode = 0
+            return 0
+
+    monkeypatch.setattr(os, "killpg", lambda pid, sig: signals.append((pid, sig)))
+
+    await LocalExecutionTarget._terminate(FakeProcess())
+
+    assert signals == [(4242, signal.SIGTERM)]
 
 
 @pytest.mark.asyncio
@@ -158,6 +197,29 @@ def test_policy_separately_evaluates_shell_segments(tmp_path: Path) -> None:
     )
     assert policy.evaluate(find_delete).kind == PolicyDecisionKind.ASK
     assert policy.evaluate(workload).kind == PolicyDecisionKind.ASK
+
+
+def test_policy_prevents_read_only_commands_from_escaping_workspace(tmp_path: Path) -> None:
+    policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
+    absolute_escape = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["head", "/etc/passwd"]},
+        annotations=RunCommandTool.annotations,
+    )
+    relative_escape = ToolAction(
+        tool_name="run_shell",
+        arguments={"script": "rg secret ../outside"},
+        annotations=RunShellTool.annotations,
+    )
+    environment_expansion = ToolAction(
+        tool_name="run_shell",
+        arguments={"script": "head $HOME/.ssh/id_rsa"},
+        annotations=RunShellTool.annotations,
+    )
+
+    assert policy.evaluate(absolute_escape).kind == PolicyDecisionKind.DENY
+    assert policy.evaluate(relative_escape).kind == PolicyDecisionKind.DENY
+    assert policy.evaluate(environment_expansion).kind == PolicyDecisionKind.ASK
 
 
 def test_ksys_and_tuner_build_structured_argv(tmp_path: Path) -> None:

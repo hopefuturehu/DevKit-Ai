@@ -11,6 +11,7 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     initialized = runner.invoke(app, ["-C", str(tmp_path), "init"])
     assert initialized.exit_code == 0, initialized.output
     assert (tmp_path / ".bot" / "config.toml").exists()
+    assert (tmp_path / "skills" / "kunpeng-performance-analysis" / "SKILL.md").is_file()
 
     updated = runner.invoke(
         app,

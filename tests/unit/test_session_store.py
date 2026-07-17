@@ -22,10 +22,23 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
         )
     )
     store.append_message(session_id, run_id, ChatMessage(role=Role.USER, content="hello"))
-    store.finish_run(run_id, "completed")
+    store.finish_run(
+        run_id,
+        "completed",
+        input_tokens=10,
+        output_tokens=4,
+        cost_usd=0.002,
+    )
 
     assert store.latest_session(tmp_path) == session_id
     assert store.load_messages(session_id)[0].content == "hello"
+    assert store.list_events(session_id)[0]["schema_version"] == 1
+    assert store.session_usage(session_id) == {
+        "runs": 1,
+        "input_tokens": 10,
+        "output_tokens": 4,
+        "cost_usd": 0.002,
+    }
     memory_id = store.add_memory("use pnpm")
     assert store.list_memories()[0]["id"] == memory_id
     assert store.delete_memory(memory_id)

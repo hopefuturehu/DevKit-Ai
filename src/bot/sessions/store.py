@@ -11,7 +11,7 @@ from uuid import uuid4
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class SQLiteSessionStore(EventSink):
@@ -62,6 +62,7 @@ class SQLiteSessionStore(EventSink):
                     id TEXT PRIMARY KEY,
                     session_id TEXT NOT NULL,
                     run_id TEXT NOT NULL,
+                    schema_version INTEGER NOT NULL DEFAULT 1,
                     sequence INTEGER NOT NULL,
                     type TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
@@ -138,6 +139,13 @@ class SQLiteSessionStore(EventSink):
                 )
             if "cost_usd" not in run_columns:
                 self._connection.execute("ALTER TABLE runs ADD COLUMN cost_usd REAL")
+            event_columns = {
+                row[1] for row in self._connection.execute("PRAGMA table_info(events)")
+            }
+            if "schema_version" not in event_columns:
+                self._connection.execute(
+                    "ALTER TABLE events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1"
+                )
             self._connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                 (SCHEMA_VERSION, datetime.now(UTC).isoformat()),
@@ -207,6 +215,25 @@ class SQLiteSessionStore(EventSink):
             ).fetchone()
         return dict(row) if row else None
 
+    def session_usage(self, session_id: str) -> dict[str, int | float]:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT COUNT(*) AS runs,
+                       COALESCE(SUM(input_tokens), 0) AS input_tokens,
+                       COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                       COALESCE(SUM(cost_usd), 0) AS cost_usd
+                FROM runs WHERE session_id = ?
+                """,
+                (session_id,),
+            ).fetchone()
+        return {
+            "runs": int(row["runs"]),
+            "input_tokens": int(row["input_tokens"]),
+            "output_tokens": int(row["output_tokens"]),
+            "cost_usd": float(row["cost_usd"]),
+        }
+
     def fork_session(self, session_id: str, *, up_to_position: int | None = None) -> str:
         source = self.get_session(session_id)
         if source is None:
@@ -250,7 +277,7 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             rows = self._connection.execute(
                 """
-                SELECT id, run_id, sequence, type, timestamp, payload_json
+                SELECT id, run_id, schema_version, sequence, type, timestamp, payload_json
                 FROM events WHERE session_id = ?
                 ORDER BY timestamp DESC, sequence DESC LIMIT ?
                 """,
@@ -307,13 +334,15 @@ class SQLiteSessionStore(EventSink):
         with self._lock, self._connection:
             self._connection.execute(
                 """
-                INSERT INTO events(id, session_id, run_id, sequence, type, timestamp, payload_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO events(
+                    id, session_id, run_id, schema_version, sequence, type, timestamp, payload_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     event.id,
                     event.session_id,
                     event.run_id,
+                    event.schema_version,
                     event.sequence,
                     event.type.value,
                     event.timestamp.isoformat(),

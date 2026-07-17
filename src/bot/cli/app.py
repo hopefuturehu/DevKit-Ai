@@ -7,6 +7,7 @@ import re
 import shlex
 import subprocess
 import sys
+from importlib.resources import files
 from pathlib import Path
 from typing import Annotated
 
@@ -66,6 +67,34 @@ app.add_typer(model_app, name="model")
 app.add_typer(eval_app, name="eval")
 console = Console()
 DEFAULT_WORKSPACE = Path.cwd()
+
+
+def _copy_resource_tree(source, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    for child in source.iterdir():
+        target = destination / child.name
+        if child.is_dir():
+            _copy_resource_tree(child, target)
+        elif not target.exists():
+            target.write_bytes(child.read_bytes())
+
+
+def _install_bundled_skills(destination: Path) -> list[str]:
+    packaged = files("bot").joinpath("assets", "skills")
+    source = packaged if packaged.is_dir() else Path(__file__).resolve().parents[3] / "skills"
+    if not source.is_dir():
+        return []
+    installed: list[str] = []
+    destination.mkdir(parents=True, exist_ok=True)
+    for skill in sorted(source.iterdir(), key=lambda item: item.name):
+        if not skill.is_dir():
+            continue
+        target = destination / skill.name
+        if target.exists():
+            continue
+        _copy_resource_tree(skill, target)
+        installed.append(skill.name)
+    return installed
 
 
 def _run(coroutine):
@@ -177,6 +206,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
         if prompt in {"/exit", "/quit"}:
             return
         if prompt == "/status":
+            usage = runtime.store.session_usage(session_id)
             console.print(
                 {
                     "session": session_id,
@@ -185,6 +215,8 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     "base_url": runtime.config.model.base_url,
                     "permission_mode": runtime.config.permissions.mode,
                     "active_skills": list(runtime.skills.active),
+                    "context_manifest": runtime.context.manifest(),
+                    "usage": usage,
                 }
             )
             continue
@@ -464,8 +496,10 @@ auto_activate = true
 max_auto_activated = 3
 """
     target.write_text(template, encoding="utf-8")
-    (workspace / "skills").mkdir(exist_ok=True)
+    installed_skills = _install_bundled_skills(workspace / "skills")
     console.print(f"[green]已创建[/green] {target}")
+    if installed_skills:
+        console.print(f"[green]已安装内置 Skill[/green] {', '.join(installed_skills)}")
 
 
 @skill_app.command("list")
