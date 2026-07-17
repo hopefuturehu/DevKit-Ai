@@ -1,6 +1,6 @@
 # 通用 CLI Agent 助手设计
 
-> 状态：Draft v0.2（已固化 Grill 阶段结论）  
+> 状态：设计基线 v0.2；MVP 代码已实现，环境验收项见 [implementation-status.md](implementation-status.md)
 > 工作名：`bot`（后续可替换）  
 > 设计基线：通用 Agent Core、CLI-first、local-first、OpenAI-compatible、Skill/Tool 可扩展、安全默认开启
 

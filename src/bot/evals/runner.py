@@ -110,9 +110,10 @@ async def run_eval_case(
     for forbidden in case.forbidden_tools:
         if forbidden in tool_names:
             failures.append(f"调用了禁止 Tool: {forbidden}")
-    for expected in case.expected_skills:
-        if expected not in activated_skills:
-            failures.append(f"未激活预期 Skill: {expected}")
+    if not disable_skills:
+        for expected in case.expected_skills:
+            if expected not in activated_skills:
+                failures.append(f"未激活预期 Skill: {expected}")
     if case.max_tool_calls is not None and len(tool_names) > case.max_tool_calls:
         failures.append(f"Tool Call 超限: {len(tool_names)} > {case.max_tool_calls}")
     if case.max_approval_requests is not None and approval_requests > case.max_approval_requests:

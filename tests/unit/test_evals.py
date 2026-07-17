@@ -92,7 +92,7 @@ async def test_eval_case_checks_artifacts_trace_and_skill_control(tmp_path: Path
     assert captured_requests[0].explicit_skills == ["analysis"]
 
     baseline = await run_eval_case(
-        case.model_copy(update={"expected_skills": []}),
+        case,
         base=tmp_path,
         config_path=None,
         disable_skills=True,

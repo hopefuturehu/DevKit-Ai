@@ -6,7 +6,11 @@ import pytest
 
 from bot.config.models import AppConfig
 from bot.core import AgentRunner, RunRequest
-from bot.core.approval import AllowApprovalHandler
+from bot.core.approval import (
+    AllowApprovalHandler,
+    ApprovalResponse,
+    ApprovalScope,
+)
 from bot.core.context import ContextAssembler
 from bot.core.events import EventBus, EventType, MemoryEventSink
 from bot.core.models import ModelCapabilities, ModelEvent, ModelEventKind, ModelRequest
@@ -15,7 +19,7 @@ from bot.policy import DefaultPolicyEngine
 from bot.providers import ModelProvider
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
-from bot.tools import ToolRegistry
+from bot.tools import Tool, ToolAnnotations, ToolRegistry, ToolResult
 from bot.tools.builtins import ReadFileTool
 
 
@@ -51,6 +55,30 @@ class SteerableProvider(ModelProvider):
         else:
             yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="steered answer")
         yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+
+class ApprovalHandlerStub:
+    def __init__(self, scope: ApprovalScope) -> None:
+        self.scope = scope
+        self.calls = 0
+
+    async def approve(self, action, decision) -> ApprovalResponse:
+        self.calls += 1
+        return ApprovalResponse(approved=True, scope=self.scope)
+
+
+class DestructiveTestTool(Tool):
+    name = "destructive_test"
+    description = "A deterministic destructive test tool."
+    input_schema = {"type": "object", "additionalProperties": False}
+    annotations = ToolAnnotations(destructive=True)
+
+    def __init__(self) -> None:
+        self.executions = 0
+
+    async def execute(self, context, arguments) -> ToolResult:
+        self.executions += 1
+        return ToolResult(success=True, output="executed")
 
 
 def tool_turn(call_id: str, name: str, arguments: str) -> list[ModelEvent]:
@@ -346,4 +374,100 @@ async def test_agent_enforces_cumulative_tool_output_limit(tmp_path: Path) -> No
 
     assert result.status == "limit_reached"
     assert "累计 Tool 输出" in (result.error or "")
+    store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("scope", "expected_approval_calls"),
+    [(ApprovalScope.ONCE, 2), (ApprovalScope.SESSION, 1)],
+)
+async def test_agent_applies_once_and_session_approval_scope(
+    tmp_path: Path,
+    scope: ApprovalScope,
+    expected_approval_calls: int,
+) -> None:
+    provider = ScriptedProvider(
+        [
+            tool_turn("danger-1", "destructive_test", "{}"),
+            tool_turn("danger-2", "destructive_test", "{}"),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    tool = DestructiveTestTool()
+    runner, store = make_test_runner(tmp_path, provider, tools=[tool])
+    approval = ApprovalHandlerStub(scope)
+    runner.approval_handler = approval
+
+    result = await runner.run(RunRequest(prompt="perform twice"))
+
+    assert result.status == "completed"
+    assert tool.executions == 2
+    assert approval.calls == expected_approval_calls
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_persists_always_approval_across_sessions(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            tool_turn("danger-1", "destructive_test", "{}"),
+            [ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+            tool_turn("danger-2", "destructive_test", "{}"),
+            [ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+        ]
+    )
+    tool = DestructiveTestTool()
+    runner, store = make_test_runner(tmp_path, provider, tools=[tool])
+    approval = ApprovalHandlerStub(ApprovalScope.ALWAYS)
+    runner.approval_handler = approval
+
+    first = await runner.run(RunRequest(prompt="first session"))
+    second = await runner.run(RunRequest(prompt="second session"))
+
+    assert first.status == second.status == "completed"
+    assert first.session_id != second.session_id
+    assert tool.executions == 2
+    assert approval.calls == 1
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_automatically_activates_multiple_complementary_skills(
+    tmp_path: Path,
+) -> None:
+    for name in ("migration", "performance"):
+        skill_dir = tmp_path / "skills" / name
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: {name} guidance.\n---\nUse evidence.",
+            encoding="utf-8",
+        )
+    provider = ScriptedProvider(
+        [
+            tool_turn(
+                "skill-1",
+                "activate_skill",
+                '{"name":"migration","reason":"migration task"}',
+            ),
+            tool_turn(
+                "skill-2",
+                "activate_skill",
+                '{"name":"performance","reason":"performance task"}',
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="combined"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider)
+
+    result = await runner.run(RunRequest(prompt="migrate and tune"))
+
+    assert result.status == "completed"
+    assert list(runner.skills.active) == ["migration", "performance"]
     store.close()

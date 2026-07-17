@@ -1,3 +1,4 @@
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -56,3 +57,37 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
     assert store.get_session(forked)["parent_session_id"] == session_id
     assert store.load_messages(forked)[0].content == "hello"
     store.close()
+
+    reopened = SQLiteSessionStore(tmp_path / "state.db")
+    assert reopened.load_messages(session_id)[0].content == "hello"
+    reopened.close()
+
+
+def test_session_store_migrates_legacy_event_schema(tmp_path: Path) -> None:
+    path = tmp_path / "legacy.db"
+    connection = sqlite3.connect(path)
+    connection.execute(
+        """
+        CREATE TABLE events (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            sequence INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            payload_json TEXT NOT NULL
+        )
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    store = SQLiteSessionStore(path)
+    store.close()
+
+    connection = sqlite3.connect(path)
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(events)")}
+    versions = {row[0] for row in connection.execute("SELECT version FROM schema_migrations")}
+    connection.close()
+    assert "schema_version" in columns
+    assert 4 in versions
