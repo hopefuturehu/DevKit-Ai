@@ -1,0 +1,3 @@
+{"id":"project-overview","prompt":"Read README.md and pyproject.toml. Explain the project purpose and include the exact package name. Do not modify files.","workspace":"..","final_contains":["kunpeng-cli-agent"]}
+{"id":"skill-discovery","prompt":"Inspect the configured Skill directory and explain which Kunpeng performance Skill is available. Do not modify files.","workspace":"..","final_contains":["kunpeng-performance-analysis"]}
+

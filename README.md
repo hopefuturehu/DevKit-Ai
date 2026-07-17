@@ -81,6 +81,18 @@ bot session fork '<session-id>'
 bot resume '<session-id>'
 ```
 
+运行可复现的 JSONL 评测集，并保存逐 Case 指标：
+
+```bash
+bot eval run evals/generic.jsonl -o .bot/eval-generic.jsonl
+bot eval run evals/kunpeng.jsonl -o .bot/eval-kunpeng-with-skills.jsonl
+bot eval run evals/kunpeng.jsonl --disable-skills \
+  -o .bot/eval-kunpeng-without-skills.jsonl
+```
+
+Case 可断言最终状态、答案片段、工作区文件、Tool/Skill 轨迹和审批次数；结果记录耗时、
+Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 Skill 的增益。
+
 交互会话中可用 `/status`、`/tools`、`/skills`、`/model`、`/permissions`、
 `/compact`、`/remember`、`/memories`、`/new` 和 `/exit`。Agent 运行期间输入的普通文本会
 作为 steering 在下一个安全边界生效；输入 `/cancel` 可取消当前运行。

@@ -31,6 +31,7 @@ from bot.config import (
 )
 from bot.core.events import JsonlEventSink
 from bot.core.models import RunRequest
+from bot.evals import load_eval_cases, run_eval_case, write_eval_results
 from bot.execution import LocalExecutionTarget
 from bot.providers import ProviderError
 from bot.sessions import SQLiteSessionStore
@@ -57,10 +58,12 @@ skill_app = typer.Typer(help="查看和诊断 Skill。")
 session_app = typer.Typer(help="查看和管理会话。")
 config_app = typer.Typer(help="查看生效配置。")
 model_app = typer.Typer(help="查看或切换模型。")
+eval_app = typer.Typer(help="运行可复现的 Agent 评测任务。")
 app.add_typer(skill_app, name="skill")
 app.add_typer(session_app, name="session")
 app.add_typer(config_app, name="config")
 app.add_typer(model_app, name="model")
+app.add_typer(eval_app, name="eval")
 console = Console()
 DEFAULT_WORKSPACE = Path.cwd()
 
@@ -626,6 +629,58 @@ def model_set(ctx: typer.Context, name: str) -> None:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
     console.print(f"[green]模型已设置为[/green] {name}")
+
+
+@eval_app.command("run")
+def eval_run(
+    ctx: typer.Context,
+    cases_path: Annotated[Path, typer.Argument(help="JSONL Eval case 文件")],
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="结果 JSONL 文件")] = None,
+    disable_skills: Annotated[
+        bool, typer.Option("--disable-skills", help="关闭 Skill，作为对照组")
+    ] = False,
+) -> None:
+    try:
+        cases = load_eval_cases(cases_path.resolve())
+    except (OSError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2) from exc
+
+    async def execute_cases():
+        results = []
+        for case in cases:
+            results.append(
+                await run_eval_case(
+                    case,
+                    base=cases_path.resolve().parent,
+                    config_path=ctx.obj["config_path"],
+                    disable_skills=disable_skills,
+                )
+            )
+        return results
+
+    results = _run(execute_cases())
+    table = Table("Case", "Passed", "Status", "Steps", "Tools", "Skills", "Tokens", "Cost", "Time")
+    for result in results:
+        table.add_row(
+            result.id,
+            "yes" if result.passed else "no",
+            result.status,
+            str(result.steps),
+            ",".join(result.tool_names) or "-",
+            ",".join(result.activated_skills) or "-",
+            f"{result.input_tokens}/{result.output_tokens}",
+            f"${result.cost_usd:.6f}" if result.cost_usd is not None else "-",
+            f"{result.duration_seconds:.2f}s",
+        )
+        for failure in result.failures:
+            console.print(f"[red]{result.id}: {failure}[/red]")
+    console.print(table)
+    if output:
+        write_eval_results(output.resolve(), results)
+        console.print(f"结果已写入 {output.resolve()}")
+    if any(not result.passed for result in results):
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":
