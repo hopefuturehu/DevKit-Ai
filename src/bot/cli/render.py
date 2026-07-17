@@ -4,8 +4,9 @@ import asyncio
 from typing import Any
 
 from rich.console import Console
-from rich.prompt import Confirm
+from rich.prompt import Prompt
 
+from bot.core.approval import ApprovalResponse, ApprovalScope
 from bot.core.events import AgentEvent, EventType
 from bot.policy import PolicyDecision, ToolAction
 
@@ -64,10 +65,20 @@ class InteractiveApprovalHandler:
     def __init__(self, console: Console | None = None) -> None:
         self.console = console or Console()
 
-    async def approve(self, action: ToolAction, decision: PolicyDecision) -> bool:
+    async def approve(self, action: ToolAction, decision: PolicyDecision) -> ApprovalResponse:
         prompt = (
-            f"允许 Tool {action.tool_name} 执行吗？\n"
+            f"批准 Tool {action.tool_name}？\n"
             f"原因：{decision.reason}\n"
-            f"参数：{action.arguments}"
+            f"参数：{action.arguments}\n"
+            "选择 once/session/always/deny"
         )
-        return await asyncio.to_thread(Confirm.ask, prompt, default=False, console=self.console)
+        answer = await asyncio.to_thread(
+            Prompt.ask,
+            prompt,
+            choices=["once", "session", "always", "deny"],
+            default="deny",
+            console=self.console,
+        )
+        if answer == "deny":
+            return ApprovalResponse(approved=False)
+        return ApprovalResponse(approved=True, scope=ApprovalScope(answer))

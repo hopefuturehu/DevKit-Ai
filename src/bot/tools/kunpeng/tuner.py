@@ -15,6 +15,7 @@ class TunerTool(SubprocessCliTool):
         "Tuner 需要鲲鹏 ARM 环境；当前机器不满足时返回手动执行命令。"
     )
     executable = "devkit"
+    required_operating_systems = {"linux"}
     required_architectures = {"aarch64", "arm64"}
     annotations = ToolAnnotations(
         read_only=False,

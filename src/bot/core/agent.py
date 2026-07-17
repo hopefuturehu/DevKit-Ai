@@ -10,8 +10,8 @@ from uuid import uuid4
 import jsonschema
 
 from bot.config.models import AppConfig
-from bot.core.approval import ApprovalHandler, DenyApprovalHandler
-from bot.core.context import ContextAssembler
+from bot.core.approval import ApprovalHandler, ApprovalScope, DenyApprovalHandler
+from bot.core.context import ContextAssembler, compact_messages
 from bot.core.events import EventBus, EventType
 from bot.core.models import (
     ChatMessage,
@@ -23,6 +23,7 @@ from bot.core.models import (
     ToolCall,
 )
 from bot.execution import ExecutionTarget
+from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
 from bot.providers import ModelProvider, ProviderError
 from bot.sessions import SQLiteSessionStore
@@ -53,6 +54,7 @@ class AgentRunner:
         store: SQLiteSessionStore,
         event_bus: EventBus,
         approval_handler: ApprovalHandler | None = None,
+        redactor: Redactor | None = None,
     ) -> None:
         self.config = config
         self.workspace = workspace.resolve()
@@ -65,6 +67,12 @@ class AgentRunner:
         self.store = store
         self.event_bus = event_bus
         self.approval_handler = approval_handler or DenyApprovalHandler()
+        self.redactor = redactor or Redactor()
+        self._session_approvals: set[tuple[str, str]] = set()
+        self._force_compact_sessions: set[str] = set()
+
+    def request_compaction(self, session_id: str) -> None:
+        self._force_compact_sessions.add(session_id)
 
     async def run(self, request: RunRequest) -> RunResult:
         session_id = request.session_id or self.store.create_session(self.workspace)
@@ -102,6 +110,15 @@ class AgentRunner:
     async def _run_loop(self, request: RunRequest, *, session_id: str, run_id: str) -> RunResult:
         environment = await self.execution_target.probe(["ksys", "tuner"])
         messages = self.context.system_messages(environment)
+        memories = self.store.list_memories()
+        if memories:
+            memory_text = "\n".join(f"- [{item['id']}] {item['content']}" for item in memories)
+            messages.append(
+                ChatMessage(
+                    role=Role.SYSTEM,
+                    content=f"用户显式确认的长期记忆：\n{memory_text}",
+                )
+            )
         history = self.store.load_messages(session_id)
         messages.extend(history)
 
@@ -131,7 +148,9 @@ class AgentRunner:
                 messages.append(skill_message)
                 self.store.append_message(session_id, run_id, skill_message)
 
-        user_message = ChatMessage(role=Role.USER, content=request.prompt)
+        user_message = self.redactor.redact_message(
+            ChatMessage(role=Role.USER, content=request.prompt)
+        )
         messages.append(user_message)
         self.store.append_message(session_id, run_id, user_message)
 
@@ -144,6 +163,40 @@ class AgentRunner:
             request_tools = self.tool_registry.definitions()
             if self.config.skills.auto_activate and self.skills.catalog.skills:
                 request_tools.append(self.skills.catalog.activation_tool_definition())
+            for active_name in self.skills.active:
+                marker = f"已激活 Skill: {active_name}\n"
+                if any(
+                    message.role == Role.SYSTEM and (message.content or "").startswith(marker)
+                    for message in messages
+                ):
+                    continue
+                active_skill = self.skills.catalog.get(active_name)
+                if active_skill:
+                    messages.append(
+                        ChatMessage(
+                            role=Role.SYSTEM,
+                            content=self.skills.render(active_skill),
+                        )
+                    )
+            tool_schema_chars = sum(
+                len(json.dumps(tool.model_dump(mode="json"), ensure_ascii=False))
+                for tool in request_tools
+            )
+            force_compact = session_id in self._force_compact_sessions
+            messages, compacted = compact_messages(
+                messages,
+                max_tokens=self.config.context.max_input_tokens,
+                threshold=0 if force_compact else self.config.context.auto_compact_threshold,
+                tool_schema_chars=tool_schema_chars,
+            )
+            self._force_compact_sessions.discard(session_id)
+            if compacted:
+                await self.event_bus.emit(
+                    EventType.CONTEXT_COMPACTED,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload=compacted,
+                )
             model_request = ModelRequest(
                 model=self.config.model.name,
                 messages=messages,
@@ -180,10 +233,12 @@ class AgentRunner:
 
             assistant_text = "".join(text_parts)
             tool_calls = [self._parse_tool_call(buffer) for buffer in call_buffers.values()]
-            assistant_message = ChatMessage(
-                role=Role.ASSISTANT,
-                content=assistant_text or None,
-                tool_calls=tool_calls,
+            assistant_message = self.redactor.redact_message(
+                ChatMessage(
+                    role=Role.ASSISTANT,
+                    content=assistant_text or None,
+                    tool_calls=tool_calls,
+                )
             )
             messages.append(assistant_message)
             self.store.append_message(session_id, run_id, assistant_message)
@@ -309,30 +364,54 @@ class AgentRunner:
         if decision.kind == PolicyDecisionKind.DENY:
             return ToolResult(success=False, error=f"策略拒绝: {decision.reason}")
         if decision.kind == PolicyDecisionKind.ASK:
-            await self.event_bus.emit(
-                EventType.APPROVAL_REQUESTED,
-                session_id=session_id,
-                run_id=run_id,
-                payload={
-                    "tool_call_id": tool_call.id,
-                    "name": tool.name,
-                    "arguments": tool_call.arguments,
-                    "reason": decision.reason,
-                },
-            )
-            approved = await self.approval_handler.approve(action, decision)
+            fingerprint = self._fingerprint(tool_call)
+            session_preapproved = (session_id, fingerprint) in self._session_approvals
+            always_preapproved = self.store.has_approval_rule(fingerprint)
+            preapproved = session_preapproved or always_preapproved
+            if preapproved:
+                approved = True
+                scope = ApprovalScope.ALWAYS if always_preapproved else ApprovalScope.SESSION
+            else:
+                await self.event_bus.emit(
+                    EventType.APPROVAL_REQUESTED,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={
+                        "tool_call_id": tool_call.id,
+                        "name": tool.name,
+                        "arguments": tool_call.arguments,
+                        "reason": decision.reason,
+                    },
+                )
+                response = await self.approval_handler.approve(action, decision)
+                approved = response.approved
+                scope = response.scope
+                if approved and scope == ApprovalScope.SESSION:
+                    self._session_approvals.add((session_id, fingerprint))
+                elif approved and scope == ApprovalScope.ALWAYS:
+                    self.store.save_approval_rule(
+                        tool_name=tool.name,
+                        action_fingerprint=fingerprint,
+                        arguments=tool_call.arguments,
+                    )
             self.store.record_approval(
                 session_id=session_id,
                 run_id=run_id,
                 tool_call_id=tool_call.id,
                 decision="allow" if approved else "deny",
+                scope=scope.value,
                 reason=decision.reason,
             )
             await self.event_bus.emit(
                 EventType.APPROVAL_RESOLVED,
                 session_id=session_id,
                 run_id=run_id,
-                payload={"tool_call_id": tool_call.id, "approved": approved},
+                payload={
+                    "tool_call_id": tool_call.id,
+                    "approved": approved,
+                    "scope": scope.value,
+                    "preapproved": preapproved,
+                },
             )
             if not approved:
                 return ToolResult(success=False, error="用户未批准该操作")
@@ -361,6 +440,7 @@ class AgentRunner:
             result = await tool.execute(context, tool_call.arguments)
         except Exception as exc:
             result = ToolResult(success=False, error=f"Tool 未处理异常: {exc}")
+        result = self.redactor.redact_tool_result(result)
         await self.event_bus.emit(
             EventType.TOOL_COMPLETED,
             session_id=session_id,

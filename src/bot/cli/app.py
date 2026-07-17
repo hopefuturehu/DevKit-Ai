@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
+import shlex
+import subprocess
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -14,7 +18,15 @@ from typer.core import TyperGroup
 from bot import __version__
 from bot.cli.render import InteractiveApprovalHandler, RichEventSink
 from bot.cli.runtime import build_runtime
-from bot.config import ConfigError, load_config, resolve_api_key
+from bot.config import (
+    ConfigError,
+    config_target,
+    get_config_value,
+    load_config,
+    parse_config_value,
+    resolve_api_key,
+    set_config_value,
+)
 from bot.core.events import JsonlEventSink
 from bot.core.models import RunRequest
 from bot.execution import LocalExecutionTarget
@@ -42,9 +54,11 @@ app = typer.Typer(
 skill_app = typer.Typer(help="查看和诊断 Skill。")
 session_app = typer.Typer(help="查看和管理会话。")
 config_app = typer.Typer(help="查看生效配置。")
+model_app = typer.Typer(help="查看或切换模型。")
 app.add_typer(skill_app, name="skill")
 app.add_typer(session_app, name="session")
 app.add_typer(config_app, name="config")
+app.add_typer(model_app, name="model")
 console = Console()
 DEFAULT_WORKSPACE = Path.cwd()
 
@@ -167,6 +181,34 @@ def _interactive_loop(runtime, session_id: str) -> None:
         if prompt == "/tools":
             console.print("\n".join(runtime.tools.names()))
             continue
+        if prompt == "/model":
+            console.print(f"{runtime.config.model.name} @ {runtime.config.model.base_url}")
+            continue
+        if prompt.startswith("/model "):
+            runtime.config.model.name = prompt.removeprefix("/model ").strip()
+            console.print(f"本会话模型已切换为 {runtime.config.model.name}")
+            continue
+        if prompt == "/permissions":
+            console.print(
+                {
+                    "mode": runtime.config.permissions.mode,
+                    "workspace_only": runtime.config.permissions.workspace_only,
+                    "network": runtime.config.permissions.network,
+                }
+            )
+            continue
+        if prompt.startswith("/permissions "):
+            mode = prompt.removeprefix("/permissions ").strip()
+            if mode not in {"safe", "read-only", "full-access"}:
+                console.print("[red]权限模式必须是 safe/read-only/full-access。[/red]")
+                continue
+            runtime.config.permissions.mode = mode
+            console.print(f"本会话权限模式已切换为 {mode}")
+            continue
+        if prompt == "/compact":
+            runtime.runner.request_compaction(session_id)
+            console.print("将在下一次模型请求前压缩旧上下文。")
+            continue
         if prompt == "/skills":
             _print_skills(runtime.catalog, active=set(runtime.skills.active))
             continue
@@ -178,7 +220,30 @@ def _interactive_loop(runtime, session_id: str) -> None:
             )
             continue
         if prompt in {"/help", "?"}:
-            console.print("/status /tools /skills /skills reload /new /exit")
+            console.print(
+                "/status /tools /skills /skills reload /remember <text> "
+                "/memories /forget <id> /model /permissions /compact /new /exit"
+            )
+            continue
+        if prompt.startswith("/remember "):
+            memory_id = runtime.store.add_memory(prompt.removeprefix("/remember "))
+            console.print(f"已保存显式记忆 [{memory_id}]")
+            continue
+        if prompt == "/memories":
+            memories = runtime.store.list_memories()
+            if not memories:
+                console.print("暂无长期记忆。")
+            for item in memories:
+                console.print(f"[{item['id']}] {item['content']} [dim]({item['source']})[/dim]")
+            continue
+        if prompt.startswith("/forget "):
+            try:
+                memory_id = int(prompt.removeprefix("/forget ").strip())
+            except ValueError:
+                console.print("[red]记忆 ID 必须是整数。[/red]")
+                continue
+            deleted = runtime.store.delete_memory(memory_id)
+            console.print("已删除。" if deleted else "未找到该记忆。")
             continue
         if prompt == "/new":
             session_id = runtime.store.create_session(runtime.workspace)
@@ -210,7 +275,12 @@ def run_command(
 ) -> None:
     workspace = ctx.obj["workspace"]
     config_path = ctx.obj["config_path"]
-    runtime = _runtime(workspace, config_path, json_output=json_output, interactive=not json_output)
+    runtime = _runtime(
+        workspace,
+        config_path,
+        json_output=json_output,
+        interactive=sys.stdin.isatty() and not json_output,
+    )
     try:
         clean_prompt, explicit_skills = _parse_prompt(prompt)
         result = _run(
@@ -298,9 +368,9 @@ def doctor_command(ctx: typer.Context) -> None:
         if diagnostic.level == "error":
             errors += 1
     try:
-        store = SQLiteSessionStore(config.state_path())
+        store = SQLiteSessionStore(config.state_path(workspace))
         store.close()
-        console.print(f"[green]✓[/green] 状态库可写: {config.state_path()}")
+        console.print(f"[green]✓[/green] 状态库可写: {config.state_path(workspace)}")
     except OSError as exc:
         errors += 1
         console.print(f"[red]✗[/red] 状态库不可写: {exc}")
@@ -374,7 +444,7 @@ def _print_skills(catalog: SkillCatalog, active: set[str] | None = None) -> None
 def session_list(ctx: typer.Context) -> None:
     workspace = ctx.obj["workspace"].resolve()
     config = load_config(workspace, config_path=ctx.obj["config_path"])
-    store = SQLiteSessionStore(config.state_path())
+    store = SQLiteSessionStore(config.state_path(workspace))
     try:
         table = Table("Session", "Workspace", "Updated")
         for item in store.list_sessions():
@@ -384,13 +454,115 @@ def session_list(ctx: typer.Context) -> None:
         store.close()
 
 
+@session_app.command("show")
+def session_show(ctx: typer.Context, session_id: str) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    store = SQLiteSessionStore(config.state_path(workspace))
+    try:
+        session = store.get_session(session_id)
+        if not session:
+            console.print(f"[red]会话不存在：{session_id}[/red]")
+            raise typer.Exit(1)
+        console.print(session)
+        for position, message in enumerate(store.load_messages(session_id), 1):
+            label = message.name or message.role.value
+            console.print(f"[bold]{position}. {label}[/bold] {message.content or ''}")
+    finally:
+        store.close()
+
+
+@session_app.command("fork")
+def session_fork(
+    ctx: typer.Context,
+    session_id: str,
+    up_to_position: Annotated[int | None, typer.Option("--at", help="只复制到指定消息位置")] = None,
+) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    store = SQLiteSessionStore(config.state_path(workspace))
+    try:
+        try:
+            new_session = store.fork_session(session_id, up_to_position=up_to_position)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(1) from exc
+        console.print(new_session)
+    finally:
+        store.close()
+
+
 @config_app.command("get")
-def config_get(ctx: typer.Context) -> None:
+def config_get(
+    ctx: typer.Context,
+    key: Annotated[str | None, typer.Argument(help="可选的 section.key")] = None,
+) -> None:
     workspace = ctx.obj["workspace"].resolve()
     config = load_config(workspace, config_path=ctx.obj["config_path"])
     data = config.model_dump(mode="json")
     data["model"]["api_key_ref"] = config.model.api_key_ref
-    console.print_json(json.dumps(data, ensure_ascii=False))
+    try:
+        value = get_config_value(data, key) if key else data
+    except ConfigError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print_json(json.dumps(value, ensure_ascii=False))
+
+
+@config_app.command("set")
+def config_set(ctx: typer.Context, key: str, value: str) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    target = config_target(workspace, ctx.obj["config_path"])
+    try:
+        set_config_value(target, key, parse_config_value(value))
+    except ConfigError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]已更新[/green] {target}: {key}")
+
+
+@config_app.command("edit")
+def config_edit(ctx: typer.Context) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    target = config_target(workspace, ctx.obj["config_path"])
+    if not target.exists():
+        console.print("[yellow]配置不存在，请先运行 bot init。[/yellow]")
+        raise typer.Exit(1)
+    editor = os.environ.get("EDITOR")
+    if not editor:
+        console.print("[red]环境变量 EDITOR 未设置。[/red]")
+        raise typer.Exit(1)
+    before = target.read_bytes()
+    completed = subprocess.run([*shlex.split(editor), str(target)], check=False)
+    if completed.returncode != 0:
+        console.print(f"[red]编辑器退出码 {completed.returncode}[/red]")
+        raise typer.Exit(completed.returncode)
+    try:
+        load_config(workspace, config_path=target)
+    except ConfigError as exc:
+        target.write_bytes(before)
+        console.print(f"[red]配置无效，已恢复编辑前内容：{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]配置有效[/green] {target}")
+
+
+@model_app.command("list")
+def model_list(ctx: typer.Context) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    console.print(f"* {config.model.name or '<unset>'} @ {config.model.base_url or '<unset>'}")
+
+
+@model_app.command("set")
+def model_set(ctx: typer.Context, name: str) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    target = config_target(workspace, ctx.obj["config_path"])
+    try:
+        set_config_value(target, "model.name", name)
+    except ConfigError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]模型已设置为[/green] {name}")
 
 
 if __name__ == "__main__":

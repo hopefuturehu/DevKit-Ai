@@ -32,7 +32,7 @@ class ChatMessage(BaseModel):
 
     def to_openai(self) -> dict[str, Any]:
         message: dict[str, Any] = {"role": self.role.value, "content": self.content}
-        if self.name:
+        if self.name and self.role != Role.TOOL:
             message["name"] = self.name
         if self.tool_call_id:
             message["tool_call_id"] = self.tool_call_id

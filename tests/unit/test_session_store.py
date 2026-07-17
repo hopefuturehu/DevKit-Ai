@@ -26,4 +26,20 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
 
     assert store.latest_session(tmp_path) == session_id
     assert store.load_messages(session_id)[0].content == "hello"
+    memory_id = store.add_memory("use pnpm")
+    assert store.list_memories()[0]["id"] == memory_id
+    assert store.delete_memory(memory_id)
+    assert store.list_memories() == []
+
+    fingerprint = "abc"
+    store.save_approval_rule(
+        tool_name="run_command",
+        action_fingerprint=fingerprint,
+        arguments={"argv": ["make", "test"]},
+    )
+    assert store.has_approval_rule(fingerprint)
+
+    forked = store.fork_session(session_id)
+    assert store.get_session(forked)["parent_session_id"] == session_id
+    assert store.load_messages(forked)[0].content == "hello"
     store.close()

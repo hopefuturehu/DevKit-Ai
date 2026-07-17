@@ -67,5 +67,6 @@ class AppConfig(StrictModel):
         path = Path(self.skills.path).expanduser()
         return path if path.is_absolute() else (workspace / path).resolve()
 
-    def state_path(self) -> Path:
-        return Path(self.storage.state_path).expanduser().resolve()
+    def state_path(self, workspace: Path) -> Path:
+        path = Path(self.storage.state_path).expanduser()
+        return path.resolve() if path.is_absolute() else (workspace / path).resolve()

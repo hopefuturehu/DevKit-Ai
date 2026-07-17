@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from bot.config import ConfigError, load_config, resolve_api_key
+from bot.config import (
+    ConfigError,
+    load_config,
+    resolve_api_key,
+    set_config_value,
+)
 
 
 def test_config_precedence_and_relative_skill_path(tmp_path: Path, monkeypatch) -> None:
@@ -41,3 +46,15 @@ def test_api_key_must_be_an_environment_reference(monkeypatch) -> None:
     assert resolve_api_key("env:TEST_BOT_KEY") == "secret"
     with pytest.raises(ConfigError, match="不允许在配置中保存明文"):
         resolve_api_key("secret")
+
+
+def test_config_writer_is_atomic_and_validates_values(tmp_path: Path) -> None:
+    path = tmp_path / ".bot" / "config.toml"
+    set_config_value(path, "model.name", "model-a")
+    set_config_value(path, "permissions.workspace_only", False)
+
+    config = load_config(tmp_path, config_path=path)
+    assert config.model.name == "model-a"
+    assert config.permissions.workspace_only is False
+    with pytest.raises(ConfigError, match="不允许把明文"):
+        set_config_value(path, "model.api_key", "secret")

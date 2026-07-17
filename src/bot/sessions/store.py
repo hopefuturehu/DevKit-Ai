@@ -11,14 +11,15 @@ from uuid import uuid4
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class SQLiteSessionStore(EventSink):
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, sanitizer=None) -> None:
         self.path = path.expanduser().resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = Lock()
+        self._sanitizer = sanitizer or (lambda value: value)
         self._connection = sqlite3.connect(self.path, check_same_thread=False)
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA journal_mode=WAL")
@@ -96,7 +97,15 @@ class SQLiteSessionStore(EventSink):
                     run_id TEXT NOT NULL,
                     tool_call_id TEXT NOT NULL,
                     decision TEXT NOT NULL,
+                    scope TEXT NOT NULL DEFAULT 'once',
                     reason TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS approval_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tool_name TEXT NOT NULL,
+                    action_fingerprint TEXT NOT NULL UNIQUE,
+                    arguments_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS memories (
@@ -108,6 +117,13 @@ class SQLiteSessionStore(EventSink):
                 );
                 """
             )
+            approval_columns = {
+                row[1] for row in self._connection.execute("PRAGMA table_info(approvals)")
+            }
+            if "scope" not in approval_columns:
+                self._connection.execute(
+                    "ALTER TABLE approvals ADD COLUMN scope TEXT NOT NULL DEFAULT 'once'"
+                )
             self._connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                 (SCHEMA_VERSION, datetime.now(UTC).isoformat()),
@@ -166,6 +182,73 @@ class SQLiteSessionStore(EventSink):
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT id, workspace, parent_session_id, created_at, updated_at
+                FROM sessions WHERE id = ?
+                """,
+                (session_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def fork_session(self, session_id: str, *, up_to_position: int | None = None) -> str:
+        source = self.get_session(session_id)
+        if source is None:
+            raise ValueError(f"会话不存在: {session_id}")
+        new_session_id = self.create_session(
+            Path(source["workspace"]), parent_session_id=session_id
+        )
+        query = (
+            "SELECT position, role, content, message_json, created_at "
+            "FROM messages WHERE session_id = ?"
+        )
+        arguments: list[Any] = [session_id]
+        if up_to_position is not None:
+            query += " AND position <= ?"
+            arguments.append(up_to_position)
+        query += " ORDER BY position"
+        with self._lock, self._connection:
+            rows = self._connection.execute(query, tuple(arguments)).fetchall()
+            self._connection.executemany(
+                """
+                INSERT INTO messages(
+                    session_id, run_id, position, role, content, message_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        new_session_id,
+                        f"fork:{session_id}",
+                        row["position"],
+                        row["role"],
+                        row["content"],
+                        row["message_json"],
+                        row["created_at"],
+                    )
+                    for row in rows
+                ],
+            )
+        return new_session_id
+
+    def list_events(self, session_id: str, limit: int = 200) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT id, run_id, sequence, type, timestamp, payload_json
+                FROM events WHERE session_id = ?
+                ORDER BY timestamp DESC, sequence DESC LIMIT ?
+                """,
+                (session_id, limit),
+            ).fetchall()
+        events: list[dict[str, Any]] = []
+        for row in reversed(rows):
+            item = dict(row)
+            item["payload"] = json.loads(item.pop("payload_json"))
+            events.append(item)
+        return events
+
     def start_run(self, session_id: str, run_id: str) -> None:
         now = datetime.now(UTC).isoformat()
         with self._lock, self._connection:
@@ -185,7 +268,7 @@ class SQLiteSessionStore(EventSink):
             )
 
     async def publish(self, event: AgentEvent) -> None:
-        payload = json.dumps(event.payload, ensure_ascii=False)
+        payload = json.dumps(self._sanitizer(event.payload), ensure_ascii=False)
         with self._lock, self._connection:
             self._connection.execute(
                 """
@@ -208,6 +291,7 @@ class SQLiteSessionStore(EventSink):
             )
 
     def append_message(self, session_id: str, run_id: str, message: ChatMessage) -> None:
+        message = ChatMessage.model_validate(self._sanitizer(message.model_dump(mode="python")))
         with self._lock, self._connection:
             position = self._connection.execute(
                 "SELECT COALESCE(MAX(position), 0) + 1 FROM messages WHERE session_id = ?",
@@ -250,6 +334,28 @@ class SQLiteSessionStore(EventSink):
         result: dict[str, Any] | None = None,
     ) -> None:
         with self._lock, self._connection:
+            existing = self._connection.execute(
+                """
+                SELECT id FROM tool_runs
+                WHERE session_id = ? AND run_id = ? AND tool_call_id = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (session_id, run_id, tool_call_id),
+            ).fetchone()
+            if existing:
+                self._connection.execute(
+                    """
+                    UPDATE tool_runs SET status = ?, result_json = ? WHERE id = ?
+                    """,
+                    (
+                        status,
+                        json.dumps(self._sanitizer(result), ensure_ascii=False)
+                        if result is not None
+                        else None,
+                        existing["id"],
+                    ),
+                )
+                return
             self._connection.execute(
                 """
                 INSERT INTO tool_runs(
@@ -262,9 +368,11 @@ class SQLiteSessionStore(EventSink):
                     run_id,
                     tool_call_id,
                     tool_name,
-                    json.dumps(arguments, ensure_ascii=False),
+                    json.dumps(self._sanitizer(arguments), ensure_ascii=False),
                     status,
-                    json.dumps(result, ensure_ascii=False) if result is not None else None,
+                    json.dumps(self._sanitizer(result), ensure_ascii=False)
+                    if result is not None
+                    else None,
                     datetime.now(UTC).isoformat(),
                 ),
             )
@@ -276,21 +384,85 @@ class SQLiteSessionStore(EventSink):
         run_id: str,
         tool_call_id: str,
         decision: str,
+        scope: str,
         reason: str,
     ) -> None:
         with self._lock, self._connection:
             self._connection.execute(
                 """
                 INSERT INTO approvals(
-                    session_id, run_id, tool_call_id, decision, reason, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    session_id, run_id, tool_call_id, decision, scope, reason, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     session_id,
                     run_id,
                     tool_call_id,
                     decision,
+                    scope,
                     reason,
                     datetime.now(UTC).isoformat(),
                 ),
             )
+
+    def save_approval_rule(
+        self,
+        *,
+        tool_name: str,
+        action_fingerprint: str,
+        arguments: dict[str, Any],
+    ) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT OR REPLACE INTO approval_rules(
+                    tool_name, action_fingerprint, arguments_json, created_at
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    tool_name,
+                    action_fingerprint,
+                    json.dumps(self._sanitizer(arguments), ensure_ascii=False, sort_keys=True),
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+
+    def has_approval_rule(self, action_fingerprint: str) -> bool:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT 1 FROM approval_rules WHERE action_fingerprint = ?",
+                (action_fingerprint,),
+            ).fetchone()
+        return row is not None
+
+    def add_memory(self, content: str, *, source: str = "user") -> int:
+        content = self._sanitizer(content.strip())
+        if not content:
+            raise ValueError("记忆内容不能为空")
+        with self._lock, self._connection:
+            cursor = self._connection.execute(
+                "INSERT INTO memories(content, source, created_at) VALUES (?, ?, ?)",
+                (content, source, datetime.now(UTC).isoformat()),
+            )
+        return int(cursor.lastrowid)
+
+    def list_memories(self) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT id, content, source, created_at
+                FROM memories WHERE deleted_at IS NULL ORDER BY id
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def delete_memory(self, memory_id: int) -> bool:
+        with self._lock, self._connection:
+            cursor = self._connection.execute(
+                """
+                UPDATE memories SET deleted_at = ?
+                WHERE id = ? AND deleted_at IS NULL
+                """,
+                (datetime.now(UTC).isoformat(), memory_id),
+            )
+        return cursor.rowcount > 0

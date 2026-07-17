@@ -3,7 +3,13 @@ from pathlib import Path
 import pytest
 
 from bot.config.models import PermissionsConfig
-from bot.execution import LocalExecutionTarget, ProcessEventKind, ProcessSpec
+from bot.execution import (
+    EnvironmentCapabilities,
+    ExecutionTarget,
+    LocalExecutionTarget,
+    ProcessEventKind,
+    ProcessSpec,
+)
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
 from bot.tools import ToolContext
 from bot.tools.builtins import ApplyPatchTool, ReadFileTool
@@ -63,6 +69,12 @@ def test_policy_requires_approval_for_unknown_command_and_denies_escape(tmp_path
 
     assert policy.evaluate(command).kind == PolicyDecisionKind.ASK
     assert policy.evaluate(escape).kind == PolicyDecisionKind.DENY
+    sensitive = ToolAction(
+        tool_name="read_file",
+        arguments={"path": ".env.local"},
+        annotations=ReadFileTool.annotations,
+    )
+    assert policy.evaluate(sensitive).kind == PolicyDecisionKind.DENY
 
 
 def test_ksys_and_tuner_build_structured_argv(tmp_path: Path) -> None:
@@ -94,3 +106,29 @@ def test_ksys_and_tuner_build_structured_argv(tmp_path: Path) -> None:
     assert ksys[:3] == ["ksys", "diff", "-i"]
     assert ksys[-4:] == ["-o", str(tmp_path / "reports"), "-l", "2"]
     assert tuner == ["devkit", "tuner", "top-down", "-d", "10", "-p", "123", "-L", "2"]
+
+
+class X86LinuxTarget(ExecutionTarget):
+    async def probe(self, executables=None) -> EnvironmentCapabilities:
+        return EnvironmentCapabilities(
+            operating_system="linux",
+            architecture="x86_64",
+            executables={name: f"/usr/bin/{name}" for name in executables or []},
+        )
+
+    def execute(self, spec):
+        raise AssertionError("unsupported architecture must not execute")
+
+
+@pytest.mark.asyncio
+async def test_tuner_returns_arm_manual_command_when_target_is_x86(tmp_path: Path) -> None:
+    context = ToolContext(workspace=tmp_path, execution_target=X86LinuxTarget())
+
+    result = await TunerTool().execute(
+        context,
+        {"task": "top-down", "duration": 10, "pid": "123"},
+    )
+
+    assert not result.success
+    assert result.metadata["manual_command"] == "devkit tuner top-down -d 10 -p 123"
+    assert "鲲鹏 ARM 主机" in result.model_content()

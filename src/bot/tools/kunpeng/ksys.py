@@ -15,6 +15,7 @@ class KsysTool(SubprocessCliTool):
         "若当前机器未安装 KSYS，会返回可在目标机器手动运行的命令。"
     )
     executable = "ksys"
+    required_operating_systems = {"linux"}
     annotations = ToolAnnotations(
         read_only=False,
         destructive=False,
@@ -83,6 +84,8 @@ class KsysTool(SubprocessCliTool):
             argv.extend(["-d", str(duration)])
         interval = arguments.get("interval")
         if interval is not None:
+            if operation not in {"collect", "stability-check"}:
+                raise ValueError(f"interval 不适用于 KSYS {operation}")
             argv.extend(["-i", str(int(interval))])
         if arguments.get("pid") is not None:
             if operation != "collect":

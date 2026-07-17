@@ -49,9 +49,14 @@ class EventSink(Protocol):
 
 
 class EventBus:
-    def __init__(self, sinks: list[EventSink] | None = None) -> None:
+    def __init__(
+        self,
+        sinks: list[EventSink] | None = None,
+        transform: Callable[[AgentEvent], AgentEvent] | None = None,
+    ) -> None:
         self._sinks = list(sinks or [])
         self._sequence = 0
+        self._transform = transform
 
     def add_sink(self, sink: EventSink) -> None:
         self._sinks.append(sink)
@@ -72,6 +77,8 @@ class EventBus:
             sequence=self._sequence,
             payload=payload or {},
         )
+        if self._transform:
+            event = self._transform(event)
         for sink in self._sinks:
             await sink.publish(event)
         return event

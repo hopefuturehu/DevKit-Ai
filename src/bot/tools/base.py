@@ -43,7 +43,10 @@ class ToolResult(BaseModel):
     def model_content(self) -> str:
         if self.success:
             return self.output or "操作成功，无输出。"
-        return f"工具执行失败: {self.error or self.output or '未知错误'}"
+        message = f"工具执行失败: {self.error or '未知错误'}"
+        if self.output:
+            message += f"\n\n{self.output}"
+        return message
 
 
 class Tool(ABC):

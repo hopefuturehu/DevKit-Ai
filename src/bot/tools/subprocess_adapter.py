@@ -11,6 +11,7 @@ from bot.tools.base import Tool, ToolContext, ToolResult
 class SubprocessCliTool(Tool):
     executable: str
     required_architectures: set[str] | None = None
+    required_operating_systems: set[str] | None = None
 
     @abstractmethod
     def build_argv(self, context: ToolContext, arguments: dict[str, Any]) -> list[str]:
@@ -21,6 +22,21 @@ class SubprocessCliTool(Tool):
             argv = self.build_argv(context, arguments)
             environment = await context.execution_target.probe([self.executable])
             architecture = environment.architecture.lower()
+            operating_system = environment.operating_system.lower()
+            if (
+                self.required_operating_systems
+                and operating_system not in self.required_operating_systems
+            ):
+                command = shlex.join(argv)
+                return ToolResult(
+                    success=False,
+                    output=(
+                        "当前操作系统不满足该工具要求，未执行命令。请在鲲鹏 Linux 主机上运行：\n"
+                        f"{command}\n\n完成后将原始输出粘贴回当前会话。"
+                    ),
+                    error=f"当前操作系统 {operating_system} 不受支持",
+                    metadata={"manual_command": command, "operating_system": operating_system},
+                )
             if self.required_architectures and architecture not in self.required_architectures:
                 command = shlex.join(argv)
                 return ToolResult(

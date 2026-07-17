@@ -111,18 +111,18 @@ class DefaultPolicyEngine:
         return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="符合当前安全策略")
 
     def _check_paths(self, arguments: dict[str, Any]) -> PolicyDecision | None:
-        for key in ("path", "cwd", "output_path"):
-            value = arguments.get(key)
-            if not isinstance(value, str) or not value:
-                continue
+        for value in self._iter_path_values(arguments):
             raw = Path(value).expanduser()
             candidate = raw if raw.is_absolute() else self.workspace / raw
             resolved = candidate.resolve(strict=False)
             lowered = resolved.as_posix().lower()
-            if any(
-                lowered.endswith(f"/{name}") or f"/{name}/" in lowered
+            path_parts = {part.lower() for part in resolved.parts}
+            sensitive = any(
+                name in path_parts if "/" not in name else f"/{name}/" in f"/{lowered}/"
                 for name in self._sensitive_names
-            ):
+            )
+            sensitive = sensitive or resolved.name.lower().startswith(".env")
+            if sensitive:
                 return PolicyDecision(
                     kind=PolicyDecisionKind.DENY,
                     reason=f"拒绝访问敏感路径: {value}",
@@ -136,6 +136,17 @@ class DefaultPolicyEngine:
                         reason=f"路径超出工作区: {value}",
                     )
         return None
+
+    @staticmethod
+    def _iter_path_values(arguments: dict[str, Any]):
+        for key, value in arguments.items():
+            path_key = key == "cwd" or key.endswith("path") or key.endswith("paths")
+            if not path_key:
+                continue
+            if isinstance(value, str) and value:
+                yield value
+            elif isinstance(value, list):
+                yield from (item for item in value if isinstance(item, str) and item)
 
     def _evaluate_command(self, arguments: dict[str, Any]) -> PolicyDecision:
         argv = arguments.get("argv")
