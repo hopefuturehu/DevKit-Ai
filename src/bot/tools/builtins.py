@@ -85,10 +85,13 @@ class SearchTextTool(Tool):
                 if not fnmatch.fnmatch(path.name, glob_pattern):
                     continue
                 try:
-                    if path.stat().st_size > 5_000_000:
+                    resolved_path = path.resolve(strict=True)
+                    resolved_path.relative_to(context.workspace.resolve())
+                    if resolved_path.stat().st_size > 5_000_000:
                         continue
                     for line_number, line in enumerate(
-                        path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+                        resolved_path.read_text(encoding="utf-8", errors="replace").splitlines(),
+                        1,
                     ):
                         matched = pattern.search(line) if pattern else query in line
                         if matched:
@@ -101,7 +104,7 @@ class SearchTextTool(Tool):
                                     truncated=True,
                                     metadata={"result_count": len(results)},
                                 )
-                except (OSError, UnicodeError):
+                except (OSError, UnicodeError, ValueError):
                     continue
             return ToolResult(
                 success=True,

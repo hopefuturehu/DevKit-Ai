@@ -17,6 +17,7 @@ from bot.tools.builtins import (
     ReadFileTool,
     RunCommandTool,
     RunShellTool,
+    SearchTextTool,
 )
 from bot.tools.kunpeng import KsysTool, TunerTool
 
@@ -82,6 +83,25 @@ async def test_file_tools_enforce_workspace_and_exact_patch(tmp_path: Path) -> N
     assert "超出工作区" in (escaped.error or "")
 
 
+@pytest.mark.asyncio
+async def test_search_skips_symlinked_files_outside_workspace(tmp_path: Path) -> None:
+    outside = tmp_path.parent / f"{tmp_path.name}-outside.txt"
+    outside.write_text("external-secret-marker", encoding="utf-8")
+    (tmp_path / "outside-link.txt").symlink_to(outside)
+    context = ToolContext(
+        workspace=tmp_path,
+        execution_target=LocalExecutionTarget(),
+        workspace_only=True,
+    )
+
+    result = await SearchTextTool().execute(
+        context, {"query": "external-secret-marker", "path": "."}
+    )
+
+    assert result.success
+    assert "external-secret-marker" not in result.output
+
+
 def test_policy_requires_approval_for_unknown_command_and_denies_escape(tmp_path: Path) -> None:
     policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
     command = ToolAction(
@@ -126,6 +146,18 @@ def test_policy_separately_evaluates_shell_segments(tmp_path: Path) -> None:
     assert policy.evaluate(safe_pipeline).kind == PolicyDecisionKind.ALLOW
     assert policy.evaluate(redirection).kind == PolicyDecisionKind.ASK
     assert policy.evaluate(bypass).kind == PolicyDecisionKind.DENY
+    find_delete = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["find", ".", "-delete"]},
+        annotations=RunCommandTool.annotations,
+    )
+    workload = ToolAction(
+        tool_name="tuner",
+        arguments={"task": "top-down", "workload": ["./app"]},
+        annotations=TunerTool.annotations,
+    )
+    assert policy.evaluate(find_delete).kind == PolicyDecisionKind.ASK
+    assert policy.evaluate(workload).kind == PolicyDecisionKind.ASK
 
 
 def test_ksys_and_tuner_build_structured_argv(tmp_path: Path) -> None:

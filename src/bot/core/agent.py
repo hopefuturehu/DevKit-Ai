@@ -291,7 +291,12 @@ class AgentRunner:
                 raise
 
             assistant_text = "".join(text_parts)
-            tool_calls = [self._parse_tool_call(buffer) for buffer in call_buffers.values()]
+            tool_calls = [
+                ToolCall.model_validate(
+                    self.redactor.redact(self._parse_tool_call(buffer).model_dump(mode="python"))
+                )
+                for buffer in call_buffers.values()
+            ]
             assistant_message = self.redactor.redact_message(
                 ChatMessage(
                     role=Role.ASSISTANT,

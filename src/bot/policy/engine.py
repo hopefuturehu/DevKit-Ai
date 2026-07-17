@@ -70,6 +70,16 @@ class DefaultPolicyEngine:
         "reboot",
         "kill",
         "pkill",
+        "python",
+        "python3",
+        "perl",
+        "ruby",
+        "node",
+        "curl",
+        "wget",
+        "ssh",
+        "scp",
+        "nc",
     }
 
     def __init__(self, config: PermissionsConfig, workspace: Path) -> None:
@@ -111,6 +121,11 @@ class DefaultPolicyEngine:
             return self._evaluate_command(action.arguments)
         if action.tool_name == "run_shell":
             return self._evaluate_shell(action.arguments)
+        if action.tool_name in {"ksys", "tuner"} and action.arguments.get("workload"):
+            return PolicyDecision(
+                kind=PolicyDecisionKind.ASK,
+                reason=f"{action.tool_name} 将启动用户指定的 workload",
+            )
         return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="符合当前安全策略")
 
     def _check_paths(self, arguments: dict[str, Any]) -> PolicyDecision | None:
@@ -168,11 +183,21 @@ class DefaultPolicyEngine:
             )
         if command == "git":
             subcommand = argv[1] if len(argv) > 1 else ""
-            if subcommand not in {"status", "diff", "log", "show", "branch", "rev-parse"}:
+            if subcommand not in {"status", "diff", "log", "show", "rev-parse"}:
                 return PolicyDecision(
                     kind=PolicyDecisionKind.ASK,
                     reason=f"git {subcommand or '<none>'} 可能修改仓库状态",
                 )
+        if command == "find" and any(item in argv[1:] for item in {"-delete", "-exec", "-execdir"}):
+            return PolicyDecision(
+                kind=PolicyDecisionKind.ASK,
+                reason="find 参数可能执行命令或删除文件",
+            )
+        if command == "sed" and any(item == "-i" or item.startswith("-i") for item in argv[1:]):
+            return PolicyDecision(
+                kind=PolicyDecisionKind.ASK,
+                reason="sed -i 会原地修改文件",
+            )
         if command in self._safe_commands:
             return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="只读命令允许执行")
         if self.config.mode == "full-access":
@@ -191,6 +216,11 @@ class DefaultPolicyEngine:
                 kind=PolicyDecisionKind.ASK,
                 reason="Shell 脚本包含命令替换或重定向",
             )
+        if "\n" in script or "\r" in script:
+            return PolicyDecision(
+                kind=PolicyDecisionKind.ASK,
+                reason="多行 Shell 脚本需要显式审批",
+            )
         try:
             lexer = shlex.shlex(script, posix=True, punctuation_chars=";&|")
             lexer.whitespace_split = True
@@ -206,6 +236,11 @@ class DefaultPolicyEngine:
                         reason="Shell 脚本存在空命令段",
                     )
                 segments.append([])
+            elif token and set(token) <= set(";&|"):
+                return PolicyDecision(
+                    kind=PolicyDecisionKind.DENY,
+                    reason=f"不支持的 Shell 控制符: {token}",
+                )
             else:
                 segments[-1].append(token)
         if not segments[-1]:

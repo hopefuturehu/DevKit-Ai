@@ -37,6 +37,7 @@ class AgentEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(default_factory=lambda: uuid4().hex)
+    schema_version: int = 1
     type: EventType
     session_id: str
     run_id: str
