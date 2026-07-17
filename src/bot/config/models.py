@@ -18,6 +18,8 @@ class ModelConfig(StrictModel):
     temperature: float = Field(default=0.2, ge=0, le=2)
     timeout_seconds: float = Field(default=120, gt=0)
     max_output_tokens: int | None = Field(default=None, gt=0)
+    input_cost_per_million: float | None = Field(default=None, ge=0)
+    output_cost_per_million: float | None = Field(default=None, ge=0)
 
 
 class AgentConfig(StrictModel):
@@ -25,6 +27,7 @@ class AgentConfig(StrictModel):
     max_wall_time_seconds: float = Field(default=1800, gt=0)
     max_tool_output_bytes: int = Field(default=1_000_000, gt=0)
     max_consecutive_failures: int = Field(default=3, ge=1)
+    max_cost_usd: float | None = Field(default=None, gt=0)
 
 
 class PermissionsConfig(StrictModel):

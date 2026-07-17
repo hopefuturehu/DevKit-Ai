@@ -11,7 +11,7 @@ import jsonschema
 
 from bot.config.models import AppConfig
 from bot.core.approval import ApprovalHandler, ApprovalScope, DenyApprovalHandler
-from bot.core.context import ContextAssembler, compact_messages
+from bot.core.context import ContextAssembler, compact_messages, estimate_tokens
 from bot.core.events import EventBus, EventType
 from bot.core.models import (
     ChatMessage,
@@ -68,15 +68,29 @@ class AgentRunner:
         self.event_bus = event_bus
         self.approval_handler = approval_handler or DenyApprovalHandler()
         self.redactor = redactor or Redactor()
+        capabilities = provider.capabilities(config.model.name)
+        if not capabilities.streaming or not capabilities.structured_tool_calling:
+            raise ValueError("执行型 Agent 模型必须支持流式输出和结构化 Tool Calling")
         self._session_approvals: set[tuple[str, str]] = set()
         self._force_compact_sessions: set[str] = set()
+        self._steering_queues: dict[str, asyncio.Queue[str]] = {}
 
     def request_compaction(self, session_id: str) -> None:
         self._force_compact_sessions.add(session_id)
 
+    async def steer(self, session_id: str, text: str) -> bool:
+        queue = self._steering_queues.get(session_id)
+        if queue is None or not text.strip():
+            return False
+        await queue.put(text.strip())
+        return True
+
     async def run(self, request: RunRequest) -> RunResult:
         session_id = request.session_id or self.store.create_session(self.workspace)
         self.store.ensure_session(session_id, self.workspace)
+        if session_id in self._steering_queues:
+            raise RuntimeError(f"会话 {session_id} 已有运行中的任务")
+        self._steering_queues[session_id] = asyncio.Queue()
         run_id = uuid4().hex
         self.store.start_run(session_id, run_id)
         await self.event_bus.emit(
@@ -104,11 +118,20 @@ class AgentRunner:
             error = str(exc)
             await self._fail_event(session_id, run_id, error)
             result = RunResult(session_id=session_id, status="failed", error=error)
-        self.store.finish_run(run_id, result.status, result.error)
+        finally:
+            self._steering_queues.pop(session_id, None)
+        self.store.finish_run(
+            run_id,
+            result.status,
+            result.error,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            cost_usd=result.cost_usd,
+        )
         return result
 
     async def _run_loop(self, request: RunRequest, *, session_id: str, run_id: str) -> RunResult:
-        environment = await self.execution_target.probe(["ksys", "tuner"])
+        environment = await self.execution_target.probe(["ksys", "devkit"])
         messages = self.context.system_messages(environment)
         memories = self.store.list_memories()
         if memories:
@@ -156,13 +179,19 @@ class AgentRunner:
 
         failures = 0
         failed_fingerprints: dict[str, int] = {}
+        input_tokens = 0
+        output_tokens = 0
+        cost_usd: float | None = None
         started_at = monotonic()
         for step in range(1, self.config.agent.max_steps + 1):
             if monotonic() - started_at > self.config.agent.max_wall_time_seconds:
                 raise TimeoutError
+            await self._drain_steering(messages, session_id=session_id, run_id=run_id)
             request_tools = self.tool_registry.definitions()
             if self.config.skills.auto_activate and self.skills.catalog.skills:
                 request_tools.append(self.skills.catalog.activation_tool_definition())
+            if self.skills.active:
+                request_tools.append(self.skills.catalog.resource_tool_definition())
             for active_name in self.skills.active:
                 marker = f"已激活 Skill: {active_name}\n"
                 if any(
@@ -197,6 +226,22 @@ class AgentRunner:
                     run_id=run_id,
                     payload=compacted,
                 )
+            estimated_tokens = estimate_tokens(messages, tool_schema_chars)
+            if estimated_tokens > self.config.context.max_input_tokens:
+                error = (
+                    f"压缩后上下文仍约有 {estimated_tokens} tokens，超过限制 "
+                    f"{self.config.context.max_input_tokens}"
+                )
+                await self._fail_event(session_id, run_id, error)
+                return RunResult(
+                    session_id=session_id,
+                    status="limit_reached",
+                    steps=step - 1,
+                    error=error,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                )
             model_request = ModelRequest(
                 model=self.config.model.name,
                 messages=messages,
@@ -226,6 +271,20 @@ class AgentRunner:
                             buffer.name += event.tool_name
                         if event.arguments_delta:
                             buffer.arguments += event.arguments_delta
+                    elif event.kind == ModelEventKind.USAGE:
+                        input_tokens += event.input_tokens or 0
+                        output_tokens += event.output_tokens or 0
+                        cost_usd = self._calculate_cost(input_tokens, output_tokens)
+                        await self.event_bus.emit(
+                            EventType.MODEL_USAGE,
+                            session_id=session_id,
+                            run_id=run_id,
+                            payload={
+                                "input_tokens": input_tokens,
+                                "output_tokens": output_tokens,
+                                "cost_usd": cost_usd,
+                            },
+                        )
                     elif event.kind == ModelEventKind.FINISH:
                         finish_reason = event.finish_reason
             except ProviderError:
@@ -243,6 +302,31 @@ class AgentRunner:
             messages.append(assistant_message)
             self.store.append_message(session_id, run_id, assistant_message)
 
+            steered_after_model = await self._drain_steering(
+                messages, session_id=session_id, run_id=run_id
+            )
+
+            if (
+                tool_calls
+                and self.config.agent.max_cost_usd is not None
+                and cost_usd is not None
+                and cost_usd >= self.config.agent.max_cost_usd
+            ):
+                error = f"模型费用达到运行上限 ${self.config.agent.max_cost_usd:g}"
+                await self._fail_event(session_id, run_id, error)
+                return RunResult(
+                    session_id=session_id,
+                    status="limit_reached",
+                    final_text=assistant_text,
+                    steps=step,
+                    error=error,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                )
+
+            if not tool_calls and steered_after_model:
+                continue
             if not tool_calls:
                 await self.event_bus.emit(
                     EventType.ASSISTANT_MESSAGE,
@@ -254,13 +338,22 @@ class AgentRunner:
                     EventType.RUN_COMPLETED,
                     session_id=session_id,
                     run_id=run_id,
-                    payload={"steps": step, "final_text": assistant_text},
+                    payload={
+                        "steps": step,
+                        "final_text": assistant_text,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "cost_usd": cost_usd,
+                    },
                 )
                 return RunResult(
                     session_id=session_id,
                     status="completed",
                     final_text=assistant_text,
                     steps=step,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
                 )
 
             for tool_call in tool_calls:
@@ -276,6 +369,8 @@ class AgentRunner:
                 )
                 if tool_call.name == "activate_skill":
                     result = await self._activate_skill(tool_call, session_id, run_id)
+                elif tool_call.name == "load_skill_resource":
+                    result = await self._load_skill_resource(tool_call, session_id, run_id)
                 else:
                     result = await self._execute_tool(tool_call, session_id, run_id)
 
@@ -313,6 +408,9 @@ class AgentRunner:
                             final_text=assistant_text,
                             steps=step,
                             error=error,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cost_usd=cost_usd,
                         )
 
         error = f"达到最大步骤数 {self.config.agent.max_steps}"
@@ -322,6 +420,9 @@ class AgentRunner:
             status="limit_reached",
             steps=self.config.agent.max_steps,
             error=error,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
         )
 
     async def _activate_skill(
@@ -344,6 +445,31 @@ class AgentRunner:
             output=content if skill else "",
             error=None if skill else content,
             metadata={"skill": name},
+        )
+
+    async def _load_skill_resource(
+        self, tool_call: ToolCall, session_id: str, run_id: str
+    ) -> ToolResult:
+        skill_name = tool_call.arguments.get("skill")
+        relative_path = tool_call.arguments.get("path")
+        if not isinstance(skill_name, str) or not isinstance(relative_path, str):
+            return ToolResult(
+                success=False,
+                error="load_skill_resource 需要字符串 skill 和 path",
+            )
+        content, message = self.skills.load_resource(skill_name, relative_path)
+        if content is None:
+            return ToolResult(success=False, error=message)
+        await self.event_bus.emit(
+            EventType.SKILL_RESOURCE_LOADED,
+            session_id=session_id,
+            run_id=run_id,
+            payload={"name": skill_name, "path": relative_path},
+        )
+        return ToolResult(
+            success=True,
+            output=content,
+            metadata={"skill": skill_name, "path": relative_path},
         )
 
     async def _execute_tool(self, tool_call: ToolCall, session_id: str, run_id: str) -> ToolResult:
@@ -430,11 +556,26 @@ class AgentRunner:
             run_id=run_id,
             payload={"tool_call_id": tool_call.id, "name": tool.name},
         )
+
+        async def publish_tool_output(stream: str, data: str) -> None:
+            await self.event_bus.emit(
+                EventType.TOOL_OUTPUT,
+                session_id=session_id,
+                run_id=run_id,
+                payload={
+                    "tool_call_id": tool_call.id,
+                    "name": tool.name,
+                    "stream": stream,
+                    "data": data,
+                },
+            )
+
         context = ToolContext(
             workspace=self.workspace,
             execution_target=self.execution_target,
             workspace_only=self.config.permissions.workspace_only,
             max_output_bytes=self.config.agent.max_tool_output_bytes,
+            output_callback=publish_tool_output,
         )
         try:
             result = await tool.execute(context, tool_call.arguments)
@@ -473,6 +614,36 @@ class AgentRunner:
             payload={"error": error},
         )
 
+    async def _drain_steering(
+        self,
+        messages: list[ChatMessage],
+        *,
+        session_id: str,
+        run_id: str,
+    ) -> bool:
+        queue = self._steering_queues.get(session_id)
+        if queue is None:
+            return False
+        steered = False
+        while not queue.empty():
+            text = queue.get_nowait()
+            message = self.redactor.redact_message(
+                ChatMessage(
+                    role=Role.USER,
+                    content=f"用户在当前运行期间补充或转向：{text}",
+                )
+            )
+            messages.append(message)
+            self.store.append_message(session_id, run_id, message)
+            await self.event_bus.emit(
+                EventType.RUN_STEERED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={"text": text},
+            )
+            steered = True
+        return steered
+
     @staticmethod
     def _parse_tool_call(buffer: _ToolCallBuffer) -> ToolCall:
         call_id = buffer.id or f"call_{uuid4().hex}"
@@ -492,3 +663,10 @@ class AgentRunner:
             ensure_ascii=False,
         )
         return hashlib.sha256(payload.encode()).hexdigest()
+
+    def _calculate_cost(self, input_tokens: int, output_tokens: int) -> float | None:
+        input_rate = self.config.model.input_cost_per_million
+        output_rate = self.config.model.output_cost_per_million
+        if input_rate is None or output_rate is None:
+            return None
+        return (input_tokens * input_rate + output_tokens * output_rate) / 1_000_000

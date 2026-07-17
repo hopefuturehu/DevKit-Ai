@@ -47,7 +47,8 @@ class ContextAssembler:
                 pass
         environment_text = (
             f"当前执行环境：os={environment.operating_system}, "
-            f"architecture={environment.architecture}, workspace={self.workspace}."
+            f"architecture={environment.architecture}, workspace={self.workspace}, "
+            f"executables={environment.executables}."
         )
         messages.append(ChatMessage(role=Role.SYSTEM, content=environment_text))
         messages.append(

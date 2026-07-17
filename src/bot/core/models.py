@@ -138,3 +138,6 @@ class RunResult(BaseModel):
     final_text: str = ""
     steps: int = 0
     error: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float | None = None

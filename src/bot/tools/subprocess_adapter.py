@@ -79,8 +79,10 @@ class SubprocessCliTool(Tool):
                 truncated = truncated or event.truncated
                 if event.kind == ProcessEventKind.STDOUT:
                     stdout.append(event.data)
+                    await context.emit_output("stdout", event.data)
                 elif event.kind == ProcessEventKind.STDERR:
                     stderr.append(event.data)
+                    await context.emit_output("stderr", event.data)
                 else:
                     returncode = event.returncode
             output = "".join(stdout)

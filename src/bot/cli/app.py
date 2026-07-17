@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from prompt_toolkit import PromptSession
+from prompt_toolkit.patch_stdout import patch_stdout
 from rich.console import Console
 from rich.table import Table
 from typer.core import TyperGroup
@@ -86,9 +88,19 @@ def _runtime(
     json_output: bool,
     interactive: bool,
 ):
-    sinks = [JsonlEventSink()] if json_output else [RichEventSink(console)]
-    approval = InteractiveApprovalHandler(console) if interactive else None
     try:
+        preview_config = load_config(workspace.resolve(), config_path=config_path)
+        sinks = (
+            [JsonlEventSink()]
+            if json_output
+            else [
+                RichEventSink(
+                    console,
+                    show_tool_output=preview_config.display.tool_output == "full",
+                )
+            ]
+        )
+        approval = InteractiveApprovalHandler(console) if interactive else None
         return build_runtime(
             workspace=workspace,
             config_path=config_path,
@@ -119,7 +131,7 @@ def main(
     runtime = _runtime(workspace, config_path, json_output=False, interactive=True)
     try:
         session_id = runtime.store.create_session(workspace)
-        _interactive_loop(runtime, session_id)
+        _run(_interactive_loop(runtime, session_id))
     finally:
         runtime.close()
 
@@ -134,31 +146,26 @@ def chat_command(
     runtime = _runtime(workspace, config_path, json_output=False, interactive=True)
     try:
         session_id = runtime.store.create_session(workspace)
-        clean_prompt, explicit_skills = _parse_prompt(prompt)
-        result = _run(
-            runtime.runner.run(
-                RunRequest(
-                    prompt=clean_prompt,
-                    session_id=session_id,
-                    explicit_skills=explicit_skills,
-                )
-            )
-        )
-        if result.status not in {"completed"}:
-            console.print(f"[red]{result.error or result.status}[/red]")
-        _interactive_loop(runtime, session_id)
+        _run(_interactive_loop(runtime, session_id, initial_prompt=prompt))
     finally:
         runtime.close()
 
 
-def _interactive_loop(runtime, session_id: str) -> None:
+async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None = None) -> None:
+    prompt_session: PromptSession[str] = PromptSession()
+    queued_prompt = initial_prompt
     console.print(
         f"[bold]bot[/bold] {__version__} · session {session_id[:8]} · "
         f"{runtime.config.model.name or '<model-unset>'}"
     )
     while True:
         try:
-            prompt = console.input("[bold cyan]> [/bold cyan]").strip()
+            if queued_prompt is not None:
+                prompt = queued_prompt.strip()
+                queued_prompt = None
+            else:
+                with patch_stdout():
+                    prompt = (await prompt_session.prompt_async("> ")).strip()
         except EOFError:
             console.print()
             return
@@ -254,17 +261,72 @@ def _interactive_loop(runtime, session_id: str) -> None:
         if not clean_prompt:
             console.print("[yellow]请输入 Skill 后的任务内容。[/yellow]")
             continue
-        result = _run(
-            runtime.runner.run(
-                RunRequest(
-                    prompt=clean_prompt,
-                    session_id=session_id,
-                    explicit_skills=explicit_skills,
-                )
-            )
+        result = await _run_with_steering(
+            runtime,
+            prompt_session,
+            RunRequest(
+                prompt=clean_prompt,
+                session_id=session_id,
+                explicit_skills=explicit_skills,
+            ),
         )
         if result.status not in {"completed"}:
             console.print(f"[red]{result.error or result.status}[/red]")
+
+
+async def _run_with_steering(runtime, prompt_session: PromptSession[str], request: RunRequest):
+    run_task = asyncio.create_task(runtime.runner.run(request))
+    approval_handler = runtime.approval_handler
+    approval_task = (
+        asyncio.create_task(approval_handler.next_request())
+        if isinstance(approval_handler, InteractiveApprovalHandler)
+        else None
+    )
+    input_task: asyncio.Task[str] | None = None
+    try:
+        while not run_task.done():
+            if input_task is None:
+                input_task = asyncio.create_task(prompt_session.prompt_async("[steer or /cancel] "))
+            waiting: set[asyncio.Task] = {run_task, input_task}
+            if approval_task:
+                waiting.add(approval_task)
+            with patch_stdout():
+                done, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
+            if run_task in done:
+                break
+            if approval_task and approval_task in done:
+                input_task.cancel()
+                await asyncio.gather(input_task, return_exceptions=True)
+                input_task = None
+                pending = approval_task.result()
+                with patch_stdout():
+                    await approval_handler.resolve(pending, prompt_session)
+                approval_task = asyncio.create_task(approval_handler.next_request())
+                continue
+            if input_task in done:
+                try:
+                    steering = input_task.result().strip()
+                except EOFError:
+                    input_task = None
+                    return await run_task
+                input_task = None
+                if not steering:
+                    continue
+                if steering == "/cancel":
+                    run_task.cancel()
+                    break
+                accepted = await runtime.runner.steer(request.session_id, steering)
+                if accepted:
+                    console.print("[dim]已加入当前运行，将在安全边界应用。[/dim]")
+                else:
+                    console.print("[yellow]当前运行已结束，输入未应用。[/yellow]")
+        return await run_task
+    finally:
+        tasks = [task for task in (input_task, approval_task) if task]
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 @app.command("run")
@@ -283,15 +345,16 @@ def run_command(
     )
     try:
         clean_prompt, explicit_skills = _parse_prompt(prompt)
-        result = _run(
-            runtime.runner.run(
-                RunRequest(
-                    prompt=clean_prompt,
-                    explicit_skills=explicit_skills,
-                    json_output=json_output,
-                )
-            )
+        request = RunRequest(
+            prompt=clean_prompt,
+            session_id=runtime.store.create_session(workspace),
+            explicit_skills=explicit_skills,
+            json_output=json_output,
         )
+        if sys.stdin.isatty() and not json_output:
+            result = _run(_run_with_steering(runtime, PromptSession(), request))
+        else:
+            result = _run(runtime.runner.run(request))
         if result.status != "completed":
             if json_output:
                 print(result.model_dump_json())
@@ -315,7 +378,7 @@ def resume_command(
         if not selected or not runtime.store.session_exists(selected):
             console.print("[red]没有可恢复的会话。[/red]")
             raise typer.Exit(1)
-        _interactive_loop(runtime, selected)
+        _run(_interactive_loop(runtime, selected))
     finally:
         runtime.close()
 

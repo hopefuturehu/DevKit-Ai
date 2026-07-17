@@ -46,3 +46,44 @@ def test_skill_manager_explicit_activation_precedes_auto_limit(tmp_path: Path) -
     assert blocked is None
     assert "达到上限" in message
     assert explicit is not None
+
+
+def test_skill_resources_require_activation_and_stay_inside_allowed_directories(
+    tmp_path: Path,
+) -> None:
+    write_skill(tmp_path, "one", "one")
+    references = tmp_path / "one" / "references"
+    references.mkdir()
+    (references / "guide.md").write_text("domain evidence", encoding="utf-8")
+    catalog = SkillCatalog(tmp_path)
+    catalog.scan()
+    manager = SkillManager(catalog)
+
+    blocked, _ = manager.load_resource("one", "references/guide.md")
+    manager.activate("one", "test", explicit=True)
+    loaded, _ = manager.load_resource("one", "references/guide.md")
+    escaped, message = manager.load_resource("one", "../outside.md")
+
+    assert blocked is None
+    assert loaded is not None and "domain evidence" in loaded
+    assert escaped is None
+    assert "只允许读取" in message
+
+
+def test_repository_kunpeng_skill_is_valid_and_has_loadable_reference() -> None:
+    root = Path(__file__).resolve().parents[2] / "skills"
+    catalog = SkillCatalog(root)
+    catalog.scan()
+    manager = SkillManager(catalog)
+
+    skill, _ = manager.activate(
+        "kunpeng-performance-analysis", "repository validation", explicit=True
+    )
+    reference, _ = manager.load_resource(
+        "kunpeng-performance-analysis", "references/tool-selection.md"
+    )
+
+    assert skill is not None
+    assert reference is not None
+    assert "KSYS `diff`" in reference
+    assert not [item for item in catalog.diagnostics if item.level == "error"]

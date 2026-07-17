@@ -5,6 +5,17 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 
 当前实现目标和边界见 [docs/design.md](docs/design.md)。
 
+## 已实现能力
+
+- OpenAI-compatible Chat Completions 流式文本和结构化 Tool Calling；
+- 可恢复、可分叉的 SQLite 会话和 JSONL 审计事件；
+- read/search/apply-patch/argv command/受控 shell/network 等通用 Tool；
+- Workspace 路径边界、危险操作审批、审批作用域、输出截断和敏感值脱敏；
+- 指定目录 Skill 的三段式披露、自动或 `$skill-name` 显式激活、资源按需读取；
+- KSYS 与 DevKit Tuner 的结构化 Subprocess CLI Adapter；
+- x86 或缺少工具时生成鲲鹏 ARM 手动执行命令并接受后续自由文本结果；
+- 运行中 steering、`/cancel`、上下文压缩、显式长期记忆和 Token/费用记录。
+
 ## 开发安装
 
 ```bash
@@ -22,9 +33,21 @@ provider = "openai_compatible"
 base_url = "https://your-provider.example/v1"
 api_key_ref = "env:BOT_MODEL_API_KEY"
 name = "your-model-id"
+# 可选；配置后才能计算并限制费用
+input_cost_per_million = 0.0
+output_cost_per_million = 0.0
+
+[agent]
+max_steps = 30
+max_wall_time_seconds = 1800
+# max_cost_usd = 2.0
 
 [skills]
 path = "./skills"
+
+[storage]
+# 相对路径以工作区为基准
+state_path = "./.bot/state.db"
 ```
 
 然后运行：
@@ -42,3 +65,37 @@ bot run "分析这个项目"
 bot run --json "列出当前项目结构"
 ```
 
+常用管理命令：
+
+```bash
+bot doctor
+bot config get
+bot config set model.name '<model-id>'
+bot model list
+bot model set '<model-id>'
+bot skill list
+bot skill show kunpeng-performance-analysis
+bot session list
+bot session show '<session-id>'
+bot session fork '<session-id>'
+bot resume '<session-id>'
+```
+
+交互会话中可用 `/status`、`/tools`、`/skills`、`/model`、`/permissions`、
+`/compact`、`/remember`、`/memories`、`/new` 和 `/exit`。Agent 运行期间输入的普通文本会
+作为 steering 在下一个安全边界生效；输入 `/cancel` 可取消当前运行。
+
+## Skill 目录
+
+默认扫描工作区 `./skills` 的直接子目录。仓库内提供首个领域 Skill：
+`kunpeng-performance-analysis`。Skill 可以使用 KSYS 做广泛诊断，再根据证据选择 Tuner
+的 `top-down`、`hotspot`、`miss`、`numafast`、`hpc-perf` 或 `roofline`，但不强制固定流程。
+
+## 验证
+
+```bash
+.venv/bin/ruff check src tests
+.venv/bin/ruff format --check src tests
+.venv/bin/pytest -q
+.venv/bin/pip check
+```

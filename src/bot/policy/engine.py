@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -108,6 +109,8 @@ class DefaultPolicyEngine:
             )
         if action.tool_name == "run_command":
             return self._evaluate_command(action.arguments)
+        if action.tool_name == "run_shell":
+            return self._evaluate_shell(action.arguments)
         return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="符合当前安全策略")
 
     def _check_paths(self, arguments: dict[str, Any]) -> PolicyDecision | None:
@@ -153,6 +156,11 @@ class DefaultPolicyEngine:
         if not isinstance(argv, list) or not argv or not isinstance(argv[0], str):
             return PolicyDecision(kind=PolicyDecisionKind.DENY, reason="命令 argv 不合法")
         command = Path(argv[0]).name
+        if command in {"sh", "bash", "zsh", "fish"} and "-c" in argv[1:]:
+            return PolicyDecision(
+                kind=PolicyDecisionKind.DENY,
+                reason="run_command 禁止通过 shell -c 绕过策略，请显式使用 run_shell",
+            )
         if command in self._always_ask_commands:
             return PolicyDecision(
                 kind=PolicyDecisionKind.ASK,
@@ -173,3 +181,42 @@ class DefaultPolicyEngine:
             kind=PolicyDecisionKind.ASK,
             reason=f"命令 {command} 不在自动允许列表中",
         )
+
+    def _evaluate_shell(self, arguments: dict[str, Any]) -> PolicyDecision:
+        script = arguments.get("script")
+        if not isinstance(script, str) or not script.strip():
+            return PolicyDecision(kind=PolicyDecisionKind.DENY, reason="Shell script 不能为空")
+        if any(marker in script for marker in ("`", "$(", ">", "<")):
+            return PolicyDecision(
+                kind=PolicyDecisionKind.ASK,
+                reason="Shell 脚本包含命令替换或重定向",
+            )
+        try:
+            lexer = shlex.shlex(script, posix=True, punctuation_chars=";&|")
+            lexer.whitespace_split = True
+            tokens = list(lexer)
+        except ValueError as exc:
+            return PolicyDecision(kind=PolicyDecisionKind.DENY, reason=f"Shell 解析失败: {exc}")
+        segments: list[list[str]] = [[]]
+        for token in tokens:
+            if token in {";", "&&", "||", "|", "&"}:
+                if not segments[-1]:
+                    return PolicyDecision(
+                        kind=PolicyDecisionKind.DENY,
+                        reason="Shell 脚本存在空命令段",
+                    )
+                segments.append([])
+            else:
+                segments[-1].append(token)
+        if not segments[-1]:
+            return PolicyDecision(kind=PolicyDecisionKind.DENY, reason="Shell 脚本结尾不完整")
+        decisions = [self._evaluate_command({"argv": segment}) for segment in segments]
+        denied = [
+            decision.reason for decision in decisions if decision.kind == PolicyDecisionKind.DENY
+        ]
+        if denied:
+            return PolicyDecision(kind=PolicyDecisionKind.DENY, reason="; ".join(denied))
+        ask = [decision.reason for decision in decisions if decision.kind == PolicyDecisionKind.ASK]
+        if ask:
+            return PolicyDecision(kind=PolicyDecisionKind.ASK, reason="; ".join(ask))
+        return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="所有 Shell 命令段均为只读命令")

@@ -11,7 +11,7 @@ from uuid import uuid4
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class SQLiteSessionStore(EventSink):
@@ -53,6 +53,9 @@ class SQLiteSessionStore(EventSink):
                     started_at TEXT NOT NULL,
                     completed_at TEXT,
                     error TEXT,
+                    input_tokens INTEGER NOT NULL DEFAULT 0,
+                    output_tokens INTEGER NOT NULL DEFAULT 0,
+                    cost_usd REAL,
                     FOREIGN KEY(session_id) REFERENCES sessions(id)
                 );
                 CREATE TABLE IF NOT EXISTS events (
@@ -124,6 +127,17 @@ class SQLiteSessionStore(EventSink):
                 self._connection.execute(
                     "ALTER TABLE approvals ADD COLUMN scope TEXT NOT NULL DEFAULT 'once'"
                 )
+            run_columns = {row[1] for row in self._connection.execute("PRAGMA table_info(runs)")}
+            if "input_tokens" not in run_columns:
+                self._connection.execute(
+                    "ALTER TABLE runs ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0"
+                )
+            if "output_tokens" not in run_columns:
+                self._connection.execute(
+                    "ALTER TABLE runs ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0"
+                )
+            if "cost_usd" not in run_columns:
+                self._connection.execute("ALTER TABLE runs ADD COLUMN cost_usd REAL")
             self._connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                 (SCHEMA_VERSION, datetime.now(UTC).isoformat()),
@@ -260,11 +274,32 @@ class SQLiteSessionStore(EventSink):
                 "UPDATE sessions SET updated_at = ? WHERE id = ?", (now, session_id)
             )
 
-    def finish_run(self, run_id: str, status: str, error: str | None = None) -> None:
+    def finish_run(
+        self,
+        run_id: str,
+        status: str,
+        error: str | None = None,
+        *,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        cost_usd: float | None = None,
+    ) -> None:
         with self._lock, self._connection:
             self._connection.execute(
-                "UPDATE runs SET status = ?, completed_at = ?, error = ? WHERE id = ?",
-                (status, datetime.now(UTC).isoformat(), error, run_id),
+                """
+                UPDATE runs SET status = ?, completed_at = ?, error = ?,
+                    input_tokens = ?, output_tokens = ?, cost_usd = ?
+                WHERE id = ?
+                """,
+                (
+                    status,
+                    datetime.now(UTC).isoformat(),
+                    error,
+                    input_tokens,
+                    output_tokens,
+                    cost_usd,
+                    run_id,
+                ),
             )
 
     async def publish(self, event: AgentEvent) -> None:

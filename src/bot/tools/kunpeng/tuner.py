@@ -64,6 +64,16 @@ class TunerTool(SubprocessCliTool):
         task = str(arguments["task"])
         argv = [self.executable, "tuner", task]
         workload = [str(item) for item in arguments.get("workload", [])]
+        if task == "roofline":
+            unsupported = [
+                key
+                for key in ("cpu", "duration", "delay", "interval", "pid", "mode", "cgroup")
+                if arguments.get(key) is not None
+            ]
+            if unsupported:
+                raise ValueError(f"roofline 不支持参数: {', '.join(unsupported)}")
+            if not workload:
+                raise ValueError("roofline 必须指定 workload")
         selectors = [
             bool(arguments.get("cpu")),
             bool(arguments.get("pid")),
@@ -101,6 +111,8 @@ class TunerTool(SubprocessCliTool):
                 raise ValueError("call_graph 只适用于 hotspot")
             argv.append("-g")
         if arguments.get("package"):
+            if task == "roofline":
+                raise ValueError("package 不适用于 roofline")
             argv.append("--package")
         if arguments.get("long_name"):
             if task != "hotspot":
@@ -116,6 +128,8 @@ class TunerTool(SubprocessCliTool):
             src_dir = resolve_path(context, str(arguments["src_dir"]), must_exist=True)
             argv.extend(["-s", str(src_dir)])
         if arguments.get("output_path"):
+            if task == "hotspot" and not arguments.get("package"):
+                raise ValueError("hotspot 的 output_path 需要同时启用 package")
             output_path = resolve_path(context, str(arguments["output_path"]), must_exist=False)
             argv.extend(["-o", str(output_path)])
         if arguments.get("roofline_mode"):

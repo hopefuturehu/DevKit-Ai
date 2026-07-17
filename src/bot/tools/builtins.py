@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import os
 import re
 import tempfile
@@ -156,6 +157,8 @@ class ApplyPatchTool(Tool):
                     error=f"old_text 需要恰好匹配一次，实际匹配 {count} 次",
                 )
             updated = new_text if not old_text else original.replace(old_text, new_text, 1)
+            before_hash = hashlib.sha256(original.encode()).hexdigest()
+            after_hash = hashlib.sha256(updated.encode()).hexdigest()
             path.parent.mkdir(parents=True, exist_ok=True)
             mode = path.stat().st_mode if path.exists() else None
             fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -173,7 +176,12 @@ class ApplyPatchTool(Tool):
             return ToolResult(
                 success=True,
                 output=f"已更新 {path.relative_to(context.workspace)}",
-                metadata={"path": str(path), "bytes": len(updated.encode())},
+                metadata={
+                    "path": str(path),
+                    "bytes": len(updated.encode()),
+                    "before_sha256": before_hash,
+                    "after_sha256": after_hash,
+                },
             )
         except (KeyError, OSError, UnicodeError, ValueError) as exc:
             return ToolResult(success=False, error=str(exc))
@@ -214,8 +222,10 @@ class RunCommandTool(Tool):
                 truncated = truncated or event.truncated
                 if event.kind == ProcessEventKind.STDOUT:
                     stdout.append(event.data)
+                    await context.emit_output("stdout", event.data)
                 elif event.kind == ProcessEventKind.STDERR:
                     stderr.append(event.data)
+                    await context.emit_output("stderr", event.data)
                 else:
                     returncode = event.returncode
             output = "".join(stdout)
@@ -232,6 +242,36 @@ class RunCommandTool(Tool):
             )
         except (KeyError, OSError, ValueError, TimeoutError) as exc:
             return ToolResult(success=False, error=str(exc))
+
+
+class RunShellTool(Tool):
+    name = "run_shell"
+    description = (
+        "仅在确实需要管道、重定向或条件连接时执行 POSIX Shell 脚本。"
+        "策略层会先拆分脚本中的命令段进行风险判断。"
+    )
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "script": {"type": "string", "minLength": 1},
+            "cwd": {"type": "string", "default": "."},
+            "timeout_seconds": {"type": "number", "minimum": 0.1, "maximum": 3600},
+        },
+        "required": ["script"],
+        "additionalProperties": False,
+    }
+    annotations = ToolAnnotations(read_only=False, destructive=False, idempotent=False)
+
+    async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        command = RunCommandTool()
+        return await command.execute(
+            context,
+            {
+                "argv": ["/bin/sh", "-c", str(arguments["script"])],
+                "cwd": arguments.get("cwd", "."),
+                "timeout_seconds": arguments.get("timeout_seconds", 300),
+            },
+        )
 
 
 class FetchUrlTool(Tool):
@@ -280,4 +320,5 @@ def register_builtin_tools(registry) -> None:
     registry.register(SearchTextTool())
     registry.register(ApplyPatchTool())
     registry.register(RunCommandTool())
+    registry.register(RunShellTool())
     registry.register(FetchUrlTool())

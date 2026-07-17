@@ -78,6 +78,8 @@ class KsysTool(SubprocessCliTool):
 
         duration = arguments.get("duration")
         if duration is not None:
+            if operation not in {"collect", "stability-check"}:
+                raise ValueError(f"duration 不适用于 KSYS {operation}")
             duration = int(duration)
             if operation == "stability-check" and not 10 <= duration <= 120:
                 raise ValueError("KSYS stability-check duration 必须在 10-120 秒之间")

@@ -12,7 +12,12 @@ from bot.execution import (
 )
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
 from bot.tools import ToolContext
-from bot.tools.builtins import ApplyPatchTool, ReadFileTool
+from bot.tools.builtins import (
+    ApplyPatchTool,
+    ReadFileTool,
+    RunCommandTool,
+    RunShellTool,
+)
 from bot.tools.kunpeng import KsysTool, TunerTool
 
 
@@ -35,6 +40,28 @@ async def test_local_execution_uses_argv_and_captures_streams(tmp_path: Path) ->
 
 
 @pytest.mark.asyncio
+async def test_run_command_forwards_streaming_tool_output(tmp_path: Path) -> None:
+    chunks: list[tuple[str, str]] = []
+
+    async def capture(stream: str, data: str) -> None:
+        chunks.append((stream, data))
+
+    context = ToolContext(
+        workspace=tmp_path,
+        execution_target=LocalExecutionTarget(),
+        output_callback=capture,
+    )
+    result = await RunCommandTool().execute(
+        context,
+        {"argv": ["/bin/sh", "-c", "printf out; printf err >&2"]},
+    )
+
+    assert result.success
+    assert ("stdout", "out") in chunks
+    assert ("stderr", "err") in chunks
+
+
+@pytest.mark.asyncio
 async def test_file_tools_enforce_workspace_and_exact_patch(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("old\n", encoding="utf-8")
     context = ToolContext(
@@ -49,6 +76,7 @@ async def test_file_tools_enforce_workspace_and_exact_patch(tmp_path: Path) -> N
     escaped = await ReadFileTool().execute(context, {"path": "../outside.txt"})
 
     assert patch.success
+    assert patch.metadata["before_sha256"] != patch.metadata["after_sha256"]
     assert read.output == "new\n"
     assert not escaped.success
     assert "超出工作区" in (escaped.error or "")
@@ -75,6 +103,29 @@ def test_policy_requires_approval_for_unknown_command_and_denies_escape(tmp_path
         annotations=ReadFileTool.annotations,
     )
     assert policy.evaluate(sensitive).kind == PolicyDecisionKind.DENY
+
+
+def test_policy_separately_evaluates_shell_segments(tmp_path: Path) -> None:
+    policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
+    safe_pipeline = ToolAction(
+        tool_name="run_shell",
+        arguments={"script": "rg TODO | head"},
+        annotations=RunShellTool.annotations,
+    )
+    redirection = ToolAction(
+        tool_name="run_shell",
+        arguments={"script": "rg TODO > result.txt"},
+        annotations=RunShellTool.annotations,
+    )
+    bypass = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["/bin/sh", "-c", "rm -rf data"]},
+        annotations=RunCommandTool.annotations,
+    )
+
+    assert policy.evaluate(safe_pipeline).kind == PolicyDecisionKind.ALLOW
+    assert policy.evaluate(redirection).kind == PolicyDecisionKind.ASK
+    assert policy.evaluate(bypass).kind == PolicyDecisionKind.DENY
 
 
 def test_ksys_and_tuner_build_structured_argv(tmp_path: Path) -> None:
@@ -106,6 +157,13 @@ def test_ksys_and_tuner_build_structured_argv(tmp_path: Path) -> None:
     assert ksys[:3] == ["ksys", "diff", "-i"]
     assert ksys[-4:] == ["-o", str(tmp_path / "reports"), "-l", "2"]
     assert tuner == ["devkit", "tuner", "top-down", "-d", "10", "-p", "123", "-L", "2"]
+    with pytest.raises(ValueError, match="duration 不适用"):
+        KsysTool().build_argv(
+            context,
+            {"operation": "report", "input_paths": ["one.json"], "duration": 10},
+        )
+    with pytest.raises(ValueError, match="必须指定 workload"):
+        TunerTool().build_argv(context, {"task": "roofline"})
 
 
 class X86LinuxTarget(ExecutionTarget):

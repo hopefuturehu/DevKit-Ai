@@ -15,6 +15,7 @@ class EventType(StrEnum):
     RUN_STARTED = "run.started"
     ASSISTANT_DELTA = "assistant.delta"
     ASSISTANT_MESSAGE = "assistant.message"
+    MODEL_USAGE = "model.usage"
     TOOL_REQUESTED = "tool.requested"
     APPROVAL_REQUESTED = "approval.requested"
     APPROVAL_RESOLVED = "approval.resolved"

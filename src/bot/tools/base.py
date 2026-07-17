@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,11 @@ class ToolContext(BaseModel):
     execution_target: ExecutionTarget
     workspace_only: bool = True
     max_output_bytes: int = Field(default=1_000_000, gt=0)
+    output_callback: Callable[[str, str], Awaitable[None]] | None = None
+
+    async def emit_output(self, stream: str, data: str) -> None:
+        if self.output_callback and data:
+            await self.output_callback(stream, data)
 
 
 class ToolResult(BaseModel):

@@ -97,6 +97,28 @@ class SkillCatalog:
         )
 
     @staticmethod
+    def resource_tool_definition() -> ToolDefinition:
+        return ToolDefinition(
+            name="load_skill_resource",
+            description=(
+                "按需读取已激活 Skill 的 references、scripts 或 assets 中的文本资源。"
+                "该动作只读取文件，不执行脚本。"
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "skill": {"type": "string", "description": "已激活 Skill 名称"},
+                    "path": {
+                        "type": "string",
+                        "description": "相对 Skill 目录的资源路径",
+                    },
+                },
+                "required": ["skill", "path"],
+                "additionalProperties": False,
+            },
+        )
+
+    @staticmethod
     def _load_skill(path: Path) -> Skill:
         text = path.read_text(encoding="utf-8")
         if not text.startswith("---\n"):
@@ -169,3 +191,33 @@ class SkillManager:
 
     def reset(self) -> None:
         self.active.clear()
+
+    def load_resource(
+        self, skill_name: str, relative_path: str, *, max_chars: int = 100_000
+    ) -> tuple[str | None, str]:
+        if skill_name not in self.active:
+            return None, f"Skill 尚未激活: {skill_name}"
+        skill = self.catalog.get(skill_name)
+        if skill is None:
+            return None, f"Skill 不存在或已不可用: {skill_name}"
+        relative = Path(relative_path)
+        if relative.is_absolute() or not relative.parts:
+            return None, "Skill 资源路径必须是相对路径"
+        if relative.parts[0] not in {"references", "scripts", "assets"}:
+            return None, "只允许读取 references/、scripts/ 或 assets/ 下的资源"
+        root = skill.path.parent.resolve()
+        try:
+            resource = (root / relative).resolve(strict=True)
+            resource.relative_to(root)
+        except (OSError, ValueError):
+            return None, f"Skill 资源不存在或路径逃逸: {relative_path}"
+        if not resource.is_file():
+            return None, f"Skill 资源不是文件: {relative_path}"
+        try:
+            content = resource.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            return None, f"Skill 资源不是可读 UTF-8 文本: {exc}"
+        if len(content) > max_chars:
+            content = content[:max_chars] + "\n…资源因上下文预算截断"
+        rendered = f"Skill {skill_name} 资源 {relative_path}:\n\n{content}"
+        return rendered, rendered

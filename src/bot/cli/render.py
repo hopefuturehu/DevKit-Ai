@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any
 
+from prompt_toolkit import PromptSession
 from rich.console import Console
-from rich.prompt import Prompt
 
 from bot.core.approval import ApprovalResponse, ApprovalScope
 from bot.core.events import AgentEvent, EventType
@@ -42,6 +43,15 @@ class RichEventSink:
                 self.console.print(str(payload["output"]), markup=False)
             if payload.get("error"):
                 self.console.print(f"  [red]{payload['error']}[/red]")
+        elif event.type == EventType.TOOL_OUTPUT and self.show_tool_output:
+            style = "dim red" if payload.get("stream") == "stderr" else "dim"
+            self.console.print(
+                str(payload.get("data", "")),
+                end="",
+                style=style,
+                markup=False,
+                highlight=False,
+            )
         elif event.type == EventType.SKILL_ACTIVATED:
             self._finish_stream()
             explicit = "显式" if payload.get("explicit") else "自动"
@@ -61,24 +71,47 @@ class RichEventSink:
         return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
+@dataclass
+class PendingApproval:
+    action: ToolAction
+    decision: PolicyDecision
+    future: asyncio.Future[ApprovalResponse]
+
+
 class InteractiveApprovalHandler:
     def __init__(self, console: Console | None = None) -> None:
         self.console = console or Console()
+        self._requests: asyncio.Queue[PendingApproval] = asyncio.Queue()
 
     async def approve(self, action: ToolAction, decision: PolicyDecision) -> ApprovalResponse:
+        future: asyncio.Future[ApprovalResponse] = asyncio.get_running_loop().create_future()
+        await self._requests.put(PendingApproval(action=action, decision=decision, future=future))
+        return await future
+
+    async def next_request(self) -> PendingApproval:
+        return await self._requests.get()
+
+    async def resolve(
+        self,
+        pending: PendingApproval,
+        prompt_session: PromptSession[str],
+    ) -> None:
+        action = pending.action
+        decision = pending.decision
         prompt = (
-            f"批准 Tool {action.tool_name}？\n"
-            f"原因：{decision.reason}\n"
-            f"参数：{action.arguments}\n"
-            "选择 once/session/always/deny"
+            f"批准 Tool {action.tool_name}？\n原因：{decision.reason}\n参数：{action.arguments}"
         )
-        answer = await asyncio.to_thread(
-            Prompt.ask,
-            prompt,
-            choices=["once", "session", "always", "deny"],
-            default="deny",
-            console=self.console,
-        )
+        self.console.print(prompt, markup=False)
+        while True:
+            answer = (
+                await prompt_session.prompt_async("[approve: once/session/always/deny] ")
+            ).strip()
+            if answer in {"once", "session", "always", "deny"}:
+                break
+            self.console.print("请输入 once、session、always 或 deny。")
         if answer == "deny":
-            return ApprovalResponse(approved=False)
-        return ApprovalResponse(approved=True, scope=ApprovalScope(answer))
+            response = ApprovalResponse(approved=False)
+        else:
+            response = ApprovalResponse(approved=True, scope=ApprovalScope(answer))
+        if not pending.future.done():
+            pending.future.set_result(response)

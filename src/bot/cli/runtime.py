@@ -28,6 +28,7 @@ class Runtime:
     target: LocalExecutionTarget
     store: SQLiteSessionStore
     runner: AgentRunner
+    approval_handler: ApprovalHandler | None = None
 
     def close(self) -> None:
         self.store.close()
@@ -92,4 +93,5 @@ def build_runtime(
         target=target,
         store=store,
         runner=runner,
+        approval_handler=approval_handler,
     )
