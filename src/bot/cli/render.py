@@ -59,6 +59,35 @@ class RichEventSink:
         elif event.type == EventType.RUN_FAILED:
             self._finish_stream()
             self.console.print(f"[red]运行失败：{payload.get('error')}[/red]")
+        elif event.type == EventType.SUBAGENT_QUEUED:
+            self._finish_stream()
+            self.console.print(
+                f"[blue]⇢ Subagent[/blue] {payload.get('agent')} "
+                f"[dim]{str(payload.get('task_id', ''))[:8]} queued[/dim]"
+            )
+        elif event.type == EventType.SUBAGENT_COMPLETED:
+            self._finish_stream()
+            self.console.print(
+                f"[green]✓ Subagent[/green] "
+                f"[dim]{str(payload.get('task_id', ''))[:8]} completed[/dim]"
+            )
+        elif event.type == EventType.SUBAGENT_WAITING_APPROVAL:
+            self._finish_stream()
+            self.console.print(
+                f"[yellow]⏸ Subagent[/yellow] "
+                f"{str(payload.get('task_id', ''))[:8]} waiting approval: "
+                f"{payload.get('reason')}"
+            )
+        elif event.type in {
+            EventType.SUBAGENT_FAILED,
+            EventType.SUBAGENT_CANCELLED,
+            EventType.SUBAGENT_INTERRUPTED,
+        }:
+            self._finish_stream()
+            self.console.print(
+                f"[red]✗ Subagent[/red] {str(payload.get('task_id', ''))[:8]} "
+                f"{payload.get('error') or event.type.value}"
+            )
 
     def _finish_stream(self) -> None:
         if self._streaming:

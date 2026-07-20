@@ -141,6 +141,29 @@ async def test_search_skips_symlinked_files_outside_workspace(tmp_path: Path) ->
     assert "external-secret-marker" not in result.output
 
 
+@pytest.mark.asyncio
+async def test_file_tools_deny_internal_state_paths(tmp_path: Path) -> None:
+    state_path = tmp_path / ".bot" / "state.db"
+    state_path.parent.mkdir()
+    state_path.write_text("internal-session-secret", encoding="utf-8")
+    wal_path = Path(f"{state_path}-wal")
+    wal_path.write_text("internal-wal-secret", encoding="utf-8")
+    context = ToolContext(
+        workspace=tmp_path,
+        execution_target=LocalExecutionTarget(),
+        denied_paths=(state_path, wal_path),
+    )
+
+    direct = await ReadFileTool().execute(context, {"path": ".bot/state.db"})
+    search = await SearchTextTool().execute(context, {"query": "internal", "path": "."})
+
+    assert not direct.success
+    assert "受保护的内部路径" in (direct.error or "")
+    assert search.success
+    assert "internal-session-secret" not in search.output
+    assert "internal-wal-secret" not in search.output
+
+
 def test_policy_requires_approval_for_unknown_command_and_denies_escape(tmp_path: Path) -> None:
     policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
     command = ToolAction(

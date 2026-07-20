@@ -1,6 +1,6 @@
 # MVP 实现状态
 
-> 更新日期：2026-07-17
+> 更新日期：2026-07-19
 > 结论：设计中 Milestone 0–3 的本地代码闭环已经实现；需要真实凭据或鲲鹏 ARM 环境的项目保留为环境验收，不伪造通过结果。
 
 ## 已完成
@@ -14,8 +14,9 @@
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、流式输出、超时与进程组终止 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
 | 审批 | once/session/always/deny；永久授权按 workspace、Tool 和精确结构化参数匹配 | `src/bot/core/approval.py` |
-| 会话与审计 | SQLite migration v4、版本化事件、消息/Tool/审批投影、resume/fork、显式记忆和用量统计 | `src/bot/sessions/` |
-| 上下文 | Core Policy、`AGENTS.md`、环境、Skill Catalog、显式记忆、历史、确定性压缩和 manifest | `src/bot/core/context.py` |
+| 会话与审计 | SQLite migration v6、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、显式记忆和用量统计 | `src/bot/sessions/` |
+| 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、结构化快照、游标恢复和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py` |
+| 子 Agent | 一级后台 Worker Pool、独立 child session/Runner/Skill/Policy、只读 profile、Git worktree 写隔离、定向 blob 授权、required 汇合、状态查询/等待/取消和 fail-closed 恢复 | `src/bot/subagents/` |
 | Skill | 单一目录发现、资格过滤、三段式披露、显式/自动多选、资源按需加载和 reload | `src/bot/skills/` |
 | 鲲鹏扩展 | KSYS、DevKit Tuner 结构化 Subprocess Adapter；非 ARM/缺工具时返回手动命令 | `src/bot/tools/kunpeng/` |
 | 领域手册 | 可偏离的 `kunpeng-performance-analysis` Skill，随 wheel 发布并由 `bot init` 安装 | `skills/kunpeng-performance-analysis/` |
@@ -31,7 +32,13 @@
 .venv/bin/pip wheel . --no-deps --no-build-isolation --wheel-dir /tmp/bot-wheels
 ```
 
-当前确定性测试共 42 项，覆盖 Provider 流、完整 Agent Loop、审批作用域、上下文压缩、会话迁移和恢复、Skill 多选、路径逃逸、进程组终止、KSYS/Tuner 参数映射、CLI JSONL 以及 Eval runner。构建后的 wheel 另行执行了 `bot init` 烟测，并确认内置 Skill 可释放到工作区。
+当前确定性测试共 78 项，除 Provider 流、完整 Agent Loop、审批作用域、五级上下文管理、
+超大单消息、重复快照、游标恢复、Provider 超限重试、Skill 多选、路径逃逸、进程组终止、
+KSYS/Tuner 参数映射、CLI JSONL 和 Eval runner 外，还覆盖子 Agent 并发上限、状态 CAS、
+取消竞态、崩溃恢复、跨工作区调度隔离、审批让出并发槽、父/子上下文与 blob 隔离、
+内部状态库禁读、执行层 Tool allowlist、required 结果原子汇合和包含新文件内容的 Git worktree 写隔离。
+构建后的 wheel 另行执行 `bot init` 烟测，
+确认内置 Skill 可释放到工作区。
 
 ## 仍需环境验收
 
@@ -45,4 +52,4 @@
 
 ## 按设计延期
 
-SSH ExecutionTarget、MCP/Python/HTTP 通用 Adapter、私有数据库/RAG、Skill 安装签名和多来源、Gateway、后台任务、多 Agent、专用跨机器结果包均保持接口或演进空间，但没有纳入本次 MVP。当前密钥实现只接受环境变量引用；操作系统 Keychain 可在后续安全增强中补充。
+SSH ExecutionTarget、MCP/Python/HTTP 通用 Adapter、私有数据库/RAG、Skill 安装签名和多来源、Gateway、计划任务、对等 Agent Team、递归委托、进程外 daemon 和专用跨机器结果包均保持接口或演进空间，但没有纳入当前实现。当前已实现的是进程内、最大深度为 1 的后台子 Agent Worker Pool；它不承诺在 CLI 进程退出后继续运行。密钥实现只接受环境变量引用；操作系统 Keychain 可在后续安全增强中补充。

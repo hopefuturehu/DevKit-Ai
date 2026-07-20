@@ -31,6 +31,7 @@ class ToolContext(BaseModel):
     workspace_only: bool = True
     max_output_bytes: int = Field(default=1_000_000, gt=0)
     output_callback: Callable[[str, str], Awaitable[None]] | None = None
+    denied_paths: tuple[Path, ...] = ()
 
     async def emit_output(self, stream: str, data: str) -> None:
         if self.output_callback and data:
@@ -92,4 +93,20 @@ def resolve_path(context: ToolContext, raw_path: str, *, must_exist: bool = Fals
                 path.relative_to(context.workspace.resolve())
             except ValueError as exc:
                 raise ValueError(f"路径通过符号链接逃逸工作区: {raw_path}") from exc
+    if path_is_denied(context, path):
+        raise ValueError(f"拒绝访问受保护的内部路径: {raw_path}")
     return path
+
+
+def path_is_denied(context: ToolContext, path: Path) -> bool:
+    resolved = path.resolve(strict=False)
+    for denied_path in context.denied_paths:
+        denied = denied_path.expanduser().resolve(strict=False)
+        if resolved == denied:
+            return True
+        try:
+            resolved.relative_to(denied)
+        except ValueError:
+            continue
+        return True
+    return False

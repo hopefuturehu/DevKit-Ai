@@ -67,7 +67,11 @@ async def run_eval_case(
         )
     finally:
         duration = monotonic() - started
-        runtime.close()
+        async_close = getattr(runtime, "aclose", None)
+        if async_close is not None:
+            await async_close()
+        else:
+            runtime.close()
 
     failures: list[str] = []
     if result.status != case.expected_status:

@@ -105,6 +105,46 @@ def _run(coroutine):
         raise typer.Exit(130) from None
 
 
+async def _with_runtime_shutdown(runtime, coroutine):
+    try:
+        return await coroutine
+    finally:
+        await runtime.aclose()
+
+
+async def _prompt_with_background_approvals(
+    runtime,
+    prompt_session: PromptSession[str],
+) -> str | None:
+    approval_handler = runtime.approval_handler
+    if not isinstance(approval_handler, InteractiveApprovalHandler):
+        return await prompt_session.prompt_async("> ")
+    input_task = asyncio.create_task(prompt_session.prompt_async("> "))
+    approval_task = asyncio.create_task(approval_handler.next_request())
+    try:
+        with patch_stdout():
+            done, _ = await asyncio.wait(
+                {input_task, approval_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        if approval_task in done:
+            input_completed = input_task in done
+            if not input_task.done():
+                input_task.cancel()
+                await asyncio.gather(input_task, return_exceptions=True)
+            with patch_stdout():
+                await approval_handler.resolve(approval_task.result(), prompt_session)
+            return input_task.result() if input_completed else None
+        approval_task.cancel()
+        await asyncio.gather(approval_task, return_exceptions=True)
+        return input_task.result()
+    finally:
+        for task in (input_task, approval_task):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(input_task, approval_task, return_exceptions=True)
+
+
 def _parse_prompt(prompt: str) -> tuple[str, list[str]]:
     tokens = prompt.split()
     skills: list[str] = []
@@ -163,7 +203,7 @@ def main(
     runtime = _runtime(workspace, config_path, json_output=False, interactive=True)
     try:
         session_id = runtime.store.create_session(workspace)
-        _run(_interactive_loop(runtime, session_id))
+        _run(_with_runtime_shutdown(runtime, _interactive_loop(runtime, session_id)))
     finally:
         runtime.close()
 
@@ -178,12 +218,19 @@ def chat_command(
     runtime = _runtime(workspace, config_path, json_output=False, interactive=True)
     try:
         session_id = runtime.store.create_session(workspace)
-        _run(_interactive_loop(runtime, session_id, initial_prompt=prompt))
+        _run(
+            _with_runtime_shutdown(
+                runtime,
+                _interactive_loop(runtime, session_id, initial_prompt=prompt),
+            )
+        )
     finally:
         runtime.close()
 
 
 async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None = None) -> None:
+    if runtime.config.subagents.enabled:
+        await runtime.subagents.start()
     prompt_session: PromptSession[str] = PromptSession()
     queued_prompt = initial_prompt
     console.print(
@@ -196,8 +243,10 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                 prompt = queued_prompt.strip()
                 queued_prompt = None
             else:
-                with patch_stdout():
-                    prompt = (await prompt_session.prompt_async("> ")).strip()
+                pending_input = await _prompt_with_background_approvals(runtime, prompt_session)
+                if pending_input is None:
+                    continue
+                prompt = pending_input.strip()
         except EOFError:
             console.print()
             return
@@ -216,12 +265,34 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     "permission_mode": runtime.config.permissions.mode,
                     "active_skills": list(runtime.skills.active),
                     "context_manifest": runtime.context.manifest(),
+                    "context": runtime.runner.context_status(session_id),
                     "usage": usage,
                 }
             )
             continue
         if prompt == "/tools":
-            console.print("\n".join(runtime.tools.names()))
+            control_tools = (
+                [definition.name for definition in runtime.subagents.definitions()]
+                if runtime.config.subagents.enabled
+                else []
+            )
+            console.print("\n".join([*runtime.tools.names(), *control_tools]))
+            continue
+        if prompt == "/agents":
+            tasks = runtime.subagents.list_tasks(session_id)
+            if not tasks:
+                console.print("暂无后台子 Agent 任务。")
+            else:
+                table = Table("Task", "Agent", "Status", "Required", "Objective")
+                for task in tasks:
+                    table.add_row(
+                        str(task["id"]),
+                        str(task["agent_name"]),
+                        str(task["status"]),
+                        str(task["required"]),
+                        str(task["objective"])[:80],
+                    )
+                console.print(table)
             continue
         if prompt == "/model":
             console.print(f"{runtime.config.model.name} @ {runtime.config.model.base_url}")
@@ -248,8 +319,16 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             console.print(f"本会话权限模式已切换为 {mode}")
             continue
         if prompt == "/compact":
-            runtime.runner.request_compaction(session_id)
-            console.print("将在下一次模型请求前压缩旧上下文。")
+            result = runtime.runner.compact_session(session_id)
+            if result["compacted"]:
+                console.print(
+                    "已立即创建上下文快照："
+                    f"cursor={result['cursor_position']}，"
+                    f"messages={result['messages_checkpointed']}，"
+                    f"tokens≈{result['snapshot_tokens']}。"
+                )
+            else:
+                console.print("当前快照之后没有新消息，无需压缩。")
             continue
         if prompt == "/skills":
             _print_skills(runtime.catalog, active=set(runtime.skills.active))
@@ -264,7 +343,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
         if prompt in {"/help", "?"}:
             console.print(
                 "/status /tools /skills /skills reload /remember <text> "
-                "/memories /forget <id> /model /permissions /compact /new /exit"
+                "/memories /forget <id> /agents /model /permissions /compact /new /exit"
             )
             continue
         if prompt.startswith("/remember "):
@@ -387,9 +466,14 @@ def run_command(
             json_output=json_output,
         )
         if sys.stdin.isatty() and not json_output:
-            result = _run(_run_with_steering(runtime, PromptSession(), request))
+            result = _run(
+                _with_runtime_shutdown(
+                    runtime,
+                    _run_with_steering(runtime, PromptSession(), request),
+                )
+            )
         else:
-            result = _run(runtime.runner.run(request))
+            result = _run(_with_runtime_shutdown(runtime, runtime.runner.run(request)))
         if result.status != "completed":
             if json_output:
                 print(result.model_dump_json())
@@ -413,7 +497,7 @@ def resume_command(
         if not selected or not runtime.store.session_exists(selected):
             console.print("[red]没有可恢复的会话。[/red]")
             raise typer.Exit(1)
-        _run(_interactive_loop(runtime, selected))
+        _run(_with_runtime_shutdown(runtime, _interactive_loop(runtime, selected)))
     finally:
         runtime.close()
 
@@ -489,6 +573,23 @@ provider = "openai_compatible"
 base_url = ""
 api_key_ref = "env:BOT_MODEL_API_KEY"
 name = ""
+context_window_tokens = 131072
+
+[context]
+max_input_tokens = 120000
+auto_compact_threshold = 0.8
+output_reserve_tokens = 4096
+protocol_reserve_tokens = 2048
+safety_margin_tokens = 2048
+
+[subagents]
+enabled = true
+max_concurrent = 3
+max_queued = 32
+max_tasks_per_session = 16
+max_steps = 15
+max_wall_time_seconds = 900
+allow_worktree_writes = true
 
 [skills]
 path = "./skills"

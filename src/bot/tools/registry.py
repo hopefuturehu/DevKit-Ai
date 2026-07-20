@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from bot.core.models import ToolDefinition
 from bot.tools.base import Tool
 
@@ -21,6 +23,15 @@ class ToolRegistry:
 
     def names(self) -> list[str]:
         return list(self._tools)
+
+    def subset(self, names: Iterable[str]) -> ToolRegistry:
+        selected = ToolRegistry()
+        for name in dict.fromkeys(names):
+            tool = self._tools.get(name)
+            if tool is None:
+                raise ValueError(f"未知 Tool: {name}")
+            selected.register(tool)
+        return selected
 
     def __iter__(self):
         return iter(self._tools.values())

@@ -13,10 +13,18 @@ from bot.core.approval import (
 )
 from bot.core.context import ContextAssembler
 from bot.core.events import EventBus, EventType, MemoryEventSink
-from bot.core.models import ModelCapabilities, ModelEvent, ModelEventKind, ModelRequest
+from bot.core.models import (
+    ChatMessage,
+    ModelCapabilities,
+    ModelEvent,
+    ModelEventKind,
+    ModelRequest,
+    Role,
+    ToolCall,
+)
 from bot.execution import LocalExecutionTarget
 from bot.policy import DefaultPolicyEngine
-from bot.providers import ModelProvider
+from bot.providers import ModelProvider, ProviderError
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
 from bot.tools import Tool, ToolAnnotations, ToolRegistry, ToolResult
@@ -57,6 +65,21 @@ class SteerableProvider(ModelProvider):
         yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
 
 
+class ContextRetryProvider(ModelProvider):
+    def __init__(self) -> None:
+        self.requests: list[ModelRequest] = []
+
+    def capabilities(self, model: str) -> ModelCapabilities:
+        return ModelCapabilities()
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
+        self.requests.append(request)
+        if len(self.requests) == 1:
+            raise ProviderError("maximum context length exceeded")
+        yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="recovered")
+        yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+
 class ApprovalHandlerStub:
     def __init__(self, scope: ApprovalScope) -> None:
         self.scope = scope
@@ -81,6 +104,22 @@ class DestructiveTestTool(Tool):
         return ToolResult(success=True, output="executed")
 
 
+class LargeSchemaTool(Tool):
+    description = "x" * 1_200
+    input_schema = {
+        "type": "object",
+        "properties": {"value": {"type": "string"}},
+        "additionalProperties": False,
+    }
+    annotations = ToolAnnotations(read_only=True)
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    async def execute(self, context, arguments) -> ToolResult:
+        return ToolResult(success=True, output="ok")
+
+
 def tool_turn(call_id: str, name: str, arguments: str) -> list[ModelEvent]:
     return [
         ModelEvent(
@@ -101,6 +140,7 @@ def make_test_runner(
     agent_config: dict | None = None,
     model_config: dict | None = None,
     tools: list | None = None,
+    context_config: dict | None = None,
 ):
     model = {"base_url": "https://unused", "name": "mock"}
     model.update(model_config or {})
@@ -108,6 +148,7 @@ def make_test_runner(
         {
             "model": model,
             "agent": agent_config or {},
+            "context": context_config or {},
             "storage": {"state_path": str(tmp_path / "state.db")},
             "skills": {"path": str(tmp_path / "skills")},
         }
@@ -131,6 +172,145 @@ def make_test_runner(
         event_bus=EventBus([store]),
     )
     return runner, store
+
+
+@pytest.mark.asyncio
+async def test_agent_externalizes_single_oversized_user_message(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="handled"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        model_config={"context_window_tokens": 10_000},
+        context_config={
+            "max_input_tokens": 8_000,
+            "output_reserve_tokens": 500,
+            "protocol_reserve_tokens": 500,
+            "safety_margin_tokens": 500,
+            "recent_conversation_tokens": 4_000,
+            "tool_result_inline_tokens": 500,
+        },
+    )
+
+    result = await runner.run(RunRequest(prompt="中" * 40_000))
+
+    assert result.status == "completed"
+    model_text = "\n".join(message.content or "" for message in provider.requests[0].messages)
+    assert "context_ref=blob:" in model_text
+    assert len(store.load_messages(result.session_id)[0].content or "") == 40_000
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_checkpoints_and_resumes_from_cursor(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="second"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        model_config={"context_window_tokens": 8_000},
+        context_config={
+            "max_input_tokens": 6_500,
+            "auto_compact_threshold": 0.5,
+            "output_reserve_tokens": 500,
+            "protocol_reserve_tokens": 500,
+            "safety_margin_tokens": 500,
+            "recent_conversation_tokens": 1_500,
+        },
+    )
+    session_id = store.create_session(tmp_path)
+    for index in range(12):
+        role = Role.USER if index % 2 == 0 else Role.ASSISTANT
+        store.append_message(
+            session_id,
+            "seed",
+            ChatMessage(role=role, content=f"old-{index}-" + "中" * 1_000),
+        )
+
+    first = await runner.run(RunRequest(prompt="new-one", session_id=session_id))
+    second = await runner.run(RunRequest(prompt="new-two", session_id=session_id))
+
+    assert first.status == second.status == "completed"
+    latest = store.latest_context_snapshot(session_id)
+    assert latest is not None
+    assert latest[1].cursor_position > 0
+    second_messages = provider.requests[1].messages
+    checkpoints = [message for message in second_messages if message.name == "context_checkpoint"]
+    assert len(checkpoints) == 1
+    assert not any("old-0-" in (message.content or "") for message in second_messages)
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_retries_provider_context_error_once(tmp_path: Path) -> None:
+    provider = ContextRetryProvider()
+    runner, store = make_test_runner(tmp_path, provider)
+
+    result = await runner.run(RunRequest(prompt="x" * 3_000))
+
+    assert result.status == "completed"
+    assert result.final_text == "recovered"
+    assert len(provider.requests) == 2
+    store.close()
+
+
+def test_agent_sheds_and_reactivates_tool_schemas(tmp_path: Path) -> None:
+    provider = ScriptedProvider([])
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        tools=[LargeSchemaTool(f"large_{index}") for index in range(4)],
+        context_config={"tool_schema_tokens": 800},
+    )
+
+    initial, catalog = runner._select_tool_definitions(  # noqa: SLF001
+        "session", runner.tool_registry.definitions()
+    )
+    activated = runner._activate_tools(  # noqa: SLF001
+        ToolCall(id="activate", name="activate_tools", arguments={"names": ["large_0"]}),
+        "session",
+    )
+    after, _ = runner._select_tool_definitions(  # noqa: SLF001
+        "session", runner.tool_registry.definitions()
+    )
+
+    assert catalog is not None
+    assert "large_0" not in {tool.name for tool in initial}
+    assert activated.success
+    assert "large_0" in {tool.name for tool in after}
+    store.close()
+
+
+def test_manual_compaction_creates_snapshot_immediately(tmp_path: Path) -> None:
+    runner, store = make_test_runner(tmp_path, ScriptedProvider([]))
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "seed", ChatMessage(role=Role.USER, content="objective"))
+    store.append_message(session_id, "seed", ChatMessage(role=Role.ASSISTANT, content="result"))
+
+    result = runner.compact_session(session_id)
+    status = runner.context_status(session_id)
+
+    assert result["compacted"] is True
+    assert result["cursor_position"] == 2
+    assert status["delta_messages"] == 0
+    assert status["latest_snapshot"]["cursor_position"] == 2
+    store.close()
 
 
 @pytest.mark.asyncio

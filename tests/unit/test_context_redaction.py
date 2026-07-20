@@ -30,6 +30,26 @@ def test_context_manifest_reports_instruction_sources(tmp_path: Path) -> None:
     assert manifest[-1]["items"] == 1
 
 
+def test_context_discovers_agents_hierarchy_from_repo_root(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    nested = tmp_path / "services" / "api"
+    nested.mkdir(parents=True)
+    (tmp_path / "AGENTS.md").write_text("root rule", encoding="utf-8")
+    (tmp_path / "services" / "AGENTS.md").write_text("service rule", encoding="utf-8")
+    (nested / "AGENTS.md").write_text("api rule", encoding="utf-8")
+    catalog = SkillCatalog(nested / "skills")
+    catalog.scan()
+    assembler = ContextAssembler(workspace=nested, skill_catalog=catalog)
+
+    files = assembler.project_instruction_files()
+
+    assert files == [
+        tmp_path / "AGENTS.md",
+        tmp_path / "services" / "AGENTS.md",
+        nested / "AGENTS.md",
+    ]
+
+
 def test_context_compaction_preserves_system_and_recent_messages() -> None:
     messages = [ChatMessage(role=Role.SYSTEM, content="policy")]
     messages.extend(

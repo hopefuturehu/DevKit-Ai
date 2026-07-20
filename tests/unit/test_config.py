@@ -41,11 +41,51 @@ def test_config_rejects_unknown_fields(tmp_path: Path) -> None:
         load_config(tmp_path, config_path=config_path)
 
 
+def test_config_rejects_reserves_larger_than_model_context_window(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[model]
+context_window_tokens = 8000
+max_output_tokens = 7000
+
+[context]
+protocol_reserve_tokens = 1000
+safety_margin_tokens = 1000
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="reserve"):
+        load_config(tmp_path, config_path=config_path)
+
+
 def test_api_key_must_be_an_environment_reference(monkeypatch) -> None:
     monkeypatch.setenv("TEST_BOT_KEY", "secret")
     assert resolve_api_key("env:TEST_BOT_KEY") == "secret"
     with pytest.raises(ConfigError, match="不允许在配置中保存明文"):
         resolve_api_key("secret")
+
+
+def test_subagent_limits_are_strictly_validated(tmp_path: Path) -> None:
+    config = load_config(
+        tmp_path,
+        overrides={
+            "subagents": {
+                "max_concurrent": 4,
+                "max_queued": 20,
+                "allow_worktree_writes": False,
+            }
+        },
+    )
+    assert config.subagents.max_concurrent == 4
+    assert config.subagents.max_queued == 20
+    assert config.subagents.allow_worktree_writes is False
+
+    with pytest.raises(ConfigError, match="配置校验失败"):
+        load_config(tmp_path, overrides={"subagents": {"max_concurrent": 0}})
+    with pytest.raises(ConfigError, match="worktree_dir"):
+        load_config(tmp_path, overrides={"subagents": {"worktree_dir": "../escape"}})
 
 
 def test_config_writer_is_atomic_and_validates_values(tmp_path: Path) -> None:

@@ -11,7 +11,14 @@ from typing import Any
 import httpx
 
 from bot.execution import ProcessEventKind, ProcessSpec
-from bot.tools.base import Tool, ToolAnnotations, ToolContext, ToolResult, resolve_path
+from bot.tools.base import (
+    Tool,
+    ToolAnnotations,
+    ToolContext,
+    ToolResult,
+    path_is_denied,
+    resolve_path,
+)
 
 
 class ReadFileTool(Tool):
@@ -87,6 +94,8 @@ class SearchTextTool(Tool):
                 try:
                     resolved_path = path.resolve(strict=True)
                     resolved_path.relative_to(context.workspace.resolve())
+                    if path_is_denied(context, resolved_path):
+                        continue
                     if resolved_path.stat().st_size > 5_000_000:
                         continue
                     for line_number, line in enumerate(

@@ -23,6 +23,10 @@ class EventType(StrEnum):
     TOOL_OUTPUT = "tool.output"
     TOOL_COMPLETED = "tool.completed"
     CONTEXT_COMPACTED = "context.compacted"
+    CONTEXT_CHECKPOINTED = "context.checkpointed"
+    CONTEXT_PACKED = "context.packed"
+    CONTEXT_LIMIT_REACHED = "context.limit_reached"
+    CONTEXT_RETRY = "context.retry"
     RUN_STEERED = "run.steered"
     RUN_FAILED = "run.failed"
     RUN_COMPLETED = "run.completed"
@@ -31,6 +35,14 @@ class EventType(StrEnum):
     SKILL_RESOURCE_LOADED = "skill.resource_loaded"
     SKILL_SKIPPED = "skill.skipped"
     SKILL_CONFLICT = "skill.conflict_detected"
+    SUBAGENT_QUEUED = "subagent.queued"
+    SUBAGENT_STARTED = "subagent.started"
+    SUBAGENT_WAITING_APPROVAL = "subagent.waiting_approval"
+    SUBAGENT_RESUMED = "subagent.resumed"
+    SUBAGENT_COMPLETED = "subagent.completed"
+    SUBAGENT_FAILED = "subagent.failed"
+    SUBAGENT_CANCELLED = "subagent.cancelled"
+    SUBAGENT_INTERRUPTED = "subagent.interrupted"
 
 
 class AgentEvent(BaseModel):

@@ -64,7 +64,7 @@
 - Cron、后台常驻服务和无人值守长任务。
 - 自动创建或自动修改 Skill。
 - 自动写入长期记忆。
-- 多 Agent 协作和子 Agent 编排。
+- 对等 Agent Team、递归委托和跨进程常驻子 Agent；进程内一级后台 Worker Pool 已实现。
 - 浏览器 GUI 自动化、语音、图像生成。
 - 公共插件市场。
 - SSH、远程安装和跨机器命令执行。
@@ -117,6 +117,7 @@ bot mcp list|add|remove      # 后续接入 MCP
 /status        模型、Token、费用、工作区、权限模式
 /model         查看或切换模型
 /tools         查看本会话可用工具
+/agents        查看后台子 Agent 的任务、状态和 required 标记
 /skills        查看候选 Skill、已激活 Skill 及其路径
 /skills reload 重新扫描配置指定的 Skill 目录
 /permissions   查看或调整本会话权限
@@ -235,6 +236,40 @@ run.completed
 3. 幂等工具反复返回相同结果。
 
 首次达到阈值时给模型反馈；再次达到阈值则阻断执行并要求模型换方案或向用户求助。非交互模式默认硬停止。
+
+### 5.3 后台子 Agent Worker Pool
+
+父 Agent 通过四个内部控制 Tool 使用一级后台 Worker Pool：
+
+- `spawn_agent`：先持久化任务和独立 child session，再立即返回 `task_id`；
+- `get_agent_status`：按父会话边界查询状态、结果和独立用量；
+- `await_agents`：事件驱动等待多个任务，超时只返回状态，不取消任务；
+- `cancel_agent`：幂等取消 queued/running/waiting-approval 任务。
+
+内置 profile 为 `explorer`、`reviewer` 和 `coder`。前两者只获得本地只读 Tool allowlist；
+`coder` 必须在从当前 `HEAD` 创建的 detached Git worktree 中工作，不直接写主工作区。每个任务
+创建独立 `AgentRunner`、`SkillManager`、`DefaultPolicyEngine` 和 child session；Provider、
+SQLite Store、ExecutionTarget 与无状态 Tool 实例可以共享。child runner 不注入 Worker Pool，
+因此委托深度由结构保证为 1。
+
+上下文采用显式委托：child session 只得到 objective、constraints、acceptance criteria 和经父
+session 授权的 `context_ref`，不使用 `fork_session`，也不复制父历史。child 结果以不可信
+Tool 数据返回；完整结果和包含 staged、unstaged、untracked 内容的 diff 使用 blob 引用。
+如果 SQLite 状态库配置在工作区内，其 DB/WAL/SHM/journal 路径会注入 child Tool 的禁读列表，
+防止绕过 blob 授权直接扫描父会话数据。`required=true` 的任务在父 Agent 最终回答前自动
+等待并原子回流，父运行异常结束时取消；detached 任务只在交互进程存活期间继续，
+当前设计不把进程内 Worker Pool 宣称为 daemon。
+
+状态机为：
+
+```text
+queued → running ↔ waiting_approval → completed | failed | limit_reached
+   └──────────────→ cancelling → cancelled
+进程崩溃恢复：running | waiting_approval | cancelling → interrupted
+```
+
+并发由 `asyncio.Semaphore` 限制。审批等待期间释放计算槽，SQLite 状态迁移使用 CAS，避免多调度器
+重复 claim 以及取消/完成互相覆盖。上次进程已开始的任务不会自动重放，以免重复副作用。
 
 ## 6. 核心接口
 
@@ -363,10 +398,26 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 
 ### 7.2 压缩策略
 
-- 永远保留最近若干轮、未完成任务、关键审批和当前工具状态。
-- 优先删除可重新获取的大型工具输出，其次用结构化摘要替代旧消息。
-- 摘要包含：目标、已完成、关键发现、文件变化、失败尝试、待办和用户约束。
-- 原始事件仍保存在本地；压缩只影响发送给模型的上下文。
+上下文管理采用五级防线，而不是对消息数组做一次性字符串摘要：
+
+1. **预算级**：用模型上下文窗口减去输出、协议和安全预留，得到硬输入上限；
+   每次请求先做 Unicode 感知保守估算，Provider 支持时再做精确计数。
+2. **装配级**：所有内容进入带 layer、source、trust、retention、priority 和
+   atomic group 的 Context Ledger；每次模型调用都重新规划，Assistant Tool Call 与对应
+   Tool Result 不可拆分。
+3. **卸载级**：完整 Tool 输出和巨型消息进入内容寻址 blob，模型只接收 head/tail、hash
+   与可分页读取的 `context_ref`；Tool schema 超预算时只保留目录和动态激活入口；Skill
+   Catalog、Skill 正文和资源分别管理。
+4. **快照级**：旧消息前缀投影为单个结构化 Context Snapshot，记录目标、约束、决策、
+   已完成项、文件、证据引用、失败、审批、激活 Skill、待办和未决状态。快照属于用户数据
+   信任域，不能变成新的 System 指令；新快照直接 supersede 旧快照，不允许摘要套摘要。
+5. **恢复级**：SQLite 持久化 `building → ready → superseded/failed` 快照状态、消息游标、
+   引用和 blob 访问授权。恢复时重新发现 Core/Project/Environment，只加载最新 ready 快照
+   和游标后的增量消息。若 Provider 仍报告 context-length，只允许一次强制快照/外置重试；
+   仍失败则按层输出不可压缩项报告。
+
+`/compact` 会立即建立恢复点，`/status` 显示硬/目标预算、最新快照、增量消息和动态 Tool
+状态。原始消息、Tool Run 和事件仍保留在本地，快照只改变发送给模型的上下文视图。
 
 ### 7.3 长期记忆
 
@@ -547,6 +598,9 @@ SQLite 表的最小集合：
 - `tool_runs`：工具参数摘要、状态、耗时和结果摘要；
 - `approvals`：请求、决定、范围和策略来源；
 - `memories`：显式记忆、来源、版本和删除状态；
+- `context_snapshots`、`context_blobs`、`context_blob_access`：结构化检查点、大内容和显式跨
+  session 引用授权；
+- `agent_tasks`：父/子会话、profile、任务约束、状态机、幂等键、结果、用量和恢复信息；
 - `schema_migrations`：数据库迁移版本。
 
 大型工具输出不直接塞入消息，可压缩后存入 blob 文件或单独表，事件只保存引用和 hash。
@@ -564,11 +618,22 @@ base_url = "<customer-or-model-provider-api>"
 api_key_ref = "env:BOT_MODEL_API_KEY"
 name = "<deepseek-v4-flash-or-pro-model-id>"
 temperature = 0.2
+context_window_tokens = 131072
 
 [agent]
 max_steps = 30
 max_wall_time_seconds = 1800
 max_cost_usd = 2.0
+
+[subagents]
+enabled = true
+max_concurrent = 3
+max_queued = 32
+max_tasks_per_session = 16
+max_steps = 15
+max_wall_time_seconds = 900
+allow_worktree_writes = true
+worktree_dir = ".bot/agent-worktrees"
 
 [permissions]
 mode = "safe"
@@ -578,6 +643,13 @@ network = "ask"
 [context]
 max_input_tokens = 120000
 auto_compact_threshold = 0.80
+output_reserve_tokens = 4096
+protocol_reserve_tokens = 2048
+safety_margin_tokens = 2048
+snapshot_max_tokens = 12000
+recent_conversation_tokens = 48000
+tool_schema_tokens = 16000
+tool_result_inline_tokens = 4000
 
 [skills]
 path = "./skills"
@@ -623,6 +695,7 @@ bot/
 │   ├── policy/              # 文件、Shell、网络、审批策略
 │   ├── sessions/            # SQLite store、migration、projection
 │   ├── skills/              # Skill 发现、匹配、加载
+│   ├── subagents/           # 后台 Worker Pool、profile、状态机和控制 Tool
 │   ├── config/              # Schema、分层加载、凭据引用
 │   └── observability/       # 日志、脱敏、usage、trace
 ├── tests/
@@ -737,7 +810,8 @@ vs
 - 鲲鹏源码优化、迁移和 SQL 分析 Skill；
 - 经独立安全设计后的内部数据库或 RAG；
 - Skill 多来源、安装、签名和 Bundle；
-- Gateway、计划任务、多 Agent 和隔离执行后端作为独立提案评估。
+- Gateway、计划任务、对等 Agent Team、递归委托和进程外 daemon 作为独立提案评估；
+  一级后台子 Agent 和 Git worktree 写隔离已进入当前实现。
 
 ## 15. 已确认决策与待验证假设
 
