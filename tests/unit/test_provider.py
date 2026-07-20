@@ -86,3 +86,19 @@ async def test_provider_surfaces_http_error_without_authorization_value() -> Non
         _ = [event async for event in provider.stream(request)]
     await client.aclose()
     assert "do-not-leak" not in str(captured.value)
+
+
+@pytest.mark.asyncio
+async def test_provider_names_http_error_when_exception_message_is_empty() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ProxyError("")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = OpenAICompatibleProvider(
+        base_url="https://example.test/v1", api_key="secret", client=client
+    )
+    request = ModelRequest(model="test", messages=[ChatMessage(role=Role.USER, content="hello")])
+
+    with pytest.raises(ProviderError, match="ProxyError"):
+        _ = [event async for event in provider.stream(request)]
+    await client.aclose()

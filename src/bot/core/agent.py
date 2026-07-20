@@ -754,7 +754,7 @@ class AgentRunner:
                     failed_fingerprints.pop(fingerprint, None)
                     tool = self.tool_registry.get(tool_call.name)
                     if tool is not None and tool.annotations.idempotent:
-                        result_fingerprint = self._result_fingerprint(tool_call.name, result)
+                        result_fingerprint = self._result_fingerprint(tool_call, result)
                         if result_fingerprint == last_idempotent_result:
                             repeated_idempotent_results += 1
                         else:
@@ -1599,9 +1599,13 @@ class AgentRunner:
         return hashlib.sha256(payload.encode()).hexdigest()
 
     @staticmethod
-    def _result_fingerprint(tool_name: str, result: ToolResult) -> str:
+    def _result_fingerprint(tool_call: ToolCall, result: ToolResult) -> str:
         payload = json.dumps(
-            {"name": tool_name, "result": result.model_dump(mode="json")},
+            {
+                "name": tool_call.name,
+                "arguments": tool_call.arguments,
+                "result": result.model_dump(mode="json"),
+            },
             sort_keys=True,
             ensure_ascii=False,
         )

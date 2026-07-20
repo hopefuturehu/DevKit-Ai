@@ -124,7 +124,8 @@ class OpenAICompatibleProvider(ModelProvider):
             if not saw_finish:
                 yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="eof")
         except httpx.HTTPError as exc:
-            raise ProviderError(f"模型 API 请求失败: {exc}") from exc
+            detail = str(exc).strip() or type(exc).__name__
+            raise ProviderError(f"模型 API 请求失败: {detail}") from exc
         finally:
             if owned_client:
                 await client.aclose()

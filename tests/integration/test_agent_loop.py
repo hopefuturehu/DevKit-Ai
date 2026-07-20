@@ -484,6 +484,36 @@ async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_agent_allows_same_idempotent_result_for_different_arguments(tmp_path: Path) -> None:
+    for name in ("first.txt", "second.txt", "third.txt"):
+        (tmp_path / name).write_text("unchanged", encoding="utf-8")
+    provider = ScriptedProvider(
+        [
+            tool_turn("read-1", "read_file", '{"path":"first.txt"}'),
+            tool_turn("read-2", "read_file", '{"path":"second.txt"}'),
+            tool_turn("read-3", "read_file", '{"path":"third.txt"}'),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={"max_steps": 5},
+        tools=[ReadFileTool()],
+    )
+
+    result = await runner.run(RunRequest(prompt="read all files"))
+
+    assert result.status == "completed"
+    assert result.final_text == "done"
+    assert len(provider.requests) == 4
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_agent_treats_length_finish_as_limit(tmp_path: Path) -> None:
     provider = ScriptedProvider(
         [

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from bot.config import AppConfig, ConfigError, load_config, resolve_api_key
 from bot.core import AgentRunner
@@ -55,9 +56,10 @@ def build_runtime(
     config_path: Path | None = None,
     event_sinks: list[EventSink] | None = None,
     approval_handler: ApprovalHandler | None = None,
+    config_overrides: dict[str, Any] | None = None,
 ) -> Runtime:
     workspace = workspace.resolve()
-    config = load_config(workspace, config_path=config_path)
+    config = load_config(workspace, config_path=config_path, overrides=config_overrides)
     if not config.model.name:
         raise ConfigError("model.name 未配置")
     api_key = resolve_api_key(config.model.api_key_ref)
