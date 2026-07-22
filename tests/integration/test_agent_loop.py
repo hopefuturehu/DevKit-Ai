@@ -1,4 +1,6 @@
 import asyncio
+import json
+import sqlite3
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -533,6 +535,164 @@ async def test_agent_treats_length_finish_as_limit(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_agent_persists_reasoning_and_round_trips_it_for_tool_calls(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "input.txt").write_text("evidence", encoding="utf-8")
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.REASONING_DELTA, text="inspect the file"),
+                *tool_turn("read-1", "read_file", '{"path":"input.txt"}'),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider, tools=[ReadFileTool()])
+
+    result = await runner.run(RunRequest(prompt="inspect"))
+
+    assert result.status == "completed"
+    assistant_tool_message = next(
+        message
+        for message in provider.requests[1].messages
+        if message.role == Role.ASSISTANT and message.tool_calls
+    )
+    assert assistant_tool_message.reasoning_content == "inspect the file"
+    assert assistant_tool_message.to_openai()["reasoning_content"] == "inspect the file"
+    events = store.list_events(result.session_id)
+    reasoning = [event for event in events if event["type"] == "assistant.reasoning.delta"]
+    assert reasoning[0]["payload"]["text"] == "inspect the file"
+    response = next(event for event in events if event["type"] == "model.response")
+    assert response["payload"]["reasoning_chars"] == len("inspect the file")
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_retries_reasoning_only_response_without_persisting_empty_message(
+    tmp_path: Path,
+) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.REASONING_DELTA, text="reasoning only"),
+                ModelEvent(
+                    kind=ModelEventKind.USAGE,
+                    input_tokens=10,
+                    output_tokens=12,
+                    provider_metadata={
+                        "raw_usage": {
+                            "prompt_tokens": 10,
+                            "completion_tokens": 12,
+                            "completion_tokens_details": {"reasoning_tokens": 12},
+                        }
+                    },
+                ),
+                ModelEvent(
+                    kind=ModelEventKind.FINISH,
+                    finish_reason="stop",
+                    provider_metadata={"observed_delta_fields": ["reasoning_content"]},
+                ),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="recovered"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider)
+
+    result = await runner.run(RunRequest(prompt="answer"))
+
+    assert result.status == "completed"
+    assert result.final_text == "recovered"
+    assert len(provider.requests) == 2
+    assert all(
+        message.assistant_payload_error() is None
+        for message in store.load_messages(result.session_id)
+    )
+    events = store.list_events(result.session_id)
+    empty = next(event for event in events if event["type"] == "model.empty_response")
+    assert empty["payload"]["likely_cause"] == "reasoning_without_final_content"
+    assert empty["payload"]["will_retry"] is True
+    usage = next(event for event in events if event["type"] == "model.usage")
+    assert usage["payload"]["turn_usage"]["completion_tokens_details"] == {"reasoning_tokens": 12}
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_fails_two_empty_responses_without_poisoning_history(tmp_path: Path) -> None:
+    empty_turn = [
+        ModelEvent(kind=ModelEventKind.REASONING_DELTA, text="unfinished"),
+        ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+    ]
+    provider = ScriptedProvider([empty_turn, empty_turn])
+    runner, store = make_test_runner(tmp_path, provider)
+
+    result = await runner.run(RunRequest(prompt="answer"))
+
+    assert result.status == "failed"
+    assert "连续 2 次" in (result.error or "")
+    messages = store.load_messages(result.session_id)
+    assert [message.role for message in messages] == [Role.USER]
+    empty_events = [
+        event
+        for event in store.list_events(result.session_id)
+        if event["type"] == "model.empty_response"
+    ]
+    assert [event["payload"]["will_retry"] for event in empty_events] == [True, False]
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_drops_legacy_empty_assistant_before_provider_request(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="healthy"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider)
+    session_id = store.create_session(tmp_path)
+    invalid = {
+        "role": "assistant",
+        "content": None,
+        "reasoning_content": None,
+        "name": None,
+        "tool_call_id": None,
+        "tool_calls": [],
+    }
+    with sqlite3.connect(store.path) as connection:
+        connection.execute(
+            """
+            INSERT INTO messages(
+                session_id, run_id, position, role, content, message_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (session_id, "legacy", 1, "assistant", None, json.dumps(invalid), "now"),
+        )
+
+    result = await runner.run(RunRequest(prompt="recover", session_id=session_id))
+
+    assert result.status == "completed"
+    assert all(
+        message.assistant_payload_error() is None for message in provider.requests[0].messages
+    )
+    dropped = next(
+        event
+        for event in store.list_events(session_id)
+        if event["type"] == "context.invalid_message_dropped"
+    )
+    assert dropped["payload"]["position"] == 1
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_agent_enforces_cost_before_requested_tool_runs(tmp_path: Path) -> None:
     provider = ScriptedProvider(
         [
@@ -625,9 +785,15 @@ async def test_agent_persists_always_approval_across_sessions(tmp_path: Path) ->
     provider = ScriptedProvider(
         [
             tool_turn("danger-1", "destructive_test", "{}"),
-            [ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
             tool_turn("danger-2", "destructive_test", "{}"),
-            [ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="second done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
         ]
     )
     tool = DestructiveTestTool()

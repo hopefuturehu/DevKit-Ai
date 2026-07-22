@@ -487,6 +487,8 @@ class SQLiteSessionStore(EventSink):
 
     def append_message(self, session_id: str, run_id: str, message: ChatMessage) -> int:
         message = ChatMessage.model_validate(self._sanitizer(message.model_dump(mode="python")))
+        if error := message.assistant_payload_error():
+            raise ValueError(f"拒绝持久化无效消息: {error}")
         with self._lock, self._connection:
             position = self._connection.execute(
                 "SELECT COALESCE(MAX(position), 0) + 1 FROM messages WHERE session_id = ?",
@@ -520,6 +522,8 @@ class SQLiteSessionStore(EventSink):
     ) -> int:
         """Atomically persist a parent-visible result and acknowledge its tasks."""
         message = ChatMessage.model_validate(self._sanitizer(message.model_dump(mode="python")))
+        if error := message.assistant_payload_error():
+            raise ValueError(f"拒绝持久化无效消息: {error}")
         unique_task_ids = list(dict.fromkeys(task_ids))
         with self._lock, self._connection:
             position = self._connection.execute(
@@ -575,6 +579,9 @@ class SQLiteSessionStore(EventSink):
             ChatMessage.model_validate(self._sanitizer(message.model_dump(mode="python")))
             for message in messages
         ]
+        for message in sanitized_messages:
+            if error := message.assistant_payload_error():
+                raise ValueError(f"拒绝持久化无效消息: {error}")
         unique_task_ids = list(dict.fromkeys(task_ids))
         now = datetime.now(UTC).isoformat()
         with self._lock, self._connection:

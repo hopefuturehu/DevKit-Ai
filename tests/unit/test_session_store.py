@@ -23,6 +23,8 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
         )
     )
     store.append_message(session_id, run_id, ChatMessage(role=Role.USER, content="hello"))
+    with pytest.raises(ValueError, match="拒绝持久化无效消息"):
+        store.append_message(session_id, run_id, ChatMessage(role=Role.ASSISTANT))
     store.finish_run(
         run_id,
         "completed",

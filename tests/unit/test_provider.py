@@ -3,13 +3,21 @@ import json
 import httpx
 import pytest
 
-from bot.core.models import ChatMessage, ModelEventKind, ModelRequest, Role, ToolDefinition
+from bot.core.models import (
+    ChatMessage,
+    ModelEventKind,
+    ModelRequest,
+    Role,
+    ToolCall,
+    ToolDefinition,
+)
 from bot.providers import OpenAICompatibleProvider, ProviderError
 
 
 @pytest.mark.asyncio
 async def test_openai_compatible_provider_streams_text_tool_calls_and_usage() -> None:
     chunks = [
+        {"choices": [{"index": 0, "delta": {"reasoning_content": "thinking"}}]},
         {"choices": [{"index": 0, "delta": {"content": "hello"}}]},
         {
             "choices": [
@@ -63,13 +71,44 @@ async def test_openai_compatible_provider_streams_text_tool_calls_and_usage() ->
     await client.aclose()
 
     assert [event.kind for event in events] == [
+        ModelEventKind.REASONING_DELTA,
         ModelEventKind.TEXT_DELTA,
         ModelEventKind.TOOL_CALL_DELTA,
         ModelEventKind.USAGE,
         ModelEventKind.TOOL_CALL_DELTA,
         ModelEventKind.FINISH,
     ]
+    assert (
+        "".join(
+            event.text or "" for event in events if event.kind == ModelEventKind.REASONING_DELTA
+        )
+        == "thinking"
+    )
     assert "".join(event.arguments_delta or "" for event in events) == '{"path":"a"}'
+    finish = next(event for event in events if event.kind == ModelEventKind.FINISH)
+    assert finish.provider_metadata["reasoning_chars"] == len("thinking")
+    assert finish.provider_metadata["content_chars"] == len("hello")
+    assert finish.provider_metadata["observed_delta_fields"] == [
+        "content",
+        "reasoning_content",
+        "tool_calls",
+    ]
+
+
+def test_provider_round_trips_reasoning_for_tool_calls_and_rejects_empty_assistant() -> None:
+    provider = OpenAICompatibleProvider(base_url="https://example.test/v1", api_key="secret")
+    tool_message = ChatMessage(
+        role=Role.ASSISTANT,
+        reasoning_content="full reasoning",
+        tool_calls=[ToolCall(id="call-1", name="read_file", arguments={"path": "a"})],
+    )
+
+    payload = provider._payload(ModelRequest(model="test", messages=[tool_message]))
+
+    assert payload["messages"][0]["reasoning_content"] == "full reasoning"
+    assert payload["messages"][0]["tool_calls"][0]["function"]["name"] == "read_file"
+    with pytest.raises(ProviderError, match="第 0 条消息无效"):
+        provider._payload(ModelRequest(model="test", messages=[ChatMessage(role=Role.ASSISTANT)]))
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-TRACE_SCHEMA_VERSION = 1
+TRACE_SCHEMA_VERSION = 2
 
 
 def backup_sqlite_database(source: Path, destination: Path) -> None:
@@ -55,12 +55,17 @@ def export_trace_bundle(
     output_dir.chmod(0o700)
     tools_dir = output_dir / "tools"
     blobs_dir = output_dir / "blobs"
+    reasoning_dir = output_dir / "reasoning"
     tools_dir.mkdir(exist_ok=True)
     blobs_dir.mkdir(exist_ok=True)
+    reasoning_dir.mkdir(exist_ok=True)
+    reasoning_dir.chmod(0o700)
     _clear_regular_files(tools_dir)
     _clear_regular_files(blobs_dir)
+    _clear_regular_files(reasoning_dir)
 
     events, non_event_records = _load_events(events_path)
+    reasoning_records = _export_reasoning(events, reasoning_dir, output_dir)
     requested = {
         str(event.get("payload", {}).get("tool_call_id")): event
         for event in events
@@ -127,9 +132,7 @@ def export_trace_bundle(
         "stderr_log": _copy_optional(stderr_log_path, output_dir / "stderr.log"),
     }
 
-    session_ids = sorted(
-        {str(event["session_id"]) for event in events if event.get("session_id")}
-    )
+    session_ids = sorted({str(event["session_id"]) for event in events if event.get("session_id")})
     run_ids = sorted({str(event["run_id"]) for event in events if event.get("run_id")})
     terminal = next(
         (
@@ -145,6 +148,7 @@ def export_trace_bundle(
         "event_count": len(events),
         "non_event_record_count": len(non_event_records),
         "tool_count": len(tool_records),
+        "reasoning_count": len(reasoning_records),
         "message_count": message_count,
         "tool_run_count": tool_run_count,
         "blob_count": len(blob_index),
@@ -158,6 +162,7 @@ def export_trace_bundle(
             "messages": "messages.jsonl",
             "tool_runs": "tool-runs.jsonl",
             "blob_index": "blobs.json",
+            "reasoning": "reasoning/",
             **{key: value for key, value in copied_files.items() if value is not None},
         },
     }
@@ -166,6 +171,7 @@ def export_trace_bundle(
         events=events,
         tool_records=tool_records,
         blob_contents=blob_contents,
+        reasoning_records=reasoning_records,
         manifest=manifest,
         inline_output_chars=inline_output_chars,
     )
@@ -188,6 +194,58 @@ def _load_events(path: Path) -> tuple[list[dict[str, Any]], list[Any]]:
         else:
             non_events.append(value)
     return events, non_events
+
+
+def _export_reasoning(
+    events: list[dict[str, Any]], reasoning_dir: Path, output_dir: Path
+) -> list[dict[str, Any]]:
+    records_by_key: dict[tuple[str, int], dict[str, Any]] = {}
+    ordered_keys: list[tuple[str, int]] = []
+    for event in events:
+        event_type = event.get("type")
+        if event_type not in {"assistant.reasoning.delta", "model.response"}:
+            continue
+        payload = event.get("payload", {})
+        try:
+            step = int(payload.get("step", 0))
+        except (TypeError, ValueError):
+            step = 0
+        run_id = str(event.get("run_id") or "unknown")
+        key = (run_id, step)
+        if event_type == "assistant.reasoning.delta":
+            if key not in records_by_key:
+                records_by_key[key] = {
+                    "run_id": run_id,
+                    "step": step,
+                    "start_sequence": int(event.get("sequence", 0)),
+                    "end_sequence": int(event.get("sequence", 0)),
+                    "chunks": [],
+                    "response": None,
+                }
+                ordered_keys.append(key)
+            record = records_by_key[key]
+            record["chunks"].append(str(payload.get("text", "")))
+            record["end_sequence"] = int(event.get("sequence", 0))
+        elif key in records_by_key:
+            records_by_key[key]["response"] = payload
+            records_by_key[key]["end_sequence"] = int(event.get("sequence", 0))
+
+    records: list[dict[str, Any]] = []
+    for index, key in enumerate(ordered_keys, 1):
+        raw = records_by_key[key]
+        content = "".join(raw.pop("chunks"))
+        filename = f"{index:03d}-step-{raw['step']}-{_safe_component(str(raw['run_id'])[:8])}.txt"
+        destination = reasoning_dir / filename
+        _write_private(destination, content)
+        records.append(
+            {
+                **raw,
+                "characters": len(content),
+                "file": str(destination.relative_to(output_dir)),
+                "content": content,
+            }
+        )
+    return records
 
 
 def _export_blobs(
@@ -252,6 +310,7 @@ def _render_markdown(
     events: list[dict[str, Any]],
     tool_records: list[dict[str, Any]],
     blob_contents: dict[str, str],
+    reasoning_records: list[dict[str, Any]],
     manifest: dict[str, Any],
     inline_output_chars: int,
 ) -> str:
@@ -260,6 +319,7 @@ def _render_markdown(
         "",
         f"- Events: {manifest['event_count']}",
         f"- Tool calls: {manifest['tool_count']}",
+        f"- Reasoning traces: {manifest['reasoning_count']}",
         f"- Full blobs: {manifest['blob_count']}",
         f"- Sessions: {', '.join(manifest['session_ids']) or 'n/a'}",
         f"- Runs: {', '.join(manifest['run_ids']) or 'n/a'}",
@@ -293,6 +353,47 @@ def _render_markdown(
         elif assistant_chunks:
             flush_assistant()
     flush_assistant()
+
+    lines.extend(["## Reasoning traces", ""])
+    if not reasoning_records:
+        lines.extend(["No reasoning content was emitted by the provider.", ""])
+    for record in reasoning_records:
+        content = str(record["content"])
+        output_file = str(record["file"])
+        lines.extend(
+            [
+                f"### Step {record['step']} — run `{str(record['run_id'])[:8]}`",
+                "",
+                f"- Characters: {record['characters']}",
+                f"- Full reasoning: [{output_file}]({output_file})",
+                "",
+            ]
+        )
+        if record.get("response"):
+            lines.extend(
+                [
+                    "Response diagnostics:",
+                    "",
+                    _fenced(
+                        json.dumps(record["response"], ensure_ascii=False, indent=2),
+                        "json",
+                    ),
+                    "",
+                ]
+            )
+        if len(content) <= inline_output_chars:
+            lines.extend([_fenced(content), ""])
+        else:
+            lines.extend(
+                [
+                    _fenced(
+                        content[:inline_output_chars]
+                        + f"\n\n… {len(content) - inline_output_chars} characters omitted "
+                        "from Markdown; open the linked reasoning file for the complete text."
+                    ),
+                    "",
+                ]
+            )
 
     lines.extend(["## Tool calls", ""])
     for record in tool_records:

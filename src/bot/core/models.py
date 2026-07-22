@@ -26,16 +26,34 @@ class ChatMessage(BaseModel):
 
     role: Role
     content: str | None = None
+    reasoning_content: str | None = None
     name: str | None = None
     tool_call_id: str | None = None
     tool_calls: list[ToolCall] = Field(default_factory=list)
 
+    def assistant_payload_error(self) -> str | None:
+        if self.role != Role.ASSISTANT:
+            return None
+        if self.content and self.content.strip():
+            return None
+        if self.tool_calls:
+            return None
+        return "assistant message must contain non-blank content or tool_calls"
+
     def to_openai(self) -> dict[str, Any]:
+        if error := self.assistant_payload_error():
+            raise ValueError(error)
         message: dict[str, Any] = {"role": self.role.value, "content": self.content}
         if self.name and self.role != Role.TOOL:
             message["name"] = self.name
         if self.tool_call_id:
             message["tool_call_id"] = self.tool_call_id
+        # DeepSeek thinking mode requires the reasoning generated for an
+        # assistant tool-call turn to be returned on subsequent requests. For a
+        # final answer without tool calls it is diagnostic-only and is omitted
+        # from the provider payload to avoid needlessly expanding context.
+        if self.reasoning_content and self.role == Role.ASSISTANT and self.tool_calls:
+            message["reasoning_content"] = self.reasoning_content
         if self.tool_calls:
             message["tool_calls"] = [
                 {
@@ -81,6 +99,7 @@ class ModelRequest(BaseModel):
 
 class ModelEventKind(StrEnum):
     TEXT_DELTA = "text_delta"
+    REASONING_DELTA = "reasoning_delta"
     TOOL_CALL_DELTA = "tool_call_delta"
     USAGE = "usage"
     FINISH = "finish"

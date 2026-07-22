@@ -7,9 +7,7 @@ from bot.observability.trace import backup_sqlite_database, export_trace_bundle
 from bot.sessions import SQLiteSessionStore
 
 
-def _event(
-    sequence: int, event_type: str, session_id: str, run_id: str, payload: dict
-) -> dict:
+def _event(sequence: int, event_type: str, session_id: str, run_id: str, payload: dict) -> dict:
     return {
         "id": f"event-{sequence}",
         "schema_version": 1,
@@ -59,9 +57,29 @@ def test_trace_bundle_expands_full_context_blobs(tmp_path: Path) -> None:
 
     events = [
         _event(1, "run.started", session_id, run_id, {"prompt": "fix it"}),
-        _event(2, "assistant.delta", session_id, run_id, {"text": "Inspecting."}),
         _event(
-            3,
+            2,
+            "assistant.reasoning.delta",
+            session_id,
+            run_id,
+            {"step": 1, "text": "careful reasoning\n" * 20},
+        ),
+        _event(3, "assistant.delta", session_id, run_id, {"step": 1, "text": "Inspecting."}),
+        _event(
+            4,
+            "model.response",
+            session_id,
+            run_id,
+            {
+                "step": 1,
+                "finish_reason": "tool_calls",
+                "reasoning_chars": len("careful reasoning\n" * 20),
+                "content_chars": len("Inspecting."),
+                "tool_call_count": 1,
+            },
+        ),
+        _event(
+            5,
             "tool.requested",
             session_id,
             run_id,
@@ -72,7 +90,7 @@ def test_trace_bundle_expands_full_context_blobs(tmp_path: Path) -> None:
             },
         ),
         _event(
-            4,
+            6,
             "tool.completed",
             session_id,
             run_id,
@@ -85,12 +103,10 @@ def test_trace_bundle_expands_full_context_blobs(tmp_path: Path) -> None:
                 "context_ref": reference,
             },
         ),
-        _event(5, "run.completed", session_id, run_id, {"status": "completed"}),
+        _event(7, "run.completed", session_id, run_id, {"status": "completed"}),
     ]
     events_path = tmp_path / "events.jsonl"
-    events_path.write_text(
-        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
-    )
+    events_path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
 
     bundle = tmp_path / "trace"
     manifest = export_trace_bundle(
@@ -100,12 +116,15 @@ def test_trace_bundle_expands_full_context_blobs(tmp_path: Path) -> None:
         inline_output_chars=100,
     )
 
-    assert manifest["event_count"] == 5
+    assert manifest["event_count"] == 7
     assert manifest["tool_count"] == 1
+    assert manifest["reasoning_count"] == 1
     assert manifest["blob_count"] == 1
     assert manifest["message_count"] == 1
     transcript = (bundle / "transcript.md").read_text(encoding="utf-8")
     assert "Inspecting." in transcript
+    assert "Reasoning traces" in transcript
+    assert "careful reasoning" in transcript
     assert "complete evidence" in transcript
     assert "characters omitted" in transcript
     blob_index = json.loads((bundle / "blobs.json").read_text(encoding="utf-8"))
@@ -116,6 +135,9 @@ def test_trace_bundle_expands_full_context_blobs(tmp_path: Path) -> None:
         "path": "large.txt"
     }
     assert (bundle / "state.db").stat().st_mode & 0o777 == 0o600
+    reasoning_path = next((bundle / "reasoning").glob("*.txt"))
+    assert reasoning_path.read_text(encoding="utf-8") == "careful reasoning\n" * 20
+    assert reasoning_path.stat().st_mode & 0o777 == 0o600
 
 
 def test_trace_bundle_accepts_legacy_non_event_result_record(tmp_path: Path) -> None:

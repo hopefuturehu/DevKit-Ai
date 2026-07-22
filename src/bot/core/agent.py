@@ -239,6 +239,26 @@ class AgentRunner:
             snapshot = None
         snapshot_cursor = snapshot.cursor_position if snapshot else 0
         history = self.store.load_positioned_messages(session_id, after_position=snapshot_cursor)
+        valid_history: list[PositionedMessage] = []
+        for entry in history:
+            validation_error = entry.message.assistant_payload_error()
+            if validation_error is None:
+                valid_history.append(entry)
+                continue
+            await self.event_bus.emit(
+                EventType.CONTEXT_INVALID_MESSAGE_DROPPED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={
+                    "position": entry.position,
+                    "role": entry.message.role.value,
+                    "reason": validation_error,
+                    "content_chars": len(entry.message.content or ""),
+                    "reasoning_chars": len(entry.message.reasoning_content or ""),
+                    "tool_call_count": len(entry.message.tool_calls),
+                },
+            )
+        history = valid_history
         conversation = [
             PositionedMessage(
                 entry.position,
@@ -336,6 +356,7 @@ class AgentRunner:
         tool_output_bytes = 0
         cost_usd: float | None = None
         context_retry_used = False
+        consecutive_empty_responses = 0
         started_at = monotonic()
         for step in range(1, self.config.agent.max_steps + 1):
             if monotonic() - started_at > self.config.agent.max_wall_time_seconds:
@@ -436,8 +457,11 @@ class AgentRunner:
                 max_output_tokens=self.config.model.max_output_tokens,
             )
             text_parts: list[str] = []
+            reasoning_parts: list[str] = []
             call_buffers: dict[int, _ToolCallBuffer] = {}
             finish_reason: str | None = None
+            finish_metadata: dict[str, Any] = {}
+            turn_usage: dict[str, Any] = {}
             try:
                 async for event in self.provider.stream(model_request):
                     if event.kind == ModelEventKind.TEXT_DELTA and event.text:
@@ -446,7 +470,19 @@ class AgentRunner:
                             EventType.ASSISTANT_DELTA,
                             session_id=session_id,
                             run_id=run_id,
-                            payload={"text": event.text},
+                            payload={"step": step, "text": event.text},
+                        )
+                    elif event.kind == ModelEventKind.REASONING_DELTA and event.text:
+                        reasoning_parts.append(event.text)
+                        await self.event_bus.emit(
+                            EventType.ASSISTANT_REASONING_DELTA,
+                            session_id=session_id,
+                            run_id=run_id,
+                            payload={
+                                "step": step,
+                                "text": event.text,
+                                "provider_metadata": event.provider_metadata,
+                            },
                         )
                     elif event.kind == ModelEventKind.TOOL_CALL_DELTA:
                         index = event.tool_index or 0
@@ -460,6 +496,10 @@ class AgentRunner:
                     elif event.kind == ModelEventKind.USAGE:
                         input_tokens += event.input_tokens or 0
                         output_tokens += event.output_tokens or 0
+                        turn_usage = event.provider_metadata.get("raw_usage") or {
+                            "prompt_tokens": event.input_tokens,
+                            "completion_tokens": event.output_tokens,
+                        }
                         cost_usd = self._calculate_cost(input_tokens, output_tokens)
                         await self.event_bus.emit(
                             EventType.MODEL_USAGE,
@@ -469,10 +509,14 @@ class AgentRunner:
                                 "input_tokens": input_tokens,
                                 "output_tokens": output_tokens,
                                 "cost_usd": cost_usd,
+                                "step": step,
+                                "turn_usage": turn_usage,
+                                "provider_metadata": event.provider_metadata,
                             },
                         )
                     elif event.kind == ModelEventKind.FINISH:
                         finish_reason = event.finish_reason
+                        finish_metadata = event.provider_metadata
             except ProviderError as exc:
                 if not context_retry_used and self._is_context_length_error(exc):
                     context_retry_used = True
@@ -505,16 +549,143 @@ class AgentRunner:
                 raise
 
             assistant_text = "".join(text_parts)
+            reasoning_text = "".join(reasoning_parts)
             tool_calls = [
                 ToolCall.model_validate(
                     self.redactor.redact(self._parse_tool_call(buffer).model_dump(mode="python"))
                 )
                 for buffer in call_buffers.values()
             ]
+            response_summary = {
+                "step": step,
+                "finish_reason": finish_reason,
+                "content_chars": len(assistant_text),
+                "reasoning_chars": len(reasoning_text),
+                "tool_call_count": len(tool_calls),
+                "empty": not assistant_text.strip() and not tool_calls,
+                "turn_usage": turn_usage,
+                "provider_metadata": finish_metadata,
+            }
+            await self.event_bus.emit(
+                EventType.MODEL_RESPONSE,
+                session_id=session_id,
+                run_id=run_id,
+                payload=response_summary,
+            )
+
+            if not assistant_text.strip() and not tool_calls:
+                consecutive_empty_responses += 1
+                steered_after_model = await self._drain_steering(
+                    conversation, session_id=session_id, run_id=run_id
+                )
+                likely_cause = (
+                    "reasoning_without_final_content"
+                    if reasoning_text
+                    else (
+                        "provider_reported_output_without_supported_delta"
+                        if (turn_usage.get("completion_tokens") or 0) > 0
+                        else "provider_stopped_without_output"
+                    )
+                )
+                normal_finish = finish_reason in {None, "stop", "eof"}
+                will_retry = (
+                    normal_finish
+                    and step < self.config.agent.max_steps
+                    and (steered_after_model or consecutive_empty_responses < 2)
+                )
+                await self.event_bus.emit(
+                    EventType.MODEL_EMPTY_RESPONSE,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={
+                        **response_summary,
+                        "likely_cause": likely_cause,
+                        "consecutive_empty_responses": consecutive_empty_responses,
+                        "will_retry": will_retry,
+                        "steered_after_model": steered_after_model,
+                    },
+                )
+                if finish_reason in {"length", "max_tokens"}:
+                    error = (
+                        f"模型在生成最终正文前达到长度限制（reasoning_chars={len(reasoning_text)}）"
+                    )
+                    await self._fail_event(session_id, run_id, error)
+                    return RunResult(
+                        session_id=session_id,
+                        status="limit_reached",
+                        steps=step,
+                        error=error,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
+                if finish_reason not in {None, "stop", "eof"}:
+                    error = f"模型以非正常原因结束且没有正文或工具调用: {finish_reason}"
+                    await self._fail_event(session_id, run_id, error)
+                    return RunResult(
+                        session_id=session_id,
+                        status="failed",
+                        steps=step,
+                        error=error,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
+                if steered_after_model and will_retry:
+                    consecutive_empty_responses = 0
+                    continue
+                if will_retry:
+                    runtime_notes = [
+                        item for item in runtime_notes if item.id != "empty-model-response"
+                    ]
+                    runtime_notes.append(
+                        ContextItem(
+                            id="empty-model-response",
+                            layer=ContextLayer.RUNTIME_NOTE,
+                            message=ChatMessage(
+                                role=Role.SYSTEM,
+                                content=(
+                                    "上一次模型响应只有思考内容或协议元数据，没有最终正文"
+                                    "和工具调用。请立即给出非空最终正文，或发起结构化工具调用。"
+                                ),
+                            ),
+                            source="agent-loop",
+                            trust=ContextTrust.TRUSTED,
+                            retention=ContextRetention.DISPOSABLE,
+                            priority=850,
+                        )
+                    )
+                    continue
+                if consecutive_empty_responses >= 2:
+                    error = (
+                        "模型连续 2 次没有返回正文或工具调用；"
+                        f"最后一次 finish_reason={finish_reason}, "
+                        f"reasoning_chars={len(reasoning_text)}, likely_cause={likely_cause}"
+                    )
+                else:
+                    error = (
+                        "模型没有返回正文或工具调用，且运行已没有可用重试步骤；"
+                        f"step={step}/{self.config.agent.max_steps}, "
+                        f"finish_reason={finish_reason}, reasoning_chars={len(reasoning_text)}, "
+                        f"likely_cause={likely_cause}"
+                    )
+                await self._fail_event(session_id, run_id, error)
+                return RunResult(
+                    session_id=session_id,
+                    status="failed",
+                    steps=step,
+                    error=error,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                )
+
+            consecutive_empty_responses = 0
             assistant_message = self.redactor.redact_message(
                 ChatMessage(
                     role=Role.ASSISTANT,
                     content=assistant_text or None,
+                    reasoning_content=reasoning_text or None,
                     tool_calls=tool_calls,
                 )
             )
@@ -646,7 +817,13 @@ class AgentRunner:
                     EventType.ASSISTANT_MESSAGE,
                     session_id=session_id,
                     run_id=run_id,
-                    payload={"text": assistant_text, "finish_reason": finish_reason},
+                    payload={
+                        "text": assistant_text,
+                        "finish_reason": finish_reason,
+                        "step": step,
+                        "reasoning_chars": len(reasoning_text),
+                        "provider_metadata": finish_metadata,
+                    },
                 )
                 await self.event_bus.emit(
                     EventType.RUN_COMPLETED,

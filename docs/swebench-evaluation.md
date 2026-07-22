@@ -105,6 +105,12 @@ python -m swebench.harness.run_evaluation \
 ```bash
 tail -f artifacts/swebench/predictions.events.jsonl
 tail -f artifacts/swebench/predictions.stderr.log
+
+# 只查看完整 thinking/reasoning 增量和每轮结束诊断
+jq 'select(.type == "assistant.reasoning.delta" or
+           .type == "model.response" or
+           .type == "model.empty_response")' \
+  artifacts/swebench/predictions.events.jsonl
 ```
 
 Trace Bundle 包含：
@@ -119,11 +125,16 @@ predictions.trace/
 ├── state.db
 ├── blobs.json
 ├── blobs/                 # 每个 context_ref 的完整内容
+├── reasoning/             # 每个模型轮次的完整 reasoning_content
 └── tools/                 # 每次工具调用的参数、状态和 blob 链接
 ```
 
 `transcript.md` 会内联较短的完整工具结果；超过 20,000 字符时展示预览，并链接到
-`blobs/` 中未删节的原始内容。所有导出内容都沿用运行时脱敏器处理后的数据。
+`blobs/` 中未删节的原始内容。模型的 thinking/reasoning 同样会按轮次展示；较长内容
+链接到 `reasoning/` 中的完整文件。`model.response` 会记录 `finish_reason`、正文/推理
+字符数、Tool Call 数量、Provider 响应 ID、实际 delta 字段和 usage 明细；如果模型只有
+推理而没有正文，`model.empty_response` 会记录推测原因和是否重试。所有导出内容都沿用
+运行时脱敏器处理后的数据。
 
 也可以对已有的事件日志和状态数据库重新导出：
 

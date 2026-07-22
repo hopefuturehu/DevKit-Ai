@@ -183,7 +183,10 @@ Agent 的一次运行不是简单的“请求—响应”，而是文本增量�
 ```text
 run.started
 assistant.delta
+assistant.reasoning.delta
 assistant.message
+model.response
+model.empty_response
 tool.requested
 approval.requested
 approval.resolved
@@ -284,7 +287,11 @@ ModelProvider
   count_tokens(messages, tools) -> TokenEstimate
 ```
 
-`ModelEvent` 统一文本增量、Tool Call 增量、用量和结束原因，但保留 `provider_metadata`，避免为了统一接口丢失 Provider 特性。
+`ModelEvent` 统一文本增量、reasoning 增量、Tool Call 增量、用量和结束原因，但保留
+`provider_metadata`，避免为了统一接口丢失 Provider 特性。DeepSeek thinking 模式的
+`reasoning_content` 必须独立持久化；含 Tool Call 的 assistant 消息必须在后续请求中
+原样回传 reasoning。只有 reasoning、没有正文或 Tool Call 的响应不得写入消息历史，
+应记录每轮协议诊断并有限重试。
 
 MVP 实现 OpenAI API 协议兼容的 Provider，不绑定具体模型厂商。配置至少包含 `base_url`、`api_key` 引用、模型名称和超时；开发阶段用 DeepSeek V4 Flash 或 Pro 验证。不同兼容服务对流式 Tool Call、结束原因和 usage 字段的实现可能不同，因此 Provider 必须做能力探测和兼容性归一化，不能仅凭“OpenAI-compatible”字符串假设语义完整。
 

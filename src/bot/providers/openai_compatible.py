@@ -43,9 +43,15 @@ class OpenAICompatibleProvider(ModelProvider):
         return f"{self.base_url}/chat/completions"
 
     def _payload(self, request: ModelRequest) -> dict[str, Any]:
+        messages: list[dict[str, Any]] = []
+        for index, message in enumerate(request.messages):
+            try:
+                messages.append(message.to_openai())
+            except ValueError as exc:
+                raise ProviderError(f"模型请求中的第 {index} 条消息无效: {exc}") from exc
         payload: dict[str, Any] = {
             "model": request.model,
-            "messages": [message.to_openai() for message in request.messages],
+            "messages": messages,
             "stream": True,
             "temperature": request.temperature,
         }
@@ -65,6 +71,7 @@ class OpenAICompatibleProvider(ModelProvider):
             "Accept": "text/event-stream",
         }
         saw_finish = False
+        choice_diagnostics: dict[int, dict[str, Any]] = {}
         try:
             async with client.stream(
                 "POST", self.endpoint, headers=headers, json=self._payload(request)
@@ -75,6 +82,13 @@ class OpenAICompatibleProvider(ModelProvider):
                         f"模型 API 返回 HTTP {response.status_code}: "
                         f"{body or response.reason_phrase}"
                     )
+                response_metadata = {
+                    "provider": "openai_compatible",
+                    "request_id": (
+                        response.headers.get("x-request-id")
+                        or response.headers.get("x-ds-request-id")
+                    ),
+                }
                 async for line in response.aiter_lines():
                     line = line.strip()
                     if not line or line.startswith(":"):
@@ -95,16 +109,62 @@ class OpenAICompatibleProvider(ModelProvider):
                             kind=ModelEventKind.USAGE,
                             input_tokens=usage.get("prompt_tokens"),
                             output_tokens=usage.get("completion_tokens"),
-                            provider_metadata={"raw_usage": usage},
+                            provider_metadata={
+                                **response_metadata,
+                                "response_id": chunk.get("id"),
+                                "model": chunk.get("model"),
+                                "raw_usage": usage,
+                            },
                         )
 
                     choices = chunk.get("choices") or []
                     for choice in choices:
+                        choice_index = int(choice.get("index", 0) or 0)
+                        diagnostics = choice_diagnostics.setdefault(
+                            choice_index,
+                            {
+                                "choice_index": choice_index,
+                                "chunk_count": 0,
+                                "content_chars": 0,
+                                "reasoning_chars": 0,
+                                "tool_call_chunks": 0,
+                                "observed_delta_fields": set(),
+                                "unhandled_delta_samples": [],
+                            },
+                        )
+                        diagnostics["chunk_count"] += 1
                         delta = choice.get("delta") or {}
+                        diagnostics["observed_delta_fields"].update(delta)
+                        known_delta_fields = {
+                            "role",
+                            "content",
+                            "reasoning_content",
+                            "tool_calls",
+                        }
+                        for field in sorted(set(delta) - known_delta_fields):
+                            value = delta.get(field)
+                            if value is None or len(diagnostics["unhandled_delta_samples"]) >= 8:
+                                continue
+                            diagnostics["unhandled_delta_samples"].append(
+                                {"field": field, "value": str(value)[:2_000]}
+                            )
+                        reasoning_content = delta.get("reasoning_content")
+                        if reasoning_content:
+                            reasoning_text = str(reasoning_content)
+                            diagnostics["reasoning_chars"] += len(reasoning_text)
+                            yield ModelEvent(
+                                kind=ModelEventKind.REASONING_DELTA,
+                                text=reasoning_text,
+                                provider_metadata={"choice_index": choice_index},
+                            )
                         content = delta.get("content")
                         if content:
-                            yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=content)
-                        for tool_delta in delta.get("tool_calls") or []:
+                            content_text = str(content)
+                            diagnostics["content_chars"] += len(content_text)
+                            yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=content_text)
+                        tool_deltas = delta.get("tool_calls") or []
+                        diagnostics["tool_call_chunks"] += len(tool_deltas)
+                        for tool_delta in tool_deltas:
                             function = tool_delta.get("function") or {}
                             yield ModelEvent(
                                 kind=ModelEventKind.TOOL_CALL_DELTA,
@@ -116,13 +176,39 @@ class OpenAICompatibleProvider(ModelProvider):
                         finish_reason = choice.get("finish_reason")
                         if finish_reason is not None:
                             saw_finish = True
+                            finish_metadata = {
+                                **response_metadata,
+                                "response_id": chunk.get("id"),
+                                "model": chunk.get("model"),
+                                "system_fingerprint": chunk.get("system_fingerprint"),
+                                **diagnostics,
+                                "observed_delta_fields": sorted(
+                                    diagnostics["observed_delta_fields"]
+                                ),
+                                "finish_choice_fields": sorted(choice),
+                            }
                             yield ModelEvent(
                                 kind=ModelEventKind.FINISH,
                                 finish_reason=str(finish_reason),
-                                provider_metadata={"choice_index": choice.get("index", 0)},
+                                provider_metadata=finish_metadata,
                             )
             if not saw_finish:
-                yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="eof")
+                serializable_diagnostics = []
+                for diagnostics in choice_diagnostics.values():
+                    serializable_diagnostics.append(
+                        {
+                            **diagnostics,
+                            "observed_delta_fields": sorted(diagnostics["observed_delta_fields"]),
+                        }
+                    )
+                yield ModelEvent(
+                    kind=ModelEventKind.FINISH,
+                    finish_reason="eof",
+                    provider_metadata={
+                        "provider": "openai_compatible",
+                        "choices": serializable_diagnostics,
+                    },
+                )
         except httpx.HTTPError as exc:
             detail = str(exc).strip() or type(exc).__name__
             raise ProviderError(f"模型 API 请求失败: {detail}") from exc
