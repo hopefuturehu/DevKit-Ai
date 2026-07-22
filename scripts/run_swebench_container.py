@@ -3,7 +3,13 @@
 import argparse
 from pathlib import Path
 
-from bot.evals.swebench import load_instance, run_container_instance
+from bot.evals.swebench import (
+    DEFAULT_SWEBENCH_MAX_COST_USD,
+    DEFAULT_SWEBENCH_MAX_STEPS,
+    DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS,
+    load_instance,
+    run_container_instance,
+)
 
 
 def main() -> int:
@@ -14,6 +20,13 @@ def main() -> int:
     parser.add_argument("--project-root", type=Path, default=Path.cwd())
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--max-steps", type=int, default=DEFAULT_SWEBENCH_MAX_STEPS)
+    parser.add_argument(
+        "--max-wall-time-seconds",
+        type=float,
+        default=DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS,
+    )
+    parser.add_argument("--max-cost-usd", type=float, default=DEFAULT_SWEBENCH_MAX_COST_USD)
     args = parser.parse_args()
 
     instance = load_instance(args.instance_file.resolve(), args.instance_id)
@@ -23,6 +36,9 @@ def main() -> int:
         project_root=args.project_root.resolve(),
         config_path=args.config.resolve(),
         output_path=args.output.resolve(),
+        max_steps=args.max_steps,
+        max_wall_time_seconds=args.max_wall_time_seconds,
+        max_cost_usd=args.max_cost_usd,
     )
 
 

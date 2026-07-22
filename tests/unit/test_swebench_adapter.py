@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -7,11 +8,16 @@ import pytest
 from bot.evals.connect_proxy import _connect_target_allowed
 from bot.evals.swebench import (
     SWEbenchInstance,
+    _run_streaming,
     build_agent_prompt,
     collect_model_patch,
     load_instance,
 )
-from bot.evals.swebench_worker import run_worker
+from bot.evals.swebench_worker import (
+    _validate_container_artifact_path,
+    _worker_config_overrides,
+    run_worker,
+)
 
 
 def test_load_instance_selects_one_jsonl_row(tmp_path: Path) -> None:
@@ -86,9 +92,56 @@ async def test_container_worker_refuses_to_run_without_explicit_marker(
         )
 
 
+def test_container_worker_artifacts_are_restricted_to_tmp() -> None:
+    expected = Path("/tmp/trace/state.db").resolve()
+    assert _validate_container_artifact_path(Path("/tmp/trace/state.db")) == expected
+    with pytest.raises(RuntimeError, match="产物路径必须位于 /tmp"):
+        _validate_container_artifact_path(Path("/testbed/.bot/state-copy.db"))
+
+
+def test_swebench_worker_uses_independent_agent_limits() -> None:
+    overrides = _worker_config_overrides(
+        max_steps=72,
+        max_wall_time_seconds=2400,
+        max_cost_usd=1.5,
+    )
+
+    assert overrides["agent"] == {
+        "max_steps": 72,
+        "max_wall_time_seconds": 2400,
+        "max_cost_usd": 1.5,
+    }
+    with pytest.raises(ValueError, match="max_steps"):
+        _worker_config_overrides(
+            max_steps=0,
+            max_wall_time_seconds=2400,
+            max_cost_usd=1.5,
+        )
+
+
 def test_restricted_connect_proxy_only_accepts_configured_upstream() -> None:
     assert _connect_target_allowed("CONNECT api.example:443 HTTP/1.1", "api.example", 443)
     assert not _connect_target_allowed(
         "CONNECT forbidden.example:443 HTTP/1.1", "api.example", 443
     )
     assert not _connect_target_allowed("GET api.example:443 HTTP/1.1", "api.example", 443)
+
+
+def test_streaming_process_writes_stdout_and_stderr_to_files(tmp_path: Path) -> None:
+    stdout_path = tmp_path / "events.jsonl"
+    stderr_path = tmp_path / "stderr.log"
+
+    returncode = _run_streaming(
+        [
+            sys.executable,
+            "-c",
+            "import sys; print('event'); print('diagnostic', file=sys.stderr)",
+        ],
+        cwd=tmp_path,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+    )
+
+    assert returncode == 0
+    assert stdout_path.read_text(encoding="utf-8") == "event\n"
+    assert stderr_path.read_text(encoding="utf-8") == "diagnostic\n"

@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shlex
+import sqlite3
 import subprocess
 import sys
 from importlib.resources import files
@@ -34,6 +35,7 @@ from bot.core.events import JsonlEventSink
 from bot.core.models import RunRequest
 from bot.evals import load_eval_cases, run_eval_case, write_eval_results
 from bot.execution import LocalExecutionTarget
+from bot.observability import export_trace_bundle
 from bot.providers import ProviderError
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog
@@ -60,12 +62,14 @@ session_app = typer.Typer(help="查看和管理会话。")
 config_app = typer.Typer(help="查看生效配置。")
 model_app = typer.Typer(help="查看或切换模型。")
 eval_app = typer.Typer(help="运行可复现的 Agent 评测任务。")
+trace_app = typer.Typer(help="导出和阅读完整 Agent 执行轨迹。")
 app.add_typer(skill_app, name="skill")
 app.add_typer(session_app, name="session")
 app.add_typer(config_app, name="config")
 app.add_typer(model_app, name="model")
 app.add_typer(eval_app, name="eval")
 console = Console()
+app.add_typer(trace_app, name="trace")
 DEFAULT_WORKSPACE = Path.cwd()
 
 
@@ -671,6 +675,41 @@ def session_show(ctx: typer.Context, session_id: str) -> None:
             console.print(f"[bold]{position}. {label}[/bold] {message.content or ''}")
     finally:
         store.close()
+
+
+@trace_app.command("export")
+def trace_export(
+    events: Annotated[Path, typer.Argument(help="实时 JSONL 事件日志")],
+    state: Annotated[Path, typer.Option("--state", help="导出的 SQLite 状态快照")],
+    output: Annotated[Path, typer.Option("--output", "-o", help="Trace Bundle 输出目录")],
+    prediction: Annotated[Path | None, typer.Option("--prediction")] = None,
+    result: Annotated[Path | None, typer.Option("--result")] = None,
+    setup_log: Annotated[Path | None, typer.Option("--setup-log")] = None,
+    stderr_log: Annotated[Path | None, typer.Option("--stderr-log")] = None,
+) -> None:
+    try:
+        manifest = export_trace_bundle(
+            events_path=events,
+            state_path=state,
+            output_dir=output,
+            prediction_path=prediction,
+            result_path=result,
+            setup_log_path=setup_log,
+            stderr_log_path=stderr_log,
+        )
+    except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+        console.print(f"[red]Trace 导出失败：{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print_json(json.dumps(manifest, ensure_ascii=False))
+
+
+@trace_app.command("show")
+def trace_show(bundle: Annotated[Path, typer.Argument(help="Trace Bundle 目录")]) -> None:
+    transcript = bundle.resolve() / "transcript.md"
+    if not transcript.is_file():
+        console.print(f"[red]Trace transcript 不存在：{transcript}[/red]")
+        raise typer.Exit(1)
+    console.print(transcript.read_text(encoding="utf-8"), markup=False, highlight=False)
 
 
 @session_app.command("fork")

@@ -14,6 +14,11 @@ from uuid import uuid4
 
 from bot.config import load_config
 from bot.evals.connect_proxy import restricted_connect_proxy
+from bot.observability import export_trace_bundle
+
+DEFAULT_SWEBENCH_MAX_STEPS = 60
+DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS = 1800.0
+DEFAULT_SWEBENCH_MAX_COST_USD = 1.0
 
 
 @dataclass(frozen=True)
@@ -69,6 +74,32 @@ def _run(argv: list[str], *, cwd: Path, check: bool = True) -> subprocess.Comple
         text=True,
         capture_output=True,
     )
+
+
+def _run_streaming(
+    argv: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Path
+) -> int:
+    """Run a process with output written directly to tail-able host files."""
+    with (
+        stdout_path.open("w", encoding="utf-8") as stdout,
+        stderr_path.open("w", encoding="utf-8") as stderr,
+    ):
+        process = subprocess.Popen(
+            argv,
+            cwd=cwd,
+            text=True,
+            stdout=stdout,
+            stderr=stderr,
+        )
+        return process.wait()
+
+
+def _append_log(path: Path, content: str) -> None:
+    if not content:
+        return
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(content)
+        handle.flush()
 
 
 def prepare_workspace(instance: SWEbenchInstance, workspace: Path) -> None:
@@ -149,12 +180,21 @@ def run_container_instance(
     project_root: Path,
     config_path: Path,
     output_path: Path,
+    max_steps: int = DEFAULT_SWEBENCH_MAX_STEPS,
+    max_wall_time_seconds: float = DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS,
+    max_cost_usd: float = DEFAULT_SWEBENCH_MAX_COST_USD,
 ) -> int:
     """Run the agent inside a disposable SWE-bench instance container."""
     if not (project_root / "pyproject.toml").is_file():
         raise ValueError(f"项目根目录无效: {project_root}")
     if not config_path.is_file():
         raise ValueError(f"配置文件不存在: {config_path}")
+    if max_steps < 1:
+        raise ValueError("SWE-bench max_steps 必须大于 0")
+    if max_wall_time_seconds <= 0:
+        raise ValueError("SWE-bench max_wall_time_seconds 必须大于 0")
+    if max_cost_usd <= 0:
+        raise ValueError("SWE-bench max_cost_usd 必须大于 0")
 
     config = load_config(project_root, config_path=config_path)
     model_url = urlparse(config.model.base_url)
@@ -162,16 +202,37 @@ def run_container_instance(
         raise ValueError("容器评测要求 model.base_url 使用有效的 HTTPS URL")
     model_port = model_url.port or 443
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    events_path = output_path.with_suffix(".events.jsonl")
+    stderr_path = output_path.with_suffix(".stderr.log")
+    setup_path = output_path.with_suffix(".setup.log")
+    result_path = output_path.with_suffix(".result.json")
+    state_path = output_path.with_suffix(".state.db")
+    trace_dir = output_path.with_suffix(".trace")
+    for path in (events_path, stderr_path, setup_path):
+        path.write_text("", encoding="utf-8")
+        path.chmod(0o600)
+    for path in (result_path, state_path):
+        if path.exists():
+            path.unlink()
+
     safe_id = re.sub(r"[^a-zA-Z0-9_.-]+", "-", instance.instance_id)[:48]
     container_name = f"kunpeng-swe-{safe_id}-{uuid4().hex[:8]}"
-    setup_output: list[str] = []
-    worker: subprocess.CompletedProcess[str] | None = None
+    worker_returncode: int | None = None
     patch = ""
     started = False
     with restricted_connect_proxy(model_url.hostname, model_port) as proxy_port:
-        setup_output.append(
+        _append_log(
+            setup_path,
             f"temporary model CONNECT proxy: {model_url.hostname}:{model_port} "
-            f"via host.docker.internal:{proxy_port}\n"
+            f"via host.docker.internal:{proxy_port}\n",
+        )
+        _append_log(
+            setup_path,
+            "SWE-bench worker limits: "
+            f"max_steps={max_steps}, "
+            f"max_wall_time_seconds={max_wall_time_seconds:g}, "
+            f"max_cost_usd={max_cost_usd:g}\n",
         )
         try:
             mount = f"type=bind,src={project_root},dst=/opt/kunpeng-bot-src,readonly"
@@ -192,7 +253,7 @@ def run_container_instance(
                 ],
                 cwd=project_root,
             )
-            setup_output.append(created.stdout + created.stderr)
+            _append_log(setup_path, created.stdout + created.stderr)
             started = True
 
             with tempfile.TemporaryDirectory(prefix="swebench-instance-") as temporary:
@@ -204,12 +265,12 @@ def run_container_instance(
                     ["docker", "cp", str(instance_path), f"{container_name}:/tmp/instance.json"],
                     cwd=project_root,
                 )
-                setup_output.append(copied.stdout + copied.stderr)
+                _append_log(setup_path, copied.stdout + copied.stderr)
             copied_config = _run(
                 ["docker", "cp", str(config_path), f"{container_name}:/tmp/bot-config.toml"],
                 cwd=project_root,
             )
-            setup_output.append(copied_config.stdout + copied_config.stderr)
+            _append_log(setup_path, copied_config.stdout + copied_config.stderr)
 
             setup_commands = [
                 [
@@ -246,10 +307,10 @@ def run_container_instance(
             ]
             for command in setup_commands:
                 completed = _run(command, cwd=project_root)
-                setup_output.append(completed.stdout + completed.stderr)
+                _append_log(setup_path, completed.stdout + completed.stderr)
 
             proxy_url = f"http://host.docker.internal:{proxy_port}"
-            worker = _run(
+            worker_returncode = _run_streaming(
                 [
                     "docker",
                     "exec",
@@ -270,10 +331,37 @@ def run_container_instance(
                     "/testbed",
                     "--config",
                     "/tmp/bot-config.toml",
+                    "--result-file",
+                    "/tmp/run-result.json",
+                    "--state-backup",
+                    "/tmp/trace-state.db",
+                    "--max-steps",
+                    str(max_steps),
+                    "--max-wall-time-seconds",
+                    str(max_wall_time_seconds),
+                    "--max-cost-usd",
+                    str(max_cost_usd),
                 ],
+                cwd=project_root,
+                stdout_path=events_path,
+                stderr_path=stderr_path,
+            )
+            copied_state = _run(
+                ["docker", "cp", f"{container_name}:/tmp/trace-state.db", str(state_path)],
                 cwd=project_root,
                 check=False,
             )
+            _append_log(setup_path, copied_state.stdout + copied_state.stderr)
+            if state_path.is_file():
+                state_path.chmod(0o600)
+            copied_result = _run(
+                ["docker", "cp", f"{container_name}:/tmp/run-result.json", str(result_path)],
+                cwd=project_root,
+                check=False,
+            )
+            _append_log(setup_path, copied_result.stdout + copied_result.stderr)
+            if result_path.is_file():
+                result_path.chmod(0o600)
             _run(
                 [
                     "docker",
@@ -312,23 +400,29 @@ def run_container_instance(
                     cwd=project_root,
                     check=False,
                 )
-                setup_output.append(removed.stdout + removed.stderr)
+                _append_log(setup_path, removed.stdout + removed.stderr)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     prediction = {
         "instance_id": instance.instance_id,
         "model_name_or_path": os.environ.get("BOT_MODEL_NAME", config.model.name),
         "model_patch": patch,
     }
     output_path.write_text(json.dumps(prediction, ensure_ascii=False) + "\n", encoding="utf-8")
-    output_path.with_suffix(".events.jsonl").write_text(
-        worker.stdout if worker else "", encoding="utf-8"
-    )
-    output_path.with_suffix(".stderr.log").write_text(
-        worker.stderr if worker else "", encoding="utf-8"
-    )
-    output_path.with_suffix(".setup.log").write_text("".join(setup_output), encoding="utf-8")
-    return worker.returncode if worker else 1
+    output_path.chmod(0o600)
+    if state_path.is_file():
+        try:
+            export_trace_bundle(
+                events_path=events_path,
+                state_path=state_path,
+                output_dir=trace_dir,
+                prediction_path=output_path,
+                result_path=result_path,
+                setup_log_path=setup_path,
+                stderr_log_path=stderr_path,
+            )
+        except Exception as exc:
+            _append_log(setup_path, f"trace bundle export failed: {type(exc).__name__}: {exc}\n")
+    return worker_returncode if worker_returncode is not None else 1
 
 
 def main(argv: list[str] | None = None) -> int:

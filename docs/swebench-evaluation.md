@@ -33,16 +33,26 @@
   --image sweb.eval.x86_64.sympy__sympy-20590:latest \
   --project-root "$PWD" \
   --config .bot/config.toml \
+  --max-steps 60 \
+  --max-wall-time-seconds 1800 \
+  --max-cost-usd 1.0 \
   --output artifacts/swebench/predictions.jsonl
 ```
+
+这三个预算参数只覆盖 SWE-bench 容器 Worker，不修改普通 Bot 的全局 `[agent]` 配置。
+默认值分别为 60 步、1800 秒和 1 美元；不同预算的运行应使用不同 `run_id`，避免把
+不可直接比较的结果混在一起。Worker 不包含额外收尾步骤或宽限机制，到达任一限制后
+仍按普通 Agent 规则停止。
 
 容器适配器会：
 
 1. 使用给定 SWE-bench instance 镜像启动一次性 Linux/AMD64 容器；
 2. 把项目源码只读挂载到容器，另建 Python 3.12 环境安装 Agent；
 3. 仅在容器内启用自动批准，并把 Agent 工作区限定为 `/testbed`；
-4. 收集 binary-safe Git diff，排除 `.bot/` 运行状态；
-5. 无论成功或失败都删除该次创建的容器。
+4. 把 JSONL 事件和 stderr 直接流式写入宿主机，运行中可用 `tail -f` 查看；
+5. Worker 关闭状态库后生成一致的 SQLite 快照，导出完整 Trace Bundle；
+6. 收集 binary-safe Git diff，排除 `.bot/` 运行状态；
+7. 无论成功或失败都删除该次创建的容器。
 
 模型 HTTPS 请求通过评测期间临时启动的受限 CONNECT 出口转发。该出口使用随机端口、
 只允许连接 `model.base_url` 对应的主机和端口，并在运行结束后关闭。这能避开本地代理
@@ -82,10 +92,52 @@ python -m swebench.harness.run_evaluation \
 ## 结果文件
 
 - `predictions.jsonl`：提交给官方 Harness 的补丁；
-- `predictions.events.jsonl`：本项目 JSONL 事件轨迹；
-- `predictions.stderr.log`：Agent 进程诊断信息；
+- `predictions.events.jsonl`：实时 JSONL 事件轨迹，可在运行中 `tail -f`；
+- `predictions.stderr.log`：实时 Agent 进程诊断信息；
 - `predictions.setup.log`：容器创建、依赖安装和销毁日志（容器模式）；
+- `predictions.result.json`：Agent 最终 `RunResult`，与事件流分开保存；
+- `predictions.state.db`：Worker 关闭数据库后生成的一致性完整状态快照；
+- `predictions.trace/`：自动生成的完整可读 Trace Bundle；
 - SWE-bench `evaluation_results/`：官方 resolved/unresolved 判分。
+
+长任务运行中可以直接观察：
+
+```bash
+tail -f artifacts/swebench/predictions.events.jsonl
+tail -f artifacts/swebench/predictions.stderr.log
+```
+
+Trace Bundle 包含：
+
+```text
+predictions.trace/
+├── manifest.json
+├── transcript.md
+├── events.jsonl
+├── messages.jsonl
+├── tool-runs.jsonl
+├── state.db
+├── blobs.json
+├── blobs/                 # 每个 context_ref 的完整内容
+└── tools/                 # 每次工具调用的参数、状态和 blob 链接
+```
+
+`transcript.md` 会内联较短的完整工具结果；超过 20,000 字符时展示预览，并链接到
+`blobs/` 中未删节的原始内容。所有导出内容都沿用运行时脱敏器处理后的数据。
+
+也可以对已有的事件日志和状态数据库重新导出：
+
+```bash
+bot trace export predictions.events.jsonl \
+  --state predictions.state.db \
+  --prediction predictions.jsonl \
+  --result predictions.result.json \
+  --setup-log predictions.setup.log \
+  --stderr-log predictions.stderr.log \
+  --output predictions.trace
+
+bot trace show predictions.trace
+```
 
 不得把 instance 的 `patch`、`test_patch`、`FAIL_TO_PASS` 或 `PASS_TO_PASS`
 交给 Agent；这些字段只能由评测端使用。
