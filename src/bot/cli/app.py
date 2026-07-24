@@ -15,12 +15,11 @@ from typing import Annotated
 import typer
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
-from rich.console import Console
 from rich.table import Table
 from typer.core import TyperGroup
 
 from bot import __version__
-from bot.cli.render import InteractiveApprovalHandler, RichEventSink
+from bot.cli.render import InteractiveApprovalHandler, RichEventSink, create_cli_console
 from bot.cli.runtime import build_runtime
 from bot.config import (
     ConfigError,
@@ -68,8 +67,8 @@ app.add_typer(session_app, name="session")
 app.add_typer(config_app, name="config")
 app.add_typer(model_app, name="model")
 app.add_typer(eval_app, name="eval")
-console = Console()
 app.add_typer(trace_app, name="trace")
+console = create_cli_console()
 DEFAULT_WORKSPACE = Path.cwd()
 
 

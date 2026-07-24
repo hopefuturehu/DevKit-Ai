@@ -2,19 +2,36 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TextIO
 
 from prompt_toolkit import PromptSession
 from rich.console import Console
+from rich.text import Text
 
 from bot.core.approval import ApprovalResponse, ApprovalScope
 from bot.core.events import AgentEvent, EventType
 from bot.policy import PolicyDecision, ToolAction
 
 
+def create_cli_console(*, file: TextIO | None = None, width: int | None = None) -> Console:
+    """Create a portable console that never leaks ANSI escape sequences.
+
+    CLI output is frequently consumed through a PTY by log collectors and web
+    frontends that report themselves as terminals but don't interpret ANSI.
+    Keep Markdown as plain source text and leave presentation to the consumer.
+    """
+    return Console(
+        file=file,
+        width=width,
+        color_system=None,
+        force_terminal=False,
+        highlight=False,
+    )
+
+
 class RichEventSink:
     def __init__(self, console: Console | None = None, *, show_tool_output: bool = False) -> None:
-        self.console = console or Console()
+        self.console = console or create_cli_console()
         self.show_tool_output = show_tool_output
         self._streaming = False
 
@@ -29,20 +46,26 @@ class RichEventSink:
                 self._streaming = False
         elif event.type == EventType.TOOL_REQUESTED:
             self._finish_stream()
-            self.console.print(
-                f"[cyan]→ Tool[/cyan] {payload.get('name')} "
-                f"[dim]{self._short(payload.get('arguments'))}[/dim]"
-            )
+            line = Text()
+            line.append("→ Tool", style="cyan")
+            line.append(f" {payload.get('name')} ")
+            line.append(self._short(payload.get("arguments")), style="dim")
+            self.console.print(line, highlight=False)
         elif event.type == EventType.APPROVAL_REQUESTED:
             self._finish_stream()
-            self.console.print(f"[yellow]需要批准：[/yellow]{payload.get('reason')}")
+            line = Text("需要批准：", style="yellow")
+            line.append(str(payload.get("reason", "")), style=None)
+            self.console.print(line, highlight=False)
         elif event.type == EventType.TOOL_COMPLETED:
-            status = "[green]完成[/green]" if payload.get("success") else "[red]失败[/red]"
-            self.console.print(f"  {status} {payload.get('name')}")
+            success = bool(payload.get("success"))
+            line = Text("  ")
+            line.append("完成" if success else "失败", style="green" if success else "red")
+            line.append(f" {payload.get('name')}")
+            self.console.print(line, highlight=False)
             if self.show_tool_output and payload.get("output"):
-                self.console.print(str(payload["output"]), markup=False)
+                self.console.print(str(payload["output"]), markup=False, highlight=False)
             if payload.get("error"):
-                self.console.print(f"  [red]{payload['error']}[/red]")
+                self.console.print(Text(f"  {payload['error']}", style="red"), highlight=False)
         elif event.type == EventType.TOOL_OUTPUT and self.show_tool_output:
             style = "dim red" if payload.get("stream") == "stderr" else "dim"
             self.console.print(
@@ -55,49 +78,65 @@ class RichEventSink:
         elif event.type == EventType.SKILL_ACTIVATED:
             self._finish_stream()
             explicit = "显式" if payload.get("explicit") else "自动"
-            self.console.print(f"[magenta]✓ Skill[/magenta] {payload.get('name')} ({explicit})")
+            line = Text("✓ Skill", style="magenta")
+            line.append(f" {payload.get('name')} ({explicit})")
+            self.console.print(line, highlight=False)
         elif event.type == EventType.RUN_FAILED:
             self._finish_stream()
-            self.console.print(f"[red]运行失败：{payload.get('error')}[/red]")
+            self.console.print(
+                Text(f"运行失败：{payload.get('error')}", style="red"), highlight=False
+            )
         elif event.type == EventType.SUBAGENT_QUEUED:
             self._finish_stream()
-            self.console.print(
-                f"[blue]⇢ Subagent[/blue] {payload.get('agent')} "
-                f"[dim]{str(payload.get('task_id', ''))[:8]} queued[/dim]"
-            )
+            line = Text("⇢ Subagent", style="blue")
+            line.append(f" {payload.get('agent')} ")
+            line.append(f"{str(payload.get('task_id', ''))[:8]} queued", style="dim")
+            self.console.print(line, highlight=False)
         elif event.type == EventType.SUBAGENT_COMPLETED:
             self._finish_stream()
-            self.console.print(
-                f"[green]✓ Subagent[/green] "
-                f"[dim]{str(payload.get('task_id', ''))[:8]} completed[/dim]"
-            )
+            line = Text("✓ Subagent", style="green")
+            line.append(f" {str(payload.get('task_id', ''))[:8]} completed", style="dim")
+            self.console.print(line, highlight=False)
         elif event.type == EventType.SUBAGENT_WAITING_APPROVAL:
             self._finish_stream()
-            self.console.print(
-                f"[yellow]⏸ Subagent[/yellow] "
-                f"{str(payload.get('task_id', ''))[:8]} waiting approval: "
-                f"{payload.get('reason')}"
+            line = Text("⏸ Subagent", style="yellow")
+            line.append(
+                f" {str(payload.get('task_id', ''))[:8]} waiting approval: {payload.get('reason')}"
             )
+            self.console.print(line, highlight=False)
         elif event.type in {
             EventType.SUBAGENT_FAILED,
             EventType.SUBAGENT_CANCELLED,
             EventType.SUBAGENT_INTERRUPTED,
         }:
             self._finish_stream()
-            self.console.print(
-                f"[red]✗ Subagent[/red] {str(payload.get('task_id', ''))[:8]} "
-                f"{payload.get('error') or event.type.value}"
+            line = Text("✗ Subagent", style="red")
+            line.append(
+                f" {str(payload.get('task_id', ''))[:8]} {payload.get('error') or event.type.value}"
             )
+            self.console.print(line, highlight=False)
 
     def _finish_stream(self) -> None:
         if self._streaming:
             self.console.print()
             self._streaming = False
 
-    @staticmethod
-    def _short(value: Any, limit: int = 180) -> str:
-        text = repr(value)
+    @classmethod
+    def _short(cls, value: Any, limit: int = 180) -> str:
+        text = repr(cls._summarize_multiline(value))
         return text if len(text) <= limit else text[: limit - 1] + "…"
+
+    @classmethod
+    def _summarize_multiline(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            if "\n" in value or len(value) > 80:
+                return f"<{len(value)} chars, {value.count(chr(10)) + 1} lines>"
+            return value
+        if isinstance(value, dict):
+            return {key: cls._summarize_multiline(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [cls._summarize_multiline(item) for item in value]
+        return value
 
 
 @dataclass
