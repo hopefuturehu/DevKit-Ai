@@ -25,6 +25,7 @@ from bot.core.models import (
     ToolCall,
 )
 from bot.execution import LocalExecutionTarget
+from bot.memory import MemoryConsolidator
 from bot.policy import DefaultPolicyEngine
 from bot.providers import ModelProvider, ProviderError
 from bot.sessions import SQLiteSessionStore
@@ -143,6 +144,7 @@ def make_test_runner(
     model_config: dict | None = None,
     tools: list | None = None,
     context_config: dict | None = None,
+    memory_config: dict | None = None,
 ):
     model = {"base_url": "https://unused", "name": "mock"}
     model.update(model_config or {})
@@ -151,6 +153,7 @@ def make_test_runner(
             "model": model,
             "agent": agent_config or {},
             "context": context_config or {},
+            "memory": memory_config or {},
             "storage": {"state_path": str(tmp_path / "state.db")},
             "skills": {"path": str(tmp_path / "skills")},
         }
@@ -174,6 +177,89 @@ def make_test_runner(
         event_bus=EventBus([store]),
     )
     return runner, store
+
+
+@pytest.mark.asyncio
+async def test_consolidated_memory_cards_are_retrieved_into_the_next_run(
+    tmp_path: Path,
+) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        memory_config={"auto_consolidate": False},
+    )
+    consolidator = MemoryConsolidator(
+        config=runner.config,
+        workspace=tmp_path,
+        provider=provider,
+        store=store,
+        event_bus=runner.event_bus,
+    )
+    runner.memory_consolidator = consolidator
+
+    first = await runner.run(RunRequest(prompt="必须始终运行 pytest"))
+    episode_id = store.list_memory_episodes(first.session_id, status="pending")[0]["id"]
+    provider.turns.append(
+        [
+            ModelEvent(
+                kind=ModelEventKind.TEXT_DELTA,
+                text=json.dumps(
+                    {
+                        "episodes": [
+                            {
+                                "episode_id": episode_id,
+                                "title": "pytest 约束",
+                                "summary": "用户要求始终运行 pytest。",
+                                "keywords": ["pytest"],
+                            }
+                        ],
+                        "candidates": [
+                            {
+                                "operation": "upsert",
+                                "kind": "constraint",
+                                "scope": "workspace",
+                                "content": "必须始终运行 pytest。",
+                                "source_positions": [1],
+                                "evidence_refs": ["message:1"],
+                                "confidence": 0.99,
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+        ]
+    )
+    consolidation = await consolidator.consolidate(first.session_id, force=True)
+    provider.turns.append(
+        [
+            ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="second done"),
+            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+        ]
+    )
+
+    second = await runner.run(RunRequest(prompt="继续修改", session_id=first.session_id))
+
+    assert first.status == second.status == "completed"
+    assert consolidation.cards_created == 1
+    injected = [
+        message
+        for message in provider.requests[-1].messages
+        if message.name == "consolidated_memory"
+    ]
+    assert len(injected) == 1
+    assert "必须始终运行 pytest" in (injected[0].content or "")
+    assert injected[0].role == Role.USER
+    store.close()
 
 
 @pytest.mark.asyncio

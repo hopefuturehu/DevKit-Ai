@@ -10,6 +10,7 @@ from bot.core.approval import ApprovalHandler
 from bot.core.context import ContextAssembler
 from bot.core.events import EventBus, EventSink
 from bot.execution import LocalExecutionTarget
+from bot.memory import MemoryConsolidator
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine
 from bot.providers import OpenAICompatibleProvider
@@ -30,6 +31,7 @@ class Runtime:
     target: LocalExecutionTarget
     context: ContextAssembler
     store: SQLiteSessionStore
+    memory: MemoryConsolidator
     runner: AgentRunner
     subagents: BackgroundAgentPool
     approval_handler: ApprovalHandler | None = None
@@ -93,6 +95,13 @@ def build_runtime(
         Path(f"{store.path}-shm"),
         Path(f"{store.path}-journal"),
     )
+    memory = MemoryConsolidator(
+        config=config,
+        workspace=workspace,
+        provider=provider,
+        store=store,
+        event_bus=event_bus,
+    )
 
     def child_runner_factory(spec, child_workspace, child_approval_handler):
         child_config = config.model_copy(deep=True)
@@ -154,6 +163,7 @@ def build_runtime(
         approval_handler=approval_handler,
         redactor=redactor,
         subagent_controller=subagents if config.subagents.enabled else None,
+        memory_consolidator=memory,
     )
     return Runtime(
         config=config,
@@ -164,6 +174,7 @@ def build_runtime(
         target=target,
         context=context,
         store=store,
+        memory=memory,
         runner=runner,
         subagents=subagents,
         approval_handler=approval_handler,

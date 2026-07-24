@@ -92,4 +92,4 @@ def test_session_store_migrates_legacy_event_schema(tmp_path: Path) -> None:
     versions = {row[0] for row in connection.execute("SELECT version FROM schema_migrations")}
     connection.close()
     assert "schema_version" in columns
-    assert 6 in versions
+    assert 7 in versions

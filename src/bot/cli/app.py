@@ -270,6 +270,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     "active_skills": list(runtime.skills.active),
                     "context_manifest": runtime.context.manifest(),
                     "context": runtime.runner.context_status(session_id),
+                    "memory": runtime.memory.status(session_id),
                     "usage": usage,
                 }
             )
@@ -334,6 +335,26 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             else:
                 console.print("当前快照之后没有新消息，无需压缩。")
             continue
+        if prompt == "/consolidate":
+            result = await runtime.memory.consolidate(
+                session_id,
+                trigger="explicit",
+                force=True,
+            )
+            if result.consolidated:
+                console.print(
+                    "记忆整合完成："
+                    f"episodes={result.episodes_consolidated}，"
+                    f"accepted={result.candidates_accepted}，"
+                    f"rejected={result.candidates_rejected}，"
+                    f"cards+={result.cards_created}，"
+                    f"cards~={result.cards_updated}。"
+                )
+            elif result.error:
+                console.print(f"记忆整合失败：{result.error}")
+            else:
+                console.print(f"无需整合：{result.reason}")
+            continue
         if prompt == "/skills":
             _print_skills(runtime.catalog, active=set(runtime.skills.active))
             continue
@@ -347,7 +368,8 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
         if prompt in {"/help", "?"}:
             console.print(
                 "/status /tools /skills /skills reload /remember <text> "
-                "/memories /forget <id> /agents /model /permissions /compact /new /exit"
+                "/memories /memory-cards /consolidate /forget <id> "
+                "/agents /model /permissions /compact /new /exit"
             )
             continue
         if prompt.startswith("/remember "):
@@ -360,6 +382,20 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                 console.print("暂无长期记忆。")
             for item in memories:
                 console.print(f"[{item['id']}] {item['content']} [dim]({item['source']})[/dim]")
+            continue
+        if prompt == "/memory-cards":
+            cards = runtime.store.list_active_memory_cards(
+                workspace=runtime.workspace,
+                session_id=session_id,
+                limit=runtime.config.memory.retrieval_limit * 4,
+            )
+            if not cards:
+                console.print("暂无 LLM 整合的有效 Memory Card。")
+            for item in cards:
+                console.print(
+                    f"[memory:{item['id']}] {item['kind']}/{item['scope']} "
+                    f"confidence={float(item['confidence']):.2f} {item['content']}"
+                )
             continue
         if prompt.startswith("/forget "):
             try:
@@ -585,6 +621,14 @@ auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
+
+[memory]
+enabled = true
+auto_consolidate = true
+session_gate = 5
+time_gate_hours = 24
+context_utilization_gate = 0.70
+min_confidence = 0.65
 
 [subagents]
 enabled = true

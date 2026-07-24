@@ -4,7 +4,7 @@ import hashlib
 import json
 import re
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -14,7 +14,7 @@ from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class SQLiteSessionStore(EventSink):
@@ -121,6 +121,94 @@ class SQLiteSessionStore(EventSink):
                     source TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     deleted_at TEXT
+                );
+                CREATE TABLE IF NOT EXISTS memory_episodes (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    run_id TEXT NOT NULL,
+                    start_position INTEGER NOT NULL,
+                    end_position INTEGER NOT NULL,
+                    message_count INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    source_sha256 TEXT NOT NULL,
+                    title TEXT,
+                    summary TEXT,
+                    keywords_json TEXT NOT NULL DEFAULT '[]',
+                    consolidation_id TEXT,
+                    created_at TEXT NOT NULL,
+                    consolidated_at TEXT,
+                    archived_at TEXT,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id),
+                    UNIQUE(session_id, run_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_memory_episodes_session_status_position
+                    ON memory_episodes(session_id, status, start_position);
+                CREATE TABLE IF NOT EXISTS memory_consolidation_runs (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    trigger TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    episode_ids_json TEXT NOT NULL,
+                    input_tokens INTEGER NOT NULL DEFAULT 0,
+                    output_tokens INTEGER NOT NULL DEFAULT 0,
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    error TEXT,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_memory_consolidation_session_status_started
+                    ON memory_consolidation_runs(session_id, status, started_at);
+                CREATE TABLE IF NOT EXISTS memory_cards (
+                    id TEXT PRIMARY KEY,
+                    scope TEXT NOT NULL,
+                    workspace TEXT NOT NULL,
+                    session_id TEXT,
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    normalized_key TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    source_positions_json TEXT NOT NULL,
+                    evidence_refs_json TEXT NOT NULL,
+                    version INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_memory_cards_lookup
+                    ON memory_cards(workspace, session_id, scope, status, updated_at);
+                CREATE INDEX IF NOT EXISTS idx_memory_cards_normalized
+                    ON memory_cards(workspace, scope, kind, normalized_key, status);
+                CREATE TABLE IF NOT EXISTS memory_candidates (
+                    id TEXT PRIMARY KEY,
+                    consolidation_id TEXT NOT NULL,
+                    operation TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    target_memory_id TEXT,
+                    source_positions_json TEXT NOT NULL,
+                    evidence_refs_json TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    rejection_reason TEXT,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(consolidation_id) REFERENCES memory_consolidation_runs(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_memory_candidates_consolidation
+                    ON memory_candidates(consolidation_id, status);
+                CREATE TABLE IF NOT EXISTS memory_card_versions (
+                    card_id TEXT NOT NULL,
+                    version INTEGER NOT NULL,
+                    consolidation_id TEXT NOT NULL,
+                    candidate_id TEXT,
+                    operation TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY(card_id, version),
+                    FOREIGN KEY(card_id) REFERENCES memory_cards(id),
+                    FOREIGN KEY(consolidation_id) REFERENCES memory_consolidation_runs(id)
                 );
                 CREATE TABLE IF NOT EXISTS context_snapshots (
                     id TEXT PRIMARY KEY,
@@ -671,6 +759,801 @@ class SQLiteSessionStore(EventSink):
                 (session_id,),
             ).fetchone()
         return int(row["position"])
+
+    def seal_memory_episodes(
+        self,
+        session_id: str,
+        *,
+        run_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Seal completed run message ranges as immutable consolidation inputs."""
+        query = """
+            SELECT m.run_id, MIN(m.position) AS start_position,
+                   MAX(m.position) AS end_position, COUNT(*) AS message_count
+            FROM messages AS m
+            LEFT JOIN runs AS r ON r.id = m.run_id
+            WHERE m.session_id = ?
+              AND (r.status IS NULL OR r.status <> 'running')
+              AND NOT EXISTS (
+                  SELECT 1 FROM memory_episodes AS e
+                  WHERE e.session_id = m.session_id AND e.run_id = m.run_id
+              )
+        """
+        arguments: list[Any] = [session_id]
+        if run_id is not None:
+            query += " AND m.run_id = ?"
+            arguments.append(run_id)
+        query += " GROUP BY m.run_id ORDER BY MIN(m.position)"
+        now = datetime.now(UTC).isoformat()
+        created: list[dict[str, Any]] = []
+        with self._lock, self._connection:
+            groups = self._connection.execute(query, tuple(arguments)).fetchall()
+            for group in groups:
+                message_rows = self._connection.execute(
+                    """
+                    SELECT message_json FROM messages
+                    WHERE session_id = ? AND run_id = ? ORDER BY position
+                    """,
+                    (session_id, group["run_id"]),
+                ).fetchall()
+                digest = hashlib.sha256()
+                for row in message_rows:
+                    digest.update(str(row["message_json"]).encode("utf-8", errors="replace"))
+                    digest.update(b"\n")
+                episode_id = uuid4().hex
+                self._connection.execute(
+                    """
+                    INSERT INTO memory_episodes(
+                        id, session_id, run_id, start_position, end_position,
+                        message_count, status, source_sha256, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                    """,
+                    (
+                        episode_id,
+                        session_id,
+                        str(group["run_id"]),
+                        int(group["start_position"]),
+                        int(group["end_position"]),
+                        int(group["message_count"]),
+                        digest.hexdigest(),
+                        now,
+                    ),
+                )
+                created.append(
+                    {
+                        "id": episode_id,
+                        "session_id": session_id,
+                        "run_id": str(group["run_id"]),
+                        "start_position": int(group["start_position"]),
+                        "end_position": int(group["end_position"]),
+                        "message_count": int(group["message_count"]),
+                        "status": "pending",
+                        "source_sha256": digest.hexdigest(),
+                        "created_at": now,
+                    }
+                )
+        return created
+
+    def list_memory_episodes(
+        self,
+        session_id: str,
+        *,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        query = """
+            SELECT id, session_id, run_id, start_position, end_position,
+                   message_count, status, source_sha256, title, summary,
+                   keywords_json, consolidation_id, created_at, consolidated_at,
+                   archived_at
+            FROM memory_episodes WHERE session_id = ?
+        """
+        arguments: list[Any] = [session_id]
+        if status is not None:
+            query += " AND status = ?"
+            arguments.append(status)
+        query += " ORDER BY start_position LIMIT ?"
+        arguments.append(max(1, limit))
+        with self._lock:
+            rows = self._connection.execute(query, tuple(arguments)).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["keywords"] = json.loads(item.pop("keywords_json"))
+            result.append(item)
+        return result
+
+    def start_memory_consolidation(
+        self,
+        *,
+        session_id: str,
+        trigger: str,
+        model: str,
+        episode_ids: list[str],
+    ) -> str:
+        if not episode_ids:
+            raise ValueError("记忆整合至少需要一个 Episode")
+        consolidation_id = uuid4().hex
+        placeholders = ",".join("?" for _ in episode_ids)
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._connection:
+            count = self._connection.execute(
+                f"""
+                SELECT COUNT(*) FROM memory_episodes
+                WHERE session_id = ? AND status = 'pending'
+                  AND id IN ({placeholders})
+                """,
+                (session_id, *episode_ids),
+            ).fetchone()[0]
+            if int(count) != len(set(episode_ids)):
+                raise ValueError("记忆整合 Episode 不存在、重复或已被处理")
+            self._connection.execute(
+                """
+                INSERT INTO memory_consolidation_runs(
+                    id, session_id, trigger, status, model, episode_ids_json, started_at
+                ) VALUES (?, ?, ?, 'building', ?, ?, ?)
+                """,
+                (
+                    consolidation_id,
+                    session_id,
+                    trigger,
+                    model,
+                    json.dumps(episode_ids, ensure_ascii=False),
+                    now,
+                ),
+            )
+        return consolidation_id
+
+    def fail_memory_consolidation(self, consolidation_id: str, error: str) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE memory_consolidation_runs
+                SET status = 'failed', completed_at = ?, error = ?
+                WHERE id = ? AND status = 'building'
+                """,
+                (datetime.now(UTC).isoformat(), str(self._sanitizer(error)), consolidation_id),
+            )
+
+    def latest_memory_consolidation(self, session_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT id, trigger, status, model, episode_ids_json, input_tokens,
+                       output_tokens, started_at, completed_at, error
+                FROM memory_consolidation_runs
+                WHERE session_id = ?
+                ORDER BY started_at DESC LIMIT 1
+                """,
+                (session_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        item = dict(row)
+        item["episode_ids"] = json.loads(item.pop("episode_ids_json"))
+        return item
+
+    def list_memory_consolidations(
+        self,
+        session_id: str,
+        *,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT id, trigger, status, model, episode_ids_json, input_tokens,
+                       output_tokens, started_at, completed_at, error
+                FROM memory_consolidation_runs
+                WHERE session_id = ?
+                ORDER BY started_at DESC LIMIT ?
+                """,
+                (session_id, max(1, limit)),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["episode_ids"] = json.loads(item.pop("episode_ids_json"))
+            result.append(item)
+        return result
+
+    def memory_message_metadata(
+        self,
+        session_id: str,
+        positions: set[int],
+    ) -> dict[int, dict[str, Any]]:
+        if not positions:
+            return {}
+        ordered = sorted(positions)
+        placeholders = ",".join("?" for _ in ordered)
+        with self._lock:
+            rows = self._connection.execute(
+                f"""
+                SELECT position, role, run_id, message_json
+                FROM messages
+                WHERE session_id = ? AND position IN ({placeholders})
+                """,
+                (session_id, *ordered),
+            ).fetchall()
+        return {
+            int(row["position"]): {
+                "position": int(row["position"]),
+                "role": str(row["role"]),
+                "run_id": str(row["run_id"]),
+                "message": ChatMessage.model_validate_json(row["message_json"]),
+            }
+            for row in rows
+        }
+
+    def list_tool_runs(
+        self,
+        session_id: str,
+        *,
+        run_ids: set[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        query = """
+            SELECT run_id, tool_call_id, tool_name, arguments_json, status,
+                   result_json, created_at
+            FROM tool_runs WHERE session_id = ?
+        """
+        arguments: list[Any] = [session_id]
+        if run_ids:
+            ordered = sorted(run_ids)
+            placeholders = ",".join("?" for _ in ordered)
+            query += f" AND run_id IN ({placeholders})"
+            arguments.extend(ordered)
+        query += " ORDER BY id"
+        with self._lock:
+            rows = self._connection.execute(query, tuple(arguments)).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["arguments"] = json.loads(item.pop("arguments_json"))
+            raw_result = item.pop("result_json")
+            item["result"] = json.loads(raw_result) if raw_result else None
+            result.append(item)
+        return result
+
+    def has_context_blob_access(self, session_id: str, reference: str) -> bool:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT 1 FROM context_blob_access
+                WHERE session_id = ? AND blob_id = ?
+                """,
+                (session_id, reference),
+            ).fetchone()
+        return row is not None
+
+    def list_active_memory_cards(
+        self,
+        *,
+        workspace: Path,
+        session_id: str,
+        limit: int = 1_000,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT id, scope, workspace, session_id, kind, status, content,
+                       confidence, source_positions_json, evidence_refs_json,
+                       version, created_at, updated_at
+                FROM memory_cards
+                WHERE workspace = ? AND status = 'active'
+                  AND (
+                      (scope = 'workspace' AND session_id IS NULL)
+                      OR (scope = 'session' AND session_id = ?)
+                  )
+                ORDER BY updated_at DESC LIMIT ?
+                """,
+                (str(workspace.resolve()), session_id, max(1, limit)),
+            ).fetchall()
+        return [self._decode_memory_card(row) for row in rows]
+
+    def get_memory_card(self, memory_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT id, scope, workspace, session_id, kind, status, content,
+                       confidence, source_positions_json, evidence_refs_json,
+                       version, created_at, updated_at
+                FROM memory_cards WHERE id = ?
+                """,
+                (memory_id,),
+            ).fetchone()
+        return self._decode_memory_card(row) if row else None
+
+    def list_memory_card_versions(self, memory_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT card_id, version, consolidation_id, candidate_id,
+                       operation, payload_json, created_at
+                FROM memory_card_versions
+                WHERE card_id = ? ORDER BY version
+                """,
+                (memory_id,),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["payload"] = json.loads(item.pop("payload_json"))
+            result.append(item)
+        return result
+
+    def complete_memory_consolidation(
+        self,
+        *,
+        consolidation_id: str,
+        session_id: str,
+        episode_summaries: list[dict[str, Any]],
+        verified_candidates: list[dict[str, Any]],
+        input_tokens: int,
+        output_tokens: int,
+        stale_after_days: int,
+        max_active_cards: int,
+    ) -> dict[str, int]:
+        """Atomically publish summaries, candidate decisions, cards and run state."""
+        now = datetime.now(UTC)
+        now_text = now.isoformat()
+        sanitized_summaries = self._sanitizer(episode_summaries)
+        sanitized_candidates = self._sanitizer(verified_candidates)
+        counters = {
+            "episodes_consolidated": 0,
+            "candidates_accepted": 0,
+            "candidates_rejected": 0,
+            "cards_created": 0,
+            "cards_updated": 0,
+            "cards_staled": 0,
+        }
+        with self._lock, self._connection:
+            consolidation = self._connection.execute(
+                """
+                SELECT episode_ids_json, status
+                FROM memory_consolidation_runs
+                WHERE id = ? AND session_id = ?
+                """,
+                (consolidation_id, session_id),
+            ).fetchone()
+            if consolidation is None or consolidation["status"] != "building":
+                raise ValueError("记忆整合运行不存在或不再处于 building 状态")
+            expected_episode_ids = set(json.loads(consolidation["episode_ids_json"]))
+            actual_episode_ids = {str(item["episode_id"]) for item in sanitized_summaries}
+            if actual_episode_ids != expected_episode_ids:
+                raise ValueError("LLM 返回的 Episode 集合与整合输入不一致")
+            session = self._connection.execute(
+                "SELECT workspace FROM sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+            if session is None:
+                raise ValueError(f"会话不存在: {session_id}")
+            workspace = str(Path(session["workspace"]).resolve())
+
+            for summary in sanitized_summaries:
+                cursor = self._connection.execute(
+                    """
+                    UPDATE memory_episodes
+                    SET title = ?, summary = ?, keywords_json = ?,
+                        status = 'consolidated', consolidation_id = ?,
+                        consolidated_at = ?
+                    WHERE id = ? AND session_id = ? AND status = 'pending'
+                    """,
+                    (
+                        str(summary["title"]),
+                        str(summary["summary"]),
+                        json.dumps(summary.get("keywords") or [], ensure_ascii=False),
+                        consolidation_id,
+                        now_text,
+                        str(summary["episode_id"]),
+                        session_id,
+                    ),
+                )
+                if cursor.rowcount != 1:
+                    raise ValueError(f"Episode 无法提交: {summary['episode_id']}")
+                counters["episodes_consolidated"] += 1
+
+            for verified in sanitized_candidates:
+                candidate = dict(verified["candidate"])
+                accepted = bool(verified["accepted"])
+                candidate_id = uuid4().hex
+                self._connection.execute(
+                    """
+                    INSERT INTO memory_candidates(
+                        id, consolidation_id, operation, kind, scope, content,
+                        target_memory_id, source_positions_json, evidence_refs_json,
+                        confidence, status, rejection_reason, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        candidate_id,
+                        consolidation_id,
+                        str(candidate["operation"]),
+                        str(candidate["kind"]),
+                        str(candidate["scope"]),
+                        str(candidate["content"]),
+                        candidate.get("target_memory_id"),
+                        json.dumps(candidate["source_positions"], ensure_ascii=False),
+                        json.dumps(candidate.get("evidence_refs") or [], ensure_ascii=False),
+                        float(candidate["confidence"]),
+                        "accepted" if accepted else "rejected",
+                        verified.get("rejection_reason"),
+                        now_text,
+                    ),
+                )
+                if not accepted:
+                    counters["candidates_rejected"] += 1
+                    continue
+                counters["candidates_accepted"] += 1
+                created = self._apply_memory_candidate_locked(
+                    consolidation_id=consolidation_id,
+                    candidate_id=candidate_id,
+                    session_id=session_id,
+                    workspace=workspace,
+                    candidate=candidate,
+                    now=now_text,
+                )
+                counters["cards_created" if created else "cards_updated"] += 1
+
+            counters["cards_staled"] = self._prune_memory_cards_locked(
+                consolidation_id=consolidation_id,
+                workspace=workspace,
+                cutoff=(now - timedelta(days=stale_after_days)).isoformat(),
+                max_active_cards=max_active_cards,
+                now=now_text,
+            )
+            self._connection.execute(
+                """
+                UPDATE memory_consolidation_runs
+                SET status = 'ready', completed_at = ?, input_tokens = ?,
+                    output_tokens = ?, error = NULL
+                WHERE id = ? AND status = 'building'
+                """,
+                (now_text, max(0, input_tokens), max(0, output_tokens), consolidation_id),
+            )
+        return counters
+
+    def memory_status(self, session_id: str, *, workspace: Path) -> dict[str, Any]:
+        pending = self.list_memory_episodes(session_id, status="pending", limit=10_000)
+        cards = self.list_active_memory_cards(
+            workspace=workspace,
+            session_id=session_id,
+            limit=10_000,
+        )
+        return {
+            "pending_episodes": len(pending),
+            "pending_messages": sum(int(item["message_count"]) for item in pending),
+            "active_cards": len(cards),
+            "latest_consolidation": self.latest_memory_consolidation(session_id),
+        }
+
+    @staticmethod
+    def _decode_memory_card(row: sqlite3.Row) -> dict[str, Any]:
+        item = dict(row)
+        item["source_positions"] = json.loads(item.pop("source_positions_json"))
+        item["evidence_refs"] = json.loads(item.pop("evidence_refs_json"))
+        return item
+
+    @staticmethod
+    def _memory_normalized_key(kind: str, content: str) -> str:
+        normalized = " ".join(content.casefold().split())
+        return hashlib.sha256(f"{kind}\0{normalized}".encode()).hexdigest()
+
+    def _apply_memory_candidate_locked(
+        self,
+        *,
+        consolidation_id: str,
+        candidate_id: str,
+        session_id: str,
+        workspace: str,
+        candidate: dict[str, Any],
+        now: str,
+    ) -> bool:
+        operation = str(candidate["operation"])
+        scope = str(candidate["scope"])
+        kind = str(candidate["kind"])
+        target_memory_id = candidate.get("target_memory_id")
+        card_session_id = session_id if scope == "session" else None
+        row = None
+        if target_memory_id:
+            row = self._connection.execute(
+                """
+                SELECT * FROM memory_cards
+                WHERE id = ? AND workspace = ? AND scope = ?
+                  AND (
+                      (? = 'workspace' AND session_id IS NULL)
+                      OR (? = 'session' AND session_id = ?)
+                  )
+                """,
+                (
+                    target_memory_id,
+                    workspace,
+                    scope,
+                    scope,
+                    scope,
+                    session_id,
+                ),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"目标 Memory Card 不存在或越权: {target_memory_id}")
+        elif operation == "upsert":
+            normalized_key = self._memory_normalized_key(kind, str(candidate["content"]))
+            row = self._connection.execute(
+                """
+                SELECT * FROM memory_cards
+                WHERE workspace = ? AND scope = ? AND kind = ?
+                  AND normalized_key = ? AND status = 'active'
+                  AND (
+                      (? = 'workspace' AND session_id IS NULL)
+                      OR (? = 'session' AND session_id = ?)
+                  )
+                ORDER BY updated_at DESC LIMIT 1
+                """,
+                (
+                    workspace,
+                    scope,
+                    kind,
+                    normalized_key,
+                    scope,
+                    scope,
+                    session_id,
+                ),
+            ).fetchone()
+
+        if operation == "upsert":
+            source_positions = sorted(set(int(item) for item in candidate["source_positions"]))
+            evidence_refs = sorted(set(str(item) for item in candidate.get("evidence_refs") or []))
+            if row is None:
+                card_id = uuid4().hex
+                payload = {
+                    "id": card_id,
+                    "scope": scope,
+                    "workspace": workspace,
+                    "session_id": card_session_id,
+                    "kind": kind,
+                    "status": "active",
+                    "content": str(candidate["content"]),
+                    "confidence": float(candidate["confidence"]),
+                    "source_positions": source_positions,
+                    "evidence_refs": evidence_refs,
+                    "version": 1,
+                }
+                self._connection.execute(
+                    """
+                    INSERT INTO memory_cards(
+                        id, scope, workspace, session_id, kind, status, content,
+                        normalized_key, confidence, source_positions_json,
+                        evidence_refs_json, version, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, 1, ?, ?)
+                    """,
+                    (
+                        card_id,
+                        scope,
+                        workspace,
+                        card_session_id,
+                        kind,
+                        payload["content"],
+                        self._memory_normalized_key(kind, payload["content"]),
+                        payload["confidence"],
+                        json.dumps(source_positions),
+                        json.dumps(evidence_refs, ensure_ascii=False),
+                        now,
+                        now,
+                    ),
+                )
+                self._insert_memory_card_version_locked(
+                    payload=payload,
+                    consolidation_id=consolidation_id,
+                    candidate_id=candidate_id,
+                    operation=operation,
+                    now=now,
+                )
+                return True
+
+            existing_sources = json.loads(row["source_positions_json"])
+            existing_refs = json.loads(row["evidence_refs_json"])
+            source_positions = sorted(set(existing_sources) | set(source_positions))
+            evidence_refs = sorted(set(existing_refs) | set(evidence_refs))
+            version = int(row["version"]) + 1
+            payload = {
+                "id": str(row["id"]),
+                "scope": scope,
+                "workspace": workspace,
+                "session_id": row["session_id"],
+                "kind": kind,
+                "status": "active",
+                "content": str(candidate["content"]),
+                "confidence": float(candidate["confidence"]),
+                "source_positions": source_positions,
+                "evidence_refs": evidence_refs,
+                "version": version,
+            }
+            self._connection.execute(
+                """
+                UPDATE memory_cards
+                SET status = 'active', content = ?, normalized_key = ?,
+                    confidence = ?, source_positions_json = ?,
+                    evidence_refs_json = ?, version = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    payload["content"],
+                    self._memory_normalized_key(kind, payload["content"]),
+                    payload["confidence"],
+                    json.dumps(source_positions),
+                    json.dumps(evidence_refs, ensure_ascii=False),
+                    version,
+                    now,
+                    row["id"],
+                ),
+            )
+            self._insert_memory_card_version_locked(
+                payload=payload,
+                consolidation_id=consolidation_id,
+                candidate_id=candidate_id,
+                operation=operation,
+                now=now,
+            )
+            return False
+
+        if row is None:
+            raise ValueError(f"{operation} 操作缺少目标 Memory Card")
+        status = "resolved" if operation == "resolve" else "retracted"
+        sources = sorted(
+            set(json.loads(row["source_positions_json"]))
+            | set(int(item) for item in candidate["source_positions"])
+        )
+        refs = sorted(
+            set(json.loads(row["evidence_refs_json"]))
+            | set(str(item) for item in candidate.get("evidence_refs") or [])
+        )
+        version = int(row["version"]) + 1
+        payload = {
+            "id": str(row["id"]),
+            "scope": str(row["scope"]),
+            "workspace": str(row["workspace"]),
+            "session_id": row["session_id"],
+            "kind": str(row["kind"]),
+            "status": status,
+            "content": str(row["content"]),
+            "confidence": float(row["confidence"]),
+            "source_positions": sources,
+            "evidence_refs": refs,
+            "version": version,
+            "transition_reason": str(candidate["content"]),
+        }
+        self._connection.execute(
+            """
+            UPDATE memory_cards
+            SET status = ?, source_positions_json = ?, evidence_refs_json = ?,
+                version = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                json.dumps(sources),
+                json.dumps(refs, ensure_ascii=False),
+                version,
+                now,
+                row["id"],
+            ),
+        )
+        self._insert_memory_card_version_locked(
+            payload=payload,
+            consolidation_id=consolidation_id,
+            candidate_id=candidate_id,
+            operation=operation,
+            now=now,
+        )
+        return False
+
+    def _insert_memory_card_version_locked(
+        self,
+        *,
+        payload: dict[str, Any],
+        consolidation_id: str,
+        candidate_id: str | None,
+        operation: str,
+        now: str,
+    ) -> None:
+        self._connection.execute(
+            """
+            INSERT INTO memory_card_versions(
+                card_id, version, consolidation_id, candidate_id,
+                operation, payload_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload["id"],
+                payload["version"],
+                consolidation_id,
+                candidate_id,
+                operation,
+                json.dumps(payload, ensure_ascii=False, sort_keys=True),
+                now,
+            ),
+        )
+
+    def _prune_memory_cards_locked(
+        self,
+        *,
+        consolidation_id: str,
+        workspace: str,
+        cutoff: str,
+        max_active_cards: int,
+        now: str,
+    ) -> int:
+        transient_kinds = ("project", "task", "error", "artifact", "verification")
+        placeholders = ",".join("?" for _ in transient_kinds)
+        rows = list(
+            self._connection.execute(
+                f"""
+                SELECT * FROM memory_cards
+                WHERE workspace = ? AND status = 'active' AND updated_at < ?
+                  AND kind IN ({placeholders})
+                ORDER BY updated_at
+                """,
+                (workspace, cutoff, *transient_kinds),
+            ).fetchall()
+        )
+        active_count = int(
+            self._connection.execute(
+                """
+                SELECT COUNT(*) FROM memory_cards
+                WHERE workspace = ? AND status = 'active'
+                """,
+                (workspace,),
+            ).fetchone()[0]
+        )
+        overflow = max(0, active_count - max_active_cards)
+        if overflow and len(rows) < overflow:
+            already = {str(row["id"]) for row in rows}
+            extra = self._connection.execute(
+                f"""
+                SELECT * FROM memory_cards
+                WHERE workspace = ? AND status = 'active'
+                  AND kind IN ({placeholders})
+                ORDER BY confidence ASC, updated_at ASC
+                """,
+                (workspace, *transient_kinds),
+            ).fetchall()
+            for row in extra:
+                if str(row["id"]) in already:
+                    continue
+                rows.append(row)
+                already.add(str(row["id"]))
+                if len(rows) >= overflow:
+                    break
+        for row in rows:
+            version = int(row["version"]) + 1
+            payload = {
+                "id": str(row["id"]),
+                "scope": str(row["scope"]),
+                "workspace": str(row["workspace"]),
+                "session_id": row["session_id"],
+                "kind": str(row["kind"]),
+                "status": "stale",
+                "content": str(row["content"]),
+                "confidence": float(row["confidence"]),
+                "source_positions": json.loads(row["source_positions_json"]),
+                "evidence_refs": json.loads(row["evidence_refs_json"]),
+                "version": version,
+            }
+            self._connection.execute(
+                """
+                UPDATE memory_cards
+                SET status = 'stale', version = ?, updated_at = ?
+                WHERE id = ? AND status = 'active'
+                """,
+                (version, now, row["id"]),
+            )
+            self._insert_memory_card_version_locked(
+                payload=payload,
+                consolidation_id=consolidation_id,
+                candidate_id=None,
+                operation="stale",
+                now=now,
+            )
+        return len(rows)
 
     def save_context_snapshot(
         self,
