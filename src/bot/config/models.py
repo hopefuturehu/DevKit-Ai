@@ -72,17 +72,23 @@ class ContextConfig(StrictModel):
 class MemoryConfig(StrictModel):
     enabled: bool = True
     auto_consolidate: bool = True
+    model: str | None = None
     session_gate: int = Field(default=5, ge=1)
     time_gate_hours: float = Field(default=24, gt=0)
     context_utilization_gate: float = Field(default=0.70, gt=0, lt=1)
     max_episodes_per_run: int = Field(default=8, ge=1, le=100)
+    max_consolidation_batches: int = Field(default=16, ge=1, le=100)
     max_source_chars: int = Field(default=60_000, ge=4_000)
     max_message_chars: int = Field(default=8_000, ge=500)
     max_output_tokens: int = Field(default=4_096, ge=256)
+    episode_summary_tokens: int = Field(default=12_000, ge=512)
     min_confidence: float = Field(default=0.65, ge=0, le=1)
     max_active_cards: int = Field(default=500, ge=10)
     stale_after_days: int = Field(default=90, ge=1)
     retrieval_limit: int = Field(default=24, ge=1, le=200)
+    retrieval_candidate_limit: int = Field(default=200, ge=10, le=2_000)
+    refresh_every_steps: int = Field(default=5, ge=1, le=100)
+    failure_warning_threshold: int = Field(default=3, ge=1, le=100)
 
 
 class SkillsConfig(StrictModel):

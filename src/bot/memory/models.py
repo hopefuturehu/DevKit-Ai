@@ -11,8 +11,14 @@ class StrictMemoryModel(BaseModel):
 
 class EpisodeStatus(StrEnum):
     PENDING = "pending"
+    CONSOLIDATING = "consolidating"
     CONSOLIDATED = "consolidated"
     ARCHIVED = "archived"
+
+
+class EpisodeDepth(StrEnum):
+    SHALLOW = "shallow"
+    DEEP = "deep"
 
 
 class ConsolidationStatus(StrEnum):
@@ -54,14 +60,18 @@ class MemoryCardStatus(StrEnum):
 class EpisodeSummary(StrictMemoryModel):
     episode_id: str = Field(min_length=1, max_length=128)
     title: str = Field(min_length=1, max_length=200)
+    objective: str = Field(default="", max_length=500)
     summary: str = Field(min_length=1, max_length=2_000)
     keywords: list[str] = Field(default_factory=list, max_length=20)
+    topics: list[str] = Field(default_factory=list, max_length=20)
+    depth: EpisodeDepth = EpisodeDepth.DEEP
 
 
 class MemoryCandidate(StrictMemoryModel):
     operation: MemoryOperation
     kind: MemoryKind
     scope: MemoryScope
+    memory_key: str = Field(pattern=r"^[a-z0-9][a-z0-9_.:/-]{1,127}$")
     content: str = Field(min_length=1, max_length=2_000)
     target_memory_id: str | None = Field(default=None, max_length=128)
     source_positions: list[int] = Field(min_length=1, max_length=50)
@@ -85,6 +95,7 @@ class VerifiedMemoryCandidate(StrictMemoryModel):
     candidate: MemoryCandidate
     accepted: bool
     rejection_reason: str | None = None
+    source_refs: list[str] = Field(default_factory=list, max_length=100)
 
 
 class ConsolidationResult(StrictMemoryModel):
@@ -97,7 +108,11 @@ class ConsolidationResult(StrictMemoryModel):
     cards_created: int = 0
     cards_updated: int = 0
     cards_staled: int = 0
+    batches: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    source_chars: int = 0
+    summary_chars: int = 0
+    duration_ms: float = 0
     reason: str | None = None
     error: str | None = None

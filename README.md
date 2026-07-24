@@ -72,17 +72,24 @@ safety_margin_tokens = 2048
 [memory]
 enabled = true
 auto_consolidate = true
+# 可选：用独立模型做结构化摘要；留空时复用主模型
+# model = "<memory-model-id>"
 # 任一门限满足时启动：累计 Episode、距上次整合时间、未整合内容占上下文比例
 session_gate = 5
 time_gate_hours = 24
 context_utilization_gate = 0.70
 max_episodes_per_run = 8
+max_consolidation_batches = 16
 max_source_chars = 60000
 max_output_tokens = 4096
+episode_summary_tokens = 12000
 min_confidence = 0.65
 max_active_cards = 500
 stale_after_days = 90
 retrieval_limit = 24
+retrieval_candidate_limit = 200
+refresh_every_steps = 5
+failure_warning_threshold = 3
 
 [skills]
 path = "./skills"
@@ -139,10 +146,16 @@ Case 可断言最终状态、答案片段、工作区文件、Tool/Skill 轨迹�
 Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 Skill 的增益。
 
 交互会话中可用 `/status`、`/tools`、`/agents`、`/skills`、`/model`、`/permissions`、
-`/compact`、`/consolidate`、`/remember`、`/memories`、`/memory-cards`、`/new` 和
-`/exit`。`/consolidate` 会显式处理当前会话尚未整合的 Episode；LLM 输出先作为候选操作，
-通过消息来源、用户权威、Tool 结果和作用域校验后才写入版本化 Memory Card。Agent
-运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel` 可取消当前运行。
+`/compact`、`/consolidate`、`/remember`、`/memories`、`/memory-cards`、
+`/memory-history`、`/memory-forget`、`/new` 和 `/exit`。`/consolidate` 会分批处理当前会话
+尚未整合的 Episode；`/compact` 会在 Tool 调用原子组边界压缩历史并推进连续摘要游标。
+LLM 输出先作为候选操作，通过消息来源、用户权威、Tool 结果、稳定语义键和作用域校验后
+才写入版本化 Memory Card。原始消息不会因压缩而删除，模型可通过 `search_memory` 和
+`load_memory_source` 检索、回溯。完整设计见
+[LLM Episode 记忆整合](docs/memory-consolidation.md)。
+
+Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`
+可取消当前运行。
 
 父 Agent 可调用 `spawn_agent`、`get_agent_status`、`await_agents` 和 `cancel_agent`。
 子 Agent 使用独立会话、Runner、Skill 激活状态和 Tool allowlist，默认最大委托深度为 1；

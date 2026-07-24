@@ -324,22 +324,22 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             console.print(f"本会话权限模式已切换为 {mode}")
             continue
         if prompt == "/compact":
-            result = runtime.runner.compact_session(session_id)
+            result = await runtime.runner.compact_session(session_id)
             if result["compacted"]:
                 console.print(
-                    "已立即创建上下文快照："
+                    "已完成 LLM Episode 压缩："
                     f"cursor={result['cursor_position']}，"
-                    f"messages={result['messages_checkpointed']}，"
-                    f"tokens≈{result['snapshot_tokens']}。"
+                    f"messages={result['messages_consolidated']}，"
+                    f"episodes={result['episodes_consolidated']}，"
+                    f"summary_tokens≈{result['summary_tokens']}。"
                 )
             else:
-                console.print("当前快照之后没有新消息，无需压缩。")
+                console.print(f"无需压缩：{result['reason']}。")
             continue
         if prompt == "/consolidate":
-            result = await runtime.memory.consolidate(
+            result = await runtime.memory.consolidate_all(
                 session_id,
                 trigger="explicit",
-                force=True,
             )
             if result.consolidated:
                 console.print(
@@ -368,7 +368,8 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
         if prompt in {"/help", "?"}:
             console.print(
                 "/status /tools /skills /skills reload /remember <text> "
-                "/memories /memory-cards /consolidate /forget <id> "
+                "/memories /memory-cards /memory-history <id> /memory-forget <id> "
+                "/consolidate /forget <id> "
                 "/agents /model /permissions /compact /new /exit"
             )
             continue
@@ -394,8 +395,32 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             for item in cards:
                 console.print(
                     f"[memory:{item['id']}] {item['kind']}/{item['scope']} "
-                    f"confidence={float(item['confidence']):.2f} {item['content']}"
+                    f"key={item['memory_key']} confidence={float(item['confidence']):.2f} "
+                    f"access={item['access_count']} {item['content']}"
                 )
+            continue
+        if prompt.startswith("/memory-history "):
+            memory_id = prompt.removeprefix("/memory-history ").strip()
+            card = runtime.store.get_memory_card_for_session(
+                memory_id=memory_id,
+                workspace=runtime.workspace,
+                session_id=session_id,
+            )
+            if card is None:
+                console.print("未找到该 Memory Card。")
+            else:
+                versions = runtime.store.list_memory_card_versions(memory_id)
+                console.print({"card": card, "versions": versions})
+            continue
+        if prompt.startswith("/memory-forget "):
+            memory_id = prompt.removeprefix("/memory-forget ").strip()
+            retracted = runtime.store.retract_memory_card(
+                memory_id=memory_id,
+                workspace=runtime.workspace,
+                session_id=session_id,
+                reason="用户通过 /memory-forget 显式撤销",
+            )
+            console.print("已撤销并保留版本审计。" if retracted else "未找到有效 Memory Card。")
             continue
         if prompt.startswith("/forget "):
             try:
@@ -625,9 +650,12 @@ safety_margin_tokens = 2048
 [memory]
 enabled = true
 auto_consolidate = true
+# 可选：单独指定低成本整合模型；留空则复用 model.name
+# model = ""
 session_gate = 5
 time_gate_hours = 24
 context_utilization_gate = 0.70
+episode_summary_tokens = 12000
 min_confidence = 0.65
 
 [subagents]

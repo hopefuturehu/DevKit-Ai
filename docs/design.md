@@ -121,7 +121,11 @@ bot mcp list|add|remove      # 后续接入 MCP
 /skills        查看候选 Skill、已激活 Skill 及其路径
 /skills reload 重新扫描配置指定的 Skill 目录
 /permissions   查看或调整本会话权限
-/compact       手动压缩上下文
+/compact       用 LLM Episode 摘要手动压缩上下文
+/consolidate   分批整合所有待处理 Episode
+/memory-cards  查看当前有效 Memory Card
+/memory-history <id> 查看 Card 版本链
+/memory-forget <id>  可审计地撤销 Card
 /new           新建会话
 /exit          退出
 ```
@@ -193,7 +197,8 @@ approval.resolved
 tool.started
 tool.output
 tool.completed
-context.compacted
+context.consolidated
+memory.consolidation.started|completed|failed
 run.steered
 run.failed
 run.completed
@@ -352,7 +357,9 @@ SessionStore
   create_session(...)
   append_event(session_id, event)
   load_events(session_id, cursor?)
-  build_snapshot(session_id)
+  seal_memory_episode_range(session_id, run_id, end_position)
+  consolidated_memory_cursor(session_id)
+  search_active_memory_cards(workspace, session_id, query)
   fork_session(session_id, event_cursor)
 ```
 
@@ -415,22 +422,28 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 3. **卸载级**：完整 Tool 输出和巨型消息进入内容寻址 blob，模型只接收 head/tail、hash
    与可分页读取的 `context_ref`；Tool schema 超预算时只保留目录和动态激活入口；Skill
    Catalog、Skill 正文和资源分别管理。
-4. **快照级**：旧消息前缀投影为单个结构化 Context Snapshot，记录目标、约束、决策、
-   已完成项、文件、证据引用、失败、审批、激活 Skill、待办和未决状态。快照属于用户数据
-   信任域，不能变成新的 System 指令；新快照直接 supersede 旧快照，不允许摘要套摘要。
-5. **恢复级**：SQLite 持久化 `building → ready → superseded/failed` 快照状态、消息游标、
-   引用和 blob 访问授权。恢复时重新发现 Core/Project/Environment，只加载最新 ready 快照
-   和游标后的增量消息。若 Provider 仍报告 context-length，只允许一次强制快照/外置重试；
-   仍失败则按层输出不可压缩项报告。
+4. **Episode 级**：旧消息前缀只在 Tool Call/Result 原子组边界切分为不可变 Episode。
+   LLM 为 Episode 生成带目标、主题、深度和来源的结构化摘要；Harness 校验完整性后原子
+   发布。只有从位置 1 开始连续 ready 的 Episode 才能推进恢复游标。
+5. **恢复级**：恢复时重新发现 Core/Project/Environment；游标前加载相关 Episode 摘要，
+   游标后加载原始消息，再召回 workspace/session Memory Card。若 Provider 仍报告
+   context-length，只允许一次强制 Episode 整合/外置重试；仍失败则按层输出不可压缩项报告。
 
-`/compact` 会立即建立恢复点，`/status` 显示硬/目标预算、最新快照、增量消息和动态 Tool
-状态。原始消息、Tool Run 和事件仍保留在本地，快照只改变发送给模型的上下文视图。
+`/compact` 会立即建立 Episode 恢复点，`/status` 显示硬/目标预算、连续摘要游标、待处理
+和已整合 Episode、压缩率与检索指标。原始消息、Tool Run 和事件始终是事实来源，不因压缩
+而删除。旧 `ContextSnapshot` 结构和表仅为数据库/API 兼容保留，新运行不创建、复制或消费
+snapshot。详细状态机和验收不变量见 [LLM Episode 记忆整合](memory-consolidation.md)。
 
 ### 7.3 长期记忆
 
-MVP 只支持用户显式写入，例如“记住我默认使用 pnpm”。不允许后台自动推断后直接写入长期记忆。
+显式记忆仍支持用户直接写入，例如“记住我默认使用 pnpm”。自动整合采用受约束的候选流程：
 
-后续可增加“候选记忆”流程：模型提出候选 → 安全/敏感信息扫描 → 用户批准 → 写入。记忆必须支持查看、来源追踪、编辑和删除。
+1. LLM 从指定 Episode 提出带稳定 `memory_key`、来源位置和证据引用的候选操作；
+2. Harness 确定性验证用户权威、成功 Tool 结果、blob、作用域和目标 Card；
+3. 同一稳定键更新同一 Card，所有更新、冲突消解、Prune 和用户撤销均写入版本链；
+4. 检索采用 SQLite 倒排词项加确定性重排，命中后可按限定 Episode 引用回溯原文。
+
+LLM 不能直接写 Memory Card；无效、低置信、伪造来源或越权候选只保留拒绝审计。
 
 ### 7.4 Skill
 
@@ -605,8 +618,12 @@ SQLite 表的最小集合：
 - `tool_runs`：工具参数摘要、状态、耗时和结果摘要；
 - `approvals`：请求、决定、范围和策略来源；
 - `memories`：显式记忆、来源、版本和删除状态；
-- `context_snapshots`、`context_blobs`、`context_blob_access`：结构化检查点、大内容和显式跨
-  session 引用授权；
+- `memory_episodes`、`memory_consolidation_runs`、`memory_candidates`：Episode 状态机、
+  LLM 整合事务、候选及拒绝原因；
+- `memory_cards`、`memory_card_versions`、`memory_card_terms`、`memory_retrievals`：
+  版本化语义记忆、倒排索引和检索/访问指标；
+- `context_blobs`、`context_blob_access`：大内容和显式跨 session 引用授权；
+- `context_snapshots`：仅供旧数据库/API 兼容读取；生产运行不再写入或恢复；
 - `agent_tasks`：父/子会话、profile、任务约束、状态机、幂等键、结果、用量和恢复信息；
 - `schema_migrations`：数据库迁移版本。
 
@@ -653,10 +670,30 @@ auto_compact_threshold = 0.80
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
-snapshot_max_tokens = 12000
 recent_conversation_tokens = 48000
+memory_tokens = 8000
 tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
+
+[memory]
+enabled = true
+auto_consolidate = true
+# model = "<optional-memory-model-id>"
+session_gate = 5
+time_gate_hours = 24
+context_utilization_gate = 0.70
+max_episodes_per_run = 8
+max_consolidation_batches = 16
+max_source_chars = 60000
+max_output_tokens = 4096
+episode_summary_tokens = 12000
+min_confidence = 0.65
+max_active_cards = 500
+stale_after_days = 90
+retrieval_limit = 24
+retrieval_candidate_limit = 200
+refresh_every_steps = 5
+failure_warning_threshold = 3
 
 [skills]
 path = "./skills"

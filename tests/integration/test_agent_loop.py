@@ -226,6 +226,7 @@ async def test_consolidated_memory_cards_are_retrieved_into_the_next_run(
                                 "operation": "upsert",
                                 "kind": "constraint",
                                 "scope": "workspace",
+                                "memory_key": "constraint.verification.pytest",
                                 "content": "必须始终运行 pytest。",
                                 "source_positions": [1],
                                 "evidence_refs": ["message:1"],
@@ -296,7 +297,7 @@ async def test_agent_externalizes_single_oversized_user_message(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_agent_checkpoints_and_resumes_from_cursor(tmp_path: Path) -> None:
+async def test_agent_consolidates_episodes_and_resumes_from_cursor(tmp_path: Path) -> None:
     provider = ScriptedProvider(
         [
             [
@@ -330,17 +331,50 @@ async def test_agent_checkpoints_and_resumes_from_cursor(tmp_path: Path) -> None
             "seed",
             ChatMessage(role=role, content=f"old-{index}-" + "中" * 1_000),
         )
+    episode_id = store.seal_memory_episodes(session_id)[0]["id"]
+    consolidator = MemoryConsolidator(
+        config=runner.config,
+        workspace=tmp_path,
+        provider=provider,
+        store=store,
+        event_bus=runner.event_bus,
+    )
+    runner.memory_consolidator = consolidator
+    provider.turns.insert(
+        0,
+        [
+            ModelEvent(
+                kind=ModelEventKind.TEXT_DELTA,
+                text=json.dumps(
+                    {
+                        "episodes": [
+                            {
+                                "episode_id": episode_id,
+                                "title": "旧会话",
+                                "objective": "保留旧任务上下文",
+                                "summary": "旧会话完成了多轮讨论。",
+                                "keywords": ["old"],
+                                "topics": ["history"],
+                                "depth": "deep",
+                            }
+                        ],
+                        "candidates": [],
+                    }
+                ),
+            ),
+            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+        ],
+    )
 
     first = await runner.run(RunRequest(prompt="new-one", session_id=session_id))
     second = await runner.run(RunRequest(prompt="new-two", session_id=session_id))
 
     assert first.status == second.status == "completed"
-    latest = store.latest_context_snapshot(session_id)
-    assert latest is not None
-    assert latest[1].cursor_position > 0
-    second_messages = provider.requests[1].messages
-    checkpoints = [message for message in second_messages if message.name == "context_checkpoint"]
-    assert len(checkpoints) == 1
+    assert store.consolidated_memory_cursor(session_id) == 12
+    assert store.latest_context_snapshot(session_id) is None
+    second_messages = provider.requests[2].messages
+    summaries = [message for message in second_messages if message.name == "consolidated_episodes"]
+    assert len(summaries) == 1
     assert not any("old-0-" in (message.content or "") for message in second_messages)
     store.close()
 
@@ -385,19 +419,54 @@ def test_agent_sheds_and_reactivates_tool_schemas(tmp_path: Path) -> None:
     store.close()
 
 
-def test_manual_compaction_creates_snapshot_immediately(tmp_path: Path) -> None:
-    runner, store = make_test_runner(tmp_path, ScriptedProvider([]))
+@pytest.mark.asyncio
+async def test_manual_compaction_consolidates_episodes_immediately(tmp_path: Path) -> None:
+    provider = ScriptedProvider([])
+    runner, store = make_test_runner(tmp_path, provider)
     session_id = store.create_session(tmp_path)
     store.append_message(session_id, "seed", ChatMessage(role=Role.USER, content="objective"))
     store.append_message(session_id, "seed", ChatMessage(role=Role.ASSISTANT, content="result"))
+    episode_id = store.seal_memory_episodes(session_id)[0]["id"]
+    provider.turns.append(
+        [
+            ModelEvent(
+                kind=ModelEventKind.TEXT_DELTA,
+                text=json.dumps(
+                    {
+                        "episodes": [
+                            {
+                                "episode_id": episode_id,
+                                "title": "目标完成",
+                                "objective": "objective",
+                                "summary": "任务得到 result。",
+                                "keywords": ["objective", "result"],
+                                "topics": ["task"],
+                                "depth": "deep",
+                            }
+                        ],
+                        "candidates": [],
+                    }
+                ),
+            ),
+            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+        ]
+    )
+    runner.memory_consolidator = MemoryConsolidator(
+        config=runner.config,
+        workspace=tmp_path,
+        provider=provider,
+        store=store,
+        event_bus=runner.event_bus,
+    )
 
-    result = runner.compact_session(session_id)
+    result = await runner.compact_session(session_id)
     status = runner.context_status(session_id)
 
     assert result["compacted"] is True
     assert result["cursor_position"] == 2
     assert status["delta_messages"] == 0
-    assert status["latest_snapshot"]["cursor_position"] == 2
+    assert status["compression"]["cursor_position"] == 2
+    assert status["compression"]["method"] == "llm_episode_consolidation"
     store.close()
 
 

@@ -27,6 +27,7 @@ class EventType(StrEnum):
     TOOL_COMPLETED = "tool.completed"
     CONTEXT_COMPACTED = "context.compacted"
     CONTEXT_CHECKPOINTED = "context.checkpointed"
+    CONTEXT_CONSOLIDATED = "context.consolidated"
     CONTEXT_PACKED = "context.packed"
     CONTEXT_LIMIT_REACHED = "context.limit_reached"
     CONTEXT_RETRY = "context.retry"

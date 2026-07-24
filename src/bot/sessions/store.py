@@ -14,7 +14,7 @@ from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 class SQLiteSessionStore(EventSink):
@@ -131,15 +131,20 @@ class SQLiteSessionStore(EventSink):
                     message_count INTEGER NOT NULL,
                     status TEXT NOT NULL,
                     source_sha256 TEXT NOT NULL,
+                    source_kind TEXT NOT NULL DEFAULT 'run',
                     title TEXT,
+                    objective TEXT NOT NULL DEFAULT '',
                     summary TEXT,
                     keywords_json TEXT NOT NULL DEFAULT '[]',
+                    topics_json TEXT NOT NULL DEFAULT '[]',
+                    depth TEXT NOT NULL DEFAULT 'deep',
+                    token_estimate INTEGER NOT NULL DEFAULT 0,
                     consolidation_id TEXT,
                     created_at TEXT NOT NULL,
                     consolidated_at TEXT,
                     archived_at TEXT,
                     FOREIGN KEY(session_id) REFERENCES sessions(id),
-                    UNIQUE(session_id, run_id)
+                    UNIQUE(session_id, start_position, end_position)
                 );
                 CREATE INDEX IF NOT EXISTS idx_memory_episodes_session_status_position
                     ON memory_episodes(session_id, status, start_position);
@@ -152,6 +157,9 @@ class SQLiteSessionStore(EventSink):
                     episode_ids_json TEXT NOT NULL,
                     input_tokens INTEGER NOT NULL DEFAULT 0,
                     output_tokens INTEGER NOT NULL DEFAULT 0,
+                    source_chars INTEGER NOT NULL DEFAULT 0,
+                    summary_chars INTEGER NOT NULL DEFAULT 0,
+                    duration_ms REAL NOT NULL DEFAULT 0,
                     started_at TEXT NOT NULL,
                     completed_at TEXT,
                     error TEXT,
@@ -165,13 +173,17 @@ class SQLiteSessionStore(EventSink):
                     workspace TEXT NOT NULL,
                     session_id TEXT,
                     kind TEXT NOT NULL,
+                    memory_key TEXT NOT NULL,
                     status TEXT NOT NULL,
                     content TEXT NOT NULL,
                     normalized_key TEXT NOT NULL,
                     confidence REAL NOT NULL,
                     source_positions_json TEXT NOT NULL,
+                    source_refs_json TEXT NOT NULL DEFAULT '[]',
                     evidence_refs_json TEXT NOT NULL,
                     version INTEGER NOT NULL,
+                    access_count INTEGER NOT NULL DEFAULT 0,
+                    last_accessed_at TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY(session_id) REFERENCES sessions(id)
@@ -186,9 +198,11 @@ class SQLiteSessionStore(EventSink):
                     operation TEXT NOT NULL,
                     kind TEXT NOT NULL,
                     scope TEXT NOT NULL,
+                    memory_key TEXT NOT NULL,
                     content TEXT NOT NULL,
                     target_memory_id TEXT,
                     source_positions_json TEXT NOT NULL,
+                    source_refs_json TEXT NOT NULL DEFAULT '[]',
                     evidence_refs_json TEXT NOT NULL,
                     confidence REAL NOT NULL,
                     status TEXT NOT NULL,
@@ -201,7 +215,7 @@ class SQLiteSessionStore(EventSink):
                 CREATE TABLE IF NOT EXISTS memory_card_versions (
                     card_id TEXT NOT NULL,
                     version INTEGER NOT NULL,
-                    consolidation_id TEXT NOT NULL,
+                    consolidation_id TEXT,
                     candidate_id TEXT,
                     operation TEXT NOT NULL,
                     payload_json TEXT NOT NULL,
@@ -210,6 +224,29 @@ class SQLiteSessionStore(EventSink):
                     FOREIGN KEY(card_id) REFERENCES memory_cards(id),
                     FOREIGN KEY(consolidation_id) REFERENCES memory_consolidation_runs(id)
                 );
+                CREATE TABLE IF NOT EXISTS memory_card_terms (
+                    term TEXT NOT NULL,
+                    card_id TEXT NOT NULL,
+                    PRIMARY KEY(term, card_id),
+                    FOREIGN KEY(card_id) REFERENCES memory_cards(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_memory_card_terms_card
+                    ON memory_card_terms(card_id);
+                CREATE TABLE IF NOT EXISTS memory_retrievals (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    run_id TEXT,
+                    query_sha256 TEXT NOT NULL,
+                    card_ids_json TEXT NOT NULL,
+                    episode_ids_json TEXT NOT NULL,
+                    candidate_count INTEGER NOT NULL,
+                    hit_count INTEGER NOT NULL,
+                    duration_ms REAL NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_memory_retrievals_session_created
+                    ON memory_retrievals(session_id, created_at);
                 CREATE TABLE IF NOT EXISTS context_snapshots (
                     id TEXT PRIMARY KEY,
                     session_id TEXT NOT NULL,
@@ -321,10 +358,203 @@ class SQLiteSessionStore(EventSink):
                 self._connection.execute(
                     "ALTER TABLE events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1"
                 )
+            self._migrate_memory_v8_locked()
+            stale_build_cutoff = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+            self._connection.execute(
+                """
+                UPDATE memory_episodes
+                SET status = 'pending', consolidation_id = NULL
+                WHERE status = 'consolidating'
+                  AND consolidation_id IN (
+                      SELECT id FROM memory_consolidation_runs
+                      WHERE status = 'building' AND started_at < ?
+                  )
+                """,
+                (stale_build_cutoff,),
+            )
+            self._connection.execute(
+                """
+                UPDATE memory_consolidation_runs
+                SET status = 'failed', completed_at = ?,
+                    error = 'recovered_stale_build'
+                WHERE status = 'building' AND started_at < ?
+                """,
+                (datetime.now(UTC).isoformat(), stale_build_cutoff),
+            )
             applied_at = datetime.now(UTC).isoformat()
             self._connection.executemany(
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                 [(version, applied_at) for version in range(1, SCHEMA_VERSION + 1)],
+            )
+
+    def _migrate_memory_v8_locked(self) -> None:
+        episode_columns = {
+            row[1] for row in self._connection.execute("PRAGMA table_info(memory_episodes)")
+        }
+        if "source_kind" not in episode_columns:
+            self._connection.execute("ALTER TABLE memory_episodes RENAME TO memory_episodes_v7")
+            self._connection.execute(
+                """
+                CREATE TABLE memory_episodes (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    run_id TEXT NOT NULL,
+                    start_position INTEGER NOT NULL,
+                    end_position INTEGER NOT NULL,
+                    message_count INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    source_sha256 TEXT NOT NULL,
+                    source_kind TEXT NOT NULL DEFAULT 'run',
+                    title TEXT,
+                    objective TEXT NOT NULL DEFAULT '',
+                    summary TEXT,
+                    keywords_json TEXT NOT NULL DEFAULT '[]',
+                    topics_json TEXT NOT NULL DEFAULT '[]',
+                    depth TEXT NOT NULL DEFAULT 'deep',
+                    token_estimate INTEGER NOT NULL DEFAULT 0,
+                    consolidation_id TEXT,
+                    created_at TEXT NOT NULL,
+                    consolidated_at TEXT,
+                    archived_at TEXT,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id),
+                    UNIQUE(session_id, start_position, end_position)
+                )
+                """
+            )
+            self._connection.execute(
+                """
+                INSERT INTO memory_episodes(
+                    id, session_id, run_id, start_position, end_position,
+                    message_count, status, source_sha256, source_kind, title,
+                    objective, summary, keywords_json, topics_json, depth,
+                    token_estimate, consolidation_id, created_at,
+                    consolidated_at, archived_at
+                )
+                SELECT id, session_id, run_id, start_position, end_position,
+                       message_count, status, source_sha256, 'run', title,
+                       '', summary, keywords_json, '[]', 'deep', 0,
+                       consolidation_id, created_at, consolidated_at, archived_at
+                FROM memory_episodes_v7
+                """
+            )
+            self._connection.execute("DROP TABLE memory_episodes_v7")
+            self._connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_memory_episodes_session_status_position
+                ON memory_episodes(session_id, status, start_position)
+                """
+            )
+
+        consolidation_columns = {
+            row[1]
+            for row in self._connection.execute("PRAGMA table_info(memory_consolidation_runs)")
+        }
+        for name, declaration in (
+            ("source_chars", "INTEGER NOT NULL DEFAULT 0"),
+            ("summary_chars", "INTEGER NOT NULL DEFAULT 0"),
+            ("duration_ms", "REAL NOT NULL DEFAULT 0"),
+        ):
+            if name not in consolidation_columns:
+                self._connection.execute(
+                    f"ALTER TABLE memory_consolidation_runs ADD COLUMN {name} {declaration}"
+                )
+
+        card_columns = {
+            row[1] for row in self._connection.execute("PRAGMA table_info(memory_cards)")
+        }
+        for name, declaration in (
+            ("memory_key", "TEXT NOT NULL DEFAULT ''"),
+            ("source_refs_json", "TEXT NOT NULL DEFAULT '[]'"),
+            ("access_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("last_accessed_at", "TEXT"),
+        ):
+            if name not in card_columns:
+                self._connection.execute(
+                    f"ALTER TABLE memory_cards ADD COLUMN {name} {declaration}"
+                )
+        self._connection.execute(
+            """
+            UPDATE memory_cards
+            SET memory_key = kind || '.legacy.' || substr(normalized_key, 1, 24)
+            WHERE memory_key = ''
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_memory_cards_key
+            ON memory_cards(workspace, scope, kind, memory_key, status)
+            """
+        )
+
+        candidate_columns = {
+            row[1] for row in self._connection.execute("PRAGMA table_info(memory_candidates)")
+        }
+        for name, declaration in (
+            ("memory_key", "TEXT NOT NULL DEFAULT ''"),
+            ("source_refs_json", "TEXT NOT NULL DEFAULT '[]'"),
+        ):
+            if name not in candidate_columns:
+                self._connection.execute(
+                    f"ALTER TABLE memory_candidates ADD COLUMN {name} {declaration}"
+                )
+        self._connection.execute(
+            """
+            UPDATE memory_candidates
+            SET memory_key = kind || '.legacy'
+            WHERE memory_key = ''
+            """
+        )
+
+        version_columns = list(self._connection.execute("PRAGMA table_info(memory_card_versions)"))
+        consolidation_column = next(
+            (row for row in version_columns if row[1] == "consolidation_id"),
+            None,
+        )
+        if consolidation_column is not None and int(consolidation_column[3]) == 1:
+            self._connection.execute(
+                "ALTER TABLE memory_card_versions RENAME TO memory_card_versions_v7"
+            )
+            self._connection.execute(
+                """
+                CREATE TABLE memory_card_versions (
+                    card_id TEXT NOT NULL,
+                    version INTEGER NOT NULL,
+                    consolidation_id TEXT,
+                    candidate_id TEXT,
+                    operation TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY(card_id, version),
+                    FOREIGN KEY(card_id) REFERENCES memory_cards(id),
+                    FOREIGN KEY(consolidation_id) REFERENCES memory_consolidation_runs(id)
+                )
+                """
+            )
+            self._connection.execute(
+                """
+                INSERT INTO memory_card_versions(
+                    card_id, version, consolidation_id, candidate_id,
+                    operation, payload_json, created_at
+                )
+                SELECT card_id, version, consolidation_id, candidate_id,
+                       operation, payload_json, created_at
+                FROM memory_card_versions_v7
+                """
+            )
+            self._connection.execute("DROP TABLE memory_card_versions_v7")
+        unindexed = self._connection.execute(
+            """
+            SELECT c.id, c.content, c.memory_key
+            FROM memory_cards AS c
+            LEFT JOIN memory_card_terms AS t ON t.card_id = c.id
+            WHERE t.card_id IS NULL
+            """
+        ).fetchall()
+        for row in unindexed:
+            self._replace_memory_terms_locked(
+                str(row["id"]),
+                str(row["content"]),
+                str(row["memory_key"]),
             )
 
     def create_session(
@@ -459,24 +689,63 @@ class SQLiteSessionStore(EventSink):
                     for row in rows
                 ],
             )
+            max_copied_position = (
+                max((int(row["position"]) for row in rows), default=0)
+                if up_to_position is None
+                else up_to_position
+            )
+            episodes = self._connection.execute(
+                """
+                SELECT * FROM memory_episodes
+                WHERE session_id = ?
+                  AND status IN ('consolidated', 'archived')
+                  AND end_position <= ?
+                ORDER BY start_position
+                """,
+                (session_id, max_copied_position),
+            ).fetchall()
+            now = datetime.now(UTC).isoformat()
+            self._connection.executemany(
+                """
+                INSERT INTO memory_episodes(
+                    id, session_id, run_id, start_position, end_position,
+                    message_count, status, source_sha256, source_kind, title,
+                    objective, summary, keywords_json, topics_json, depth,
+                    token_estimate, consolidation_id, created_at,
+                    consolidated_at, archived_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        uuid4().hex,
+                        new_session_id,
+                        f"fork:{session_id}",
+                        episode["start_position"],
+                        episode["end_position"],
+                        episode["message_count"],
+                        episode["status"],
+                        episode["source_sha256"],
+                        "fork",
+                        episode["title"],
+                        episode["objective"],
+                        episode["summary"],
+                        episode["keywords_json"],
+                        episode["topics_json"],
+                        episode["depth"],
+                        episode["token_estimate"],
+                        episode["consolidation_id"],
+                        now,
+                        episode["consolidated_at"],
+                        episode["archived_at"],
+                    )
+                    for episode in episodes
+                ],
+            )
         blob_references = {
             reference
             for row in rows
             for reference in re.findall(r"blob:[0-9a-f]{64}", row["message_json"])
         }
-        source_snapshot = self.latest_context_snapshot(session_id)
-        if source_snapshot:
-            _, snapshot = source_snapshot
-            max_position = up_to_position
-            if max_position is None:
-                max_position = self.latest_message_position(session_id)
-            if snapshot.cursor_position <= max_position:
-                blob_references.update(re.findall(r"blob:[0-9a-f]{64}", snapshot.model_dump_json()))
-                self.save_context_snapshot(
-                    session_id=new_session_id,
-                    run_id=f"fork:{session_id}",
-                    snapshot=snapshot,
-                )
         if blob_references:
             granted_at = datetime.now(UTC).isoformat()
             with self._lock, self._connection:
@@ -766,73 +1035,118 @@ class SQLiteSessionStore(EventSink):
         *,
         run_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Seal completed run message ranges as immutable consolidation inputs."""
+        """Seal still-uncovered ranges from completed runs as immutable Episodes."""
         query = """
-            SELECT m.run_id, MIN(m.position) AS start_position,
-                   MAX(m.position) AS end_position, COUNT(*) AS message_count
+            SELECT m.run_id, MAX(m.position) AS end_position
             FROM messages AS m
             LEFT JOIN runs AS r ON r.id = m.run_id
             WHERE m.session_id = ?
               AND (r.status IS NULL OR r.status <> 'running')
-              AND NOT EXISTS (
-                  SELECT 1 FROM memory_episodes AS e
-                  WHERE e.session_id = m.session_id AND e.run_id = m.run_id
-              )
         """
         arguments: list[Any] = [session_id]
         if run_id is not None:
             query += " AND m.run_id = ?"
             arguments.append(run_id)
         query += " GROUP BY m.run_id ORDER BY MIN(m.position)"
-        now = datetime.now(UTC).isoformat()
         created: list[dict[str, Any]] = []
         with self._lock, self._connection:
             groups = self._connection.execute(query, tuple(arguments)).fetchall()
             for group in groups:
-                message_rows = self._connection.execute(
-                    """
-                    SELECT message_json FROM messages
-                    WHERE session_id = ? AND run_id = ? ORDER BY position
-                    """,
-                    (session_id, group["run_id"]),
-                ).fetchall()
-                digest = hashlib.sha256()
-                for row in message_rows:
-                    digest.update(str(row["message_json"]).encode("utf-8", errors="replace"))
-                    digest.update(b"\n")
-                episode_id = uuid4().hex
-                self._connection.execute(
-                    """
-                    INSERT INTO memory_episodes(
-                        id, session_id, run_id, start_position, end_position,
-                        message_count, status, source_sha256, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-                    """,
-                    (
-                        episode_id,
-                        session_id,
-                        str(group["run_id"]),
-                        int(group["start_position"]),
-                        int(group["end_position"]),
-                        int(group["message_count"]),
-                        digest.hexdigest(),
-                        now,
-                    ),
+                episode = self._seal_memory_episode_range_locked(
+                    session_id=session_id,
+                    run_id=str(group["run_id"]),
+                    end_position=int(group["end_position"]),
+                    source_kind="run",
                 )
-                created.append(
-                    {
-                        "id": episode_id,
-                        "session_id": session_id,
-                        "run_id": str(group["run_id"]),
-                        "start_position": int(group["start_position"]),
-                        "end_position": int(group["end_position"]),
-                        "message_count": int(group["message_count"]),
-                        "status": "pending",
-                        "source_sha256": digest.hexdigest(),
-                        "created_at": now,
-                    }
-                )
+                if episode is not None:
+                    created.append(episode)
         return created
+
+    def seal_memory_episode_range(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        end_position: int,
+        source_kind: str = "compaction",
+    ) -> dict[str, Any] | None:
+        """Seal an uncovered prefix of a running or completed run."""
+        with self._lock, self._connection:
+            return self._seal_memory_episode_range_locked(
+                session_id=session_id,
+                run_id=run_id,
+                end_position=end_position,
+                source_kind=source_kind,
+            )
+
+    def _seal_memory_episode_range_locked(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        end_position: int,
+        source_kind: str,
+    ) -> dict[str, Any] | None:
+        covered = self._connection.execute(
+            """
+            SELECT COALESCE(MAX(end_position), 0)
+            FROM memory_episodes
+            WHERE session_id = ? AND run_id = ?
+            """,
+            (session_id, run_id),
+        ).fetchone()[0]
+        rows = self._connection.execute(
+            """
+            SELECT position, message_json FROM messages
+            WHERE session_id = ? AND run_id = ?
+              AND position > ? AND position <= ?
+            ORDER BY position
+            """,
+            (session_id, run_id, int(covered), end_position),
+        ).fetchall()
+        if not rows:
+            return None
+        digest = hashlib.sha256()
+        for row in rows:
+            digest.update(str(row["position"]).encode())
+            digest.update(b"\0")
+            digest.update(str(row["message_json"]).encode("utf-8", errors="replace"))
+            digest.update(b"\n")
+        now = datetime.now(UTC).isoformat()
+        episode_id = uuid4().hex
+        start_position = int(rows[0]["position"])
+        actual_end = int(rows[-1]["position"])
+        self._connection.execute(
+            """
+            INSERT INTO memory_episodes(
+                id, session_id, run_id, start_position, end_position,
+                message_count, status, source_sha256, source_kind, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+            """,
+            (
+                episode_id,
+                session_id,
+                run_id,
+                start_position,
+                actual_end,
+                len(rows),
+                digest.hexdigest(),
+                source_kind,
+                now,
+            ),
+        )
+        return {
+            "id": episode_id,
+            "session_id": session_id,
+            "run_id": run_id,
+            "start_position": start_position,
+            "end_position": actual_end,
+            "message_count": len(rows),
+            "status": "pending",
+            "source_sha256": digest.hexdigest(),
+            "source_kind": source_kind,
+            "created_at": now,
+        }
 
     def list_memory_episodes(
         self,
@@ -843,9 +1157,10 @@ class SQLiteSessionStore(EventSink):
     ) -> list[dict[str, Any]]:
         query = """
             SELECT id, session_id, run_id, start_position, end_position,
-                   message_count, status, source_sha256, title, summary,
-                   keywords_json, consolidation_id, created_at, consolidated_at,
-                   archived_at
+                   message_count, status, source_sha256, source_kind, title,
+                   objective, summary, keywords_json, topics_json, depth,
+                   token_estimate, consolidation_id, created_at,
+                   consolidated_at, archived_at
             FROM memory_episodes WHERE session_id = ?
         """
         arguments: list[Any] = [session_id]
@@ -860,6 +1175,61 @@ class SQLiteSessionStore(EventSink):
         for row in rows:
             item = dict(row)
             item["keywords"] = json.loads(item.pop("keywords_json"))
+            item["topics"] = json.loads(item.pop("topics_json"))
+            result.append(item)
+        return result
+
+    def consolidated_memory_cursor(self, session_id: str) -> int:
+        """Return the largest contiguous message prefix backed by ready summaries."""
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT start_position, end_position, status
+                FROM memory_episodes
+                WHERE session_id = ?
+                ORDER BY start_position, end_position
+                """,
+                (session_id,),
+            ).fetchall()
+        cursor = 0
+        for row in rows:
+            start = int(row["start_position"])
+            end = int(row["end_position"])
+            if start > cursor + 1:
+                break
+            if row["status"] not in {"consolidated", "archived"}:
+                break
+            cursor = max(cursor, end)
+        return cursor
+
+    def list_consolidated_episode_summaries(
+        self,
+        session_id: str,
+        *,
+        through_position: int | None = None,
+        limit: int = 10_000,
+    ) -> list[dict[str, Any]]:
+        query = """
+            SELECT id, session_id, run_id, start_position, end_position,
+                   message_count, source_sha256, source_kind, title, objective,
+                   summary, keywords_json, topics_json, depth, token_estimate,
+                   consolidation_id, created_at, consolidated_at
+            FROM memory_episodes
+            WHERE session_id = ? AND status IN ('consolidated', 'archived')
+        """
+        arguments: list[Any] = [session_id]
+        if through_position is not None:
+            query += " AND end_position <= ?"
+            arguments.append(through_position)
+        query += " ORDER BY start_position LIMIT ?"
+        arguments.append(max(1, limit))
+        with self._lock:
+            rows = self._connection.execute(query, tuple(arguments)).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["keywords"] = json.loads(item.pop("keywords_json"))
+            item["topics"] = json.loads(item.pop("topics_json"))
             result.append(item)
         return result
 
@@ -902,6 +1272,15 @@ class SQLiteSessionStore(EventSink):
                     now,
                 ),
             )
+            self._connection.execute(
+                f"""
+                UPDATE memory_episodes
+                SET status = 'consolidating', consolidation_id = ?
+                WHERE session_id = ? AND status = 'pending'
+                  AND id IN ({placeholders})
+                """,
+                (consolidation_id, session_id, *episode_ids),
+            )
         return consolidation_id
 
     def fail_memory_consolidation(self, consolidation_id: str, error: str) -> None:
@@ -914,19 +1293,35 @@ class SQLiteSessionStore(EventSink):
                 """,
                 (datetime.now(UTC).isoformat(), str(self._sanitizer(error)), consolidation_id),
             )
-
-    def latest_memory_consolidation(self, session_id: str) -> dict[str, Any] | None:
-        with self._lock:
-            row = self._connection.execute(
+            self._connection.execute(
                 """
-                SELECT id, trigger, status, model, episode_ids_json, input_tokens,
-                       output_tokens, started_at, completed_at, error
-                FROM memory_consolidation_runs
-                WHERE session_id = ?
-                ORDER BY started_at DESC LIMIT 1
+                UPDATE memory_episodes
+                SET status = 'pending', consolidation_id = NULL
+                WHERE consolidation_id = ? AND status = 'consolidating'
                 """,
-                (session_id,),
-            ).fetchone()
+                (consolidation_id,),
+            )
+
+    def latest_memory_consolidation(
+        self,
+        session_id: str,
+        *,
+        status: str | None = None,
+    ) -> dict[str, Any] | None:
+        query = """
+            SELECT id, trigger, status, model, episode_ids_json, input_tokens,
+                   output_tokens, source_chars, summary_chars, duration_ms,
+                   started_at, completed_at, error
+            FROM memory_consolidation_runs
+            WHERE session_id = ?
+        """
+        arguments: list[Any] = [session_id]
+        if status is not None:
+            query += " AND status = ?"
+            arguments.append(status)
+        query += " ORDER BY started_at DESC LIMIT 1"
+        with self._lock:
+            row = self._connection.execute(query, tuple(arguments)).fetchone()
         if row is None:
             return None
         item = dict(row)
@@ -943,7 +1338,8 @@ class SQLiteSessionStore(EventSink):
             rows = self._connection.execute(
                 """
                 SELECT id, trigger, status, model, episode_ids_json, input_tokens,
-                       output_tokens, started_at, completed_at, error
+                       output_tokens, source_chars, summary_chars, duration_ms,
+                       started_at, completed_at, error
                 FROM memory_consolidation_runs
                 WHERE session_id = ?
                 ORDER BY started_at DESC LIMIT ?
@@ -1035,9 +1431,10 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             rows = self._connection.execute(
                 """
-                SELECT id, scope, workspace, session_id, kind, status, content,
-                       confidence, source_positions_json, evidence_refs_json,
-                       version, created_at, updated_at
+                SELECT id, scope, workspace, session_id, kind, memory_key,
+                       status, content, confidence, source_positions_json,
+                       source_refs_json, evidence_refs_json, version,
+                       access_count, last_accessed_at, created_at, updated_at
                 FROM memory_cards
                 WHERE workspace = ? AND status = 'active'
                   AND (
@@ -1054,12 +1451,34 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             row = self._connection.execute(
                 """
-                SELECT id, scope, workspace, session_id, kind, status, content,
-                       confidence, source_positions_json, evidence_refs_json,
-                       version, created_at, updated_at
+                SELECT id, scope, workspace, session_id, kind, memory_key,
+                       status, content, confidence, source_positions_json,
+                       source_refs_json, evidence_refs_json, version,
+                       access_count, last_accessed_at, created_at, updated_at
                 FROM memory_cards WHERE id = ?
                 """,
                 (memory_id,),
+            ).fetchone()
+        return self._decode_memory_card(row) if row else None
+
+    def get_memory_card_for_session(
+        self,
+        *,
+        memory_id: str,
+        workspace: Path,
+        session_id: str,
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT * FROM memory_cards
+                WHERE id = ? AND workspace = ?
+                  AND (
+                      (scope = 'workspace' AND session_id IS NULL)
+                      OR (scope = 'session' AND session_id = ?)
+                  )
+                """,
+                (memory_id, str(workspace.resolve()), session_id),
             ).fetchone()
         return self._decode_memory_card(row) if row else None
 
@@ -1081,6 +1500,268 @@ class SQLiteSessionStore(EventSink):
             result.append(item)
         return result
 
+    @staticmethod
+    def _memory_terms(content: str) -> set[str]:
+        lowered = content.casefold()
+        terms = set(re.findall(r"[a-z0-9_./:-]+", lowered))
+        for run in re.findall(r"[\u3400-\u9fff]+", lowered):
+            if len(run) == 1:
+                terms.add(run)
+            else:
+                terms.update(run[index : index + 2] for index in range(len(run) - 1))
+        return {term[:128] for term in terms if term}
+
+    def _replace_memory_terms_locked(
+        self,
+        card_id: str,
+        content: str,
+        memory_key: str,
+    ) -> None:
+        self._connection.execute("DELETE FROM memory_card_terms WHERE card_id = ?", (card_id,))
+        terms = sorted(self._memory_terms(f"{memory_key} {content}"))
+        self._connection.executemany(
+            "INSERT OR IGNORE INTO memory_card_terms(term, card_id) VALUES (?, ?)",
+            [(term, card_id) for term in terms],
+        )
+
+    def search_active_memory_cards(
+        self,
+        *,
+        workspace: Path,
+        session_id: str,
+        query: str,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        terms = sorted(self._memory_terms(query))[:200]
+        workspace_text = str(workspace.resolve())
+        rows: list[sqlite3.Row] = []
+        with self._lock:
+            if terms:
+                placeholders = ",".join("?" for _ in terms)
+                rows = list(
+                    self._connection.execute(
+                        f"""
+                        SELECT c.*, COUNT(t.term) AS term_hits
+                        FROM memory_cards AS c
+                        JOIN memory_card_terms AS t ON t.card_id = c.id
+                        WHERE c.workspace = ? AND c.status = 'active'
+                          AND t.term IN ({placeholders})
+                          AND (
+                              (c.scope = 'workspace' AND c.session_id IS NULL)
+                              OR (c.scope = 'session' AND c.session_id = ?)
+                          )
+                        GROUP BY c.id
+                        ORDER BY term_hits DESC, c.updated_at DESC
+                        LIMIT ?
+                        """,
+                        (workspace_text, *terms, session_id, max(1, limit)),
+                    ).fetchall()
+                )
+            if len(rows) < limit:
+                seen = {str(row["id"]) for row in rows}
+                fallback = self._connection.execute(
+                    """
+                    SELECT * FROM memory_cards
+                    WHERE workspace = ? AND status = 'active'
+                      AND (
+                          (scope = 'workspace' AND session_id IS NULL)
+                          OR (scope = 'session' AND session_id = ?)
+                      )
+                    ORDER BY
+                      CASE kind
+                        WHEN 'constraint' THEN 0
+                        WHEN 'preference' THEN 1
+                        ELSE 2
+                      END,
+                      updated_at DESC
+                    LIMIT ?
+                    """,
+                    (workspace_text, session_id, max(1, limit)),
+                ).fetchall()
+                for row in fallback:
+                    if str(row["id"]) in seen:
+                        continue
+                    rows.append(row)
+                    seen.add(str(row["id"]))
+                    if len(rows) >= limit:
+                        break
+        return [self._decode_memory_card(row) for row in rows]
+
+    def record_memory_retrieval(
+        self,
+        *,
+        session_id: str,
+        run_id: str | None,
+        query: str,
+        candidate_count: int,
+        card_ids: list[str],
+        episode_ids: list[str],
+        duration_ms: float,
+    ) -> str:
+        retrieval_id = uuid4().hex
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO memory_retrievals(
+                    id, session_id, run_id, query_sha256, card_ids_json,
+                    episode_ids_json, candidate_count, hit_count,
+                    duration_ms, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    retrieval_id,
+                    session_id,
+                    run_id,
+                    hashlib.sha256(query.encode("utf-8", errors="replace")).hexdigest(),
+                    json.dumps(card_ids),
+                    json.dumps(episode_ids),
+                    max(0, candidate_count),
+                    len(card_ids) + len(episode_ids),
+                    max(0, duration_ms),
+                    now,
+                ),
+            )
+            if card_ids:
+                placeholders = ",".join("?" for _ in card_ids)
+                self._connection.execute(
+                    f"""
+                    UPDATE memory_cards
+                    SET access_count = access_count + 1, last_accessed_at = ?
+                    WHERE id IN ({placeholders}) AND status = 'active'
+                    """,
+                    (now, *card_ids),
+                )
+        return retrieval_id
+
+    def list_memory_retrievals(
+        self,
+        session_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT id, session_id, run_id, query_sha256, card_ids_json,
+                       episode_ids_json, candidate_count, hit_count,
+                       duration_ms, created_at
+                FROM memory_retrievals
+                WHERE session_id = ?
+                ORDER BY created_at DESC LIMIT ?
+                """,
+                (session_id, max(1, limit)),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["card_ids"] = json.loads(item.pop("card_ids_json"))
+            item["episode_ids"] = json.loads(item.pop("episode_ids_json"))
+            result.append(item)
+        return result
+
+    def read_memory_episode_source(
+        self,
+        *,
+        requesting_session_id: str,
+        episode_id: str,
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT e.*, s.workspace
+                FROM memory_episodes AS e
+                JOIN sessions AS s ON s.id = e.session_id
+                WHERE e.id = ?
+                """,
+                (episode_id,),
+            ).fetchone()
+            requester = self._connection.execute(
+                "SELECT workspace FROM sessions WHERE id = ?",
+                (requesting_session_id,),
+            ).fetchone()
+            if row is None or requester is None:
+                return None
+            if Path(row["workspace"]).resolve() != Path(requester["workspace"]).resolve():
+                return None
+            messages = self._connection.execute(
+                """
+                SELECT position, message_json
+                FROM messages
+                WHERE session_id = ? AND position BETWEEN ? AND ?
+                ORDER BY position
+                """,
+                (
+                    row["session_id"],
+                    int(row["start_position"]),
+                    int(row["end_position"]),
+                ),
+            ).fetchall()
+        return {
+            "episode_id": episode_id,
+            "source_session_id": str(row["session_id"]),
+            "run_id": str(row["run_id"]),
+            "range": [int(row["start_position"]), int(row["end_position"])],
+            "source_sha256": str(row["source_sha256"]),
+            "messages": [
+                {
+                    "position": int(message["position"]),
+                    "message": ChatMessage.model_validate_json(message["message_json"]).model_dump(
+                        mode="json"
+                    ),
+                }
+                for message in messages
+            ],
+        }
+
+    def retract_memory_card(
+        self,
+        *,
+        memory_id: str,
+        workspace: Path,
+        session_id: str,
+        reason: str,
+    ) -> bool:
+        now = datetime.now(UTC).isoformat()
+        workspace_text = str(workspace.resolve())
+        with self._lock, self._connection:
+            row = self._connection.execute(
+                """
+                SELECT * FROM memory_cards
+                WHERE id = ? AND workspace = ? AND status = 'active'
+                  AND (
+                      (scope = 'workspace' AND session_id IS NULL)
+                      OR (scope = 'session' AND session_id = ?)
+                  )
+                """,
+                (memory_id, workspace_text, session_id),
+            ).fetchone()
+            if row is None:
+                return False
+            version = int(row["version"]) + 1
+            payload = self._memory_card_payload(
+                row,
+                status="retracted",
+                version=version,
+                transition_reason=reason,
+            )
+            self._connection.execute(
+                """
+                UPDATE memory_cards
+                SET status = 'retracted', version = ?, updated_at = ?
+                WHERE id = ? AND status = 'active'
+                """,
+                (version, now, memory_id),
+            )
+            self._insert_memory_card_version_locked(
+                payload=payload,
+                consolidation_id=None,
+                candidate_id=None,
+                operation="user_retract",
+                now=now,
+            )
+            return True
+
     def complete_memory_consolidation(
         self,
         *,
@@ -1090,6 +1771,9 @@ class SQLiteSessionStore(EventSink):
         verified_candidates: list[dict[str, Any]],
         input_tokens: int,
         output_tokens: int,
+        source_chars: int,
+        summary_chars: int,
+        duration_ms: float,
         stale_after_days: int,
         max_active_cards: int,
     ) -> dict[str, int]:
@@ -1133,15 +1817,20 @@ class SQLiteSessionStore(EventSink):
                 cursor = self._connection.execute(
                     """
                     UPDATE memory_episodes
-                    SET title = ?, summary = ?, keywords_json = ?,
+                    SET title = ?, objective = ?, summary = ?, keywords_json = ?,
+                        topics_json = ?, depth = ?, token_estimate = ?,
                         status = 'consolidated', consolidation_id = ?,
                         consolidated_at = ?
-                    WHERE id = ? AND session_id = ? AND status = 'pending'
+                    WHERE id = ? AND session_id = ? AND status = 'consolidating'
                     """,
                     (
                         str(summary["title"]),
+                        str(summary.get("objective") or ""),
                         str(summary["summary"]),
                         json.dumps(summary.get("keywords") or [], ensure_ascii=False),
+                        json.dumps(summary.get("topics") or [], ensure_ascii=False),
+                        str(summary.get("depth") or "deep"),
+                        max(0, int(summary.get("token_estimate") or 0)),
                         consolidation_id,
                         now_text,
                         str(summary["episode_id"]),
@@ -1159,10 +1848,11 @@ class SQLiteSessionStore(EventSink):
                 self._connection.execute(
                     """
                     INSERT INTO memory_candidates(
-                        id, consolidation_id, operation, kind, scope, content,
-                        target_memory_id, source_positions_json, evidence_refs_json,
-                        confidence, status, rejection_reason, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, consolidation_id, operation, kind, scope, memory_key,
+                        content, target_memory_id, source_positions_json,
+                        source_refs_json, evidence_refs_json, confidence, status,
+                        rejection_reason, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         candidate_id,
@@ -1170,9 +1860,11 @@ class SQLiteSessionStore(EventSink):
                         str(candidate["operation"]),
                         str(candidate["kind"]),
                         str(candidate["scope"]),
+                        str(candidate["memory_key"]),
                         str(candidate["content"]),
                         candidate.get("target_memory_id"),
                         json.dumps(candidate["source_positions"], ensure_ascii=False),
+                        json.dumps(verified.get("source_refs") or [], ensure_ascii=False),
                         json.dumps(candidate.get("evidence_refs") or [], ensure_ascii=False),
                         float(candidate["confidence"]),
                         "accepted" if accepted else "rejected",
@@ -1190,6 +1882,7 @@ class SQLiteSessionStore(EventSink):
                     session_id=session_id,
                     workspace=workspace,
                     candidate=candidate,
+                    source_refs=list(verified.get("source_refs") or []),
                     now=now_text,
                 )
                 counters["cards_created" if created else "cards_updated"] += 1
@@ -1205,24 +1898,77 @@ class SQLiteSessionStore(EventSink):
                 """
                 UPDATE memory_consolidation_runs
                 SET status = 'ready', completed_at = ?, input_tokens = ?,
-                    output_tokens = ?, error = NULL
+                    output_tokens = ?, source_chars = ?, summary_chars = ?,
+                    duration_ms = ?, error = NULL
                 WHERE id = ? AND status = 'building'
                 """,
-                (now_text, max(0, input_tokens), max(0, output_tokens), consolidation_id),
+                (
+                    now_text,
+                    max(0, input_tokens),
+                    max(0, output_tokens),
+                    max(0, source_chars),
+                    max(0, summary_chars),
+                    max(0, duration_ms),
+                    consolidation_id,
+                ),
             )
         return counters
 
     def memory_status(self, session_id: str, *, workspace: Path) -> dict[str, Any]:
         pending = self.list_memory_episodes(session_id, status="pending", limit=10_000)
+        consolidated = self.list_consolidated_episode_summaries(session_id, limit=10_000)
         cards = self.list_active_memory_cards(
             workspace=workspace,
             session_id=session_id,
             limit=10_000,
         )
+        retrievals = self.list_memory_retrievals(session_id, limit=100)
+        consolidations = self.list_memory_consolidations(session_id, limit=100)
+        ready = [item for item in consolidations if item["status"] == "ready"]
+        failures_since_ready = 0
+        for item in consolidations:
+            if item["status"] == "ready":
+                break
+            if item["status"] == "failed":
+                failures_since_ready += 1
         return {
             "pending_episodes": len(pending),
             "pending_messages": sum(int(item["message_count"]) for item in pending),
+            "consolidated_episodes": len(consolidated),
+            "consolidated_cursor": self.consolidated_memory_cursor(session_id),
             "active_cards": len(cards),
+            "failures_since_ready": failures_since_ready,
+            "metrics": {
+                "consolidation_runs": len(consolidations),
+                "avg_consolidation_ms": (
+                    sum(float(item["duration_ms"]) for item in ready) / len(ready) if ready else 0
+                ),
+                "avg_compression_ratio": (
+                    sum(
+                        float(item["summary_chars"]) / max(1, int(item["source_chars"]))
+                        for item in ready
+                    )
+                    / len(ready)
+                    if ready
+                    else 0
+                ),
+                "retrievals": len(retrievals),
+                "avg_retrieval_ms": (
+                    sum(float(item["duration_ms"]) for item in retrievals) / len(retrievals)
+                    if retrievals
+                    else 0
+                ),
+                "avg_retrieval_hits": (
+                    sum(int(item["hit_count"]) for item in retrievals) / len(retrievals)
+                    if retrievals
+                    else 0
+                ),
+                "retrieval_miss_rate": (
+                    sum(1 for item in retrievals if int(item["hit_count"]) == 0) / len(retrievals)
+                    if retrievals
+                    else 0
+                ),
+            },
             "latest_consolidation": self.latest_memory_consolidation(session_id),
         }
 
@@ -1230,13 +1976,14 @@ class SQLiteSessionStore(EventSink):
     def _decode_memory_card(row: sqlite3.Row) -> dict[str, Any]:
         item = dict(row)
         item["source_positions"] = json.loads(item.pop("source_positions_json"))
+        item["source_refs"] = json.loads(item.pop("source_refs_json"))
         item["evidence_refs"] = json.loads(item.pop("evidence_refs_json"))
         return item
 
     @staticmethod
-    def _memory_normalized_key(kind: str, content: str) -> str:
+    def _memory_normalized_key(kind: str, memory_key: str, content: str) -> str:
         normalized = " ".join(content.casefold().split())
-        return hashlib.sha256(f"{kind}\0{normalized}".encode()).hexdigest()
+        return hashlib.sha256(f"{kind}\0{memory_key}\0{normalized}".encode()).hexdigest()
 
     def _apply_memory_candidate_locked(
         self,
@@ -1246,11 +1993,13 @@ class SQLiteSessionStore(EventSink):
         session_id: str,
         workspace: str,
         candidate: dict[str, Any],
+        source_refs: list[str],
         now: str,
     ) -> bool:
         operation = str(candidate["operation"])
         scope = str(candidate["scope"])
         kind = str(candidate["kind"])
+        memory_key = str(candidate["memory_key"])
         target_memory_id = candidate.get("target_memory_id")
         card_session_id = session_id if scope == "session" else None
         row = None
@@ -1276,12 +2025,11 @@ class SQLiteSessionStore(EventSink):
             if row is None:
                 raise ValueError(f"目标 Memory Card 不存在或越权: {target_memory_id}")
         elif operation == "upsert":
-            normalized_key = self._memory_normalized_key(kind, str(candidate["content"]))
             row = self._connection.execute(
                 """
                 SELECT * FROM memory_cards
                 WHERE workspace = ? AND scope = ? AND kind = ?
-                  AND normalized_key = ? AND status = 'active'
+                  AND memory_key = ? AND status = 'active'
                   AND (
                       (? = 'workspace' AND session_id IS NULL)
                       OR (? = 'session' AND session_id = ?)
@@ -1292,7 +2040,7 @@ class SQLiteSessionStore(EventSink):
                     workspace,
                     scope,
                     kind,
-                    normalized_key,
+                    memory_key,
                     scope,
                     scope,
                     session_id,
@@ -1301,6 +2049,7 @@ class SQLiteSessionStore(EventSink):
 
         if operation == "upsert":
             source_positions = sorted(set(int(item) for item in candidate["source_positions"]))
+            source_refs = sorted(set(str(item) for item in source_refs))
             evidence_refs = sorted(set(str(item) for item in candidate.get("evidence_refs") or []))
             if row is None:
                 card_id = uuid4().hex
@@ -1310,20 +2059,23 @@ class SQLiteSessionStore(EventSink):
                     "workspace": workspace,
                     "session_id": card_session_id,
                     "kind": kind,
+                    "memory_key": memory_key,
                     "status": "active",
                     "content": str(candidate["content"]),
                     "confidence": float(candidate["confidence"]),
                     "source_positions": source_positions,
+                    "source_refs": source_refs,
                     "evidence_refs": evidence_refs,
                     "version": 1,
                 }
                 self._connection.execute(
                     """
                     INSERT INTO memory_cards(
-                        id, scope, workspace, session_id, kind, status, content,
-                        normalized_key, confidence, source_positions_json,
+                        id, scope, workspace, session_id, kind, memory_key,
+                        status, content, normalized_key, confidence,
+                        source_positions_json, source_refs_json,
                         evidence_refs_json, version, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, 1, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, 1, ?, ?)
                     """,
                     (
                         card_id,
@@ -1331,15 +2083,18 @@ class SQLiteSessionStore(EventSink):
                         workspace,
                         card_session_id,
                         kind,
+                        memory_key,
                         payload["content"],
-                        self._memory_normalized_key(kind, payload["content"]),
+                        self._memory_normalized_key(kind, memory_key, payload["content"]),
                         payload["confidence"],
                         json.dumps(source_positions),
+                        json.dumps(source_refs, ensure_ascii=False),
                         json.dumps(evidence_refs, ensure_ascii=False),
                         now,
                         now,
                     ),
                 )
+                self._replace_memory_terms_locked(card_id, payload["content"], memory_key)
                 self._insert_memory_card_version_locked(
                     payload=payload,
                     consolidation_id=consolidation_id,
@@ -1350,8 +2105,10 @@ class SQLiteSessionStore(EventSink):
                 return True
 
             existing_sources = json.loads(row["source_positions_json"])
+            existing_source_refs = json.loads(row["source_refs_json"])
             existing_refs = json.loads(row["evidence_refs_json"])
             source_positions = sorted(set(existing_sources) | set(source_positions))
+            source_refs = sorted(set(existing_source_refs) | set(source_refs))
             evidence_refs = sorted(set(existing_refs) | set(evidence_refs))
             version = int(row["version"]) + 1
             payload = {
@@ -1360,32 +2117,38 @@ class SQLiteSessionStore(EventSink):
                 "workspace": workspace,
                 "session_id": row["session_id"],
                 "kind": kind,
+                "memory_key": memory_key,
                 "status": "active",
                 "content": str(candidate["content"]),
                 "confidence": float(candidate["confidence"]),
                 "source_positions": source_positions,
+                "source_refs": source_refs,
                 "evidence_refs": evidence_refs,
                 "version": version,
             }
             self._connection.execute(
                 """
                 UPDATE memory_cards
-                SET status = 'active', content = ?, normalized_key = ?,
-                    confidence = ?, source_positions_json = ?,
+                SET status = 'active', memory_key = ?, content = ?,
+                    normalized_key = ?, confidence = ?,
+                    source_positions_json = ?, source_refs_json = ?,
                     evidence_refs_json = ?, version = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
+                    memory_key,
                     payload["content"],
-                    self._memory_normalized_key(kind, payload["content"]),
+                    self._memory_normalized_key(kind, memory_key, payload["content"]),
                     payload["confidence"],
                     json.dumps(source_positions),
+                    json.dumps(source_refs, ensure_ascii=False),
                     json.dumps(evidence_refs, ensure_ascii=False),
                     version,
                     now,
                     row["id"],
                 ),
             )
+            self._replace_memory_terms_locked(str(row["id"]), payload["content"], memory_key)
             self._insert_memory_card_version_locked(
                 payload=payload,
                 consolidation_id=consolidation_id,
@@ -1402,6 +2165,9 @@ class SQLiteSessionStore(EventSink):
             set(json.loads(row["source_positions_json"]))
             | set(int(item) for item in candidate["source_positions"])
         )
+        qualified_sources = sorted(
+            set(json.loads(row["source_refs_json"])) | set(str(item) for item in source_refs)
+        )
         refs = sorted(
             set(json.loads(row["evidence_refs_json"]))
             | set(str(item) for item in candidate.get("evidence_refs") or [])
@@ -1413,10 +2179,12 @@ class SQLiteSessionStore(EventSink):
             "workspace": str(row["workspace"]),
             "session_id": row["session_id"],
             "kind": str(row["kind"]),
+            "memory_key": str(row["memory_key"]),
             "status": status,
             "content": str(row["content"]),
             "confidence": float(row["confidence"]),
             "source_positions": sources,
+            "source_refs": qualified_sources,
             "evidence_refs": refs,
             "version": version,
             "transition_reason": str(candidate["content"]),
@@ -1424,13 +2192,14 @@ class SQLiteSessionStore(EventSink):
         self._connection.execute(
             """
             UPDATE memory_cards
-            SET status = ?, source_positions_json = ?, evidence_refs_json = ?,
-                version = ?, updated_at = ?
+            SET status = ?, source_positions_json = ?, source_refs_json = ?,
+                evidence_refs_json = ?, version = ?, updated_at = ?
             WHERE id = ?
             """,
             (
                 status,
                 json.dumps(sources),
+                json.dumps(qualified_sources, ensure_ascii=False),
                 json.dumps(refs, ensure_ascii=False),
                 version,
                 now,
@@ -1446,11 +2215,38 @@ class SQLiteSessionStore(EventSink):
         )
         return False
 
+    @staticmethod
+    def _memory_card_payload(
+        row: sqlite3.Row,
+        *,
+        status: str,
+        version: int,
+        transition_reason: str | None = None,
+    ) -> dict[str, Any]:
+        payload = {
+            "id": str(row["id"]),
+            "scope": str(row["scope"]),
+            "workspace": str(row["workspace"]),
+            "session_id": row["session_id"],
+            "kind": str(row["kind"]),
+            "memory_key": str(row["memory_key"]),
+            "status": status,
+            "content": str(row["content"]),
+            "confidence": float(row["confidence"]),
+            "source_positions": json.loads(row["source_positions_json"]),
+            "source_refs": json.loads(row["source_refs_json"]),
+            "evidence_refs": json.loads(row["evidence_refs_json"]),
+            "version": version,
+        }
+        if transition_reason:
+            payload["transition_reason"] = transition_reason
+        return payload
+
     def _insert_memory_card_version_locked(
         self,
         *,
         payload: dict[str, Any],
-        consolidation_id: str,
+        consolidation_id: str | None,
         candidate_id: str | None,
         operation: str,
         now: str,
@@ -1488,7 +2284,8 @@ class SQLiteSessionStore(EventSink):
             self._connection.execute(
                 f"""
                 SELECT * FROM memory_cards
-                WHERE workspace = ? AND status = 'active' AND updated_at < ?
+                WHERE workspace = ? AND status = 'active'
+                  AND COALESCE(last_accessed_at, updated_at) < ?
                   AND kind IN ({placeholders})
                 ORDER BY updated_at
                 """,
@@ -1512,7 +2309,8 @@ class SQLiteSessionStore(EventSink):
                 SELECT * FROM memory_cards
                 WHERE workspace = ? AND status = 'active'
                   AND kind IN ({placeholders})
-                ORDER BY confidence ASC, updated_at ASC
+                ORDER BY access_count ASC, confidence ASC,
+                         COALESCE(last_accessed_at, updated_at) ASC
                 """,
                 (workspace, *transient_kinds),
             ).fetchall()
@@ -1531,10 +2329,12 @@ class SQLiteSessionStore(EventSink):
                 "workspace": str(row["workspace"]),
                 "session_id": row["session_id"],
                 "kind": str(row["kind"]),
+                "memory_key": str(row["memory_key"]),
                 "status": "stale",
                 "content": str(row["content"]),
                 "confidence": float(row["confidence"]),
                 "source_positions": json.loads(row["source_positions_json"]),
+                "source_refs": json.loads(row["source_refs_json"]),
                 "evidence_refs": json.loads(row["evidence_refs_json"]),
                 "version": version,
             }

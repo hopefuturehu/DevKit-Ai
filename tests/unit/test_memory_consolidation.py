@@ -49,6 +49,7 @@ def make_consolidator(
     min_confidence: float = 0.65,
     auto_consolidate: bool = False,
     session_gate: int = 5,
+    time_gate_hours: float = 24,
 ) -> tuple[MemoryConsolidator, SQLiteSessionStore, MemoryEventSink]:
     config = AppConfig.model_validate(
         {
@@ -59,6 +60,7 @@ def make_consolidator(
             "memory": {
                 "auto_consolidate": auto_consolidate,
                 "session_gate": session_gate,
+                "time_gate_hours": time_gate_hours,
                 "min_confidence": min_confidence,
             },
             "storage": {"state_path": str(tmp_path / "state.db")},
@@ -145,6 +147,7 @@ async def test_consolidation_creates_versioned_cards_and_rejects_unverified_cand
                     "operation": "upsert",
                     "kind": "constraint",
                     "scope": "workspace",
+                    "memory_key": "constraint.verification.pytest",
                     "content": "修改后必须使用 pytest 验证。",
                     "source_positions": [1],
                     "evidence_refs": ["message:1"],
@@ -154,6 +157,7 @@ async def test_consolidation_creates_versioned_cards_and_rejects_unverified_cand
                     "operation": "upsert",
                     "kind": "verification",
                     "scope": "session",
+                    "memory_key": "verification.pytest.latest",
                     "content": "pytest 已通过。",
                     "source_positions": [3, 4],
                     "evidence_refs": ["tool:tool-test"],
@@ -163,6 +167,7 @@ async def test_consolidation_creates_versioned_cards_and_rejects_unverified_cand
                     "operation": "upsert",
                     "kind": "constraint",
                     "scope": "workspace",
+                    "memory_key": "constraint.model.invented",
                     "content": "模型自行提出的约束。",
                     "source_positions": [4],
                     "evidence_refs": ["message:4"],
@@ -172,6 +177,7 @@ async def test_consolidation_creates_versioned_cards_and_rejects_unverified_cand
                     "operation": "upsert",
                     "kind": "artifact",
                     "scope": "session",
+                    "memory_key": "artifact.fictional",
                     "content": "虚构的产物。",
                     "source_positions": [4],
                     "evidence_refs": [],
@@ -250,6 +256,41 @@ async def test_after_run_auto_consolidates_when_episode_gate_is_reached(
 
 
 @pytest.mark.asyncio
+async def test_explicit_user_signal_bypasses_automatic_gates(tmp_path: Path) -> None:
+    def respond(request: ModelRequest) -> dict:
+        source = json.loads(request.messages[-1].content or "{}")
+        return {
+            "episodes": [
+                {
+                    "episode_id": source["episodes"][0]["episode_id"],
+                    "title": "保存进度",
+                    "objective": "持久化当前进展",
+                    "summary": "用户显式要求保存进度。",
+                    "keywords": ["save"],
+                    "topics": ["progress"],
+                    "depth": "deep",
+                }
+            ],
+            "candidates": [],
+        }
+
+    provider = ConsolidationProvider(respond)
+    consolidator, store, _ = make_consolidator(tmp_path, provider)
+    session_id = store.create_session(tmp_path)
+    append_verified_run(store, session_id, "run-1")
+
+    result = await consolidator.after_run(
+        session_id=session_id,
+        run_id="run-1",
+        user_signal="请保存进度",
+    )
+
+    assert result.consolidated is True
+    assert result.trigger == "explicit_lock"
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_consolidation_retracts_existing_card_with_audited_version(
     tmp_path: Path,
 ) -> None:
@@ -275,6 +316,7 @@ async def test_consolidation_retracts_existing_card_with_audited_version(
                         "operation": "upsert",
                         "kind": "preference",
                         "scope": "workspace",
+                        "memory_key": "preference.test_runner",
                         "content": "默认使用 pytest。",
                         "source_positions": [1],
                         "evidence_refs": ["message:1"],
@@ -297,6 +339,7 @@ async def test_consolidation_retracts_existing_card_with_audited_version(
                     "operation": "retract",
                     "kind": "preference",
                     "scope": "workspace",
+                    "memory_key": "preference.test_runner",
                     "content": "用户明确撤销了该偏好。",
                     "target_memory_id": target,
                     "source_positions": [5],
@@ -368,6 +411,161 @@ async def test_failed_consolidation_keeps_episode_pending_for_retry(tmp_path: Pa
     assert store.list_memory_episodes(session_id)[0]["status"] == "pending"
     assert store.latest_memory_consolidation(session_id)["status"] == "failed"
     assert EventType.MEMORY_CONSOLIDATION_FAILED in {event.type for event in events.events}
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_stable_memory_key_updates_card_and_preserves_qualified_provenance(
+    tmp_path: Path,
+) -> None:
+    call_count = 0
+
+    def respond(request: ModelRequest) -> dict:
+        nonlocal call_count
+        call_count += 1
+        source = json.loads(request.messages[-1].content or "{}")
+        episode = source["episodes"][0]
+        position = 1 if call_count == 1 else 5
+        content = "默认使用 pytest。" if call_count == 1 else "默认使用 unittest。"
+        return {
+            "episodes": [
+                {
+                    "episode_id": episode["episode_id"],
+                    "title": "测试框架偏好",
+                    "objective": "记录用户偏好",
+                    "summary": content,
+                    "keywords": ["test"],
+                    "topics": ["preference"],
+                    "depth": "deep",
+                }
+            ],
+            "candidates": [
+                {
+                    "operation": "upsert",
+                    "kind": "preference",
+                    "scope": "workspace",
+                    "memory_key": "preference.test_runner",
+                    "content": content,
+                    "source_positions": [position],
+                    "evidence_refs": [f"message:{position}"],
+                    "confidence": 0.98,
+                }
+            ],
+        }
+
+    provider = ConsolidationProvider(respond)
+    consolidator, store, _ = make_consolidator(tmp_path, provider)
+    session_id = store.create_session(tmp_path)
+    append_verified_run(store, session_id, "run-1")
+    await consolidator.after_run(session_id=session_id, run_id="run-1")
+    first = await consolidator.consolidate(session_id, force=True)
+
+    store.start_run(session_id, "run-2")
+    store.append_message(
+        session_id,
+        "run-2",
+        ChatMessage(role=Role.USER, content="改为默认使用 unittest。"),
+    )
+    store.append_message(
+        session_id,
+        "run-2",
+        ChatMessage(role=Role.ASSISTANT, content="已更新。"),
+    )
+    store.finish_run("run-2", "completed")
+    await consolidator.after_run(session_id=session_id, run_id="run-2")
+    second = await consolidator.consolidate(session_id, force=True)
+
+    cards = store.list_active_memory_cards(workspace=tmp_path, session_id=session_id)
+    assert first.cards_created == 1
+    assert second.cards_created == 0
+    assert second.cards_updated == 1
+    assert len(cards) == 1
+    assert cards[0]["memory_key"] == "preference.test_runner"
+    assert cards[0]["content"] == "默认使用 unittest。"
+    assert cards[0]["version"] == 2
+    assert len(cards[0]["source_refs"]) == 2
+    assert all(reference.startswith("episode:") for reference in cards[0]["source_refs"])
+
+    projection = consolidator.retrieve(
+        session_id=session_id,
+        run_id="retrieval",
+        query="接下来使用哪个测试框架",
+    )
+    refreshed = store.get_memory_card(cards[0]["id"])
+    assert projection["cards"][0]["id"] == cards[0]["id"]
+    assert refreshed is not None
+    assert refreshed["access_count"] == 1
+    assert store.list_memory_retrievals(session_id)[0]["hit_count"] >= 1
+
+    episode_id = cards[0]["source_refs"][0].split(":")[1]
+    source = store.read_memory_episode_source(
+        requesting_session_id=session_id,
+        episode_id=episode_id,
+    )
+    unrelated = store.create_session(tmp_path / "other")
+    assert source is not None
+    assert source["messages"]
+    assert (
+        store.read_memory_episode_source(
+            requesting_session_id=unrelated,
+            episode_id=episode_id,
+        )
+        is None
+    )
+
+    assert store.retract_memory_card(
+        memory_id=cards[0]["id"],
+        workspace=tmp_path,
+        session_id=session_id,
+        reason="user requested",
+    )
+    assert store.get_memory_card(cards[0]["id"])["status"] == "retracted"
+    assert store.list_memory_card_versions(cards[0]["id"])[-1]["operation"] == "user_retract"
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_time_gate_triggers_without_a_previous_successful_consolidation(
+    tmp_path: Path,
+) -> None:
+    def respond(request: ModelRequest) -> dict:
+        source = json.loads(request.messages[-1].content or "{}")
+        return {
+            "episodes": [
+                {
+                    "episode_id": episode["episode_id"],
+                    "title": "陈旧 Episode",
+                    "objective": "",
+                    "summary": "等待时间门触发。",
+                    "keywords": ["time"],
+                    "topics": ["gate"],
+                    "depth": "shallow",
+                }
+                for episode in source["episodes"]
+            ],
+            "candidates": [],
+        }
+
+    provider = ConsolidationProvider(respond)
+    consolidator, store, _ = make_consolidator(
+        tmp_path,
+        provider,
+        auto_consolidate=True,
+        session_gate=100,
+        time_gate_hours=1,
+    )
+    session_id = store.create_session(tmp_path)
+    append_verified_run(store, session_id, "run-1")
+    store.seal_memory_episodes(session_id)
+    with store._lock, store._connection:  # noqa: SLF001
+        store._connection.execute(  # noqa: SLF001
+            "UPDATE memory_episodes SET created_at = '2020-01-01T00:00:00+00:00'"
+        )
+
+    result = await consolidator.consolidate(session_id, trigger="auto", force=False)
+
+    assert result.consolidated is True
+    assert result.trigger == "auto"
     store.close()
 
 

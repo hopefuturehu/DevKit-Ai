@@ -123,6 +123,13 @@ def build_runtime(
         )
         child_policy = DefaultPolicyEngine(child_config.permissions, child_workspace)
         child_event_bus = EventBus([store], transform=redactor.redact_event)
+        child_memory = MemoryConsolidator(
+            config=child_config,
+            workspace=child_workspace,
+            provider=provider,
+            store=store,
+            event_bus=child_event_bus,
+        )
         return AgentRunner(
             config=child_config,
             workspace=child_workspace,
@@ -136,6 +143,7 @@ def build_runtime(
             event_bus=child_event_bus,
             approval_handler=child_approval_handler,
             redactor=redactor,
+            memory_consolidator=child_memory,
             denied_tool_paths=protected_state_paths,
         )
 

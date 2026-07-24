@@ -36,6 +36,7 @@ class ContextLayer(StrEnum):
     MEMORY = "memory"
     SKILL_CATALOG = "skill_catalog"
     ACTIVE_SKILL = "active_skill"
+    EPISODIC_MEMORY = "episodic_memory"
     SNAPSHOT = "snapshot"
     RECENT_CONVERSATION = "recent_conversation"
     TOOL_RESULT = "tool_result"
@@ -121,7 +122,7 @@ class ContextItem:
 
 
 class ContextSnapshot(BaseModel):
-    """Durable checkpoint. Values are data, never executable instructions."""
+    """Legacy durable checkpoint retained for storage/API compatibility."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -251,7 +252,7 @@ class TokenEstimator:
 
 
 class SnapshotBuilder:
-    """Build a bounded, deterministic checkpoint from an immutable message prefix."""
+    """Build a legacy deterministic checkpoint for compatibility callers."""
 
     def __init__(
         self,
@@ -552,9 +553,10 @@ class ContextPlanner:
             ContextLayer.SKILL_CATALOG: 4,
             ContextLayer.ACTIVE_SKILL: 5,
             ContextLayer.RUNTIME_NOTE: 6,
-            ContextLayer.SNAPSHOT: 7,
+            ContextLayer.EPISODIC_MEMORY: 7,
+            ContextLayer.SNAPSHOT: 8,
         }
-        return (system_order.get(item.layer, 8), item.position or -1, item.id)
+        return (system_order.get(item.layer, 9), item.position or -1, item.id)
 
 
 class ContextAssembler:
@@ -721,8 +723,8 @@ def compact_messages(
 ) -> tuple[list[ChatMessage], dict[str, int] | None]:
     """Legacy compatibility shim.
 
-    New runtime code uses ContextPlanner and durable ContextSnapshot. This helper
-    remains for API compatibility and never stacks summaries from earlier calls.
+    Production runtime uses LLM Episode summaries. This deterministic helper remains
+    for API compatibility and never stacks summaries from earlier calls.
     """
     before_tokens = estimate_tokens(messages, tool_schema_chars)
     if before_tokens < int(max_tokens * threshold):

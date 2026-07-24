@@ -46,7 +46,39 @@ def rank_memory_cards(
         score += float(card.get("confidence") or 0) * 5
         if card.get("scope") == "session":
             score += 3
+        score += min(5.0, float(card.get("access_count") or 0) * 0.25)
         score += overlap * 2 + coverage * 8
         ranked.append((score, str(card.get("updated_at", "")), card))
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [item[2] for item in ranked[: max(0, limit)]]
+
+
+def rank_episode_summaries(
+    episodes: list[dict[str, Any]],
+    query: str,
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    query_terms = _terms(query)
+    ranked: list[tuple[float, int, dict[str, Any]]] = []
+    newest_end = max((int(item.get("end_position") or 0) for item in episodes), default=0)
+    for episode in episodes:
+        searchable = " ".join(
+            [
+                str(episode.get("title") or ""),
+                str(episode.get("objective") or ""),
+                str(episode.get("summary") or ""),
+                " ".join(str(item) for item in episode.get("keywords") or []),
+                " ".join(str(item) for item in episode.get("topics") or []),
+            ]
+        )
+        terms = _terms(searchable)
+        overlap = len(query_terms & terms)
+        coverage = overlap / max(1, len(query_terms))
+        end_position = int(episode.get("end_position") or 0)
+        recency = end_position / max(1, newest_end)
+        depth_bonus = 1.0 if episode.get("depth") == "deep" else 0.0
+        score = overlap * 2 + coverage * 10 + recency * 4 + depth_bonus
+        ranked.append((score, end_position, episode))
     ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
     return [item[2] for item in ranked[: max(0, limit)]]
