@@ -178,4 +178,5 @@ daemon；父运行结束后仍未完成的 detached 任务会在 Runtime 关闭�
 .venv/bin/ruff format --check src tests
 .venv/bin/pytest -q
 .venv/bin/pip check
+.venv/bin/python scripts/run_context_memory_benchmark.py --provider deterministic
 ```

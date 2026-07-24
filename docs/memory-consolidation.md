@@ -95,6 +95,7 @@ task、error、artifact 和 verification 按最后访问时间失效；容量超
 - 开始整合时以事务把 Episode 从 pending claim 为 consolidating，避免重复并发处理。
 - 摘要、候选审计、Card/版本、索引、Prune 和 ready 状态在同一事务发布。
 - LLM/校验/写入失败会将 claimed Episode 恢复 pending，下次可重试。
+- 多批整合失败时自动把批大小减半；单 Episode 仍失败才停止并报告整体未完成。
 - 超过一小时的孤立 building 运行在启动迁移时恢复为 failed/pending。
 - 连续失败达到 `failure_warning_threshold` 时，失败事件标记需要人工检查。
 - 分叉复制已整合 Episode 摘要和游标，不复制旧 snapshot；原始消息仍按既有规则复制。
@@ -127,3 +128,6 @@ Card，`/memory-history <id>` 查看版本，`/memory-forget <id>` 以可审计�
 8. 并发整合不会对同一 Episode 重复发布。
 9. Prune 可逆且保留版本审计。
 10. 数据库 v7 升级到 v8 时保留已有 Episode 和 Card。
+
+长上下文场景、量化指标、真实模型结果和故障测试见
+[长上下文 Episode 压缩基准](context-memory-benchmark.md)。

@@ -130,7 +130,11 @@ class MemoryConsolidator:
         pending = self.store.list_memory_episodes(
             session_id,
             status="pending",
-            limit=max(100, self.config.memory.max_episodes_per_run * 4),
+            limit=(
+                10_000
+                if episode_ids is not None
+                else max(100, self.config.memory.max_episodes_per_run * 4)
+            ),
         )
         if episode_ids is not None:
             requested = set(episode_ids)
@@ -300,14 +304,57 @@ class MemoryConsolidator:
         *,
         trigger: str = "explicit",
     ) -> ConsolidationResult:
+        return await self._consolidate_batches(
+            session_id,
+            trigger=trigger,
+            selected_episode_ids=None,
+        )
+
+    async def _consolidate_batches(
+        self,
+        session_id: str,
+        *,
+        trigger: str,
+        selected_episode_ids: list[str] | None,
+    ) -> ConsolidationResult:
         aggregate = ConsolidationResult(consolidated=False, trigger=trigger)
+        self.store.seal_memory_episodes(session_id)
+        selected_order = (
+            list(dict.fromkeys(selected_episode_ids)) if selected_episode_ids is not None else None
+        )
+        batch_size = self.config.memory.max_episodes_per_run
         for _ in range(self.config.memory.max_consolidation_batches):
-            result = await self.consolidate(session_id, trigger=trigger, force=True)
+            pending = self.store.list_memory_episodes(
+                session_id,
+                status="pending",
+                limit=10_000,
+            )
+            pending_ids = {str(item["id"]) for item in pending}
+            remaining = (
+                [str(item["id"]) for item in pending]
+                if selected_order is None
+                else [item for item in selected_order if item in pending_ids]
+            )
+            if not remaining:
+                if aggregate.batches == 0:
+                    aggregate.reason = "no_pending_episodes"
+                return aggregate
+            batch_ids = remaining[:batch_size]
+            result = await self.consolidate(
+                session_id,
+                trigger=trigger,
+                force=True,
+                episode_ids=batch_ids,
+            )
             if not result.consolidated:
+                if result.reason == "consolidation_failed" and len(batch_ids) > 1:
+                    batch_size = max(1, (len(batch_ids) + 1) // 2)
+                    continue
                 if result.reason == "no_pending_episodes":
                     if aggregate.batches == 0:
                         aggregate.reason = result.reason
                     return aggregate
+                aggregate.consolidated = False
                 aggregate.reason = result.reason
                 aggregate.error = result.error
                 return aggregate
@@ -328,6 +375,7 @@ class MemoryConsolidator:
                 "duration_ms",
             ):
                 setattr(aggregate, field, getattr(aggregate, field) + getattr(result, field))
+        aggregate.consolidated = False
         aggregate.reason = "batch_limit_reached"
         return aggregate
 
@@ -370,7 +418,27 @@ class MemoryConsolidator:
                 end_position=end_position,
                 source_kind="compaction",
             )
-        return await self.consolidate_all(session_id, trigger="context")
+        selected_ids = [
+            str(item["id"])
+            for item in self.store.list_memory_episodes(
+                session_id,
+                status="pending",
+                limit=10_000,
+            )
+            if str(item["run_id"]) in ranges
+            and int(item["start_position"]) <= ranges[str(item["run_id"])]
+        ]
+        if not selected_ids:
+            return ConsolidationResult(
+                consolidated=False,
+                trigger="context",
+                reason="range_already_sealed",
+            )
+        return await self._consolidate_batches(
+            session_id,
+            trigger="context",
+            selected_episode_ids=selected_ids,
+        )
 
     def status(self, session_id: str) -> dict[str, Any]:
         return self.store.memory_status(session_id, workspace=self.workspace)
