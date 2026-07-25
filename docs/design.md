@@ -1,7 +1,7 @@
 # 通用 CLI Agent 助手设计
 
-> 状态：设计基线 v0.2；MVP 代码已实现，环境验收项见 [implementation-status.md](implementation-status.md)
-> 工作名：`bot`（后续可替换）  
+> 状态：设计基线 v0.2；MVP 代码已实现（M0–M3 全部完成），环境验收项见 [implementation-status.md](implementation-status.md)
+> 工作名：`bot`
 > 设计基线：通用 Agent Core、CLI-first、local-first、OpenAI-compatible、Skill/Tool 可扩展、安全默认开启
 
 ## 1. 产品定义
@@ -62,8 +62,7 @@
 
 - Telegram、Slack、WhatsApp 等消息平台 Gateway。
 - Cron、后台常驻服务和无人值守长任务。
-- 自动创建或自动修改 Skill。
-- 自动写入长期记忆。
+- 自动修改 Skill。
 - 对等 Agent Team、递归委托和跨进程常驻子 Agent；进程内一级后台 Worker Pool 已实现。
 - 浏览器 GUI 自动化、语音、图像生成。
 - 公共插件市场。
@@ -500,10 +499,10 @@ max_auto_activated = 3
 
 ```text
 skills/
-├── kunpeng-migration/
+├── kunpeng-performance-analysis/
 │   ├── SKILL.md
 │   └── references/
-└── kunpeng-performance-analysis/
+└── <future-domain-skills>/
     ├── SKILL.md
     └── references/
 ```
@@ -512,11 +511,11 @@ skills/
 
 ### 7.5 鲲鹏领域扩展
 
-鲲鹏能力按“用户目标”拆分 Skill，而不是按命令行工具拆分：
+鲲鹏能力按”用户目标”拆分 Skill，而不是按命令行工具拆分：
 
 ```text
 kunpeng-migration
-kunpeng-performance-analysis
+kunpeng-performance-analysis      ← 首批实现
 kunpeng-source-optimization
 kunpeng-sql-optimization
 ```
@@ -730,9 +729,8 @@ bot/
 ├── pyproject.toml
 ├── src/bot/
 │   ├── cli/                 # 命令、交互输入、事件渲染
-│   ├── core/                # Agent Loop、Run、事件、限制、取消
-│   ├── context/             # 指令发现、Token 预算、压缩
-│   ├── providers/           # OpenAI-compatible adapter、能力探测、registry
+│   ├── core/                # Agent Loop、上下文装配/压缩、事件、审批、数据模型
+│   ├── providers/           # OpenAI-compatible adapter、能力探测
 │   ├── tools/               # Tool API、registry、built-ins、subprocess adapter
 │   │   └── kunpeng/         # KSYS、Tuner 等领域 Tool adapter
 │   ├── execution/           # LocalExecutionTarget、未来 SSH 接口
@@ -740,14 +738,17 @@ bot/
 │   ├── sessions/            # SQLite store、migration、projection
 │   ├── skills/              # Skill 发现、匹配、加载
 │   ├── subagents/           # 后台 Worker Pool、profile、状态机和控制 Tool
+│   ├── memory/              # LLM Episode 记忆整合、检索、数据模型
 │   ├── config/              # Schema、分层加载、凭据引用
-│   └── observability/       # 日志、脱敏、usage、trace
+│   ├── evals/               # 基准场景、Runner、SWE-bench 适配
+│   └── observability/       # 脱敏、trace 导出
 ├── tests/
 │   ├── unit/
 │   ├── integration/
-│   ├── golden/
-│   └── evals/
-└── docs/
+│   └── fixtures/
+├── docs/
+├── skills/
+└── scripts/
 ```
 
 依赖方向保持单向：
@@ -809,15 +810,13 @@ vs
 
 ## 14. 迭代路线
 
-### Milestone 0：可验证骨架
+### Milestone 0：可验证骨架 ✅
 
 - 配置、事件模型、OpenAI-compatible Provider、Tool/Policy/ExecutionTarget 接口；
 - Mock Provider 驱动的 Agent Loop；
 - 流式文本、结构化 Tool Call、JSONL 输出和最小测试基建。
 
-完成标准：无需真实模型即可回放一条包含工具调用的完整运行。
-
-### Milestone 1：可用的本地 Agent
+### Milestone 1：可用的本地 Agent ✅
 
 - 使用 DeepSeek V4 Flash 或 Pro 配置验证 OpenAI-compatible Provider；
 - 交互 CLI、流式输出和会话内中断；
@@ -825,9 +824,7 @@ vs
 - Workspace 限制、审批和本地环境架构探测；
 - 指定目录的 Skill Catalog、三段式披露、自动/显式激活和 `/skills reload`。
 
-完成标准：可在临时仓库中完成通用代码任务，能够正确激活一个或多个测试 Skill，所有动作可见、可取消。
-
-### Milestone 2：首批鲲鹏领域能力
+### Milestone 2：首批鲲鹏领域能力 ✅
 
 - 通用 Subprocess CLI Adapter；
 - KSYS 与 Tuner 的结构化 Tool Schema 和本地 Adapter；
@@ -835,17 +832,14 @@ vs
 - x86 环境下生成 ARM 手动执行指导，并接受用户粘贴的自由文本结果；
 - 建立初版鲲鹏领域对比评测集。
 
-完成标准：Agent 能根据任务和环境选择 KSYS/Tuner 或人工采集路径，给出有证据的性能分析建议；Skill 提供专家指导但不强制固定流程。
-
-### Milestone 3：可靠会话与可量化评测
+### Milestone 3：可靠会话与可量化评测 ✅
 
 - SQLite 事件存储；
 - resume/fork；
-- 上下文发现、Token 预算和压缩；
+- 上下文发现、Token 预算和 LLM Episode 记忆整合；
 - usage/cost/doctor；
 - 通用任务集与鲲鹏任务集的稳定回放和对比报告。
-
-完成标准：进程异常退出后可恢复，长会话压缩后仍保持任务约束，并能量化 Skill 与领域 Tool 带来的增益。
+- 一级后台子 Agent Worker Pool、Git worktree 写隔离、状态机恢复。
 
 ### Milestone 4：后续扩展
 
