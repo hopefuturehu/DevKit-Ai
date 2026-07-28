@@ -545,16 +545,21 @@ class ContextPlanner:
 
     @staticmethod
     def _render_order(item: ContextItem) -> tuple[int, int, str]:
+        # Memory and episodic layers sort AFTER conversation so the stable
+        # prefix (system policy → project → env → skills → history) can hit
+        # the provider's prompt cache.  Memory cards change between runs and
+        # after consolidation; placing them at the end keeps the bulk of the
+        # conversation cacheable across steps.
         system_order = {
             ContextLayer.CORE_POLICY: 0,
             ContextLayer.PROJECT_INSTRUCTION: 1,
             ContextLayer.ENVIRONMENT: 2,
-            ContextLayer.MEMORY: 3,
             ContextLayer.SKILL_CATALOG: 4,
             ContextLayer.ACTIVE_SKILL: 5,
             ContextLayer.RUNTIME_NOTE: 6,
-            ContextLayer.EPISODIC_MEMORY: 7,
             ContextLayer.SNAPSHOT: 8,
+            ContextLayer.MEMORY: 10,
+            ContextLayer.EPISODIC_MEMORY: 11,
         }
         return (system_order.get(item.layer, 9), item.position or -1, item.id)
 
