@@ -1,0 +1,152 @@
+import os
+from pathlib import Path
+
+import pytest
+
+from bot.evals.terminalbench import (
+    HARBOR_AGENT_IMPORT_PATH,
+    HARBOR_VERSION,
+    TERMINALBENCH_DATASET,
+    _harbor_subprocess_env,
+    api_key_env_name,
+    build_harbor_command,
+    model_hostname,
+)
+from bot.evals.terminalbench_worker import (
+    _validate_log_path,
+    _worker_config_overrides,
+    run_worker,
+)
+
+
+def test_build_harbor_command_uses_dataset_adapter_and_secret_template(
+    tmp_path: Path,
+) -> None:
+    wheel = tmp_path / "agent.whl"
+    config = tmp_path / "config.toml"
+
+    command = build_harbor_command(
+        uvx=Path("/usr/bin/uvx"),
+        wheel_path=wheel,
+        config_path=config,
+        model_name="example-model",
+        api_key_variable="BOT_MODEL_API_KEY",
+        model_host="api.example.com",
+        jobs_dir=tmp_path / "jobs",
+        tasks=["terminal-bench/openssl-selfsigned-cert"],
+        run_all=False,
+        n_concurrent=1,
+        n_attempts=1,
+        max_steps=60,
+        max_wall_time_seconds=1800,
+        max_cost_usd=1.0,
+        subagents_enabled=False,
+    )
+
+    assert f"harbor=={HARBOR_VERSION}" in command
+    assert TERMINALBENCH_DATASET in command
+    assert HARBOR_AGENT_IMPORT_PATH in command
+    assert "BOT_MODEL_API_KEY=${BOT_MODEL_API_KEY}" in command
+    assert "terminal-bench/openssl-selfsigned-cert" in command
+    assert "package_path=" + str(wheel) in command
+
+
+def test_build_harbor_command_requires_explicit_task_scope(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="--task"):
+        build_harbor_command(
+            uvx=Path("/usr/bin/uvx"),
+            wheel_path=tmp_path / "agent.whl",
+            config_path=tmp_path / "config.toml",
+            model_name="model",
+            api_key_variable="API_KEY",
+            model_host="api.example.com",
+            jobs_dir=tmp_path / "jobs",
+            tasks=[],
+            run_all=False,
+            n_concurrent=1,
+            n_attempts=1,
+            max_steps=1,
+            max_wall_time_seconds=1,
+            max_cost_usd=1,
+            subagents_enabled=False,
+        )
+
+
+def test_terminalbench_model_connection_validation() -> None:
+    assert api_key_env_name("env:MODEL_KEY") == "MODEL_KEY"
+    assert model_hostname("https://api.example.com/v1") == "api.example.com"
+    with pytest.raises(ValueError, match="环境变量名"):
+        api_key_env_name("env:not-valid!")
+    with pytest.raises(ValueError, match="HTTPS"):
+        model_hostname("http://api.example.com/v1")
+
+
+def test_harbor_environment_prefers_http_proxy_over_socks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ALL_PROXY", "socks5://127.0.0.1:7890")
+    monkeypatch.setenv("all_proxy", "socks5h://127.0.0.1:7890")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
+
+    env = _harbor_subprocess_env()
+
+    assert "ALL_PROXY" not in env
+    assert "all_proxy" not in env
+    assert env["HTTPS_PROXY"] == os.environ["HTTPS_PROXY"]
+
+
+def test_terminalbench_worker_uses_disposable_container_policy(tmp_path: Path) -> None:
+    state_path = tmp_path / "state.db"
+
+    overrides = _worker_config_overrides(
+        state_path=state_path,
+        max_steps=72,
+        max_wall_time_seconds=2400,
+        max_cost_usd=1.5,
+        subagents_enabled=True,
+    )
+
+    assert overrides["agent"] == {
+        "max_steps": 72,
+        "max_wall_time_seconds": 2400,
+        "max_cost_usd": 1.5,
+    }
+    assert overrides["permissions"] == {
+        "mode": "full-access",
+        "workspace_only": False,
+        "network": "allow",
+    }
+    assert overrides["subagents"] == {"enabled": True}
+    assert overrides["skills"] == {
+        "path": "/installed-agent/no-skills",
+        "auto_activate": False,
+        "max_auto_activated": 0,
+    }
+
+
+def test_terminalbench_worker_artifacts_are_restricted_to_agent_logs() -> None:
+    assert _validate_log_path(Path("/logs/agent/result.json")) == Path("/logs/agent/result.json")
+    with pytest.raises(RuntimeError, match="/logs/agent"):
+        _validate_log_path(Path("/app/result.json"))
+
+
+@pytest.mark.asyncio
+async def test_terminalbench_worker_refuses_host_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("HARBOR_CONTAINER", raising=False)
+
+    with pytest.raises(RuntimeError, match="一次性容器"):
+        await run_worker(
+            tmp_path / "instruction.md",
+            tmp_path,
+            tmp_path / "config.toml",
+            events_path=Path("/logs/agent/events.jsonl"),
+            result_path=Path("/logs/agent/result.json"),
+            state_path=Path("/logs/agent/state.db"),
+            trace_path=Path("/logs/agent/trace"),
+            max_steps=1,
+            max_wall_time_seconds=1,
+            max_cost_usd=1,
+            subagents_enabled=False,
+        )

@@ -150,6 +150,16 @@ bot eval run evals/kunpeng.jsonl --disable-skills \
 Case 可断言最终状态、答案片段、工作区文件、Tool/Skill 轨迹和审批次数；结果记录耗时、
 Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 Skill 的增益。
 
+通过 Harbor 在 Terminal-Bench 2.1 的一次性任务容器中运行 smoke test：
+
+```bash
+.venv/bin/python scripts/run_terminalbench.py \
+  --task openssl-selfsigned-cert
+```
+
+适配器会构建本项目 wheel、注入任务容器并保存完整诊断产物。全量运行、预算、并发、
+结果目录和 ARM64 限制见 [Terminal-Bench 2.1 评测文档](docs/terminalbench-evaluation.md)。
+
 交互会话中可用 `/status`、`/tools`、`/agents`、`/skills`、`/model`、`/permissions`、
 `/compact`、`/compact rebuild`、`/compact rollback <id>`、`/consolidate`、
 `/remember`、`/memories`、`/memory-cards`、
