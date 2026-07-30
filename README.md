@@ -160,6 +160,12 @@ Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 
 适配器会构建本项目 wheel、注入任务容器并保存完整诊断产物。全量运行、预算、并发、
 结果目录和 ARM64 限制见 [Terminal-Bench 2.1 评测文档](docs/terminalbench-evaluation.md)。
 
+运行结束后，一键归档最新 Job 并生成检测汇总：
+
+```bash
+.venv/bin/python scripts/archive_terminalbench_result.py
+```
+
 交互会话中可用 `/status`、`/tools`、`/agents`、`/skills`、`/model`、`/permissions`、
 `/compact`、`/compact rebuild`、`/compact rollback <id>`、`/consolidate`、
 `/remember`、`/memories`、`/memory-cards`、

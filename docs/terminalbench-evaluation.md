@@ -140,6 +140,37 @@ Harbor 的 `result.json` 和 verifier 日志给出任务 reward。
 
 这个结果只证明部署与判分链路可用，不代表 89 个任务的总体能力。
 
+## 一键归档与检测
+
+运行结束后，归档最新 Harbor job：
+
+```bash
+.venv/bin/python scripts/archive_terminalbench_result.py
+```
+
+也可以指定 job：
+
+```bash
+.venv/bin/python scripts/archive_terminalbench_result.py \
+  --job artifacts/terminalbench/jobs/2026-07-30__16-56-44
+```
+
+归档输出到 `artifacts/terminalbench/reports/<时间戳>/`，包含：
+
+```text
+<时间戳>/
+├── SUMMARY.md              # 人工复盘入口和异常提示
+├── summary.json            # Trial、reward、token、费用、耗时和 Trace 指标
+├── manifest.json           # 文件大小与 SHA-256
+├── inputs/                 # 本次评测使用的 Agent wheel 和 Bot 配置
+└── snapshot/               # Harbor job、Agent Trace、状态库和 verifier 日志
+```
+
+默认不复制可能很大的 task artifacts，只保留其 `manifest.json`；需要完整保存时追加
+`--include-artifacts`。脚本会解析 Harbor 配置引用的敏感环境变量并扫描来源 job 与输入文件；
+如发现 API Key、Token 等明文，会拒绝生成归档。归档时未设置的敏感环境变量会记录在
+`SUMMARY.md` 和 `summary.json`，提示该项未完成明文扫描。
+
 ## 已知限制
 
 - macOS ARM64 上的本地 Docker 适合接入 smoke test，但部分 Terminal-Bench 镜像或二进制任务
