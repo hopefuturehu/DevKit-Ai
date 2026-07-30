@@ -1,7 +1,7 @@
 # MVP 实现状态
 
-> 更新日期：2026-07-24
-> 结论：设计中 Milestone 0–3 及融合版 LLM Episode 记忆整合的本地代码闭环已经实现；
+> 更新日期：2026-07-29
+> 结论：设计中 Milestone 0–3 及可恢复单摘要上下文压缩的本地代码闭环已经实现；
 > 需要真实凭据或鲲鹏 ARM 环境的项目保留为环境验收，不伪造通过结果。
 
 ## 已完成
@@ -15,9 +15,9 @@
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、流式输出、超时与进程组终止 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
 | 审批 | once/session/always/deny；永久授权按 workspace、Tool 和精确结构化参数匹配 | `src/bot/core/approval.py` |
-| 会话与审计 | SQLite migration v8、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、显式记忆和用量统计 | `src/bot/sessions/` |
-| 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、Episode 摘要游标恢复和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py` |
-| 记忆整合 | Time/Session/Explicit/Pressure Gate、Orient/Gather/Consolidate/Prune、结构化校验、稳定键 Card、版本/来源审计、倒排检索、原文回溯、故障恢复和运行指标 | `src/bot/memory/`、`docs/memory-consolidation.md` |
+| 会话与审计 | SQLite migration v9、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、显式记忆和用量统计 | `src/bot/sessions/` |
+| 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、单一活动摘要、事务发布、原文重建/回滚和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py`、`src/bot/compaction/` |
+| 记忆整合 | 默认运行不注入 Episode/Card；旧版 Time/Session/Explicit/Pressure Gate、结构化 Card 校验、版本/来源审计和检索作为显式兼容能力保留 | `src/bot/memory/`、`docs/memory-consolidation.md` |
 | 子 Agent | 一级后台 Worker Pool、独立 child session/Runner/Skill/Policy、只读 profile、Git worktree 写隔离、定向 blob 授权、required 汇合、状态查询/等待/取消和 fail-closed 恢复 | `src/bot/subagents/` |
 | Skill | 单一目录发现、资格过滤、三段式披露、显式/自动多选、资源按需加载和 reload | `src/bot/skills/` |
 | 鲲鹏扩展 | KSYS、DevKit Tuner 结构化 Subprocess Adapter；非 ARM/缺工具时返回手动命令 | `src/bot/tools/kunpeng/` |

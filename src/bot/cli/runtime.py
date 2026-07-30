@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from bot.compaction import ContextCompactor
 from bot.config import AppConfig, ConfigError, load_config, resolve_api_key
 from bot.core import AgentRunner
 from bot.core.approval import ApprovalHandler
@@ -32,6 +33,7 @@ class Runtime:
     context: ContextAssembler
     store: SQLiteSessionStore
     memory: MemoryConsolidator
+    compactor: ContextCompactor
     runner: AgentRunner
     subagents: BackgroundAgentPool
     approval_handler: ApprovalHandler | None = None
@@ -102,6 +104,12 @@ def build_runtime(
         store=store,
         event_bus=event_bus,
     )
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=event_bus,
+    )
 
     def child_runner_factory(spec, child_workspace, child_approval_handler):
         child_config = config.model_copy(deep=True)
@@ -123,9 +131,8 @@ def build_runtime(
         )
         child_policy = DefaultPolicyEngine(child_config.permissions, child_workspace)
         child_event_bus = EventBus([store], transform=redactor.redact_event)
-        child_memory = MemoryConsolidator(
+        child_compactor = ContextCompactor(
             config=child_config,
-            workspace=child_workspace,
             provider=provider,
             store=store,
             event_bus=child_event_bus,
@@ -143,7 +150,7 @@ def build_runtime(
             event_bus=child_event_bus,
             approval_handler=child_approval_handler,
             redactor=redactor,
-            memory_consolidator=child_memory,
+            context_compactor=child_compactor,
             denied_tool_paths=protected_state_paths,
         )
 
@@ -171,7 +178,7 @@ def build_runtime(
         approval_handler=approval_handler,
         redactor=redactor,
         subagent_controller=subagents if config.subagents.enabled else None,
-        memory_consolidator=memory,
+        context_compactor=compactor,
     )
     return Runtime(
         config=config,
@@ -183,6 +190,7 @@ def build_runtime(
         context=context,
         store=store,
         memory=memory,
+        compactor=compactor,
         runner=runner,
         subagents=subagents,
         approval_handler=approval_handler,

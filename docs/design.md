@@ -120,7 +120,9 @@ bot mcp list|add|remove      # 后续接入 MCP
 /skills        查看候选 Skill、已激活 Skill 及其路径
 /skills reload 重新扫描配置指定的 Skill 目录
 /permissions   查看或调整本会话权限
-/compact       用 LLM Episode 摘要手动压缩上下文
+/compact       发布可恢复的单一活动摘要
+/compact rebuild 从原始 Transcript 重建活动摘要
+/compact rollback <id> 回滚到已验证的摘要版本
 /consolidate   分批整合所有待处理 Episode
 /memory-cards  查看当前有效 Memory Card
 /memory-history <id> 查看 Card 版本链
@@ -421,21 +423,23 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 3. **卸载级**：完整 Tool 输出和巨型消息进入内容寻址 blob，模型只接收 head/tail、hash
    与可分页读取的 `context_ref`；Tool schema 超预算时只保留目录和动态激活入口；Skill
    Catalog、Skill 正文和资源分别管理。
-4. **Episode 级**：旧消息前缀只在 Tool Call/Result 原子组边界切分为不可变 Episode。
-   LLM 为 Episode 生成带目标、主题、深度和来源的结构化摘要；Harness 校验完整性后原子
-   发布。只有从位置 1 开始连续 ready 的 Episode 才能推进恢复游标。
-5. **恢复级**：恢复时重新发现 Core/Project/Environment；游标前加载相关 Episode 摘要，
-   游标后加载原始消息，再召回 workspace/session Memory Card。若 Provider 仍报告
-   context-length，只允许一次强制 Episode 整合/外置重试；仍失败则按层输出不可压缩项报告。
+4. **单摘要级**：旧消息前缀只在 Tool Call/Result 原子组边界切分。LLM 用上一份活动摘要
+   和新增原文生成一份替代摘要；摘要必须包含目标、约束、进度、决定、文件、失败和下一步，
+   并用消息位置引用来源。
+5. **恢复级**：新摘要先以 `building` 写入，通过来源、结构和预算校验后，才与旧活动版本在
+   同一事务中切换。恢复时重新发现 Core/Project/Environment，只加载一个 `ready` 摘要和
+   游标后的原始消息；摘要损坏时沿父版本自动降级。
 
-`/compact` 会立即建立 Episode 恢复点，`/status` 显示硬/目标预算、连续摘要游标、待处理
-和已整合 Episode、压缩率与检索指标。原始消息、Tool Run 和事件始终是事实来源，不因压缩
-而删除。旧 `ContextSnapshot` 结构和表仅为数据库/API 兼容保留，新运行不创建、复制或消费
-snapshot。详细状态机和验收不变量见 [LLM Episode 记忆整合](memory-consolidation.md)。
+`/compact` 发布新的恢复点，`/compact rebuild` 从原文重建，`/compact rollback <id>` 切换
+到已验证的历史版本。原始消息、Tool Run 和事件始终是事实来源，不因压缩而删除。旧
+`ContextSnapshot`、Episode 和 Card 结构仅为兼容及显式语义记忆整合保留，不进入默认运行
+上下文。详细状态机和不变量见
+[可恢复的单摘要上下文压缩](recoverable-context-compaction.md)。
 
 ### 7.3 长期记忆
 
-显式记忆仍支持用户直接写入，例如“记住我默认使用 pnpm”。自动整合采用受约束的候选流程：
+显式记忆仍支持用户直接写入，例如“记住我默认使用 pnpm”。兼容命令 `/consolidate`
+保留受约束的 Episode/Card 候选流程，但其结果不再自动注入主 Agent 上下文：
 
 1. LLM 从指定 Episode 提出带稳定 `memory_key`、来源位置和证据引用的候选操作；
 2. Harness 确定性验证用户权威、成功 Tool 结果、blob、作用域和目标 Card；

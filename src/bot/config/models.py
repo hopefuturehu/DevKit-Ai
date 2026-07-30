@@ -67,11 +67,16 @@ class ContextConfig(StrictModel):
     tool_result_inline_tokens: int = Field(default=4_000, gt=0)
     tool_result_head_chars: int = Field(default=6_000, gt=0)
     tool_result_tail_chars: int = Field(default=2_000, ge=0)
+    compaction_model: str | None = None
+    compaction_summary_tokens: int = Field(default=8_000, ge=512)
+    compaction_max_output_tokens: int = Field(default=8_192, ge=512)
+    compaction_max_message_chars: int = Field(default=12_000, ge=500)
+    compaction_rebuild_every: int = Field(default=5, ge=1, le=100)
 
 
 class MemoryConfig(StrictModel):
     enabled: bool = True
-    auto_consolidate: bool = True
+    auto_consolidate: bool = False
     model: str | None = None
     session_gate: int = Field(default=5, ge=1)
     time_gate_hours: float = Field(default=24, gt=0)

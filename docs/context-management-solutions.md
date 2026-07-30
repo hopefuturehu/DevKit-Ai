@@ -2,14 +2,13 @@
 
 > **⚠️ 本文档为历史分析记录，保留以供设计溯源。**
 > 文中分析的是旧版 `ContextSnapshot` + `compact_messages()` 系统的问题。
-> 当前代码已演进为 **LLM Episode 记忆整合** 方案（详见
-> [memory-consolidation.md](memory-consolidation.md) 和
-> [context-memory-benchmark.md](context-memory-benchmark.md)），
+> 当前代码已演进为 **可恢复的单摘要压缩** 方案（详见
+> [recoverable-context-compaction.md](recoverable-context-compaction.md)），
 > 旧版 `ContextSnapshot` 和 `compact_messages()` 已不再用于生产路径，
 > 相关表结构仅保留向后兼容读取。
 >
 > 方案中提出的 LLM 摘要（第3节）、消息指针回溯（第4节）、多级触发（第6节）、
-> 防重复摘要（第10节）等优化方向已在 Episode 记忆整合系统中以不同形态实现。
+> 防重复摘要（第10节）等优化方向已在单摘要版本链中以不同形态实现。
 >
 > 状态：历史存档
 > 日期：2025-07（分析阶段），2026-07（标注存档）

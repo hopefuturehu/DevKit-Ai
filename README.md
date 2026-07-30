@@ -14,10 +14,10 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 - 指定目录 Skill 的三段式披露、自动或 `$skill-name` 显式激活、资源按需读取；
 - KSYS 与 DevKit Tuner 的结构化 Subprocess CLI Adapter；
 - x86 或缺少工具时生成鲲鹏 ARM 手动执行命令并接受后续自由文本结果；
-- 运行中 steering、`/cancel`、五级上下文管理、结构化快照恢复、显式长期记忆和
+- 运行中 steering、`/cancel`、五级上下文管理、可恢复单摘要压缩、显式长期记忆和
   Token/费用记录；
-- 不可变 Memory Episode、LLM 结构化记忆整合、来源/Tool 证据验证、版本化 Memory
-  Card、软清理和按当前请求召回；
+- 压缩事务发布、完整 Transcript 保留、消息级来源引用、失败不推进、摘要回滚与原文重建；
+- 可选的旧版 Memory Episode/Card 整合、来源/Tool 证据验证和版本审计；
 - 持久化后台子 Agent Worker Pool：`explorer`/`reviewer` 只读并行调查，`coder`
   在独立 Git worktree 中修改；支持状态查询、等待、取消、崩溃后 fail-closed 恢复和
   required 结果自动汇合。
@@ -68,11 +68,16 @@ auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
+# 可选；留空时复用主模型
+# compaction_model = "<summary-model-id>"
+compaction_summary_tokens = 8000
+compaction_max_output_tokens = 8192
+compaction_rebuild_every = 5
 
 [memory]
 enabled = true
-auto_consolidate = true
-# 可选：用独立模型做结构化摘要；留空时复用主模型
+auto_consolidate = false
+# 仅供显式调用旧版 /consolidate 时使用
 # model = "<memory-model-id>"
 # 任一门限满足时启动：累计 Episode、距上次整合时间、未整合内容占上下文比例
 session_gate = 5
@@ -146,12 +151,13 @@ Case 可断言最终状态、答案片段、工作区文件、Tool/Skill 轨迹�
 Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 Skill 的增益。
 
 交互会话中可用 `/status`、`/tools`、`/agents`、`/skills`、`/model`、`/permissions`、
-`/compact`、`/consolidate`、`/remember`、`/memories`、`/memory-cards`、
+`/compact`、`/compact rebuild`、`/compact rollback <id>`、`/consolidate`、
+`/remember`、`/memories`、`/memory-cards`、
 `/memory-history`、`/memory-forget`、`/new` 和 `/exit`。`/consolidate` 会分批处理当前会话
-尚未整合的 Episode；`/compact` 会在 Tool 调用原子组边界压缩历史并推进连续摘要游标。
-LLM 输出先作为候选操作，通过消息来源、用户权威、Tool 结果、稳定语义键和作用域校验后
-才写入版本化 Memory Card。原始消息不会因压缩而删除，模型可通过 `search_memory` 和
-`load_memory_source` 检索、回溯。完整设计见
+尚未整合的旧版 Episode；默认运行时的 `/compact` 会在 Tool 原子组边界生成一个活动摘要，
+并以事务方式推进游标。原始消息不会因压缩而删除，模型可通过
+`search_session_history` 和 `load_compaction_source` 检索、回溯。完整设计见
+[可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)。旧版语义记忆设计见
 [LLM Episode 记忆整合](docs/memory-consolidation.md)。
 
 Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`

@@ -326,14 +326,39 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             result = await runtime.runner.compact_session(session_id)
             if result["compacted"]:
                 console.print(
-                    "已完成 LLM Episode 压缩："
+                    "已发布可恢复上下文摘要："
+                    f"id={result['compaction_id']}，"
                     f"cursor={result['cursor_position']}，"
                     f"messages={result['messages_consolidated']}，"
-                    f"episodes={result['episodes_consolidated']}，"
                     f"summary_tokens≈{result['summary_tokens']}。"
                 )
             else:
                 console.print(f"无需压缩：{result['reason']}。")
+            continue
+        if prompt == "/compact rebuild":
+            result = await runtime.compactor.rebuild(session_id)
+            if result.compacted:
+                console.print(
+                    "已从原始 Transcript 重建摘要："
+                    f"id={result.compaction_id}，"
+                    f"cursor={result.covered_end_position}，"
+                    f"summary_tokens≈{result.summary_tokens}。"
+                )
+            elif result.error:
+                console.print(f"摘要重建失败，活动版本未变化：{result.error}")
+            else:
+                console.print(f"无法重建：{result.reason}")
+            continue
+        if prompt.startswith("/compact rollback "):
+            compaction_id = prompt.removeprefix("/compact rollback ").strip()
+            try:
+                record = runtime.compactor.rollback(session_id, compaction_id)
+            except ValueError as exc:
+                console.print(f"摘要回滚失败：{exc}")
+            else:
+                console.print(
+                    f"已回滚活动摘要：id={record['id']}，cursor={record['covered_end_position']}。"
+                )
             continue
         if prompt == "/consolidate":
             result = await runtime.memory.consolidate_all(
@@ -369,7 +394,8 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                 "/status /tools /skills /skills reload /remember <text> "
                 "/memories /memory-cards /memory-history <id> /memory-forget <id> "
                 "/consolidate /forget <id> "
-                "/agents /model /permissions /compact /new /exit"
+                "/agents /model /permissions /compact /compact rebuild "
+                "/compact rollback <id> /new /exit"
             )
             continue
         if prompt.startswith("/remember "):
@@ -645,6 +671,10 @@ auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
+# 可选：单独指定上下文压缩模型；留空则复用 model.name
+# compaction_model = ""
+compaction_summary_tokens = 8000
+compaction_rebuild_every = 5
 
 [memory]
 enabled = true

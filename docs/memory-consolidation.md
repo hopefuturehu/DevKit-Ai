@@ -1,14 +1,18 @@
 # LLM Episode 记忆整合
 
-> 状态：融合版终态
-> 适用范围：运行时上下文压缩、跨会话语义记忆、回溯与治理
+> 状态：兼容保留，可通过 `/consolidate` 显式使用
+> 适用范围：版本化语义记忆、旧 Episode/Card 数据回溯与治理
 > 参考模式：[Harness Engineering Guide 6.4 Memory Consolidation](https://yeasy.gitbook.io/harness_engineering_guide/di-er-bu-fen-harness-he-xin-zi-xi-tong/06_memory/6.4_memory_consolidation)
+>
+> 默认运行时上下文压缩已切换为
+> [可恢复的单摘要上下文压缩](recoverable-context-compaction.md)，不再自动生成或注入
+> Episode/Card。
 
 ## 1. 核心决策
 
-生产运行不再用 `ContextSnapshot` 生成或恢复压缩上下文。消息、Tool Run 和事件是不可变
-System of Record；LLM 对不可变消息区间生成 Episode 摘要，摘要和经过确定性验证的
-Memory Card 构成发送给模型的压缩视图。
+默认运行不再用 `ContextSnapshot`，也不再把 Episode/Card 作为主 Agent 的压缩视图。
+消息、Tool Run 和事件仍是不可变 System of Record；本模块保留 LLM Episode 摘要和
+Memory Card 的显式整合、审计及旧数据兼容能力。
 
 旧 `context_snapshots` 表、`ContextSnapshot` 和 `compact_messages()` 仅用于读取旧数据库
 及兼容旧调用方。新运行不会创建、复制或消费 snapshot。

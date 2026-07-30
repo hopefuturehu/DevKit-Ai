@@ -36,7 +36,7 @@ class ContextLayer(StrEnum):
     MEMORY = "memory"
     SKILL_CATALOG = "skill_catalog"
     ACTIVE_SKILL = "active_skill"
-    EPISODIC_MEMORY = "episodic_memory"
+    COMPACTION = "compaction"
     SNAPSHOT = "snapshot"
     RECENT_CONVERSATION = "recent_conversation"
     TOOL_RESULT = "tool_result"
@@ -545,11 +545,9 @@ class ContextPlanner:
 
     @staticmethod
     def _render_order(item: ContextItem) -> tuple[int, int, str]:
-        # Memory and episodic layers sort AFTER conversation so the stable
-        # prefix (system policy → project → env → skills → history) can hit
-        # the provider's prompt cache.  Memory cards change between runs and
-        # after consolidation; placing them at the end keeps the bulk of the
-        # conversation cacheable across steps.
+        # The single compaction precedes its raw tail so the reconstructed
+        # timeline stays causal. Legacy semantic memory remains after the
+        # conversation to preserve the stable prompt prefix for old callers.
         system_order = {
             ContextLayer.CORE_POLICY: 0,
             ContextLayer.PROJECT_INSTRUCTION: 1,
@@ -557,9 +555,9 @@ class ContextPlanner:
             ContextLayer.SKILL_CATALOG: 4,
             ContextLayer.ACTIVE_SKILL: 5,
             ContextLayer.RUNTIME_NOTE: 6,
+            ContextLayer.COMPACTION: 7,
             ContextLayer.SNAPSHOT: 8,
             ContextLayer.MEMORY: 10,
-            ContextLayer.EPISODIC_MEMORY: 11,
         }
         return (system_order.get(item.layer, 9), item.position or -1, item.id)
 

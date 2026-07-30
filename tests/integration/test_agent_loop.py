@@ -16,7 +16,6 @@ from bot.core.approval import (
 from bot.core.context import ContextAssembler
 from bot.core.events import EventBus, EventType, MemoryEventSink
 from bot.core.models import (
-    ChatMessage,
     ModelCapabilities,
     ModelEvent,
     ModelEventKind,
@@ -25,7 +24,6 @@ from bot.core.models import (
     ToolCall,
 )
 from bot.execution import LocalExecutionTarget
-from bot.memory import MemoryConsolidator
 from bot.policy import DefaultPolicyEngine
 from bot.providers import ModelProvider, ProviderError
 from bot.sessions import SQLiteSessionStore
@@ -180,90 +178,6 @@ def make_test_runner(
 
 
 @pytest.mark.asyncio
-async def test_consolidated_memory_cards_are_retrieved_into_the_next_run(
-    tmp_path: Path,
-) -> None:
-    provider = ScriptedProvider(
-        [
-            [
-                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first done"),
-                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
-            ]
-        ]
-    )
-    runner, store = make_test_runner(
-        tmp_path,
-        provider,
-        memory_config={"auto_consolidate": False},
-    )
-    consolidator = MemoryConsolidator(
-        config=runner.config,
-        workspace=tmp_path,
-        provider=provider,
-        store=store,
-        event_bus=runner.event_bus,
-    )
-    runner.memory_consolidator = consolidator
-
-    first = await runner.run(RunRequest(prompt="必须始终运行 pytest"))
-    episode_id = store.list_memory_episodes(first.session_id, status="pending")[0]["id"]
-    provider.turns.append(
-        [
-            ModelEvent(
-                kind=ModelEventKind.TEXT_DELTA,
-                text=json.dumps(
-                    {
-                        "episodes": [
-                            {
-                                "episode_id": episode_id,
-                                "title": "pytest 约束",
-                                "summary": "用户要求始终运行 pytest。",
-                                "keywords": ["pytest"],
-                            }
-                        ],
-                        "candidates": [
-                            {
-                                "operation": "upsert",
-                                "kind": "constraint",
-                                "scope": "workspace",
-                                "memory_key": "constraint.verification.pytest",
-                                "content": "必须始终运行 pytest。",
-                                "source_positions": [1],
-                                "evidence_refs": ["message:1"],
-                                "confidence": 0.99,
-                            }
-                        ],
-                    },
-                    ensure_ascii=False,
-                ),
-            ),
-            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
-        ]
-    )
-    consolidation = await consolidator.consolidate(first.session_id, force=True)
-    provider.turns.append(
-        [
-            ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="second done"),
-            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
-        ]
-    )
-
-    second = await runner.run(RunRequest(prompt="继续修改", session_id=first.session_id))
-
-    assert first.status == second.status == "completed"
-    assert consolidation.cards_created == 1
-    injected = [
-        message
-        for message in provider.requests[-1].messages
-        if message.name == "consolidated_memory"
-    ]
-    assert len(injected) == 1
-    assert "必须始终运行 pytest" in (injected[0].content or "")
-    assert injected[0].role == Role.USER
-    store.close()
-
-
-@pytest.mark.asyncio
 async def test_agent_externalizes_single_oversized_user_message(tmp_path: Path) -> None:
     provider = ScriptedProvider(
         [
@@ -293,89 +207,6 @@ async def test_agent_externalizes_single_oversized_user_message(tmp_path: Path) 
     model_text = "\n".join(message.content or "" for message in provider.requests[0].messages)
     assert "context_ref=blob:" in model_text
     assert len(store.load_messages(result.session_id)[0].content or "") == 40_000
-    store.close()
-
-
-@pytest.mark.asyncio
-async def test_agent_consolidates_episodes_and_resumes_from_cursor(tmp_path: Path) -> None:
-    provider = ScriptedProvider(
-        [
-            [
-                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first"),
-                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
-            ],
-            [
-                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="second"),
-                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
-            ],
-        ]
-    )
-    runner, store = make_test_runner(
-        tmp_path,
-        provider,
-        model_config={"context_window_tokens": 8_000},
-        context_config={
-            "max_input_tokens": 6_500,
-            "auto_compact_threshold": 0.5,
-            "output_reserve_tokens": 500,
-            "protocol_reserve_tokens": 500,
-            "safety_margin_tokens": 500,
-            "recent_conversation_tokens": 1_500,
-        },
-    )
-    session_id = store.create_session(tmp_path)
-    for index in range(12):
-        role = Role.USER if index % 2 == 0 else Role.ASSISTANT
-        store.append_message(
-            session_id,
-            "seed",
-            ChatMessage(role=role, content=f"old-{index}-" + "中" * 1_000),
-        )
-    episode_id = store.seal_memory_episodes(session_id)[0]["id"]
-    consolidator = MemoryConsolidator(
-        config=runner.config,
-        workspace=tmp_path,
-        provider=provider,
-        store=store,
-        event_bus=runner.event_bus,
-    )
-    runner.memory_consolidator = consolidator
-    provider.turns.insert(
-        0,
-        [
-            ModelEvent(
-                kind=ModelEventKind.TEXT_DELTA,
-                text=json.dumps(
-                    {
-                        "episodes": [
-                            {
-                                "episode_id": episode_id,
-                                "title": "旧会话",
-                                "objective": "保留旧任务上下文",
-                                "summary": "旧会话完成了多轮讨论。",
-                                "keywords": ["old"],
-                                "topics": ["history"],
-                                "depth": "deep",
-                            }
-                        ],
-                        "candidates": [],
-                    }
-                ),
-            ),
-            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
-        ],
-    )
-
-    first = await runner.run(RunRequest(prompt="new-one", session_id=session_id))
-    second = await runner.run(RunRequest(prompt="new-two", session_id=session_id))
-
-    assert first.status == second.status == "completed"
-    assert store.consolidated_memory_cursor(session_id) == 12
-    assert store.latest_context_snapshot(session_id) is None
-    second_messages = provider.requests[2].messages
-    summaries = [message for message in second_messages if message.name == "consolidated_episodes"]
-    assert len(summaries) == 1
-    assert not any("old-0-" in (message.content or "") for message in second_messages)
     store.close()
 
 
@@ -416,57 +247,6 @@ def test_agent_sheds_and_reactivates_tool_schemas(tmp_path: Path) -> None:
     assert "large_0" not in {tool.name for tool in initial}
     assert activated.success
     assert "large_0" in {tool.name for tool in after}
-    store.close()
-
-
-@pytest.mark.asyncio
-async def test_manual_compaction_consolidates_episodes_immediately(tmp_path: Path) -> None:
-    provider = ScriptedProvider([])
-    runner, store = make_test_runner(tmp_path, provider)
-    session_id = store.create_session(tmp_path)
-    store.append_message(session_id, "seed", ChatMessage(role=Role.USER, content="objective"))
-    store.append_message(session_id, "seed", ChatMessage(role=Role.ASSISTANT, content="result"))
-    episode_id = store.seal_memory_episodes(session_id)[0]["id"]
-    provider.turns.append(
-        [
-            ModelEvent(
-                kind=ModelEventKind.TEXT_DELTA,
-                text=json.dumps(
-                    {
-                        "episodes": [
-                            {
-                                "episode_id": episode_id,
-                                "title": "目标完成",
-                                "objective": "objective",
-                                "summary": "任务得到 result。",
-                                "keywords": ["objective", "result"],
-                                "topics": ["task"],
-                                "depth": "deep",
-                            }
-                        ],
-                        "candidates": [],
-                    }
-                ),
-            ),
-            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
-        ]
-    )
-    runner.memory_consolidator = MemoryConsolidator(
-        config=runner.config,
-        workspace=tmp_path,
-        provider=provider,
-        store=store,
-        event_bus=runner.event_bus,
-    )
-
-    result = await runner.compact_session(session_id)
-    status = runner.context_status(session_id)
-
-    assert result["compacted"] is True
-    assert result["cursor_position"] == 2
-    assert status["delta_messages"] == 0
-    assert status["compression"]["cursor_position"] == 2
-    assert status["compression"]["method"] == "llm_episode_consolidation"
     store.close()
 
 

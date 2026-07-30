@@ -14,7 +14,7 @@ from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 class SQLiteSessionStore(EventSink):
@@ -247,6 +247,38 @@ class SQLiteSessionStore(EventSink):
                 );
                 CREATE INDEX IF NOT EXISTS idx_memory_retrievals_session_created
                     ON memory_retrievals(session_id, created_at);
+                CREATE TABLE IF NOT EXISTS context_compactions (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    parent_id TEXT,
+                    trigger TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    covered_start_position INTEGER NOT NULL,
+                    covered_end_position INTEGER NOT NULL,
+                    delta_start_position INTEGER NOT NULL,
+                    summary_text TEXT NOT NULL DEFAULT '',
+                    summary_token_estimate INTEGER NOT NULL DEFAULT 0,
+                    source_sha256 TEXT NOT NULL,
+                    source_refs_json TEXT NOT NULL DEFAULT '[]',
+                    anchor_positions_json TEXT NOT NULL DEFAULT '[]',
+                    input_tokens INTEGER NOT NULL DEFAULT 0,
+                    output_tokens INTEGER NOT NULL DEFAULT 0,
+                    source_chars INTEGER NOT NULL DEFAULT 0,
+                    duration_ms REAL NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    ready_at TEXT,
+                    superseded_at TEXT,
+                    error TEXT,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id),
+                    FOREIGN KEY(parent_id) REFERENCES context_compactions(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_context_compactions_session_created
+                    ON context_compactions(session_id, created_at);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_context_compactions_one_ready
+                    ON context_compactions(session_id) WHERE status = 'ready';
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_context_compactions_one_building
+                    ON context_compactions(session_id) WHERE status = 'building';
                 CREATE TABLE IF NOT EXISTS context_snapshots (
                     id TEXT PRIMARY KEY,
                     session_id TEXT NOT NULL,
@@ -325,6 +357,36 @@ class SQLiteSessionStore(EventSink):
                     ON agent_tasks(parent_session_id, created_at);
                 CREATE INDEX IF NOT EXISTS idx_agent_tasks_status_created
                     ON agent_tasks(status, created_at);
+                CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+                    session_id UNINDEXED,
+                    position UNINDEXED,
+                    content
+                );
+                CREATE TRIGGER IF NOT EXISTS messages_fts_insert
+                AFTER INSERT ON messages BEGIN
+                    INSERT INTO messages_fts(rowid, session_id, position, content)
+                    VALUES (new.id, new.session_id, new.position, COALESCE(new.content, ''));
+                END;
+                CREATE TRIGGER IF NOT EXISTS messages_fts_delete
+                AFTER DELETE ON messages BEGIN
+                    DELETE FROM messages_fts WHERE rowid = old.id;
+                END;
+                CREATE TRIGGER IF NOT EXISTS messages_fts_update
+                AFTER UPDATE OF session_id, position, content ON messages BEGIN
+                    DELETE FROM messages_fts WHERE rowid = old.id;
+                    INSERT INTO messages_fts(rowid, session_id, position, content)
+                    VALUES (new.id, new.session_id, new.position, COALESCE(new.content, ''));
+                END;
+                """
+            )
+            self._connection.execute(
+                """
+                INSERT INTO messages_fts(rowid, session_id, position, content)
+                SELECT m.id, m.session_id, m.position, COALESCE(m.content, '')
+                FROM messages AS m
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM messages_fts AS f WHERE f.rowid = m.id
+                )
                 """
             )
             self._connection.execute(
@@ -380,6 +442,15 @@ class SQLiteSessionStore(EventSink):
                 WHERE status = 'building' AND started_at < ?
                 """,
                 (datetime.now(UTC).isoformat(), stale_build_cutoff),
+            )
+            self._connection.execute(
+                """
+                UPDATE context_compactions
+                SET status = 'failed',
+                    error = 'recovered_stale_build'
+                WHERE status = 'building' AND created_at < ?
+                """,
+                (stale_build_cutoff,),
             )
             applied_at = datetime.now(UTC).isoformat()
             self._connection.executemany(
@@ -741,6 +812,50 @@ class SQLiteSessionStore(EventSink):
                     for episode in episodes
                 ],
             )
+            compaction = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE session_id = ? AND status IN ('ready', 'superseded')
+                  AND covered_end_position <= ?
+                ORDER BY covered_end_position DESC, ready_at DESC
+                LIMIT 1
+                """,
+                (session_id, max_copied_position),
+            ).fetchone()
+            if compaction is not None:
+                self._connection.execute(
+                    """
+                    INSERT INTO context_compactions(
+                        id, session_id, parent_id, trigger, status, model,
+                        covered_start_position, covered_end_position,
+                        delta_start_position, summary_text,
+                        summary_token_estimate, source_sha256,
+                        source_refs_json, anchor_positions_json,
+                        input_tokens, output_tokens, source_chars, duration_ms,
+                        created_at, ready_at
+                    ) VALUES (?, ?, NULL, 'fork', 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                              ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        uuid4().hex,
+                        new_session_id,
+                        compaction["model"],
+                        compaction["covered_start_position"],
+                        compaction["covered_end_position"],
+                        compaction["delta_start_position"],
+                        compaction["summary_text"],
+                        compaction["summary_token_estimate"],
+                        compaction["source_sha256"],
+                        compaction["source_refs_json"],
+                        compaction["anchor_positions_json"],
+                        compaction["input_tokens"],
+                        compaction["output_tokens"],
+                        compaction["source_chars"],
+                        compaction["duration_ms"],
+                        now,
+                        now,
+                    ),
+                )
         blob_references = {
             reference
             for row in rows
@@ -1028,6 +1143,414 @@ class SQLiteSessionStore(EventSink):
                 (session_id,),
             ).fetchone()
         return int(row["position"])
+
+    def start_context_compaction(
+        self,
+        *,
+        session_id: str,
+        parent_id: str | None,
+        trigger: str,
+        model: str,
+        covered_start_position: int,
+        covered_end_position: int,
+        delta_start_position: int,
+        source_sha256: str,
+        anchor_positions: list[int],
+        source_chars: int,
+    ) -> str:
+        if covered_start_position <= 0 or covered_end_position < covered_start_position:
+            raise ValueError("上下文压缩覆盖范围无效")
+        if not covered_start_position <= delta_start_position <= covered_end_position:
+            raise ValueError("上下文压缩增量起点无效")
+        compaction_id = uuid4().hex
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._connection:
+            current = self._connection.execute(
+                """
+                SELECT id FROM context_compactions
+                WHERE session_id = ? AND status = 'ready'
+                """,
+                (session_id,),
+            ).fetchone()
+            current_id = str(current["id"]) if current is not None else None
+            if current_id != parent_id:
+                raise ValueError("上下文压缩父版本已变化，拒绝基于过期摘要继续发布")
+            self._connection.execute(
+                """
+                INSERT INTO context_compactions(
+                    id, session_id, parent_id, trigger, status, model,
+                    covered_start_position, covered_end_position,
+                    delta_start_position, source_sha256, anchor_positions_json,
+                    source_chars, created_at
+                ) VALUES (?, ?, ?, ?, 'building', ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    compaction_id,
+                    session_id,
+                    parent_id,
+                    str(self._sanitizer(trigger)),
+                    str(self._sanitizer(model)),
+                    covered_start_position,
+                    covered_end_position,
+                    delta_start_position,
+                    source_sha256,
+                    json.dumps(sorted(set(anchor_positions))),
+                    max(0, source_chars),
+                    now,
+                ),
+            )
+        return compaction_id
+
+    def complete_context_compaction(
+        self,
+        compaction_id: str,
+        *,
+        summary_text: str,
+        summary_token_estimate: int,
+        source_refs: list[str],
+        input_tokens: int,
+        output_tokens: int,
+        duration_ms: float,
+    ) -> dict[str, Any]:
+        now = datetime.now(UTC).isoformat()
+        safe_summary = str(self._sanitizer(summary_text))
+        safe_refs = self._sanitizer(source_refs)
+        with self._lock, self._connection:
+            building = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE id = ? AND status = 'building'
+                """,
+                (compaction_id,),
+            ).fetchone()
+            if building is None:
+                raise ValueError("上下文压缩记录不存在或已完成")
+            current = self._connection.execute(
+                """
+                SELECT id FROM context_compactions
+                WHERE session_id = ? AND status = 'ready'
+                """,
+                (building["session_id"],),
+            ).fetchone()
+            current_id = str(current["id"]) if current is not None else None
+            parent_id = str(building["parent_id"]) if building["parent_id"] is not None else None
+            if current_id != parent_id:
+                raise ValueError("上下文压缩父版本已变化，生成结果不会推进活动边界")
+            if current_id is not None:
+                self._connection.execute(
+                    """
+                    UPDATE context_compactions
+                    SET status = 'superseded', superseded_at = ?
+                    WHERE id = ? AND status = 'ready'
+                    """,
+                    (now, current_id),
+                )
+            cursor = self._connection.execute(
+                """
+                UPDATE context_compactions
+                SET status = 'ready', summary_text = ?,
+                    summary_token_estimate = ?, source_refs_json = ?,
+                    input_tokens = ?, output_tokens = ?, duration_ms = ?,
+                    ready_at = ?, superseded_at = NULL, error = NULL
+                WHERE id = ? AND status = 'building'
+                """,
+                (
+                    safe_summary,
+                    max(0, summary_token_estimate),
+                    json.dumps(safe_refs, ensure_ascii=False),
+                    max(0, input_tokens),
+                    max(0, output_tokens),
+                    max(0.0, duration_ms),
+                    now,
+                    compaction_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("上下文压缩事务发布失败")
+            row = self._connection.execute(
+                "SELECT * FROM context_compactions WHERE id = ?",
+                (compaction_id,),
+            ).fetchone()
+        return self._decode_context_compaction(row)
+
+    def fail_context_compaction(self, compaction_id: str, error: str) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE context_compactions
+                SET status = 'failed', error = ?
+                WHERE id = ? AND status = 'building'
+                """,
+                (str(self._sanitizer(error)), compaction_id),
+            )
+
+    def get_context_compaction(
+        self,
+        session_id: str,
+        compaction_id: str,
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE session_id = ? AND id = ?
+                """,
+                (session_id, compaction_id),
+            ).fetchone()
+        return self._decode_context_compaction(row) if row is not None else None
+
+    def latest_ready_context_compaction(
+        self,
+        session_id: str,
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE session_id = ? AND status = 'ready'
+                ORDER BY covered_end_position DESC, ready_at DESC
+                LIMIT 1
+                """,
+                (session_id,),
+            ).fetchone()
+        return self._decode_context_compaction(row) if row is not None else None
+
+    def list_context_compactions(
+        self,
+        session_id: str,
+        *,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE session_id = ?
+                ORDER BY created_at DESC LIMIT ?
+                """,
+                (session_id, max(1, limit)),
+            ).fetchall()
+        return [self._decode_context_compaction(row) for row in rows]
+
+    def count_context_compactions(
+        self,
+        session_id: str,
+        *,
+        statuses: set[str],
+    ) -> int:
+        allowed = {"building", "ready", "superseded", "failed"}
+        selected = sorted(statuses & allowed)
+        if not selected:
+            return 0
+        placeholders = ",".join("?" for _ in selected)
+        with self._lock:
+            row = self._connection.execute(
+                f"""
+                SELECT COUNT(*) AS count FROM context_compactions
+                WHERE session_id = ? AND status IN ({placeholders})
+                """,
+                (session_id, *selected),
+            ).fetchone()
+        return int(row["count"])
+
+    def activate_context_compaction(
+        self,
+        *,
+        session_id: str,
+        compaction_id: str,
+    ) -> dict[str, Any]:
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._connection:
+            target = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE session_id = ? AND id = ?
+                  AND status IN ('ready', 'superseded')
+                """,
+                (session_id, compaction_id),
+            ).fetchone()
+            if target is None:
+                raise ValueError("可回滚的上下文压缩版本不存在")
+            if target["status"] == "ready":
+                return self._decode_context_compaction(target)
+            current = self._connection.execute(
+                """
+                SELECT id FROM context_compactions
+                WHERE session_id = ? AND status = 'ready'
+                """,
+                (session_id,),
+            ).fetchone()
+            if current is not None:
+                self._connection.execute(
+                    """
+                    UPDATE context_compactions
+                    SET status = 'superseded', superseded_at = ?
+                    WHERE id = ? AND status = 'ready'
+                    """,
+                    (now, current["id"]),
+                )
+            cursor = self._connection.execute(
+                """
+                UPDATE context_compactions
+                SET status = 'ready', ready_at = ?, superseded_at = NULL,
+                    error = NULL
+                WHERE id = ? AND session_id = ? AND status = 'superseded'
+                """,
+                (now, compaction_id, session_id),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("上下文压缩回滚事务失败")
+            row = self._connection.execute(
+                "SELECT * FROM context_compactions WHERE id = ?",
+                (compaction_id,),
+            ).fetchone()
+        return self._decode_context_compaction(row)
+
+    def invalidate_context_compaction(
+        self,
+        *,
+        session_id: str,
+        compaction_id: str,
+        error: str,
+    ) -> dict[str, Any] | None:
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._connection:
+            current = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE session_id = ? AND id = ? AND status = 'ready'
+                """,
+                (session_id, compaction_id),
+            ).fetchone()
+            if current is None:
+                fallback = self._connection.execute(
+                    """
+                    SELECT * FROM context_compactions
+                    WHERE session_id = ? AND status = 'ready'
+                    ORDER BY covered_end_position DESC, ready_at DESC
+                    LIMIT 1
+                    """,
+                    (session_id,),
+                ).fetchone()
+                return self._decode_context_compaction(fallback) if fallback is not None else None
+            self._connection.execute(
+                """
+                UPDATE context_compactions
+                SET status = 'failed', error = ?, superseded_at = ?
+                WHERE id = ? AND status = 'ready'
+                """,
+                (str(self._sanitizer(error)), now, compaction_id),
+            )
+            parent = None
+            if current["parent_id"] is not None:
+                self._connection.execute(
+                    """
+                    UPDATE context_compactions
+                    SET status = 'ready', ready_at = ?, superseded_at = NULL
+                    WHERE id = ? AND session_id = ? AND status = 'superseded'
+                    """,
+                    (now, current["parent_id"], session_id),
+                )
+                parent = self._connection.execute(
+                    """
+                    SELECT * FROM context_compactions
+                    WHERE id = ? AND session_id = ? AND status = 'ready'
+                    """,
+                    (current["parent_id"], session_id),
+                ).fetchone()
+        return self._decode_context_compaction(parent) if parent is not None else None
+
+    def read_context_compaction_source(
+        self,
+        *,
+        requesting_session_id: str,
+        compaction_id: str,
+        start_position: int | None = None,
+        end_position: int | None = None,
+    ) -> dict[str, Any] | None:
+        record = self.get_context_compaction(requesting_session_id, compaction_id)
+        if record is None:
+            return None
+        covered_start = int(record["covered_start_position"])
+        covered_end = int(record["covered_end_position"])
+        selected_start = max(covered_start, start_position or covered_start)
+        selected_end = min(covered_end, end_position or covered_end)
+        if selected_start > selected_end:
+            raise ValueError("请求的压缩来源范围无效")
+        entries = self.load_positioned_messages(
+            requesting_session_id,
+            after_position=selected_start - 1,
+            through_position=selected_end,
+        )
+        return {
+            "compaction": record,
+            "requested_range": [selected_start, selected_end],
+            "messages": [
+                {
+                    "position": entry.position,
+                    "message": entry.message.model_dump(mode="json"),
+                }
+                for entry in entries
+            ],
+        }
+
+    def search_session_messages(
+        self,
+        session_id: str,
+        query: str,
+        *,
+        limit: int = 8,
+    ) -> list[dict[str, Any]]:
+        normalized = " ".join(query.split()).strip()
+        if not normalized:
+            return []
+        terms = re.findall(r"[\w./:@-]+", normalized, flags=re.UNICODE)
+        fts_query = " OR ".join(f'"{term.replace(chr(34), chr(34) * 2)}"' for term in terms[:12])
+        rows: list[sqlite3.Row] = []
+        if fts_query:
+            try:
+                with self._lock:
+                    rows = self._connection.execute(
+                        """
+                        SELECT m.position, m.role, m.content, m.message_json,
+                               bm25(messages_fts) AS rank
+                        FROM messages_fts
+                        JOIN messages AS m ON m.id = messages_fts.rowid
+                        WHERE messages_fts MATCH ?
+                          AND messages_fts.session_id = ?
+                        ORDER BY rank, m.position DESC LIMIT ?
+                        """,
+                        (fts_query, session_id, max(1, min(limit, 50))),
+                    ).fetchall()
+            except sqlite3.OperationalError:
+                rows = []
+        if not rows:
+            with self._lock:
+                rows = self._connection.execute(
+                    """
+                    SELECT position, role, content, message_json, 0.0 AS rank
+                    FROM messages
+                    WHERE session_id = ? AND content LIKE ? ESCAPE '\\'
+                    ORDER BY position DESC LIMIT ?
+                    """,
+                    (
+                        session_id,
+                        f"%{self._escape_like(normalized)}%",
+                        max(1, min(limit, 50)),
+                    ),
+                ).fetchall()
+        return [
+            {
+                "position": int(row["position"]),
+                "role": str(row["role"]),
+                "content": row["content"],
+                "message": ChatMessage.model_validate_json(row["message_json"]).model_dump(
+                    mode="json"
+                ),
+                "rank": float(row["rank"]),
+            }
+            for row in rows
+        ]
 
     def seal_memory_episodes(
         self,
@@ -1971,6 +2494,17 @@ class SQLiteSessionStore(EventSink):
             },
             "latest_consolidation": self.latest_memory_consolidation(session_id),
         }
+
+    @staticmethod
+    def _decode_context_compaction(row: sqlite3.Row) -> dict[str, Any]:
+        item = dict(row)
+        item["source_refs"] = json.loads(item.pop("source_refs_json"))
+        item["anchor_positions"] = json.loads(item.pop("anchor_positions_json"))
+        return item
+
+    @staticmethod
+    def _escape_like(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
     @staticmethod
     def _decode_memory_card(row: sqlite3.Row) -> dict[str, Any]:
