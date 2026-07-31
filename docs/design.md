@@ -234,6 +234,9 @@ run.completed
 - `max_cost`：Provider 能提供价格信息时生效；
 - `max_tool_output_bytes`：单次和累计工具输出限制；
 - `max_consecutive_failures`：连续工具失败熔断；
+- `process_wait_seconds`：命令 Tool 同步等待多久后返回受管进程句柄；
+- `process_hard_timeout_seconds`：受管进程的绝对安全上限，不等同于同步等待时间；
+- `max_managed_processes`：单个 Runtime 可同时持有的受管进程上限；
 - `cancel_token`：CLI、信号和未来 Gateway 共用的取消机制。
 
 ### 5.2 防循环
@@ -341,6 +344,11 @@ Tool 接口与具体接入方式解耦，后续可以实现四类 Adapter：
 4. **MCP Adapter**：把外部 MCP Server 暴露的能力注册为 Tool。
 
 MVP 只要求完善 Subprocess CLI Adapter，并用它接入 KSYS 和 Tuner。Adapter 不接受模型提供的任意 Shell 字符串，而是执行“JSON Schema 校验 → 允许值和路径校验 → 构造参数数组 → 启动子进程 → 规范化 stdout/stderr/exit code”的固定边界。
+
+通用命令 Tool 将“本次 Tool 同步等待时间”和“进程绝对存活上限”分开。短命令在一次
+Tool Call 内完成；超过同步等待时间的命令返回 `process_id` 并继续受 Runtime 管理，模型可用
+`poll_process`、`send_process_input`、`terminate_process` 和 `list_processes` 继续操作。
+进程退出码只描述执行状态，不代表用户目标已经满足；业务正确性仍由 Agent 根据任务证据判断。
 
 ### 6.3 Policy Engine
 
@@ -562,6 +570,11 @@ KSYS、Tuner Adapter 只负责命令能力，例如采集、报告和具体分�
 - 对复合命令解析为多个 segment，分别评估风险。
 - 工作目录必须经 `realpath` 校验，防止 `..` 和 symlink 逃逸。
 - 子进程使用独立进程组，取消时终止整个进程树。
+- 命令超过同步等待时间后返回受管进程句柄，不因 Tool 返回而误杀；Runtime 关闭时清理所有
+  未退出的受管进程。
+- 交互式进程必须显式启用 stdin；普通进程默认使用 `DEVNULL`，避免意外等待输入。
+- hard timeout 只承担资源安全边界；无输出时记录持续时间供 Agent 判断，不把静默自动等同于
+  卡死。
 - 环境变量采用 allowlist 传递；默认剥离云凭据和 Token。
 - 输出做 ANSI 控制字符清理、大小限制和敏感值脱敏。
 
@@ -651,6 +664,9 @@ context_window_tokens = 131072
 max_steps = 30
 max_wall_time_seconds = 1800
 max_cost_usd = 2.0
+process_wait_seconds = 10
+process_hard_timeout_seconds = 1800
+max_managed_processes = 16
 
 [subagents]
 enabled = true

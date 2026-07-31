@@ -11,15 +11,20 @@ from bot.execution import (
     LocalExecutionTarget,
     ProcessEventKind,
     ProcessSpec,
+    ProcessStatus,
 )
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
-from bot.tools import ToolContext
+from bot.tools import ToolContext, ToolResultStatus
 from bot.tools.builtins import (
     ApplyPatchTool,
+    ListProcessesTool,
+    PollProcessTool,
     ReadFileTool,
     RunCommandTool,
     RunShellTool,
     SearchTextTool,
+    SendProcessInputTool,
+    TerminateProcessTool,
 )
 from bot.tools.kunpeng import KsysTool, TunerTool
 
@@ -99,6 +104,171 @@ async def test_run_command_forwards_streaming_tool_output(tmp_path: Path) -> Non
     assert result.success
     assert ("stdout", "out") in chunks
     assert ("stderr", "err") in chunks
+
+
+@pytest.mark.asyncio
+async def test_run_command_yields_and_polls_managed_process(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    context = ToolContext(workspace=tmp_path, execution_target=target)
+
+    started = await RunCommandTool().execute(
+        context,
+        {
+            "argv": ["/bin/sh", "-c", "printf start; sleep 0.15; printf end"],
+            "wait_seconds": 0.02,
+            "timeout_seconds": 2,
+        },
+    )
+
+    assert started.success
+    assert started.status == ToolResultStatus.RUNNING
+    process_id = started.metadata["process_id"]
+
+    completed = await PollProcessTool().execute(
+        context,
+        {"process_id": process_id, "wait_seconds": 1},
+    )
+
+    assert completed.success
+    assert completed.status == ToolResultStatus.COMPLETED
+    assert completed.metadata["process_status"] == ProcessStatus.COMPLETED
+    assert "start" in started.output + completed.output
+    assert "end" in started.output + completed.output
+    await target.aclose()
+
+
+@pytest.mark.asyncio
+async def test_managed_process_hard_timeout_is_reported(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    context = ToolContext(workspace=tmp_path, execution_target=target)
+
+    started = await RunCommandTool().execute(
+        context,
+        {
+            "argv": ["/bin/sh", "-c", "sleep 5"],
+            "wait_seconds": 0,
+            "timeout_seconds": 0.05,
+        },
+    )
+    timed_out = await PollProcessTool().execute(
+        context,
+        {"process_id": started.metadata["process_id"], "wait_seconds": 1},
+    )
+
+    assert started.status == ToolResultStatus.RUNNING
+    assert not timed_out.success
+    assert timed_out.status == ToolResultStatus.TIMED_OUT
+    assert timed_out.metadata["process_status"] == ProcessStatus.TIMED_OUT
+    assert "hard timeout" in (timed_out.error or "")
+    assert not target.has_live_processes
+    await target.aclose()
+
+
+@pytest.mark.asyncio
+async def test_managed_interactive_process_accepts_input(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    context = ToolContext(workspace=tmp_path, execution_target=target)
+
+    started = await RunCommandTool().execute(
+        context,
+        {
+            "argv": ["/bin/sh", "-c", 'read line; printf "got:%s" "$line"'],
+            "interactive": True,
+            "wait_seconds": 0,
+            "timeout_seconds": 2,
+        },
+    )
+    process_id = started.metadata["process_id"]
+    sent = await SendProcessInputTool().execute(
+        context,
+        {"process_id": process_id, "data": "hello\n", "eof": True},
+    )
+    completed = await PollProcessTool().execute(
+        context,
+        {"process_id": process_id, "wait_seconds": 1},
+    )
+
+    assert sent.success
+    assert completed.success
+    assert completed.status == ToolResultStatus.COMPLETED
+    assert "got:hello" in completed.output
+    await target.aclose()
+
+
+@pytest.mark.asyncio
+async def test_managed_process_can_be_listed_and_terminated(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    context = ToolContext(workspace=tmp_path, execution_target=target)
+
+    started = await RunCommandTool().execute(
+        context,
+        {
+            "argv": ["/bin/sh", "-c", "sleep 5"],
+            "wait_seconds": 0,
+            "timeout_seconds": 10,
+        },
+    )
+    process_id = started.metadata["process_id"]
+    listed = await ListProcessesTool().execute(context, {})
+    terminated = await TerminateProcessTool().execute(
+        context,
+        {"process_id": process_id, "reason": "测试清理"},
+    )
+
+    assert process_id in listed.output
+    assert terminated.success
+    assert terminated.metadata["process_status"] == ProcessStatus.CANCELLED
+    assert not target.has_live_processes
+    await target.aclose()
+
+
+@pytest.mark.asyncio
+async def test_managed_process_limit_is_a_recoverable_tool_error(tmp_path: Path) -> None:
+    target = LocalExecutionTarget(max_managed_processes=1)
+    context = ToolContext(workspace=tmp_path, execution_target=target)
+
+    first = await RunCommandTool().execute(
+        context,
+        {
+            "argv": ["/bin/sh", "-c", "sleep 5"],
+            "wait_seconds": 0,
+            "timeout_seconds": 10,
+        },
+    )
+    second = await RunCommandTool().execute(
+        context,
+        {
+            "argv": ["/bin/sh", "-c", "sleep 5"],
+            "wait_seconds": 0,
+            "timeout_seconds": 10,
+        },
+    )
+
+    assert first.status == ToolResultStatus.RUNNING
+    assert not second.success
+    assert second.status == ToolResultStatus.FAILED
+    assert "达到上限" in (second.error or "")
+    await target.aclose()
+    assert not target.has_live_processes
+
+
+@pytest.mark.asyncio
+async def test_managed_processes_are_cleaned_up_when_target_closes(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    process_id = await target.start_process(
+        ProcessSpec(
+            argv=["/bin/sh", "-c", "sleep 5"],
+            cwd=tmp_path,
+            timeout_seconds=10,
+        )
+    )
+
+    assert target.has_live_processes
+    await target.aclose()
+
+    assert not target.has_live_processes
+    with pytest.raises(ValueError, match="未知受管进程"):
+        await target.poll_process(process_id)
 
 
 @pytest.mark.asyncio

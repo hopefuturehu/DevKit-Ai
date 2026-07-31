@@ -30,6 +30,9 @@ class AgentConfig(StrictModel):
     max_total_tool_output_bytes: int = Field(default=5_000_000, gt=0)
     max_consecutive_failures: int = Field(default=3, ge=1)
     max_cost_usd: float | None = Field(default=None, gt=0)
+    process_wait_seconds: float = Field(default=10, ge=0, le=60)
+    process_hard_timeout_seconds: float = Field(default=1800, gt=0, le=86400)
+    max_managed_processes: int = Field(default=16, ge=1, le=256)
 
 
 class SubagentsConfig(StrictModel):

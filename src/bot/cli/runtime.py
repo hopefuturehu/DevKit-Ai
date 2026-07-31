@@ -43,6 +43,8 @@ class Runtime:
         if not self._closed:
             if self.subagents.has_live_tasks:
                 raise RuntimeError("存在运行中的后台子 Agent，请使用 await runtime.aclose()")
+            if self.target.has_live_processes:
+                raise RuntimeError("存在运行中的受管进程，请使用 await runtime.aclose()")
             self.store.close()
             self._closed = True
 
@@ -50,6 +52,7 @@ class Runtime:
         if self._closed:
             return
         await self.subagents.shutdown()
+        await self.target.aclose()
         self.store.close()
         self._closed = True
 
@@ -73,7 +76,9 @@ def build_runtime(
         timeout_seconds=config.model.timeout_seconds,
     )
     redactor = Redactor([api_key])
-    target = LocalExecutionTarget()
+    target = LocalExecutionTarget(
+        max_managed_processes=config.agent.max_managed_processes,
+    )
     catalog = SkillCatalog(config.skill_path(workspace))
     catalog.scan()
     skills = SkillManager(catalog, max_auto_activated=config.skills.max_auto_activated)

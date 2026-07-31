@@ -98,6 +98,7 @@ def test_trace_bundle_expands_full_context_blobs(tmp_path: Path) -> None:
                 "tool_call_id": "call-1",
                 "name": "read_file",
                 "success": True,
+                "status": "completed",
                 "output_excerpt": "first line...",
                 "truncated": False,
                 "context_ref": reference,
@@ -124,6 +125,7 @@ def test_trace_bundle_expands_full_context_blobs(tmp_path: Path) -> None:
     transcript = (bundle / "transcript.md").read_text(encoding="utf-8")
     assert "Inspecting." in transcript
     assert "Reasoning traces" in transcript
+    assert "Status: completed" in transcript
     assert "careful reasoning" in transcript
     assert "complete evidence" in transcript
     assert "characters omitted" in transcript

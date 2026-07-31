@@ -36,7 +36,7 @@ from bot.core.models import (
     ToolCall,
     ToolDefinition,
 )
-from bot.execution import ExecutionTarget
+from bot.execution import ExecutionTarget, ProcessStatus
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
 from bot.providers import ModelProvider, ProviderError
@@ -306,6 +306,7 @@ class AgentRunner:
             if monotonic() - started_at > self.config.agent.max_wall_time_seconds:
                 raise TimeoutError
             await self._drain_steering(conversation, session_id=session_id, run_id=run_id)
+            await self._refresh_managed_process_note(runtime_notes)
             request_tools = self.tool_registry.definitions()
             if self.config.skills.auto_activate and self.skills.catalog.skills:
                 request_tools.append(self.skills.catalog.activation_tool_definition())
@@ -967,6 +968,50 @@ class AgentRunner:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=cost_usd,
+        )
+
+    async def _refresh_managed_process_note(
+        self,
+        runtime_notes: list[ContextItem],
+    ) -> None:
+        runtime_notes[:] = [item for item in runtime_notes if item.id != "managed-process-status"]
+        if not self.execution_target.supports_managed_processes:
+            return
+        snapshots = await self.execution_target.list_processes()
+        if not snapshots:
+            return
+        visible = snapshots[-10:]
+        lines = [
+            "当前 Runtime 受管进程（长命令可在 Tool 返回后继续运行）：",
+            *[
+                (
+                    f"- {snapshot.process_id}: status={snapshot.status.value}, "
+                    f"elapsed={snapshot.elapsed_seconds:.1f}s, "
+                    f"last_output={snapshot.last_output_seconds_ago:.1f}s ago, "
+                    f"command={snapshot.argv!r}"
+                )
+                for snapshot in visible
+            ],
+            (
+                "使用 poll_process 查看增量输出；使用 send_process_input 与交互式进程通信；"
+                "使用 terminate_process 停止不再需要或疑似卡住的进程。"
+            ),
+        ]
+        running = sum(snapshot.status == ProcessStatus.RUNNING for snapshot in snapshots)
+        runtime_notes.append(
+            ContextItem(
+                id="managed-process-status",
+                layer=ContextLayer.RUNTIME_NOTE,
+                message=ChatMessage(role=Role.SYSTEM, content="\n".join(lines)),
+                source="execution-target",
+                trust=ContextTrust.TRUSTED,
+                retention=ContextRetention.DISPOSABLE,
+                priority=825 if running else 500,
+                metadata={
+                    "process_count": len(snapshots),
+                    "running_process_count": running,
+                },
+            )
         )
 
     def _active_skill_items(self) -> list[ContextItem]:
@@ -1778,6 +1823,8 @@ class AgentRunner:
             execution_target=self.execution_target,
             workspace_only=self.config.permissions.workspace_only,
             max_output_bytes=self.config.agent.max_tool_output_bytes,
+            process_wait_seconds=self.config.agent.process_wait_seconds,
+            process_hard_timeout_seconds=self.config.agent.process_hard_timeout_seconds,
             output_callback=publish_tool_output,
             denied_paths=self.denied_tool_paths,
         )
@@ -1800,6 +1847,7 @@ class AgentRunner:
                 "tool_call_id": tool_call.id,
                 "name": tool.name,
                 "success": result.success,
+                "status": result.status.value if result.status is not None else None,
                 "output_excerpt": self._inline_reference(
                     result.output or result.model_content(), audit_reference
                 ),
@@ -1814,7 +1862,11 @@ class AgentRunner:
             tool_call_id=tool_call.id,
             tool_name=tool.name,
             arguments=tool_call.arguments,
-            status="completed" if result.success else "failed",
+            status=(
+                result.status.value
+                if result.status is not None
+                else ("completed" if result.success else "failed")
+            ),
             result=result.model_dump(mode="json"),
         )
         return result

@@ -3,7 +3,9 @@ from bot.execution.base import (
     ExecutionTarget,
     ProcessEvent,
     ProcessEventKind,
+    ProcessSnapshot,
     ProcessSpec,
+    ProcessStatus,
 )
 from bot.execution.local import LocalExecutionTarget
 
@@ -13,5 +15,7 @@ __all__ = [
     "LocalExecutionTarget",
     "ProcessEvent",
     "ProcessEventKind",
+    "ProcessSnapshot",
     "ProcessSpec",
+    "ProcessStatus",
 ]

@@ -5,17 +5,19 @@ import hashlib
 import os
 import re
 import tempfile
+from asyncio import get_running_loop
 from pathlib import Path
 from typing import Any
 
 import httpx
 
-from bot.execution import ProcessEventKind, ProcessSpec
+from bot.execution import ProcessEventKind, ProcessSnapshot, ProcessSpec, ProcessStatus
 from bot.tools.base import (
     Tool,
     ToolAnnotations,
     ToolContext,
     ToolResult,
+    ToolResultStatus,
     path_is_denied,
     resolve_path,
 )
@@ -199,20 +201,151 @@ class ApplyPatchTool(Tool):
             return ToolResult(success=False, error=str(exc))
 
 
+def _process_metadata(snapshot: ProcessSnapshot) -> dict[str, Any]:
+    return {
+        "process_id": snapshot.process_id,
+        "process_status": snapshot.status.value,
+        "returncode": snapshot.returncode,
+        "argv": snapshot.argv,
+        "cwd": str(snapshot.cwd),
+        "elapsed_seconds": round(snapshot.elapsed_seconds, 3),
+        "hard_timeout_seconds": snapshot.hard_timeout_seconds,
+        "interactive": snapshot.interactive,
+        "last_output_seconds_ago": (
+            round(snapshot.last_output_seconds_ago, 3)
+            if snapshot.last_output_seconds_ago is not None
+            else None
+        ),
+        "termination_reason": snapshot.termination_reason,
+    }
+
+
+def _combined_process_output(snapshot: ProcessSnapshot) -> str:
+    output = snapshot.stdout
+    if snapshot.stderr:
+        output += ("\n" if output else "") + f"[stderr]\n{snapshot.stderr}"
+    return output
+
+
+def _process_tool_result(snapshot: ProcessSnapshot) -> ToolResult:
+    output = _combined_process_output(snapshot)
+    metadata = _process_metadata(snapshot)
+    if snapshot.status == ProcessStatus.RUNNING:
+        status_line = (
+            f"进程仍在运行（process_id={snapshot.process_id}, "
+            f"elapsed={snapshot.elapsed_seconds:.1f}s）。"
+            "使用 poll_process 查看增量输出和退出状态；"
+            "需要交互时使用 send_process_input，需要停止时使用 terminate_process。"
+        )
+        output = f"{output}\n\n{status_line}" if output else status_line
+        return ToolResult(
+            success=True,
+            status=ToolResultStatus.RUNNING,
+            output=output,
+            metadata=metadata,
+            truncated=snapshot.truncated,
+        )
+    if snapshot.status == ProcessStatus.COMPLETED:
+        return ToolResult(
+            success=True,
+            status=ToolResultStatus.COMPLETED,
+            output=output,
+            metadata=metadata,
+            truncated=snapshot.truncated,
+        )
+    result_status = {
+        ProcessStatus.TIMED_OUT: ToolResultStatus.TIMED_OUT,
+        ProcessStatus.CANCELLED: ToolResultStatus.CANCELLED,
+    }.get(snapshot.status, ToolResultStatus.FAILED)
+    error = snapshot.termination_reason
+    if error is None and snapshot.returncode is not None:
+        error = f"命令退出码 {snapshot.returncode}"
+    return ToolResult(
+        success=False,
+        status=result_status,
+        output=output,
+        error=error or f"进程状态为 {snapshot.status.value}",
+        metadata=metadata,
+        truncated=snapshot.truncated,
+    )
+
+
+async def _emit_process_output(context: ToolContext, snapshot: ProcessSnapshot) -> None:
+    await context.emit_output("stdout", snapshot.stdout)
+    await context.emit_output("stderr", snapshot.stderr)
+
+
+async def _wait_for_managed_process(
+    context: ToolContext,
+    process_id: str,
+    *,
+    wait_seconds: float,
+) -> ProcessSnapshot:
+    if wait_seconds <= 0:
+        snapshot = await context.execution_target.poll_process(process_id)
+        await _emit_process_output(context, snapshot)
+        return snapshot
+
+    deadline = get_running_loop().time() + wait_seconds
+    stdout_parts: list[str] = []
+    stderr_parts: list[str] = []
+    snapshot: ProcessSnapshot | None = None
+    while True:
+        remaining = deadline - get_running_loop().time()
+        slice_seconds = max(0.0, min(0.25, remaining))
+        snapshot = await context.execution_target.poll_process(
+            process_id,
+            wait_seconds=slice_seconds,
+        )
+        stdout_parts.append(snapshot.stdout)
+        stderr_parts.append(snapshot.stderr)
+        await _emit_process_output(context, snapshot)
+        if snapshot.status != ProcessStatus.RUNNING or remaining <= 0:
+            break
+    return snapshot.model_copy(
+        update={
+            "stdout": "".join(stdout_parts),
+            "stderr": "".join(stderr_parts),
+        }
+    )
+
+
 class RunCommandTool(Tool):
     name = "run_command"
-    description = "在受控工作目录中执行参数数组形式的本地命令，不经过 Shell 解析。"
+    description = (
+        "在受控工作目录中启动参数数组形式的命令，不经过 Shell 解析。"
+        "默认同步等待 10 秒；仍未结束时返回 process_id 而不会杀死进程，"
+        "随后使用 poll_process、send_process_input 或 terminate_process 管理。"
+        "timeout_seconds 是进程的 hard timeout，不是同步等待时间。"
+    )
     input_schema = {
         "type": "object",
         "properties": {
             "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1},
             "cwd": {"type": "string", "default": "."},
-            "timeout_seconds": {"type": "number", "minimum": 0.1, "maximum": 3600},
+            "wait_seconds": {"type": "number", "minimum": 0, "maximum": 60, "default": 10},
+            "timeout_seconds": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 86400,
+                "default": 1800,
+                "description": "进程绝对存活上限；超过同步等待时间不会自动杀死",
+            },
+            "interactive": {
+                "type": "boolean",
+                "default": False,
+                "description": "为需要后续写入 stdin 的命令保留输入管道",
+            },
         },
         "required": ["argv"],
         "additionalProperties": False,
     }
-    annotations = ToolAnnotations(read_only=False, destructive=False, idempotent=False)
+    annotations = ToolAnnotations(
+        read_only=False,
+        destructive=False,
+        idempotent=False,
+        default_timeout=1800,
+    )
 
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
         try:
@@ -223,9 +356,21 @@ class RunCommandTool(Tool):
             spec = ProcessSpec(
                 argv=argv,
                 cwd=cwd,
-                timeout_seconds=float(arguments.get("timeout_seconds", 300)),
+                timeout_seconds=float(
+                    arguments.get("timeout_seconds", context.process_hard_timeout_seconds)
+                ),
                 output_limit_bytes=context.max_output_bytes,
+                interactive=bool(arguments.get("interactive", False)),
             )
+            if context.execution_target.supports_managed_processes:
+                process_id = await context.execution_target.start_process(spec)
+                snapshot = await _wait_for_managed_process(
+                    context,
+                    process_id,
+                    wait_seconds=float(arguments.get("wait_seconds", context.process_wait_seconds)),
+                )
+                return _process_tool_result(snapshot)
+
             stdout: list[str] = []
             stderr: list[str] = []
             returncode: int | None = None
@@ -252,14 +397,22 @@ class RunCommandTool(Tool):
                 truncated=truncated,
                 metadata={"returncode": returncode, "argv": argv, "cwd": str(cwd)},
             )
-        except (KeyError, OSError, ValueError, TimeoutError) as exc:
+        except (
+            KeyError,
+            NotImplementedError,
+            OSError,
+            RuntimeError,
+            ValueError,
+            TimeoutError,
+        ) as exc:
             return ToolResult(success=False, error=str(exc))
 
 
 class RunShellTool(Tool):
     name = "run_shell"
     description = (
-        "仅在确实需要管道、重定向或条件连接时执行 POSIX Shell 脚本。"
+        "仅在确实需要管道、重定向或条件连接时启动 POSIX Shell 脚本。"
+        "默认同步等待 10 秒，长任务返回 process_id 并继续受管；"
         "策略层会先拆分脚本中的命令段进行风险判断。"
     )
     input_schema = {
@@ -267,21 +420,169 @@ class RunShellTool(Tool):
         "properties": {
             "script": {"type": "string", "minLength": 1},
             "cwd": {"type": "string", "default": "."},
-            "timeout_seconds": {"type": "number", "minimum": 0.1, "maximum": 3600},
+            "wait_seconds": {"type": "number", "minimum": 0, "maximum": 60, "default": 10},
+            "timeout_seconds": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 86400,
+                "default": 1800,
+            },
+            "interactive": {"type": "boolean", "default": False},
         },
         "required": ["script"],
+        "additionalProperties": False,
+    }
+    annotations = ToolAnnotations(
+        read_only=False,
+        destructive=False,
+        idempotent=False,
+        default_timeout=1800,
+    )
+
+    async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        command = RunCommandTool()
+        forwarded: dict[str, Any] = {
+            "argv": ["/bin/sh", "-c", str(arguments["script"])],
+            "cwd": arguments.get("cwd", "."),
+            "wait_seconds": arguments.get("wait_seconds", context.process_wait_seconds),
+            "timeout_seconds": arguments.get(
+                "timeout_seconds", context.process_hard_timeout_seconds
+            ),
+            "interactive": arguments.get("interactive", False),
+        }
+        return await command.execute(context, forwarded)
+
+
+class PollProcessTool(Tool):
+    name = "poll_process"
+    description = (
+        "查看受管进程的增量 stdout/stderr 和当前状态。"
+        "wait_seconds 只控制本次轮询等待，不改变进程 hard timeout。"
+    )
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "process_id": {"type": "string", "minLength": 1},
+            "wait_seconds": {"type": "number", "minimum": 0, "maximum": 60, "default": 0},
+        },
+        "required": ["process_id"],
+        "additionalProperties": False,
+    }
+    annotations = ToolAnnotations(read_only=True, idempotent=False)
+
+    async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        try:
+            snapshot = await _wait_for_managed_process(
+                context,
+                str(arguments["process_id"]),
+                wait_seconds=float(arguments.get("wait_seconds", 0)),
+            )
+            return _process_tool_result(snapshot)
+        except (KeyError, NotImplementedError, ValueError) as exc:
+            return ToolResult(success=False, error=str(exc))
+
+
+class SendProcessInputTool(Tool):
+    name = "send_process_input"
+    description = "向以 interactive=true 启动的受管进程写入 stdin，可选择随后发送 EOF。"
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "process_id": {"type": "string", "minLength": 1},
+            "data": {"type": "string", "default": ""},
+            "eof": {"type": "boolean", "default": False},
+        },
+        "required": ["process_id"],
         "additionalProperties": False,
     }
     annotations = ToolAnnotations(read_only=False, destructive=False, idempotent=False)
 
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
-        command = RunCommandTool()
-        return await command.execute(
-            context,
-            {
-                "argv": ["/bin/sh", "-c", str(arguments["script"])],
-                "cwd": arguments.get("cwd", "."),
-                "timeout_seconds": arguments.get("timeout_seconds", 300),
+        try:
+            snapshot = await context.execution_target.send_process_input(
+                str(arguments["process_id"]),
+                str(arguments.get("data", "")),
+                eof=bool(arguments.get("eof", False)),
+            )
+            return ToolResult(
+                success=True,
+                output=(
+                    f"已向进程 {snapshot.process_id} 写入 "
+                    f"{len(str(arguments.get('data', '')).encode())} bytes"
+                    + (" 并发送 EOF。" if arguments.get("eof", False) else "。")
+                ),
+                metadata=_process_metadata(snapshot),
+            )
+        except (KeyError, NotImplementedError, OSError, ValueError) as exc:
+            return ToolResult(success=False, error=str(exc))
+
+
+class TerminateProcessTool(Tool):
+    name = "terminate_process"
+    description = "终止由当前 Agent Runtime 启动的受管进程及其进程组。"
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "process_id": {"type": "string", "minLength": 1},
+            "reason": {"type": "string"},
+        },
+        "required": ["process_id"],
+        "additionalProperties": False,
+    }
+    annotations = ToolAnnotations(read_only=False, destructive=False, idempotent=True)
+
+    async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        try:
+            snapshot = await context.execution_target.terminate_process(
+                str(arguments["process_id"]),
+                reason=str(arguments["reason"]) if arguments.get("reason") else None,
+            )
+            await _emit_process_output(context, snapshot)
+            output = _combined_process_output(snapshot)
+            message = f"进程 {snapshot.process_id} 当前状态为 {snapshot.status.value}。"
+            output = f"{output}\n\n{message}" if output else message
+            return ToolResult(
+                success=True,
+                output=output,
+                metadata=_process_metadata(snapshot),
+                truncated=snapshot.truncated,
+            )
+        except (KeyError, NotImplementedError, ValueError) as exc:
+            return ToolResult(success=False, error=str(exc))
+
+
+class ListProcessesTool(Tool):
+    name = "list_processes"
+    description = "列出当前 Runtime 启动过的受管进程及状态，不消费它们的输出。"
+    input_schema = {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    }
+    annotations = ToolAnnotations(read_only=True, idempotent=True)
+
+    async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        try:
+            snapshots = await context.execution_target.list_processes()
+        except NotImplementedError as exc:
+            return ToolResult(success=False, error=str(exc))
+        if not snapshots:
+            return ToolResult(success=True, output="当前没有受管进程。", metadata={"count": 0})
+        lines = [
+            (
+                f"- {snapshot.process_id}: status={snapshot.status.value}, "
+                f"elapsed={snapshot.elapsed_seconds:.1f}s, "
+                f"last_output={snapshot.last_output_seconds_ago:.1f}s ago, "
+                f"command={snapshot.argv!r}"
+            )
+            for snapshot in snapshots
+        ]
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            metadata={
+                "count": len(snapshots),
+                "processes": [_process_metadata(snapshot) for snapshot in snapshots],
             },
         )
 
@@ -333,4 +634,8 @@ def register_builtin_tools(registry) -> None:
     registry.register(ApplyPatchTool())
     registry.register(RunCommandTool())
     registry.register(RunShellTool())
+    registry.register(PollProcessTool())
+    registry.register(SendProcessInputTool())
+    registry.register(TerminateProcessTool())
+    registry.register(ListProcessesTool())
     registry.register(FetchUrlTool())

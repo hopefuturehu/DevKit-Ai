@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from bot.core.models import ToolDefinition
 from bot.execution import ExecutionTarget
@@ -30,6 +31,8 @@ class ToolContext(BaseModel):
     execution_target: ExecutionTarget
     workspace_only: bool = True
     max_output_bytes: int = Field(default=1_000_000, gt=0)
+    process_wait_seconds: float = Field(default=10, ge=0, le=60)
+    process_hard_timeout_seconds: float = Field(default=1800, gt=0, le=86400)
     output_callback: Callable[[str, str], Awaitable[None]] | None = None
     denied_paths: tuple[Path, ...] = ()
 
@@ -38,19 +41,40 @@ class ToolContext(BaseModel):
             await self.output_callback(stream, data)
 
 
+class ToolResultStatus(StrEnum):
+    COMPLETED = "completed"
+    RUNNING = "running"
+    FAILED = "failed"
+    TIMED_OUT = "timed_out"
+    CANCELLED = "cancelled"
+
+
 class ToolResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     success: bool
+    status: ToolResultStatus | None = None
     output: str = ""
     error: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     truncated: bool = False
 
+    @model_validator(mode="after")
+    def default_status(self) -> ToolResult:
+        if self.status is None:
+            self.status = ToolResultStatus.COMPLETED if self.success else ToolResultStatus.FAILED
+        return self
+
     def model_content(self) -> str:
+        if self.status == ToolResultStatus.RUNNING:
+            return self.output or "进程已启动并仍在运行。"
         if self.success:
             return self.output or "操作成功，无输出。"
-        message = f"工具执行失败: {self.error or '未知错误'}"
+        label = {
+            ToolResultStatus.TIMED_OUT: "工具执行超时",
+            ToolResultStatus.CANCELLED: "工具执行已取消",
+        }.get(self.status, "工具执行失败")
+        message = f"{label}: {self.error or '未知错误'}"
         if self.output:
             message += f"\n\n{self.output}"
         return message

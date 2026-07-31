@@ -9,7 +9,8 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 
 - OpenAI-compatible Chat Completions 流式文本和结构化 Tool Calling；
 - 可恢复、可分叉的 SQLite 会话和 JSONL 审计事件；
-- read/search/apply-patch/argv command/受控 shell/network 等通用 Tool；
+- read/search/apply-patch/argv command/受控 shell/network 等通用 Tool；长命令在短暂
+  同步等待后转为可轮询、可输入、可终止的受管进程；
 - Workspace 路径边界、危险操作审批、审批作用域、输出截断和敏感值脱敏；
 - 指定目录 Skill 的三段式披露、自动或 `$skill-name` 显式激活、资源按需读取；
 - KSYS 与 DevKit Tuner 的结构化 Subprocess CLI Adapter；
@@ -49,6 +50,9 @@ max_steps = 30
 max_wall_time_seconds = 1800
 max_tool_output_bytes = 1000000
 max_total_tool_output_bytes = 5000000
+process_wait_seconds = 10
+process_hard_timeout_seconds = 1800
+max_managed_processes = 16
 # max_cost_usd = 2.0
 
 [subagents]
