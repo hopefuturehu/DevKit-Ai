@@ -28,6 +28,19 @@ def api_key_env_name(reference: str) -> str:
     return name
 
 
+def validate_api_key_value(value: str) -> None:
+    if not value:
+        raise ValueError("值为空")
+    if not value.isascii():
+        raise ValueError("必须是 ASCII；请勿把中文弯引号包含在值中")
+    if value != value.strip():
+        raise ValueError("首尾不能包含空白")
+    if value[0] in "'\"`" or value[-1] in "'\"`":
+        raise ValueError("值本身不能包含包裹引号")
+    if not value.isprintable():
+        raise ValueError("不能包含控制字符")
+
+
 def model_hostname(base_url: str) -> str:
     parsed = urlparse(base_url)
     if parsed.scheme != "https" or not parsed.hostname:
@@ -234,8 +247,13 @@ def main(argv: list[str] | None = None) -> int:
     if not config.model.name:
         raise SystemExit("model.name 未配置")
     key_variable = api_key_env_name(config.model.api_key_ref)
-    if not os.environ.get(key_variable):
+    key_value = os.environ.get(key_variable)
+    if not key_value:
         raise SystemExit(f"环境变量 {key_variable} 未设置")
+    try:
+        validate_api_key_value(key_value)
+    except ValueError as exc:
+        raise SystemExit(f"环境变量 {key_variable} 无效: {exc}") from exc
     host = model_hostname(config.model.base_url)
 
     if args.wheel is None:

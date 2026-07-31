@@ -11,6 +11,7 @@ from bot.evals.terminalbench import (
     api_key_env_name,
     build_harbor_command,
     model_hostname,
+    validate_api_key_value,
 )
 from bot.evals.terminalbench_worker import (
     _validate_log_path,
@@ -75,10 +76,17 @@ def test_build_harbor_command_requires_explicit_task_scope(tmp_path: Path) -> No
 def test_terminalbench_model_connection_validation() -> None:
     assert api_key_env_name("env:MODEL_KEY") == "MODEL_KEY"
     assert model_hostname("https://api.example.com/v1") == "api.example.com"
+    validate_api_key_value("sk-valid-example")
     with pytest.raises(ValueError, match="环境变量名"):
         api_key_env_name("env:not-valid!")
     with pytest.raises(ValueError, match="HTTPS"):
         model_hostname("http://api.example.com/v1")
+    with pytest.raises(ValueError, match="弯引号"):
+        validate_api_key_value("‘sk-invalid-example’")
+    with pytest.raises(ValueError, match="包裹引号"):
+        validate_api_key_value("'sk-invalid-example'")
+    with pytest.raises(ValueError, match="空白"):
+        validate_api_key_value(" sk-invalid-example")
 
 
 def test_harbor_environment_prefers_http_proxy_over_socks(

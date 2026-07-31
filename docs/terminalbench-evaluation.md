@@ -160,7 +160,7 @@ Harbor 的 `result.json` 和 verifier 日志给出任务 reward。
 ```text
 <时间戳>/
 ├── SUMMARY.md              # 人工复盘入口和异常提示
-├── summary.json            # Trial、reward、token、费用、耗时和 Trace 指标
+├── summary.json            # Job 进度、Trial 分类、reward、token、费用、耗时和 Trace 指标
 ├── manifest.json           # 文件大小与 SHA-256
 ├── inputs/                 # 本次评测使用的 Agent wheel 和 Bot 配置
 └── snapshot/               # Harbor job、Agent Trace、状态库和 verifier 日志
@@ -169,7 +169,8 @@ Harbor 的 `result.json` 和 verifier 日志给出任务 reward。
 默认不复制可能很大的 task artifacts，只保留其 `manifest.json`；需要完整保存时追加
 `--include-artifacts`。脚本会解析 Harbor 配置引用的敏感环境变量并扫描来源 job 与输入文件；
 如发现 API Key、Token 等明文，会拒绝生成归档。归档时未设置的敏感环境变量会记录在
-`SUMMARY.md` 和 `summary.json`，提示该项未完成明文扫描。
+`SUMMARY.md` 和 `summary.json`，提示该项未完成明文扫描。报告会将 Agent 内部失败与
+verifier 判分失败分开统计，并对未完整结束的 Job 标出 pending、running 和 cancelled 数量。
 
 ## 已知限制
 

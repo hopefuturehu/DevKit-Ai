@@ -184,9 +184,12 @@ def _trial_summary(trial_dir: Path) -> dict[str, Any]:
         reward = next(iter(rewards.values()))
     exception = result.get("exception_info")
     exception = exception if isinstance(exception, dict) else None
+    agent_status = agent_metadata.get("status")
 
     if exception is not None:
         classification = "exception"
+    elif agent_status == "failed":
+        classification = "agent_failed"
     elif isinstance(reward, (int, float)) and reward > 0:
         classification = "passed"
     elif isinstance(reward, (int, float)):
@@ -207,7 +210,8 @@ def _trial_summary(trial_dir: Path) -> dict[str, Any]:
         "task_name": result.get("task_name"),
         "classification": classification,
         "reward": reward,
-        "agent_status": agent_metadata.get("status"),
+        "agent_status": agent_status,
+        "agent_error": agent_metadata.get("error"),
         "steps": agent_metadata.get("steps"),
         "input_tokens": agent_result.get("n_input_tokens"),
         "output_tokens": agent_result.get("n_output_tokens"),
@@ -258,6 +262,7 @@ def _inventory(
 
 def _markdown(summary: dict[str, Any]) -> str:
     aggregate = summary["aggregate"]
+    job = summary["job"]
     security = summary["security"]
     mean_reward = aggregate["mean_reward"] if aggregate["mean_reward"] is not None else "-"
     lines = [
@@ -265,8 +270,12 @@ def _markdown(summary: dict[str, Any]) -> str:
         "",
         f"- 归档时间：`{summary['created_at']}`",
         f"- 来源 Job：`{summary['source_job_name']}`",
-        f"- Trial：{aggregate['trials']}",
+        f"- Harbor Job：total={job['total']}，completed={job['completed']}，"
+        f"running={job['running']}，pending={job['pending']}，"
+        f"cancelled={job['cancelled']}，errored={job['errored']}",
+        f"- 已产生结果的 Trial：{aggregate['trials']}",
         f"- Passed：{aggregate['passed']}",
+        f"- Agent failed：{aggregate['agent_failed']}",
         f"- Verifier failed：{aggregate['failed_verifier']}",
         f"- Exception：{aggregate['exception']}",
         f"- Unscored：{aggregate['unscored']}",
@@ -300,12 +309,24 @@ def _markdown(summary: dict[str, Any]) -> str:
         )
 
     issues: list[str] = []
+    if job["finished_at"] is None or job["completed"] < job["total"]:
+        issues.append(
+            "- Harbor Job 未完整结束："
+            f"total={job['total']}，completed={job['completed']}，"
+            f"running={job['running']}，pending={job['pending']}，"
+            f"cancelled={job['cancelled']}，errored={job['errored']}。"
+        )
     for trial in summary["trials"]:
         if trial["classification"] == "exception":
             issues.append(
                 f"- `{trial['trial_name']}` exception："
                 f"`{trial.get('exception_type') or 'unknown'}` — "
                 f"{trial.get('exception_message') or ''}"
+            )
+        elif trial["classification"] == "agent_failed":
+            issues.append(
+                f"- `{trial['trial_name']}` Agent 内部失败（steps={trial.get('steps') or 0}）："
+                f"{trial.get('agent_error') or '未记录错误'}"
             )
         elif trial["classification"] == "failed_verifier":
             issues.append(
@@ -398,15 +419,33 @@ def archive_job(
         _, total_bytes = _inventory(snapshot)
         _, input_bytes = _inventory(temporary / "inputs")
 
+        job_result = _load_json(job_dir / "result.json")
+        raw_job_stats = job_result.get("stats")
+        raw_job_stats = raw_job_stats if isinstance(raw_job_stats, dict) else {}
+        job_status = {
+            "started_at": job_result.get("started_at"),
+            "updated_at": job_result.get("updated_at"),
+            "finished_at": job_result.get("finished_at"),
+            "total": int(job_result.get("n_total_trials") or len(trials)),
+            "completed": int(raw_job_stats.get("n_completed_trials") or 0),
+            "errored": int(raw_job_stats.get("n_errored_trials") or 0),
+            "running": int(raw_job_stats.get("n_running_trials") or 0),
+            "pending": int(raw_job_stats.get("n_pending_trials") or 0),
+            "cancelled": int(raw_job_stats.get("n_cancelled_trials") or 0),
+            "retries": int(raw_job_stats.get("n_retries") or 0),
+        }
+
         summary = {
             "schema_version": 1,
             "created_at": created_at.isoformat(),
             "source_job": str(job_dir),
             "source_job_name": job_dir.name,
             "include_task_artifacts": include_artifacts,
+            "job": job_status,
             "aggregate": {
                 "trials": len(trials),
                 "passed": classifications["passed"],
+                "agent_failed": classifications["agent_failed"],
                 "failed_verifier": classifications["failed_verifier"],
                 "exception": classifications["exception"],
                 "unscored": classifications["unscored"],
@@ -422,7 +461,7 @@ def archive_job(
                 "secret_hit_count": 0,
             },
             "inputs": input_records,
-            "job_result": _load_json(job_dir / "result.json"),
+            "job_result": job_result,
             "trials": trials,
         }
         (temporary / "summary.json").write_text(
@@ -479,6 +518,7 @@ def main(argv: list[str] | None = None) -> int:
         "Trials="
         f"{aggregate['trials']} "
         f"passed={aggregate['passed']} "
+        f"agent_failed={aggregate['agent_failed']} "
         f"failed={aggregate['failed_verifier']} "
         f"exceptions={aggregate['exception']} "
         f"unscored={aggregate['unscored']}"
