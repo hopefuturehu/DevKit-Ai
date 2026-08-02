@@ -1,3 +1,4 @@
+import asyncio
 import os
 import signal
 from pathlib import Path
@@ -134,6 +135,27 @@ async def test_run_command_yields_and_polls_managed_process(tmp_path: Path) -> N
     assert completed.metadata["process_status"] == ProcessStatus.COMPLETED
     assert "start" in started.output + completed.output
     assert "end" in started.output + completed.output
+    await target.aclose()
+
+
+@pytest.mark.asyncio
+async def test_completed_managed_process_duration_stops_increasing(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    process_id = await target.start_process(
+        ProcessSpec(
+            argv=["/bin/sh", "-c", "sleep 0.03"],
+            cwd=tmp_path,
+            timeout_seconds=2,
+        )
+    )
+
+    completed = await target.poll_process(process_id, wait_seconds=1)
+    await asyncio.sleep(0.05)
+    observed_later = await target.poll_process(process_id)
+
+    assert completed.status == ProcessStatus.COMPLETED
+    assert observed_later.status == ProcessStatus.COMPLETED
+    assert observed_later.elapsed_seconds == pytest.approx(completed.elapsed_seconds, abs=0.005)
     await target.aclose()
 
 

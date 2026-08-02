@@ -28,6 +28,7 @@ class _ManagedProcess:
     spec: ProcessSpec
     process: asyncio.subprocess.Process
     started_at: float
+    finished_at: float | None = None
     status: ProcessStatus = ProcessStatus.RUNNING
     returncode: int | None = None
     stdout_parts: list[str] = field(default_factory=list)
@@ -231,6 +232,7 @@ class LocalExecutionTarget(ExecutionTarget):
 
     async def _monitor_managed_process(self, managed: _ManagedProcess) -> None:
         returncode = await managed.process.wait()
+        managed.finished_at = monotonic()
         await asyncio.gather(*managed.readers, return_exceptions=True)
         managed.returncode = returncode
         if managed.status == ProcessStatus.RUNNING:
@@ -272,7 +274,7 @@ class LocalExecutionTarget(ExecutionTarget):
             managed.stdout_cursor = len(stdout_all)
             managed.stderr_cursor = len(stderr_all)
         now = monotonic()
-        elapsed = max(0.0, now - managed.started_at)
+        elapsed = max(0.0, (managed.finished_at or now) - managed.started_at)
         last_output_seconds_ago = (
             max(0.0, now - managed.last_output_at)
             if managed.last_output_at is not None

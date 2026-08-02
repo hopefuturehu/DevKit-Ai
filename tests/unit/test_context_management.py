@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from bot.core.context import (
+    CORE_POLICY,
     ContextItem,
     ContextLayer,
     ContextLimitError,
@@ -17,6 +18,11 @@ from bot.core.context import (
 )
 from bot.core.models import ChatMessage, Role, ToolCall
 from bot.sessions import SQLiteSessionStore
+
+
+def test_core_policy_keeps_managed_process_guidance_stable() -> None:
+    assert "长命令可能返回 process_id" in CORE_POLICY
+    assert "poll_process" in CORE_POLICY
 
 
 def test_token_budget_reserves_output_protocol_and_safety() -> None:

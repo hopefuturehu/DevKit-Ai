@@ -350,6 +350,10 @@ Tool Call 内完成；超过同步等待时间的命令返回 `process_id` 并�
 `poll_process`、`send_process_input`、`terminate_process` 和 `list_processes` 继续操作。
 进程退出码只描述执行状态，不代表用户目标已经满足；业务正确性仍由 Agent 根据任务证据判断。
 
+受管进程能力以固定规则写入 Core Policy。为避免破坏 Provider 的前缀缓存，Runtime 不向
+System Context 注入 `process_id`、命令、秒级耗时或输出等动态详情；仅在存在运行中的
+进程时提供内容恒定的提醒。具体状态和增量输出通过 Tool Result 按需读取。
+
 ### 6.3 Policy Engine
 
 ```text

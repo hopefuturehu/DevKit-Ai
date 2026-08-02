@@ -14,6 +14,7 @@ import jsonschema
 from bot.config.models import AppConfig
 from bot.core.approval import ApprovalHandler, ApprovalScope, DenyApprovalHandler
 from bot.core.context import (
+    MANAGED_PROCESS_REMINDER,
     ContextAssembler,
     ContextItem,
     ContextLayer,
@@ -978,39 +979,18 @@ class AgentRunner:
         if not self.execution_target.supports_managed_processes:
             return
         snapshots = await self.execution_target.list_processes()
-        if not snapshots:
+        if not any(snapshot.status == ProcessStatus.RUNNING for snapshot in snapshots):
             return
-        visible = snapshots[-10:]
-        lines = [
-            "当前 Runtime 受管进程（长命令可在 Tool 返回后继续运行）：",
-            *[
-                (
-                    f"- {snapshot.process_id}: status={snapshot.status.value}, "
-                    f"elapsed={snapshot.elapsed_seconds:.1f}s, "
-                    f"last_output={snapshot.last_output_seconds_ago:.1f}s ago, "
-                    f"command={snapshot.argv!r}"
-                )
-                for snapshot in visible
-            ],
-            (
-                "使用 poll_process 查看增量输出；使用 send_process_input 与交互式进程通信；"
-                "使用 terminate_process 停止不再需要或疑似卡住的进程。"
-            ),
-        ]
-        running = sum(snapshot.status == ProcessStatus.RUNNING for snapshot in snapshots)
         runtime_notes.append(
             ContextItem(
                 id="managed-process-status",
                 layer=ContextLayer.RUNTIME_NOTE,
-                message=ChatMessage(role=Role.SYSTEM, content="\n".join(lines)),
+                message=ChatMessage(role=Role.SYSTEM, content=MANAGED_PROCESS_REMINDER),
                 source="execution-target",
                 trust=ContextTrust.TRUSTED,
                 retention=ContextRetention.DISPOSABLE,
-                priority=825 if running else 500,
-                metadata={
-                    "process_count": len(snapshots),
-                    "running_process_count": running,
-                },
+                priority=825,
+                metadata={"has_running_processes": True},
             )
         )
 

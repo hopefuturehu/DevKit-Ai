@@ -13,7 +13,7 @@ from bot.core.approval import (
     ApprovalResponse,
     ApprovalScope,
 )
-from bot.core.context import ContextAssembler
+from bot.core.context import MANAGED_PROCESS_REMINDER, ContextAssembler
 from bot.core.events import EventBus, EventType, MemoryEventSink
 from bot.core.models import (
     ModelCapabilities,
@@ -23,7 +23,7 @@ from bot.core.models import (
     Role,
     ToolCall,
 )
-from bot.execution import LocalExecutionTarget
+from bot.execution import LocalExecutionTarget, ProcessSpec
 from bot.policy import DefaultPolicyEngine
 from bot.providers import ModelProvider, ProviderError
 from bot.sessions import SQLiteSessionStore
@@ -175,6 +175,37 @@ def make_test_runner(
         event_bus=EventBus([store]),
     )
     return runner, store
+
+
+@pytest.mark.asyncio
+async def test_managed_process_runtime_reminder_is_cache_stable(tmp_path: Path) -> None:
+    runner, store = make_test_runner(tmp_path, ScriptedProvider([]))
+    target = runner.execution_target
+    process_id = await target.start_process(
+        ProcessSpec(
+            argv=["/bin/sh", "-c", "sleep 5"],
+            cwd=tmp_path,
+            timeout_seconds=10,
+        )
+    )
+    runtime_notes = []
+
+    await runner._refresh_managed_process_note(runtime_notes)  # noqa: SLF001
+    first_content = runtime_notes[0].message.content
+    await asyncio.sleep(0.02)
+    await runner._refresh_managed_process_note(runtime_notes)  # noqa: SLF001
+
+    assert first_content == MANAGED_PROCESS_REMINDER
+    assert runtime_notes[0].message.content == first_content
+    assert "proc_" not in first_content
+    assert "elapsed" not in first_content
+
+    await target.terminate_process(process_id, reason="test cleanup")
+    await runner._refresh_managed_process_note(runtime_notes)  # noqa: SLF001
+
+    assert runtime_notes == []
+    await target.aclose()
+    store.close()
 
 
 @pytest.mark.asyncio
