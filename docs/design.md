@@ -573,7 +573,11 @@ KSYS、Tuner Adapter 只负责命令能力，例如采集、报告和具体分�
 - 使用参数数组直接启动进程；只有确实需要管道、重定向、通配符时才进入 Shell 模式。
 - 对复合命令解析为多个 segment，分别评估风险。
 - 工作目录必须经 `realpath` 校验，防止 `..` 和 symlink 逃逸。
-- 子进程使用独立进程组，取消时终止整个进程树。
+- 子进程使用独立进程组；Runtime 持续跟踪 PGID，即使组 leader 已退出，仍将存活的
+  后台成员计入命令生命周期，取消、hard timeout 和 Runtime 关闭都终止整组。
+- CLI 对 `SIGTERM` 和 `SIGHUP` 进入受保护的异步清理流程；Subagent 关闭失败不得跳过
+  ExecutionTarget 清理。`SIGKILL`、主机掉电或主动 `setsid`/daemonize 逃离进程组仍需
+  外部 supervisor、Linux cgroup 或 Windows Job Object 提供强隔离。
 - 命令超过同步等待时间后返回受管进程句柄，不因 Tool 返回而误杀；Runtime 关闭时清理所有
   未退出的受管进程。
 - 交互式进程必须显式启用 stdin；普通进程默认使用 `DEVNULL`，避免意外等待输入。

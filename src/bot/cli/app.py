@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shlex
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -109,10 +110,51 @@ def _run(coroutine):
 
 
 async def _with_runtime_shutdown(runtime, coroutine):
+    loop = asyncio.get_running_loop()
+    current_task = asyncio.current_task()
+    received_signal: int | None = None
+    shutting_down = False
+    installed_handlers: dict[int, object] = {}
+
+    def request_shutdown(signum: int) -> None:
+        nonlocal received_signal
+        if shutting_down or received_signal is not None or current_task is None:
+            return
+        received_signal = signum
+        current_task.cancel()
+
+    for candidate in (getattr(signal, "SIGTERM", None), getattr(signal, "SIGHUP", None)):
+        if not isinstance(candidate, int):
+            continue
+        try:
+            previous = signal.getsignal(candidate)
+            loop.add_signal_handler(candidate, request_shutdown, candidate)
+        except (NotImplementedError, RuntimeError, ValueError):
+            continue
+        installed_handlers[candidate] = previous
     try:
         return await coroutine
+    except asyncio.CancelledError:
+        if received_signal is not None:
+            raise typer.Exit(128 + received_signal) from None
+        raise
     finally:
-        await runtime.aclose()
+        shutting_down = True
+        cleanup = asyncio.create_task(runtime.aclose(), name="runtime-shutdown")
+        try:
+            while not cleanup.done():
+                try:
+                    await asyncio.shield(cleanup)
+                except asyncio.CancelledError:
+                    continue
+            cleanup.result()
+        finally:
+            for signum, previous in installed_handlers.items():
+                loop.remove_signal_handler(signum)
+                try:
+                    signal.signal(signum, previous)
+                except (OSError, RuntimeError, ValueError):
+                    pass
 
 
 async def _prompt_with_background_approvals(

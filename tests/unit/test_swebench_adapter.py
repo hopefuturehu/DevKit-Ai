@@ -1,4 +1,6 @@
 import json
+import os
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -121,9 +123,7 @@ def test_swebench_worker_uses_independent_agent_limits() -> None:
 
 def test_restricted_connect_proxy_only_accepts_configured_upstream() -> None:
     assert _connect_target_allowed("CONNECT api.example:443 HTTP/1.1", "api.example", 443)
-    assert not _connect_target_allowed(
-        "CONNECT forbidden.example:443 HTTP/1.1", "api.example", 443
-    )
+    assert not _connect_target_allowed("CONNECT forbidden.example:443 HTTP/1.1", "api.example", 443)
     assert not _connect_target_allowed("GET api.example:443 HTTP/1.1", "api.example", 443)
 
 
@@ -145,3 +145,38 @@ def test_streaming_process_writes_stdout_and_stderr_to_files(tmp_path: Path) -> 
     assert returncode == 0
     assert stdout_path.read_text(encoding="utf-8") == "event\n"
     assert stderr_path.read_text(encoding="utf-8") == "diagnostic\n"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
+def test_streaming_process_interrupt_terminates_process_group(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signals: list[tuple[int, signal.Signals]] = []
+
+    class FakeProcess:
+        pid = 4242
+        waits = 0
+
+        def wait(self, timeout=None):
+            self.waits += 1
+            if self.waits == 1:
+                raise KeyboardInterrupt
+            return -signal.SIGTERM
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: FakeProcess())
+    monkeypatch.setattr(
+        os,
+        "killpg",
+        lambda pid, sig: signals.append((pid, signal.Signals(sig))),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        _run_streaming(
+            ["worker"],
+            cwd=tmp_path,
+            stdout_path=tmp_path / "stdout.log",
+            stderr_path=tmp_path / "stderr.log",
+        )
+
+    assert signals == [(4242, signal.SIGTERM)]

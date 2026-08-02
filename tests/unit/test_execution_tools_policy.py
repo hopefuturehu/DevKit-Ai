@@ -30,6 +30,21 @@ from bot.tools.builtins import (
 from bot.tools.kunpeng import KsysTool, TunerTool
 
 
+def _process_effectively_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    stat_path = Path(f"/proc/{pid}/stat")
+    if stat_path.is_file():
+        try:
+            state = stat_path.read_text(encoding="utf-8").rsplit(") ", 1)[1].split()[0]
+        except (IndexError, OSError):
+            return True
+        return state != "Z"
+    return True
+
+
 @pytest.mark.asyncio
 async def test_local_execution_uses_argv_and_captures_streams(tmp_path: Path) -> None:
     target = LocalExecutionTarget()
@@ -67,8 +82,114 @@ async def test_local_execution_timeout_terminates_process(tmp_path: Path) -> Non
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
 @pytest.mark.asyncio
+async def test_local_timeout_kills_background_child_after_shell_exits(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    child_pid_path = tmp_path / "sync-child.pid"
+    child_pid: int | None = None
+    try:
+        with pytest.raises(TimeoutError, match="命令执行超过"):
+            _ = [
+                event
+                async for event in target.execute(
+                    ProcessSpec(
+                        argv=[
+                            "/bin/sh",
+                            "-c",
+                            "sleep 5 >/dev/null 2>&1 & echo $! > sync-child.pid",
+                        ],
+                        cwd=tmp_path,
+                        timeout_seconds=0.1,
+                    )
+                )
+            ]
+        assert child_pid_path.is_file()
+        child_pid = int(child_pid_path.read_text().strip())
+        assert not _process_effectively_running(child_pid)
+    finally:
+        if child_pid is not None and _process_effectively_running(child_pid):
+            os.kill(child_pid, signal.SIGKILL)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
+@pytest.mark.asyncio
+async def test_closing_execution_stream_terminates_its_process_group(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    pid_path = tmp_path / "stream-leader.pid"
+    process_id: int | None = None
+    stream = target.execute(
+        ProcessSpec(
+            argv=[
+                "/bin/sh",
+                "-c",
+                'echo $$ > stream-leader.pid; printf "ready"; sleep 30',
+            ],
+            cwd=tmp_path,
+            timeout_seconds=60,
+        )
+    )
+    try:
+        first = await anext(stream)
+        process_id = int(pid_path.read_text().strip())
+
+        assert first.data == "ready"
+        assert _process_effectively_running(process_id)
+
+        await stream.aclose()
+
+        assert not _process_effectively_running(process_id)
+    finally:
+        await stream.aclose()
+        if process_id is not None and _process_effectively_running(process_id):
+            os.kill(process_id, signal.SIGKILL)
+
+
+@pytest.mark.asyncio
+async def test_cancelled_spawn_cleans_process_created_at_cancellation_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spawn_started = asyncio.Event()
+    release_spawn = asyncio.Event()
+    terminated: list[tuple[int, int | None]] = []
+
+    class FakeProcess:
+        pid = 4242
+        returncode = None
+
+    async def delayed_spawn(*args, **kwargs):
+        spawn_started.set()
+        await release_spawn.wait()
+        return FakeProcess()
+
+    async def record_terminate(cls, process, *, process_group_id=None) -> None:
+        terminated.append((process.pid, process_group_id))
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", delayed_spawn)
+    monkeypatch.setattr(LocalExecutionTarget, "_terminate", classmethod(record_terminate))
+    spawn = asyncio.create_task(
+        LocalExecutionTarget._spawn_process(
+            ["demo"],
+            cwd=str(tmp_path),
+            environment={},
+            stdin=asyncio.subprocess.DEVNULL,
+            start_new_session=os.name == "posix",
+        )
+    )
+    await spawn_started.wait()
+
+    spawn.cancel()
+    release_spawn.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await spawn
+    assert terminated == [(4242, 4242 if os.name == "posix" else None)]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
+@pytest.mark.asyncio
 async def test_local_termination_signals_the_process_group(monkeypatch) -> None:
     signals: list[tuple[int, signal.Signals]] = []
+    group_alive = True
 
     class FakeProcess:
         pid = 4242
@@ -78,7 +199,16 @@ async def test_local_termination_signals_the_process_group(monkeypatch) -> None:
             self.returncode = 0
             return 0
 
-    monkeypatch.setattr(os, "killpg", lambda pid, sig: signals.append((pid, sig)))
+    def fake_killpg(pid: int, sig: signal.Signals | int) -> None:
+        nonlocal group_alive
+        if sig == 0:
+            if group_alive:
+                return
+            raise ProcessLookupError
+        signals.append((pid, signal.Signals(sig)))
+        group_alive = False
+
+    monkeypatch.setattr(os, "killpg", fake_killpg)
 
     await LocalExecutionTarget._terminate(FakeProcess())
 
@@ -159,17 +289,61 @@ async def test_completed_managed_process_duration_stops_increasing(tmp_path: Pat
     await target.aclose()
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
+@pytest.mark.asyncio
+async def test_runtime_cleanup_kills_background_child_after_leader_exits(tmp_path: Path) -> None:
+    target = LocalExecutionTarget(max_managed_processes=1)
+    child_pid: int | None = None
+    try:
+        process_id = await target.start_process(
+            ProcessSpec(
+                argv=[
+                    "/bin/sh",
+                    "-c",
+                    'sleep 30 >/dev/null 2>&1 & child=$!; printf "%s" "$child"',
+                ],
+                cwd=tmp_path,
+                timeout_seconds=10,
+            )
+        )
+        snapshot = await target.poll_process(process_id, wait_seconds=0.2)
+        child_pid = int(snapshot.stdout.strip())
+
+        assert snapshot.returncode == 0
+        assert snapshot.status == ProcessStatus.RUNNING
+        assert target.has_live_processes
+        assert _process_effectively_running(child_pid)
+        with pytest.raises(RuntimeError, match="达到上限"):
+            await target.start_process(ProcessSpec(argv=["/bin/sh", "-c", "true"], cwd=tmp_path))
+
+        await target.aclose()
+
+        assert not target.has_live_processes
+        assert not _process_effectively_running(child_pid)
+    finally:
+        if target.has_live_processes:
+            await target.aclose()
+        if child_pid is not None and _process_effectively_running(child_pid):
+            os.kill(child_pid, signal.SIGKILL)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
 @pytest.mark.asyncio
 async def test_managed_process_hard_timeout_is_reported(tmp_path: Path) -> None:
     target = LocalExecutionTarget()
     context = ToolContext(workspace=tmp_path, execution_target=target)
+    child_pid_path = tmp_path / "child.pid"
 
     started = await RunCommandTool().execute(
         context,
         {
-            "argv": ["/bin/sh", "-c", "sleep 5"],
+            "argv": [
+                "/bin/sh",
+                "-c",
+                "sleep 5 >/dev/null 2>&1 & echo $! > child.pid",
+            ],
             "wait_seconds": 0,
-            "timeout_seconds": 0.05,
+            "timeout_seconds": 0.1,
         },
     )
     timed_out = await PollProcessTool().execute(
@@ -183,6 +357,8 @@ async def test_managed_process_hard_timeout_is_reported(tmp_path: Path) -> None:
     assert timed_out.metadata["process_status"] == ProcessStatus.TIMED_OUT
     assert "hard timeout" in (timed_out.error or "")
     assert not target.has_live_processes
+    assert child_pid_path.is_file()
+    assert not _process_effectively_running(int(child_pid_path.read_text().strip()))
     await target.aclose()
 
 

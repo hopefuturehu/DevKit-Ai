@@ -1,4 +1,6 @@
 import os
+import signal
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -8,6 +10,7 @@ from bot.evals.terminalbench import (
     HARBOR_VERSION,
     TERMINALBENCH_DATASET,
     _harbor_subprocess_env,
+    _run_harbor,
     api_key_env_name,
     build_harbor_command,
     model_hostname,
@@ -101,6 +104,36 @@ def test_harbor_environment_prefers_http_proxy_over_socks(
     assert "ALL_PROXY" not in env
     assert "all_proxy" not in env
     assert env["HTTPS_PROXY"] == os.environ["HTTPS_PROXY"]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
+def test_harbor_interrupt_terminates_process_group(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signals: list[tuple[int, signal.Signals]] = []
+
+    class FakeProcess:
+        pid = 4242
+        waits = 0
+
+        def wait(self, timeout=None):
+            self.waits += 1
+            if self.waits == 1:
+                raise KeyboardInterrupt
+            return -signal.SIGTERM
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: FakeProcess())
+    monkeypatch.setattr(
+        os,
+        "killpg",
+        lambda pid, sig: signals.append((pid, signal.Signals(sig))),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        _run_harbor(["harbor"], cwd=tmp_path, env={})
+
+    assert signals == [(4242, signal.SIGTERM)]
 
 
 def test_terminalbench_worker_uses_disposable_container_policy(tmp_path: Path) -> None:

@@ -27,6 +27,7 @@ class _ManagedProcess:
     process_id: str
     spec: ProcessSpec
     process: asyncio.subprocess.Process
+    process_group_id: int | None
     started_at: float
     finished_at: float | None = None
     status: ProcessStatus = ProcessStatus.RUNNING
@@ -39,6 +40,7 @@ class _ManagedProcess:
     truncated: bool = False
     last_output_at: float | None = None
     termination_reason: str | None = None
+    termination_complete: asyncio.Event = field(default_factory=asyncio.Event)
     finished: asyncio.Event = field(default_factory=asyncio.Event)
     readers: list[asyncio.Task[None]] = field(default_factory=list)
     monitor: asyncio.Task[None] | None = None
@@ -70,12 +72,12 @@ class LocalExecutionTarget(ExecutionTarget):
     @property
     def has_live_processes(self) -> bool:
         return any(
-            managed.process.returncode is None for managed in self._managed_processes.values()
+            self._managed_process_alive(managed) for managed in self._managed_processes.values()
         )
 
     async def start_process(self, spec: ProcessSpec) -> str:
         live_count = sum(
-            managed.process.returncode is None for managed in self._managed_processes.values()
+            self._managed_process_alive(managed) for managed in self._managed_processes.values()
         )
         if live_count >= self.max_managed_processes:
             raise RuntimeError(
@@ -91,13 +93,11 @@ class LocalExecutionTarget(ExecutionTarget):
         if os.name == "posix":
             kwargs["start_new_session"] = True
 
-        process = await asyncio.create_subprocess_exec(
-            *spec.argv,
+        process = await self._spawn_process(
+            spec.argv,
             cwd=str(cwd),
-            env=environment,
+            environment=environment,
             stdin=(asyncio.subprocess.PIPE if spec.interactive else asyncio.subprocess.DEVNULL),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
             **kwargs,
         )
         process_id = f"proc_{uuid4().hex}"
@@ -105,6 +105,7 @@ class LocalExecutionTarget(ExecutionTarget):
             process_id=process_id,
             spec=spec.model_copy(update={"cwd": cwd}),
             process=process,
+            process_group_id=process.pid if os.name == "posix" else None,
             started_at=monotonic(),
         )
         self._managed_processes[process_id] = managed
@@ -162,10 +163,17 @@ class LocalExecutionTarget(ExecutionTarget):
         reason: str | None = None,
     ) -> ProcessSnapshot:
         managed = self._managed_process(process_id)
-        if managed.status == ProcessStatus.RUNNING:
-            managed.status = ProcessStatus.CANCELLED
-            managed.termination_reason = reason or "Agent 请求终止"
-            await self._terminate(managed.process)
+        if self._managed_process_alive(managed):
+            if managed.status == ProcessStatus.RUNNING:
+                managed.status = ProcessStatus.CANCELLED
+                managed.termination_reason = reason or "Agent 请求终止"
+            try:
+                await self._terminate(
+                    managed.process,
+                    process_group_id=managed.process_group_id,
+                )
+            finally:
+                managed.termination_complete.set()
             await managed.finished.wait()
         return self._managed_snapshot(managed, consume_output=True)
 
@@ -179,15 +187,33 @@ class LocalExecutionTarget(ExecutionTarget):
         live = [
             managed
             for managed in self._managed_processes.values()
-            if managed.process.returncode is None
+            if self._managed_process_alive(managed)
         ]
+        errors: list[BaseException] = []
         for managed in live:
             if managed.status == ProcessStatus.RUNNING:
                 managed.status = ProcessStatus.CANCELLED
                 managed.termination_reason = "Runtime 关闭时清理"
-            await self._terminate(managed.process)
+            try:
+                await self._terminate(
+                    managed.process,
+                    process_group_id=managed.process_group_id,
+                )
+            except BaseException as exc:
+                errors.append(exc)
+            finally:
+                managed.termination_complete.set()
         if live:
-            await asyncio.gather(*(managed.finished.wait() for managed in live))
+            try:
+                async with asyncio.timeout(5):
+                    await asyncio.gather(*(managed.finished.wait() for managed in live))
+            except BaseException as exc:
+                errors.append(exc)
+        if errors:
+            primary, *additional = errors
+            for error in additional:
+                primary.add_note(f"额外的进程清理错误: {type(error).__name__}: {error}")
+            raise primary
         tasks = [
             task
             for managed in self._managed_processes.values()
@@ -199,6 +225,16 @@ class LocalExecutionTarget(ExecutionTarget):
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self._managed_processes.clear()
+
+    @classmethod
+    def _managed_process_alive(cls, managed: _ManagedProcess) -> bool:
+        if managed.finished.is_set():
+            return False
+        if managed.process.returncode is None:
+            return True
+        if managed.termination_complete.is_set():
+            return False
+        return cls._process_group_alive(managed.process_group_id)
 
     def _managed_process(self, process_id: str) -> _ManagedProcess:
         try:
@@ -232,9 +268,13 @@ class LocalExecutionTarget(ExecutionTarget):
 
     async def _monitor_managed_process(self, managed: _ManagedProcess) -> None:
         returncode = await managed.process.wait()
-        managed.finished_at = monotonic()
-        await asyncio.gather(*managed.readers, return_exceptions=True)
         managed.returncode = returncode
+        await asyncio.gather(*managed.readers, return_exceptions=True)
+        await self._wait_for_process_group_exit(
+            managed.process_group_id,
+            stop_event=managed.termination_complete,
+        )
+        managed.finished_at = monotonic()
         if managed.status == ProcessStatus.RUNNING:
             managed.status = ProcessStatus.COMPLETED if returncode == 0 else ProcessStatus.FAILED
         managed.finished.set()
@@ -253,7 +293,13 @@ class LocalExecutionTarget(ExecutionTarget):
             return
         managed.status = ProcessStatus.TIMED_OUT
         managed.termination_reason = f"达到 hard timeout {managed.spec.timeout_seconds:g} 秒"
-        await self._terminate(managed.process)
+        try:
+            await self._terminate(
+                managed.process,
+                process_group_id=managed.process_group_id,
+            )
+        finally:
+            managed.termination_complete.set()
 
     @staticmethod
     def _managed_snapshot(
@@ -307,14 +353,14 @@ class LocalExecutionTarget(ExecutionTarget):
         if os.name == "posix":
             kwargs["start_new_session"] = True
 
-        process = await asyncio.create_subprocess_exec(
-            *spec.argv,
+        process = await self._spawn_process(
+            spec.argv,
             cwd=str(cwd),
-            env=environment,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            environment=environment,
+            stdin=asyncio.subprocess.DEVNULL,
             **kwargs,
         )
+        process_group_id = process.pid if os.name == "posix" else None
         queue: asyncio.Queue[tuple[ProcessEventKind, bytes | None]] = asyncio.Queue()
 
         async def read_stream(stream: asyncio.StreamReader | None, kind: ProcessEventKind) -> None:
@@ -334,6 +380,7 @@ class LocalExecutionTarget(ExecutionTarget):
         completed_streams = 0
         emitted_bytes = 0
         truncated = False
+        completed = False
         try:
             while completed_streams < 2:
                 remaining = deadline - asyncio.get_running_loop().time()
@@ -370,15 +417,21 @@ class LocalExecutionTarget(ExecutionTarget):
                 raise TimeoutError(
                     f"命令执行超过 {spec.timeout_seconds:g} 秒: {spec.argv[0]}"
                 ) from None
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0 or not await self._wait_for_process_group_exit(
+                process_group_id,
+                timeout_seconds=max(0.0, remaining),
+            ):
+                raise TimeoutError(f"命令执行超过 {spec.timeout_seconds:g} 秒: {spec.argv[0]}")
+            completed = True
             yield ProcessEvent(
                 kind=ProcessEventKind.COMPLETED,
                 returncode=returncode,
                 truncated=truncated,
             )
-        except (asyncio.CancelledError, TimeoutError):
-            await self._terminate(process)
-            raise
         finally:
+            if not completed:
+                await self._terminate(process, process_group_id=process_group_id)
             for reader in readers:
                 if not reader.done():
                     reader.cancel()
@@ -405,25 +458,109 @@ class LocalExecutionTarget(ExecutionTarget):
         }
         return {key: value for key, value in os.environ.items() if key in allowed}
 
-    @staticmethod
-    async def _terminate(process: asyncio.subprocess.Process) -> None:
-        if process.returncode is not None:
-            return
-        if os.name == "posix":
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                return
-        else:
-            process.terminate()
+    @classmethod
+    async def _spawn_process(
+        cls,
+        argv: list[str],
+        *,
+        cwd: str,
+        environment: dict[str, str],
+        stdin: int,
+        **kwargs: object,
+    ) -> asyncio.subprocess.Process:
+        spawn = asyncio.create_task(
+            asyncio.create_subprocess_exec(
+                *argv,
+                cwd=cwd,
+                env=environment,
+                stdin=stdin,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                **kwargs,
+            )
+        )
         try:
-            await asyncio.wait_for(process.wait(), timeout=2)
-        except TimeoutError:
-            if os.name == "posix":
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    return
+            return await asyncio.shield(spawn)
+        except asyncio.CancelledError:
+            process = await spawn
+            await cls._terminate(
+                process,
+                process_group_id=process.pid if os.name == "posix" else None,
+            )
+            raise
+
+    @staticmethod
+    def _process_group_alive(process_group_id: int | None) -> bool:
+        if os.name != "posix" or process_group_id is None:
+            return False
+        try:
+            os.killpg(process_group_id, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    @classmethod
+    async def _wait_for_process_group_exit(
+        cls,
+        process_group_id: int | None,
+        *,
+        timeout_seconds: float | None = None,
+        stop_event: asyncio.Event | None = None,
+    ) -> bool:
+        if os.name != "posix" or process_group_id is None:
+            return True
+        deadline = (
+            asyncio.get_running_loop().time() + timeout_seconds
+            if timeout_seconds is not None
+            else None
+        )
+        while cls._process_group_alive(process_group_id):
+            if stop_event is not None and stop_event.is_set():
+                return False
+            if deadline is not None and asyncio.get_running_loop().time() >= deadline:
+                return False
+            await asyncio.sleep(0.05)
+        return True
+
+    @classmethod
+    async def _terminate(
+        cls,
+        process: asyncio.subprocess.Process,
+        *,
+        process_group_id: int | None = None,
+    ) -> None:
+        if os.name == "posix":
+            group_id = process_group_id or process.pid
+            try:
+                os.killpg(group_id, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             else:
-                process.kill()
-            await process.wait()
+                exited = await cls._wait_for_process_group_exit(group_id, timeout_seconds=2)
+                if not exited:
+                    try:
+                        os.killpg(group_id, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    await cls._wait_for_process_group_exit(group_id, timeout_seconds=2)
+        else:
+            if process.returncode is None:
+                process.terminate()
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=2)
+                except TimeoutError:
+                    process.kill()
+                    await process.wait()
+                return
+
+        if process.returncode is None:
+            try:
+                await asyncio.wait_for(process.wait(), timeout=2)
+            except TimeoutError:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+                await process.wait()

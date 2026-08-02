@@ -5,6 +5,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
@@ -162,6 +163,37 @@ def _harbor_subprocess_env() -> dict[str, str]:
     return env
 
 
+def _run_harbor(command: list[str], *, cwd: Path, env: dict[str, str]) -> int:
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=env,
+        start_new_session=os.name == "posix",
+    )
+    try:
+        return process.wait()
+    except BaseException:
+        if os.name == "posix":
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        elif process.poll() is None:
+            process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            if os.name == "posix":
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            else:
+                process.kill()
+            process.wait()
+        raise
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run kunpeng-cli-agent on Terminal-Bench 2.1 through Harbor"
@@ -291,12 +323,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         return 0
     jobs_dir.mkdir(parents=True, exist_ok=True)
-    return subprocess.run(
+    return _run_harbor(
         command,
         cwd=project_root,
         env=_harbor_subprocess_env(),
-        check=False,
-    ).returncode
+    )
 
 
 if __name__ == "__main__":

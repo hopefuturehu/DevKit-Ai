@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import signal
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -76,9 +77,7 @@ def _run(argv: list[str], *, cwd: Path, check: bool = True) -> subprocess.Comple
     )
 
 
-def _run_streaming(
-    argv: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Path
-) -> int:
+def _run_streaming(argv: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Path) -> int:
     """Run a process with output written directly to tail-able host files."""
     with (
         stdout_path.open("w", encoding="utf-8") as stdout,
@@ -90,8 +89,30 @@ def _run_streaming(
             text=True,
             stdout=stdout,
             stderr=stderr,
+            start_new_session=os.name == "posix",
         )
-        return process.wait()
+        try:
+            return process.wait()
+        except BaseException:
+            if os.name == "posix":
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+            elif process.poll() is None:
+                process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                if os.name == "posix":
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                else:
+                    process.kill()
+                process.wait()
+            raise
 
 
 def _append_log(path: Path, content: str) -> None:

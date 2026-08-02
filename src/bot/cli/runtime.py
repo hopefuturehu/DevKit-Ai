@@ -51,8 +51,20 @@ class Runtime:
     async def aclose(self) -> None:
         if self._closed:
             return
-        await self.subagents.shutdown()
-        await self.target.aclose()
+        errors: list[BaseException] = []
+        try:
+            await self.subagents.shutdown()
+        except BaseException as exc:
+            errors.append(exc)
+        try:
+            await self.target.aclose()
+        except BaseException as exc:
+            errors.append(exc)
+        if errors:
+            primary, *additional = errors
+            for error in additional:
+                primary.add_note(f"额外的 Runtime 清理错误: {type(error).__name__}: {error}")
+            raise primary
         self.store.close()
         self._closed = True
 
