@@ -142,7 +142,6 @@ def make_test_runner(
     model_config: dict | None = None,
     tools: list | None = None,
     context_config: dict | None = None,
-    memory_config: dict | None = None,
 ):
     model = {"base_url": "https://unused", "name": "mock"}
     model.update(model_config or {})
@@ -151,7 +150,6 @@ def make_test_runner(
             "model": model,
             "agent": agent_config or {},
             "context": context_config or {},
-            "memory": memory_config or {},
             "storage": {"state_path": str(tmp_path / "state.db")},
             "skills": {"path": str(tmp_path / "skills")},
         }

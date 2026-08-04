@@ -55,7 +55,6 @@ async def test_runtime_cleans_processes_when_subagent_shutdown_fails(tmp_path: P
         target=target,
         context=None,
         store=store,
-        memory=None,
         compactor=None,
         runner=None,
         subagents=_FailingSubagents(),

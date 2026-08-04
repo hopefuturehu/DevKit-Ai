@@ -115,7 +115,7 @@ def append_history(store: SQLiteSessionStore, session_id: str) -> None:
             role=Role.TOOL,
             name="read_file",
             tool_call_id="call-1",
-            content="agent.py 中存在旧的 Episode 拼装路径。",
+            content="agent.py 中存在旧的上下文拼装路径。",
         ),
     )
     store.append_message(
@@ -162,7 +162,7 @@ async def test_compaction_publishes_one_summary_without_deleting_source(
     )
     assert [item["position"] for item in source["messages"]] == [2, 3]
     assert source["source_verification"]["verified"] is True
-    assert store.search_session_messages(session_id, "Episode")[0]["position"] == 3
+    assert store.search_session_messages(session_id, "上下文拼装")[0]["position"] == 3
     assert provider.requests[0].temperature == 0
     assert EventType.CONTEXT_COMPACTION_COMPLETED in {event.type for event in events.events}
     forked = store.fork_session(session_id, up_to_position=4)

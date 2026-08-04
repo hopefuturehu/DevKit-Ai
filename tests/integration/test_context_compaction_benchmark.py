@@ -12,126 +12,29 @@ from bot.config.models import AppConfig
 from bot.core import AgentRunner, RunRequest
 from bot.core.context import ContextAssembler
 from bot.core.events import EventBus, EventType, MemoryEventSink
-from bot.core.models import ChatMessage, ModelEvent, ModelEventKind, ModelRequest
-from bot.evals.context_memory import (
-    DeterministicMemoryProvider,
-    benchmark_scenarios,
-    build_benchmark_config,
-    run_benchmark_scenario,
-    seed_long_context,
+from bot.core.models import (
+    ChatMessage,
+    ModelCapabilities,
+    ModelEvent,
+    ModelEventKind,
+    ModelRequest,
+    Role,
+    ToolCall,
 )
 from bot.execution import LocalExecutionTarget
-from bot.memory import MemoryConsolidator
 from bot.policy import DefaultPolicyEngine
+from bot.providers import ModelProvider
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
 from bot.tools import ToolRegistry
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("scenario", benchmark_scenarios(), ids=lambda item: item.id)
-async def test_long_context_scenarios_preserve_facts_and_reduce_projection(
-    tmp_path: Path,
-    scenario,
-) -> None:
-    result = await run_benchmark_scenario(
-        scenario,
-        workspace=tmp_path / scenario.id,
-        provider=DeterministicMemoryProvider(),
-        max_episodes_per_run=3,
-    )
-
-    assert result.passed, result.failures
-    assert result.raw_messages >= 36
-    assert result.batches >= 3
-    assert result.fact_recall == 1
-    assert result.retrieval_recall == 1
-    assert result.raw_preserved
-    assert result.source_traceable
-    assert result.snapshot_free
-
-
-@pytest.mark.asyncio
-async def test_long_context_consolidation_adapts_after_middle_batch_failure(
-    tmp_path: Path,
-) -> None:
-    scenario = benchmark_scenarios()[0]
-    workspace = tmp_path / "failure-recovery"
-    workspace.mkdir()
-    config = build_benchmark_config(
-        workspace / "state.db",
-        max_episodes_per_run=3,
-    )
-    store = SQLiteSessionStore(workspace / "state.db")
-    provider = DeterministicMemoryProvider(fail_calls={2})
-    consolidator = MemoryConsolidator(
-        config=config,
-        workspace=workspace,
-        provider=provider,
-        store=store,
-        event_bus=EventBus([store]),
-    )
-    session_id, original_digest = seed_long_context(
-        store,
-        workspace=workspace,
-        scenario=scenario,
-    )
-    store.seal_memory_episodes(session_id)
-
-    recovered = await consolidator.consolidate_all(session_id, trigger="failure-test")
-
-    assert recovered.consolidated
-    assert recovered.reason is None
-    assert provider.calls == 6
-    assert store.consolidated_memory_cursor(session_id) == 40
-    assert not store.list_memory_episodes(session_id, status="pending")
-    assert any(item["status"] == "failed" for item in store.list_memory_consolidations(session_id))
-    assert original_digest == _digest(store, session_id)
-    assert store.latest_context_snapshot(session_id) is None
-    store.close()
-
-
-@pytest.mark.asyncio
-async def test_long_context_terminal_failure_reports_partial_run_as_incomplete(
-    tmp_path: Path,
-) -> None:
-    scenario = benchmark_scenarios()[0]
-    workspace = tmp_path / "terminal-failure"
-    workspace.mkdir()
-    config = build_benchmark_config(
-        workspace / "state.db",
-        max_episodes_per_run=3,
-    )
-    store = SQLiteSessionStore(workspace / "state.db")
-    provider = DeterministicMemoryProvider(fail_calls={2, 3, 4})
-    consolidator = MemoryConsolidator(
-        config=config,
-        workspace=workspace,
-        provider=provider,
-        store=store,
-        event_bus=EventBus([store]),
-    )
-    session_id, original_digest = seed_long_context(
-        store,
-        workspace=workspace,
-        scenario=scenario,
-    )
-
-    result = await consolidator.consolidate_all(session_id, trigger="terminal-failure-test")
-
-    assert not result.consolidated
-    assert result.reason == "consolidation_failed"
-    assert result.episodes_consolidated == 3
-    assert store.consolidated_memory_cursor(session_id) == 12
-    assert len(store.list_memory_episodes(session_id, status="pending")) == 7
-    assert original_digest == _digest(store, session_id)
-    store.close()
-
-
-class _AgentAndCompactionProvider(DeterministicMemoryProvider):
+class _AgentAndCompactionProvider(ModelProvider):
     def __init__(self) -> None:
-        super().__init__()
         self.agent_requests: list[ModelRequest] = []
+
+    def capabilities(self, model: str) -> ModelCapabilities:
+        return ModelCapabilities()
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
         if request.messages[-1].name == "context_compaction_input":
@@ -141,7 +44,7 @@ class _AgentAndCompactionProvider(DeterministicMemoryProvider):
             facts: list[tuple[int, str]] = []
             for item in messages:
                 for line in str(item.get("content") or "").splitlines():
-                    if line.startswith("[MEMORY_FACT "):
+                    if line.startswith("[CONTEXT_FACT] "):
                         facts.append((int(item["position"]), line))
             reference = f"[m:{start}-{end}]"
             critical = (
@@ -176,11 +79,61 @@ class _AgentAndCompactionProvider(DeterministicMemoryProvider):
         yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
 
 
+def _seed_long_context(store: SQLiteSessionStore, workspace: Path) -> tuple[str, str]:
+    session_id = store.create_session(workspace)
+    for index in range(10):
+        run_id = f"migration-run-{index + 1:02d}"
+        tool_call_id = f"migration-tool-{index + 1:02d}"
+        label = f"阶段 {index + 1}/10"
+        store.start_run(session_id, run_id)
+        fact = "\n[CONTEXT_FACT] 公共 API 必须保持 v2 向后兼容。" if index == 0 else ""
+        store.append_message(
+            session_id,
+            run_id,
+            ChatMessage(role=Role.USER, content=f"{label}：继续迁移任务。{fact}"),
+        )
+        store.append_message(
+            session_id,
+            run_id,
+            ChatMessage(
+                role=Role.ASSISTANT,
+                content=f"正在执行 {label} 的诊断与验证。",
+                tool_calls=[
+                    ToolCall(
+                        id=tool_call_id,
+                        name="run_command",
+                        arguments={"argv": ["benchmark-step", str(index + 1)]},
+                    )
+                ],
+            ),
+        )
+        noise = "\n".join(
+            f"diagnostic step={index + 1:02d} sample={sample:03d} 阶段采样数据"
+            for sample in range(160)
+        )
+        store.append_message(
+            session_id,
+            run_id,
+            ChatMessage(
+                role=Role.TOOL,
+                name="run_command",
+                tool_call_id=tool_call_id,
+                content=f"{label} tool_success=true\n{noise}",
+            ),
+        )
+        store.append_message(
+            session_id,
+            run_id,
+            ChatMessage(role=Role.ASSISTANT, content=f"{label} 已完成。"),
+        )
+        store.finish_run(run_id, "completed")
+    return session_id, _digest(store, session_id)
+
+
 @pytest.mark.asyncio
 async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_source(
     tmp_path: Path,
 ) -> None:
-    scenario = benchmark_scenarios()[0]
     workspace = tmp_path / "recoverable-pressure"
     workspace.mkdir()
     config = AppConfig.model_validate(
@@ -197,7 +150,6 @@ async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_sour
                 "compaction_summary_tokens": 4_000,
                 "compaction_max_output_tokens": 4_000,
             },
-            "memory": {"auto_consolidate": False},
             "storage": {"state_path": str(workspace / "state.db")},
             "skills": {"path": str(workspace / "skills")},
         }
@@ -206,11 +158,7 @@ async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_sour
     store = SQLiteSessionStore(workspace / "state.db")
     events = MemoryEventSink()
     event_bus = EventBus([store, events])
-    session_id, original_digest = seed_long_context(
-        store,
-        workspace=workspace,
-        scenario=scenario,
-    )
+    session_id, original_digest = _seed_long_context(store, workspace)
     seed_latest = store.latest_message_position(session_id)
     catalog = SkillCatalog(workspace / "skills")
     catalog.scan()
@@ -246,13 +194,12 @@ async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_sour
     assert result.status == "completed"
     assert 0 < cursor < seed_latest
     assert len(store.list_context_compactions(session_id)) == 1
-    assert not store.list_memory_episodes(session_id)
     assert any(event.type == EventType.CONTEXT_CONSOLIDATED for event in events.events)
     assert provider.agent_requests
     request = provider.agent_requests[0]
     summaries = [message for message in request.messages if message.name == "context_compaction"]
     assert len(summaries) == 1
-    assert "阶段 1/10" in (summaries[0].content or "")
+    assert "公共 API 必须保持 v2 向后兼容" in (summaries[0].content or "")
     assert any(
         "阶段 10/10" in (message.content or "")
         for message in request.messages
@@ -278,13 +225,7 @@ def _message(item: dict) -> ChatMessage:
 
 
 def _digest(store: SQLiteSessionStore, session_id: str) -> str:
-    digest = hashlib.sha256()
-    for entry in store.load_positioned_messages(session_id):
-        digest.update(str(entry.position).encode())
-        digest.update(b"\0")
-        digest.update(entry.message.model_dump_json().encode())
-        digest.update(b"\n")
-    return digest.hexdigest()
+    return _digest_through(store, session_id, store.latest_message_position(session_id))
 
 
 def _digest_through(

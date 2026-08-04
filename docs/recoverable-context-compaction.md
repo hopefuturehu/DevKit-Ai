@@ -16,8 +16,8 @@ Core / Project / Skills / 显式记忆
         cursor 之后的原始消息
 ```
 
-旧的 Episode、Memory Card 和 `ContextSnapshot` 数据仍可读取；它们不再参与默认运行时
-上下文装配，也不会被迁移过程删除。
+旧的 `ContextSnapshot` 数据仍可读取，但不参与默认运行时上下文装配。已有数据库中曾由
+旧版本创建的语义记忆表不会在升级时被破坏性删除，新版本也不再访问这些表。
 
 ## 四个不变量
 
@@ -96,5 +96,5 @@ compaction_rebuild_every = 5
 `tests/unit/test_context_compaction.py` 验证事务发布、原文保留、失败不推进、回滚、原文重建、
 来源读取、检索和损坏自动降级。
 
-`tests/integration/test_context_memory_benchmark.py` 以 10 阶段长任务验证运行时只注入一个
+`tests/integration/test_context_compaction_benchmark.py` 以 10 阶段长任务验证运行时只注入一个
 摘要、保留近期原文、Tool 原子性、原始消息摘要不变和 snapshot-free。

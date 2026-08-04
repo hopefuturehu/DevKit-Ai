@@ -18,7 +18,6 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 - 运行中 steering、`/cancel`、五级上下文管理、可恢复单摘要压缩、显式长期记忆和
   Token/费用记录；
 - 压缩事务发布、完整 Transcript 保留、消息级来源引用、失败不推进、摘要回滚与原文重建；
-- 可选的旧版 Memory Episode/Card 整合、来源/Tool 证据验证和版本审计；
 - 持久化后台子 Agent Worker Pool：`explorer`/`reviewer` 只读并行调查，`coder`
   在独立 Git worktree 中修改；支持状态查询、等待、取消、崩溃后 fail-closed 恢复和
   required 结果自动汇合。
@@ -77,28 +76,6 @@ safety_margin_tokens = 2048
 compaction_summary_tokens = 8000
 compaction_max_output_tokens = 8192
 compaction_rebuild_every = 5
-
-[memory]
-enabled = true
-auto_consolidate = false
-# 仅供显式调用旧版 /consolidate 时使用
-# model = "<memory-model-id>"
-# 任一门限满足时启动：累计 Episode、距上次整合时间、未整合内容占上下文比例
-session_gate = 5
-time_gate_hours = 24
-context_utilization_gate = 0.70
-max_episodes_per_run = 8
-max_consolidation_batches = 16
-max_source_chars = 60000
-max_output_tokens = 4096
-episode_summary_tokens = 12000
-min_confidence = 0.65
-max_active_cards = 500
-stale_after_days = 90
-retrieval_limit = 24
-retrieval_candidate_limit = 200
-refresh_every_steps = 5
-failure_warning_threshold = 3
 
 [skills]
 path = "./skills"
@@ -171,14 +148,11 @@ Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 
 ```
 
 交互会话中可用 `/status`、`/tools`、`/agents`、`/skills`、`/model`、`/permissions`、
-`/compact`、`/compact rebuild`、`/compact rollback <id>`、`/consolidate`、
-`/remember`、`/memories`、`/memory-cards`、
-`/memory-history`、`/memory-forget`、`/new` 和 `/exit`。`/consolidate` 会分批处理当前会话
-尚未整合的旧版 Episode；默认运行时的 `/compact` 会在 Tool 原子组边界生成一个活动摘要，
+`/compact`、`/compact rebuild`、`/compact rollback <id>`、`/remember`、`/memories`、
+`/forget <id>`、`/new` 和 `/exit`。`/compact` 会在 Tool 原子组边界生成一个活动摘要，
 并以事务方式推进游标。原始消息不会因压缩而删除，模型可通过
 `search_session_history` 和 `load_compaction_source` 检索、回溯。完整设计见
-[可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)。旧版语义记忆设计见
-[LLM Episode 记忆整合](docs/memory-consolidation.md)。
+[可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)。
 
 Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`
 可取消当前运行。
@@ -204,5 +178,4 @@ daemon；父运行结束后仍未完成的 detached 任务会在 Runtime 关闭�
 .venv/bin/ruff format --check src tests
 .venv/bin/pytest -q
 .venv/bin/pip check
-.venv/bin/python scripts/run_context_memory_benchmark.py --provider deterministic
 ```

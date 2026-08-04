@@ -123,10 +123,9 @@ bot mcp list|add|remove      # 后续接入 MCP
 /compact       发布可恢复的单一活动摘要
 /compact rebuild 从原始 Transcript 重建活动摘要
 /compact rollback <id> 回滚到已验证的摘要版本
-/consolidate   分批整合所有待处理 Episode
-/memory-cards  查看当前有效 Memory Card
-/memory-history <id> 查看 Card 版本链
-/memory-forget <id>  可审计地撤销 Card
+/remember <text> 保存显式长期记忆
+/memories      查看显式长期记忆
+/forget <id>   软删除显式长期记忆
 /new           新建会话
 /exit          退出
 ```
@@ -199,7 +198,6 @@ tool.started
 tool.output
 tool.completed
 context.consolidated
-memory.consolidation.started|completed|failed
 run.steered
 run.failed
 run.completed
@@ -370,9 +368,6 @@ SessionStore
   create_session(...)
   append_event(session_id, event)
   load_events(session_id, cursor?)
-  seal_memory_episode_range(session_id, run_id, end_position)
-  consolidated_memory_cursor(session_id)
-  search_active_memory_cards(workspace, session_id, query)
   fork_session(session_id, event_cursor)
 ```
 
@@ -444,21 +439,14 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 
 `/compact` 发布新的恢复点，`/compact rebuild` 从原文重建，`/compact rollback <id>` 切换
 到已验证的历史版本。原始消息、Tool Run 和事件始终是事实来源，不因压缩而删除。旧
-`ContextSnapshot`、Episode 和 Card 结构仅为兼容及显式语义记忆整合保留，不进入默认运行
-上下文。详细状态机和不变量见
+`ContextSnapshot` 仅为 API 兼容保留，不进入默认运行上下文。详细状态机和不变量见
 [可恢复的单摘要上下文压缩](recoverable-context-compaction.md)。
 
 ### 7.3 长期记忆
 
-显式记忆仍支持用户直接写入，例如“记住我默认使用 pnpm”。兼容命令 `/consolidate`
-保留受约束的 Episode/Card 候选流程，但其结果不再自动注入主 Agent 上下文：
-
-1. LLM 从指定 Episode 提出带稳定 `memory_key`、来源位置和证据引用的候选操作；
-2. Harness 确定性验证用户权威、成功 Tool 结果、blob、作用域和目标 Card；
-3. 同一稳定键更新同一 Card，所有更新、冲突消解、Prune 和用户撤销均写入版本链；
-4. 检索采用 SQLite 倒排词项加确定性重排，命中后可按限定 Episode 引用回溯原文。
-
-LLM 不能直接写 Memory Card；无效、低置信、伪造来源或越权候选只保留拒绝审计。
+显式长期记忆由用户通过 `/remember <text>` 直接写入 SQLite。每次运行开始时，Agent 在
+`context.memory_tokens` 预算内加载未删除的记忆，并以 User 信任域的 Memory Layer 注入；
+记忆不能覆盖 Core Policy 或项目指令。`/forget <id>` 采用软删除，保留审计时间。
 
 ### 7.4 Skill
 
@@ -641,11 +629,7 @@ SQLite 表的最小集合：
 - `messages`：便于查询的消息投影；
 - `tool_runs`：工具参数摘要、状态、耗时和结果摘要；
 - `approvals`：请求、决定、范围和策略来源；
-- `memories`：显式记忆、来源、版本和删除状态；
-- `memory_episodes`、`memory_consolidation_runs`、`memory_candidates`：Episode 状态机、
-  LLM 整合事务、候选及拒绝原因；
-- `memory_cards`、`memory_card_versions`、`memory_card_terms`、`memory_retrievals`：
-  版本化语义记忆、倒排索引和检索/访问指标；
+- `memories`：显式记忆、来源和删除状态；
 - `context_blobs`、`context_blob_access`：大内容和显式跨 session 引用授权；
 - `context_snapshots`：仅供旧数据库/API 兼容读取；生产运行不再写入或恢复；
 - `agent_tasks`：父/子会话、profile、任务约束、状态机、幂等键、结果、用量和恢复信息；
@@ -702,26 +686,6 @@ memory_tokens = 8000
 tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
 
-[memory]
-enabled = true
-auto_consolidate = true
-# model = "<optional-memory-model-id>"
-session_gate = 5
-time_gate_hours = 24
-context_utilization_gate = 0.70
-max_episodes_per_run = 8
-max_consolidation_batches = 16
-max_source_chars = 60000
-max_output_tokens = 4096
-episode_summary_tokens = 12000
-min_confidence = 0.65
-max_active_cards = 500
-stale_after_days = 90
-retrieval_limit = 24
-retrieval_candidate_limit = 200
-refresh_every_steps = 5
-failure_warning_threshold = 3
-
 [skills]
 path = "./skills"
 auto_activate = true
@@ -766,7 +730,6 @@ bot/
 │   ├── sessions/            # SQLite store、migration、projection
 │   ├── skills/              # Skill 发现、匹配、加载
 │   ├── subagents/           # 后台 Worker Pool、profile、状态机和控制 Tool
-│   ├── memory/              # LLM Episode 记忆整合、检索、数据模型
 │   ├── config/              # Schema、分层加载、凭据引用
 │   ├── evals/               # 基准场景、Runner、SWE-bench 适配
 │   └── observability/       # 脱敏、trace 导出
@@ -864,7 +827,7 @@ vs
 
 - SQLite 事件存储；
 - resume/fork；
-- 上下文发现、Token 预算和 LLM Episode 记忆整合；
+- 上下文发现、Token 预算、可恢复摘要和显式长期记忆；
 - usage/cost/doctor；
 - 通用任务集与鲲鹏任务集的稳定回放和对比报告。
 - 一级后台子 Agent Worker Pool、Git worktree 写隔离、状态机恢复。

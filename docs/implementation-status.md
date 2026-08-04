@@ -1,6 +1,6 @@
 # MVP 实现状态
 
-> 更新日期：2026-07-29
+> 更新日期：2026-08-04
 > 结论：设计中 Milestone 0–3 及可恢复单摘要上下文压缩的本地代码闭环已经实现；
 > 需要真实凭据或鲲鹏 ARM 环境的项目保留为环境验收，不伪造通过结果。
 
@@ -15,9 +15,8 @@
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、同步等待/进程寿命分离、增量输出、hard timeout、leader 退出后的 PGID 跟踪与异常关闭清理 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
 | 审批 | once/session/always/deny；永久授权按 workspace、Tool 和精确结构化参数匹配 | `src/bot/core/approval.py` |
-| 会话与审计 | SQLite migration v9、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、显式记忆和用量统计 | `src/bot/sessions/` |
+| 会话与审计 | SQLite migration v10、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、显式记忆和用量统计 | `src/bot/sessions/` |
 | 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、单一活动摘要、事务发布、原文重建/回滚和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py`、`src/bot/compaction/` |
-| 记忆整合 | 默认运行不注入 Episode/Card；旧版 Time/Session/Explicit/Pressure Gate、结构化 Card 校验、版本/来源审计和检索作为显式兼容能力保留 | `src/bot/memory/`、`docs/memory-consolidation.md` |
 | 子 Agent | 一级后台 Worker Pool、独立 child session/Runner/Skill/Policy、只读 profile、Git worktree 写隔离、定向 blob 授权、required 汇合、状态查询/等待/取消和 fail-closed 恢复 | `src/bot/subagents/` |
 | Skill | 单一目录发现、资格过滤、三段式披露、显式/自动多选、资源按需加载和 reload | `src/bot/skills/` |
 | 鲲鹏扩展 | KSYS、DevKit Tuner 结构化 Subprocess Adapter；非 ARM/缺工具时返回手动命令 | `src/bot/tools/kunpeng/` |
@@ -35,12 +34,11 @@
 ```
 
 测试覆盖除 Provider 流、完整 Agent Loop、审批作用域、五级上下文管理、
-超大单消息、Episode 分段/并发 claim/连续游标恢复、Provider 超限重试、Skill 多选、路径逃逸、进程组终止、
+超大单消息、可恢复摘要游标、Provider 超限重试、Skill 多选、路径逃逸、进程组终止、
 KSYS/Tuner 参数映射、CLI JSONL 和 Eval runner 外，还覆盖子 Agent 并发上限、状态 CAS、
 取消竞态、崩溃恢复、跨工作区调度隔离、审批让出并发槽、父/子上下文与 blob 隔离、
 内部状态库禁读、执行层 Tool allowlist、required 结果原子汇合、包含新文件内容的 Git worktree
-写隔离，以及 Memory 候选来源/权限校验、稳定键更新、Prune、索引检索、访问指标、
-跨 workspace 回溯隔离、v7→v8 迁移和失败重试。
+写隔离，以及显式长期记忆的写入、注入和软删除。
 构建后的 wheel 另行执行 `bot init` 烟测，
 确认内置 Skill 可释放到工作区。
 

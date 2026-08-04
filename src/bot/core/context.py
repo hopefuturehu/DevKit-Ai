@@ -733,8 +733,8 @@ def compact_messages(
 ) -> tuple[list[ChatMessage], dict[str, int] | None]:
     """Legacy compatibility shim.
 
-    Production runtime uses LLM Episode summaries. This deterministic helper remains
-    for API compatibility and never stacks summaries from earlier calls.
+    Production runtime uses recoverable single-summary compaction. This deterministic
+    helper remains for API compatibility and never stacks summaries from earlier calls.
     """
     before_tokens = estimate_tokens(messages, tool_schema_chars)
     if before_tokens < int(max_tokens * threshold):

@@ -311,7 +311,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     "active_skills": list(runtime.skills.active),
                     "context_manifest": runtime.context.manifest(),
                     "context": runtime.runner.context_status(session_id),
-                    "memory": runtime.memory.status(session_id),
+                    "explicit_memories": len(runtime.store.list_memories()),
                     "usage": usage,
                 }
             )
@@ -402,25 +402,6 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     f"已回滚活动摘要：id={record['id']}，cursor={record['covered_end_position']}。"
                 )
             continue
-        if prompt == "/consolidate":
-            result = await runtime.memory.consolidate_all(
-                session_id,
-                trigger="explicit",
-            )
-            if result.consolidated:
-                console.print(
-                    "记忆整合完成："
-                    f"episodes={result.episodes_consolidated}，"
-                    f"accepted={result.candidates_accepted}，"
-                    f"rejected={result.candidates_rejected}，"
-                    f"cards+={result.cards_created}，"
-                    f"cards~={result.cards_updated}。"
-                )
-            elif result.error:
-                console.print(f"记忆整合失败：{result.error}")
-            else:
-                console.print(f"无需整合：{result.reason}")
-            continue
         if prompt == "/skills":
             _print_skills(runtime.catalog, active=set(runtime.skills.active))
             continue
@@ -434,8 +415,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
         if prompt in {"/help", "?"}:
             console.print(
                 "/status /tools /skills /skills reload /remember <text> "
-                "/memories /memory-cards /memory-history <id> /memory-forget <id> "
-                "/consolidate /forget <id> "
+                "/memories /forget <id> "
                 "/agents /model /permissions /compact /compact rebuild "
                 "/compact rollback <id> /new /exit"
             )
@@ -450,44 +430,6 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                 console.print("暂无长期记忆。")
             for item in memories:
                 console.print(f"[{item['id']}] {item['content']} [dim]({item['source']})[/dim]")
-            continue
-        if prompt == "/memory-cards":
-            cards = runtime.store.list_active_memory_cards(
-                workspace=runtime.workspace,
-                session_id=session_id,
-                limit=runtime.config.memory.retrieval_limit * 4,
-            )
-            if not cards:
-                console.print("暂无 LLM 整合的有效 Memory Card。")
-            for item in cards:
-                console.print(
-                    f"[memory:{item['id']}] {item['kind']}/{item['scope']} "
-                    f"key={item['memory_key']} confidence={float(item['confidence']):.2f} "
-                    f"access={item['access_count']} {item['content']}"
-                )
-            continue
-        if prompt.startswith("/memory-history "):
-            memory_id = prompt.removeprefix("/memory-history ").strip()
-            card = runtime.store.get_memory_card_for_session(
-                memory_id=memory_id,
-                workspace=runtime.workspace,
-                session_id=session_id,
-            )
-            if card is None:
-                console.print("未找到该 Memory Card。")
-            else:
-                versions = runtime.store.list_memory_card_versions(memory_id)
-                console.print({"card": card, "versions": versions})
-            continue
-        if prompt.startswith("/memory-forget "):
-            memory_id = prompt.removeprefix("/memory-forget ").strip()
-            retracted = runtime.store.retract_memory_card(
-                memory_id=memory_id,
-                workspace=runtime.workspace,
-                session_id=session_id,
-                reason="用户通过 /memory-forget 显式撤销",
-            )
-            console.print("已撤销并保留版本审计。" if retracted else "未找到有效 Memory Card。")
             continue
         if prompt.startswith("/forget "):
             try:
@@ -717,17 +659,6 @@ safety_margin_tokens = 2048
 # compaction_model = ""
 compaction_summary_tokens = 8000
 compaction_rebuild_every = 5
-
-[memory]
-enabled = true
-auto_consolidate = true
-# 可选：单独指定低成本整合模型；留空则复用 model.name
-# model = ""
-session_gate = 5
-time_gate_hours = 24
-context_utilization_gate = 0.70
-episode_summary_tokens = 12000
-min_confidence = 0.65
 
 [subagents]
 enabled = true
