@@ -1,6 +1,6 @@
 # MVP 实现状态
 
-> 更新日期：2026-08-04
+> 更新日期：2026-08-06
 > 结论：设计中 Milestone 0–3 及可恢复单摘要上下文压缩的本地代码闭环已经实现；
 > 需要真实凭据或鲲鹏 ARM 环境的项目保留为环境验收，不伪造通过结果。
 
@@ -15,8 +15,9 @@
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、同步等待/进程寿命分离、增量输出、hard timeout、leader 退出后的 PGID 跟踪与异常关闭清理 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
 | 审批 | once/session/always/deny；永久授权按 workspace、Tool 和精确结构化参数匹配 | `src/bot/core/approval.py` |
-| 会话与审计 | SQLite migration v10、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、显式记忆和用量统计 | `src/bot/sessions/` |
+| 会话与审计 | SQLite migration v11、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、记忆提取任务元数据和用量统计 | `src/bot/sessions/` |
 | 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、单一活动摘要、事务发布、原文重建/回滚和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py`、`src/bot/compaction/` |
+| 长期记忆 | SQLite 历史证据、`USER.md` 显式记忆、Root Run 异步提取、Markdown 自动索引、冲突隔离、遗忘抑制、分信任注入、检索和证据回读 | `src/bot/memory/`、`docs/markdown-memory.md` |
 | 子 Agent | 一级后台 Worker Pool、独立 child session/Runner/Skill/Policy、只读 profile、Git worktree 写隔离、定向 blob 授权、required 汇合、状态查询/等待/取消和 fail-closed 恢复 | `src/bot/subagents/` |
 | Skill | 单一目录发现、资格过滤、三段式披露、显式/自动多选、资源按需加载和 reload | `src/bot/skills/` |
 | 鲲鹏扩展 | KSYS、DevKit Tuner 结构化 Subprocess Adapter；非 ARM/缺工具时返回手动命令 | `src/bot/tools/kunpeng/` |
@@ -38,7 +39,8 @@
 KSYS/Tuner 参数映射、CLI JSONL 和 Eval runner 外，还覆盖子 Agent 并发上限、状态 CAS、
 取消竞态、崩溃恢复、跨工作区调度隔离、审批让出并发槽、父/子上下文与 blob 隔离、
 内部状态库禁读、执行层 Tool allowlist、required 结果原子汇合、包含新文件内容的 Git worktree
-写隔离，以及显式长期记忆的写入、注入和软删除。
+写隔离，以及显式/自动 Markdown 记忆、旧 SQLite 迁移、提取幂等、敏感内容过滤、
+冲突隔离、遗忘抑制、分信任注入和证据引用。
 构建后的 wheel 另行执行 `bot init` 烟测，
 确认内置 Skill 可释放到工作区。
 

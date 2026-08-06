@@ -77,6 +77,22 @@ class ContextConfig(StrictModel):
     compaction_rebuild_every: int = Field(default=5, ge=1, le=100)
 
 
+class MemoryConfig(StrictModel):
+    enabled: bool = True
+    path: str = "./.bot/memory"
+    auto_extract: bool = True
+    model: str | None = None
+    max_runs_per_cycle: int = Field(default=3, ge=1, le=100)
+    max_attempts: int = Field(default=3, ge=1, le=20)
+    max_candidates_per_run: int = Field(default=5, ge=1, le=20)
+    max_source_tokens: int = Field(default=24_000, ge=1_000)
+    max_message_chars: int = Field(default=8_000, ge=500)
+    max_output_tokens: int = Field(default=2_048, ge=256)
+    min_confidence: float = Field(default=0.75, ge=0, le=1)
+    index_tokens: int = Field(default=2_000, ge=256)
+    search_limit: int = Field(default=8, ge=1, le=50)
+
+
 class SkillsConfig(StrictModel):
     path: str = "./skills"
     auto_activate: bool = True
@@ -99,6 +115,7 @@ class AppConfig(StrictModel):
     subagents: SubagentsConfig = Field(default_factory=SubagentsConfig)
     permissions: PermissionsConfig = Field(default_factory=PermissionsConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
     skills: SkillsConfig = Field(default_factory=SkillsConfig)
     display: DisplayConfig = Field(default_factory=DisplayConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
@@ -123,6 +140,13 @@ class AppConfig(StrictModel):
         worktree_dir = Path(self.subagents.worktree_dir)
         if not worktree_dir.parts or worktree_dir.is_absolute() or ".." in worktree_dir.parts:
             raise ValueError("subagents.worktree_dir 必须是工作区内相对路径")
+        memory_path = Path(self.memory.path).expanduser()
+        if not memory_path.parts or str(memory_path) in {".", ".."}:
+            raise ValueError("memory.path 不能指向工作区或空路径")
+        if not memory_path.is_absolute() and ".." in memory_path.parts:
+            raise ValueError("memory.path 相对路径不能包含 ..")
+        if memory_path.is_absolute() and memory_path == Path(memory_path.anchor):
+            raise ValueError("memory.path 不能指向文件系统根目录")
         return self
 
     def skill_path(self, workspace: Path) -> Path:
@@ -131,4 +155,8 @@ class AppConfig(StrictModel):
 
     def state_path(self, workspace: Path) -> Path:
         path = Path(self.storage.state_path).expanduser()
+        return path.resolve() if path.is_absolute() else (workspace / path).resolve()
+
+    def memory_path(self, workspace: Path) -> Path:
+        path = Path(self.memory.path).expanduser()
         return path.resolve() if path.is_absolute() else (workspace / path).resolve()

@@ -14,7 +14,7 @@ from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 
 class SQLiteSessionStore(EventSink):
@@ -122,6 +122,28 @@ class SQLiteSessionStore(EventSink):
                     created_at TEXT NOT NULL,
                     deleted_at TEXT
                 );
+                CREATE TABLE IF NOT EXISTS memory_extraction_runs (
+                    run_id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    workspace TEXT NOT NULL,
+                    source_sha256 TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    candidate_count INTEGER NOT NULL DEFAULT 0,
+                    added_count INTEGER NOT NULL DEFAULT 0,
+                    merged_count INTEGER NOT NULL DEFAULT 0,
+                    conflict_count INTEGER NOT NULL DEFAULT 0,
+                    input_tokens INTEGER NOT NULL DEFAULT 0,
+                    output_tokens INTEGER NOT NULL DEFAULT 0,
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    error TEXT,
+                    FOREIGN KEY(run_id) REFERENCES runs(id),
+                    FOREIGN KEY(session_id) REFERENCES sessions(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_memory_extraction_status_started
+                    ON memory_extraction_runs(status, started_at);
                 CREATE TABLE IF NOT EXISTS context_compactions (
                     id TEXT PRIMARY KEY,
                     session_id TEXT NOT NULL,
@@ -304,6 +326,16 @@ class SQLiteSessionStore(EventSink):
                 WHERE status = 'building' AND created_at < ?
                 """,
                 (stale_build_cutoff,),
+            )
+            self._connection.execute(
+                """
+                UPDATE memory_extraction_runs
+                SET status = 'failed',
+                    completed_at = ?,
+                    error = 'recovered_stale_build'
+                WHERE status = 'building' AND started_at < ?
+                """,
+                (datetime.now(UTC).isoformat(), stale_build_cutoff),
             )
             applied_at = datetime.now(UTC).isoformat()
             self._connection.executemany(
@@ -1901,6 +1933,209 @@ class SQLiteSessionStore(EventSink):
                 (action_fingerprint,),
             ).fetchone()
         return row is not None
+
+    def list_memory_extraction_candidates(
+        self,
+        workspace: Path,
+        *,
+        limit: int,
+        max_attempts: int,
+        run_id: str | None = None,
+        exclude_run_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        clauses = [
+            "r.status = 'completed'",
+            "s.parent_session_id IS NULL",
+            "s.workspace = ?",
+            "(e.run_id IS NULL OR (e.status = 'failed' AND e.attempts < ?))",
+        ]
+        parameters: list[Any] = [str(workspace.resolve()), max_attempts]
+        if run_id is not None:
+            clauses.append("r.id = ?")
+            parameters.append(run_id)
+        if exclude_run_id is not None:
+            clauses.append("r.id != ?")
+            parameters.append(exclude_run_id)
+        parameters.append(max(1, min(limit, 100)))
+        with self._lock:
+            rows = self._connection.execute(
+                f"""
+                SELECT r.id AS run_id, r.session_id, r.completed_at, s.workspace,
+                       COALESCE(e.attempts, 0) AS attempts
+                FROM runs AS r
+                JOIN sessions AS s ON s.id = r.session_id
+                LEFT JOIN memory_extraction_runs AS e ON e.run_id = r.id
+                WHERE {" AND ".join(clauses)}
+                ORDER BY r.completed_at DESC, r.id DESC
+                LIMIT ?
+                """,
+                parameters,
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def load_run_positioned_messages(self, run_id: str) -> list[PositionedMessage]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT position, message_json
+                FROM messages WHERE run_id = ? ORDER BY position
+                """,
+                (run_id,),
+            ).fetchall()
+        return [
+            PositionedMessage(
+                position=int(row["position"]),
+                message=ChatMessage.model_validate_json(row["message_json"]),
+            )
+            for row in rows
+        ]
+
+    def load_messages_at_positions(
+        self,
+        session_id: str,
+        positions: list[int],
+    ) -> list[PositionedMessage]:
+        selected = sorted({position for position in positions if position > 0})
+        if not selected:
+            return []
+        placeholders = ",".join("?" for _ in selected)
+        with self._lock:
+            rows = self._connection.execute(
+                f"""
+                SELECT position, message_json
+                FROM messages
+                WHERE session_id = ? AND position IN ({placeholders})
+                ORDER BY position
+                """,
+                (session_id, *selected),
+            ).fetchall()
+        return [
+            PositionedMessage(
+                position=int(row["position"]),
+                message=ChatMessage.model_validate_json(row["message_json"]),
+            )
+            for row in rows
+        ]
+
+    def start_memory_extraction(
+        self,
+        *,
+        run_id: str,
+        session_id: str,
+        workspace: Path,
+        source_sha256: str,
+        model: str,
+    ) -> bool:
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._connection:
+            existing = self._connection.execute(
+                """
+                SELECT status, source_sha256, attempts
+                FROM memory_extraction_runs WHERE run_id = ?
+                """,
+                (run_id,),
+            ).fetchone()
+            if existing is not None and existing["status"] == "building":
+                return False
+            if (
+                existing is not None
+                and existing["status"] == "ready"
+                and existing["source_sha256"] == source_sha256
+            ):
+                return False
+            attempts = int(existing["attempts"]) + 1 if existing is not None else 1
+            self._connection.execute(
+                """
+                INSERT INTO memory_extraction_runs(
+                    run_id, session_id, workspace, source_sha256, status, model,
+                    attempts, started_at
+                ) VALUES (?, ?, ?, ?, 'building', ?, ?, ?)
+                ON CONFLICT(run_id) DO UPDATE SET
+                    session_id = excluded.session_id,
+                    workspace = excluded.workspace,
+                    source_sha256 = excluded.source_sha256,
+                    status = 'building',
+                    model = excluded.model,
+                    attempts = excluded.attempts,
+                    candidate_count = 0,
+                    added_count = 0,
+                    merged_count = 0,
+                    conflict_count = 0,
+                    input_tokens = 0,
+                    output_tokens = 0,
+                    started_at = excluded.started_at,
+                    completed_at = NULL,
+                    error = NULL
+                """,
+                (
+                    run_id,
+                    session_id,
+                    str(workspace.resolve()),
+                    source_sha256,
+                    model,
+                    attempts,
+                    now,
+                ),
+            )
+        return True
+
+    def complete_memory_extraction(
+        self,
+        run_id: str,
+        *,
+        candidate_count: int,
+        added_count: int,
+        merged_count: int,
+        conflict_count: int,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE memory_extraction_runs
+                SET status = 'ready', candidate_count = ?, added_count = ?,
+                    merged_count = ?, conflict_count = ?, input_tokens = ?,
+                    output_tokens = ?, completed_at = ?, error = NULL
+                WHERE run_id = ? AND status = 'building'
+                """,
+                (
+                    candidate_count,
+                    added_count,
+                    merged_count,
+                    conflict_count,
+                    input_tokens,
+                    output_tokens,
+                    datetime.now(UTC).isoformat(),
+                    run_id,
+                ),
+            )
+
+    def fail_memory_extraction(self, run_id: str, error: str) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE memory_extraction_runs
+                SET status = 'failed', completed_at = ?, error = ?
+                WHERE run_id = ? AND status = 'building'
+                """,
+                (
+                    datetime.now(UTC).isoformat(),
+                    str(self._sanitizer(error))[:4_000],
+                    run_id,
+                ),
+            )
+
+    def list_memory_extractions(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT * FROM memory_extraction_runs
+                ORDER BY started_at DESC LIMIT ?
+                """,
+                (max(1, min(limit, 500)),),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def add_memory(self, content: str, *, source: str = "user") -> int:
         content = self._sanitizer(content.strip())

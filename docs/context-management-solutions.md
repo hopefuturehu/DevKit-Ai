@@ -290,9 +290,11 @@ def _density_score(text: str, age_rank: int, total_count: int) -> float:
 
 **长期记忆刷新**：
 
-- `SQLiteSessionStore.list_memories()` 每次调用都实时查询 SQLite（已如此），但 `AgentRunner._run_loop` 中 `memory_items` 在运行开始时构建一次就不再更新
-- 方案：在 `_build_context_items` 中检查 memory 表的最大 `id` 是否变化；如果变化，重新加载 memory_items
-- 频率控制：每 5 个 step 才检查一次，避免频繁 SQL 查询
+- 当前实现已改为 Markdown 记忆：`USER.md` 是显式记忆，`MEMORY.md` 是自动主题文件的
+  生成索引，两者只在 Run 开始时装配一次。
+- 运行中的记忆视图保持稳定；`/remember` 是空闲会话命令，自动提取也只影响后续 Run，
+  避免同一次模型循环的上下文无提示变化。
+- 需要核验细节时调用 `search_memory` 和 `load_memory_evidence`，不在每个 step 轮询文件。
 
 ---
 

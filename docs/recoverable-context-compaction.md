@@ -9,7 +9,7 @@
 运行时视图为：
 
 ```text
-Core / Project / Skills / 显式记忆
+Core / Project / Skills / USER.md / 自动记忆短索引
                   +
         一个 Active Compaction
                   +

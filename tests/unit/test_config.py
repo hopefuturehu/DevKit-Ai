@@ -86,6 +86,8 @@ def test_subagent_limits_are_strictly_validated(tmp_path: Path) -> None:
         load_config(tmp_path, overrides={"subagents": {"max_concurrent": 0}})
     with pytest.raises(ConfigError, match="worktree_dir"):
         load_config(tmp_path, overrides={"subagents": {"worktree_dir": "../escape"}})
+    with pytest.raises(ConfigError, match="memory.path"):
+        load_config(tmp_path, overrides={"memory": {"path": "."}})
 
 
 def test_config_writer_is_atomic_and_validates_values(tmp_path: Path) -> None:

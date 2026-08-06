@@ -15,8 +15,8 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 - 指定目录 Skill 的三段式披露、自动或 `$skill-name` 显式激活、资源按需读取；
 - KSYS 与 DevKit Tuner 的结构化 Subprocess CLI Adapter；
 - x86 或缺少工具时生成鲲鹏 ARM 手动执行命令并接受后续自由文本结果；
-- 运行中 steering、`/cancel`、五级上下文管理、可恢复单摘要压缩、显式长期记忆和
-  Token/费用记录；
+- 运行中 steering、`/cancel`、五级上下文管理、可恢复单摘要压缩、显式/自动 Markdown
+  长期记忆和 Token/费用记录；
 - 压缩事务发布、完整 Transcript 保留、消息级来源引用、失败不推进、摘要回滚与原文重建；
 - 持久化后台子 Agent Worker Pool：`explorer`/`reviewer` 只读并行调查，`coder`
   在独立 Git worktree 中修改；支持状态查询、等待、取消、崩溃后 fail-closed 恢复和
@@ -76,6 +76,17 @@ safety_margin_tokens = 2048
 compaction_summary_tokens = 8000
 compaction_max_output_tokens = 8192
 compaction_rebuild_every = 5
+
+[memory]
+enabled = true
+path = "./.bot/memory"
+auto_extract = true
+# 可选；留空时复用主模型
+# model = "<memory-extraction-model-id>"
+max_runs_per_cycle = 3
+max_candidates_per_run = 5
+min_confidence = 0.75
+index_tokens = 2000
 
 [skills]
 path = "./skills"
@@ -149,10 +160,16 @@ Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 
 
 交互会话中可用 `/status`、`/tools`、`/agents`、`/skills`、`/model`、`/permissions`、
 `/compact`、`/compact rebuild`、`/compact rollback <id>`、`/remember`、`/memories`、
-`/forget <id>`、`/new` 和 `/exit`。`/compact` 会在 Tool 原子组边界生成一个活动摘要，
+`/forget <id-or-key>`、`/memory extract [run-id]`、`/new` 和 `/exit`。`/compact` 会在
+Tool 原子组边界生成一个活动摘要，
 并以事务方式推进游标。原始消息不会因压缩而删除，模型可通过
 `search_session_history` 和 `load_compaction_source` 检索、回溯。完整设计见
 [可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)。
+
+会话和证据继续保存在 SQLite；显式记忆写入受保护的 `USER.md` 并以 `USER` 信任加载，
+已完成 Root Run 会在后续运行开始时异步提取为 Markdown 自动记忆。自动记忆不需要逐条
+审核，但始终以 `UNTRUSTED` 加载，冲突不会静默覆盖，且可通过 `load_memory_evidence`
+回查 SQLite 原文。详见 [Markdown 长期记忆](docs/markdown-memory.md)。
 
 Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`
 可取消当前运行。

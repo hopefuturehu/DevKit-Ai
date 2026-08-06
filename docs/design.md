@@ -124,8 +124,9 @@ bot mcp list|add|remove      # 后续接入 MCP
 /compact rebuild 从原始 Transcript 重建活动摘要
 /compact rollback <id> 回滚到已验证的摘要版本
 /remember <text> 保存显式长期记忆
-/memories      查看显式长期记忆
-/forget <id>   软删除显式长期记忆
+/memories      查看显式与自动长期记忆
+/forget <id-or-key> 删除显式记忆或抑制自动记忆
+/memory extract [run-id] 手动提取已完成 Root Run
 /new           新建会话
 /exit          退出
 ```
@@ -444,9 +445,22 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 
 ### 7.3 长期记忆
 
-显式长期记忆由用户通过 `/remember <text>` 直接写入 SQLite。每次运行开始时，Agent 在
-`context.memory_tokens` 预算内加载未删除的记忆，并以 User 信任域的 Memory Layer 注入；
-记忆不能覆盖 Core Policy 或项目指令。`/forget <id>` 采用软删除，保留审计时间。
+长期记忆采用“SQLite 历史事实源 + Markdown 记忆投影”的物理分层：
+
+- `runs/messages/tool_runs` 和证据位置继续保存在 SQLite；
+- `/remember <text>` 写入受保护的 `USER.md`，以 User 信任域注入；
+- 已完成 Root Run 在后续运行开始时异步提取，正文直接巩固到 `topics/*.md`；
+- `MEMORY.md` 是由活动主题文件生成的短索引，只以 Untrusted 信任域注入；
+- 不使用审核 Inbox。完全重复的观察合并证据，同 key 不同内容进入 `CONFLICTS.md`，
+  不静默覆盖已有活动记忆；
+- `/forget` 对自动记忆同时写入 `FORGET.md`，避免后续重新学习；
+- `search_memory` 检索当前文件记忆，`load_memory_evidence` 只按记忆内绑定的引用回读
+  同工作区 SQLite 消息。
+
+文件路径决定信任级别，Markdown 内的标签不能提升权限。普通 Agent 文件和 Shell Tool
+无法访问记忆根目录；自动提取器也不能写 `USER.md`。旧 SQLite `memories` 行在运行时
+幂等导入 `USER.md` 后软删除，仅保留兼容迁移能力。详细格式、不变量和失败行为见
+[Markdown 长期记忆](markdown-memory.md)。
 
 ### 7.4 Skill
 
@@ -629,7 +643,8 @@ SQLite 表的最小集合：
 - `messages`：便于查询的消息投影；
 - `tool_runs`：工具参数摘要、状态、耗时和结果摘要；
 - `approvals`：请求、决定、范围和策略来源；
-- `memories`：显式记忆、来源和删除状态；
+- `memories`：只用于旧显式记忆的兼容迁移；新记忆正文不再写入该表；
+- `memory_extraction_runs`：自动提取的幂等、模型、状态、用量和错误元数据，不保存正文；
 - `context_blobs`、`context_blob_access`：大内容和显式跨 session 引用授权；
 - `context_snapshots`：仅供旧数据库/API 兼容读取；生产运行不再写入或恢复；
 - `agent_tasks`：父/子会话、profile、任务约束、状态机、幂等键、结果、用量和恢复信息；
@@ -685,6 +700,18 @@ recent_conversation_tokens = 48000
 memory_tokens = 8000
 tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
+
+[memory]
+enabled = true
+path = "./.bot/memory"
+auto_extract = true
+# model = "low-cost-memory-model"
+max_runs_per_cycle = 3
+max_attempts = 3
+max_candidates_per_run = 5
+max_source_tokens = 24000
+min_confidence = 0.75
+index_tokens = 2000
 
 [skills]
 path = "./skills"
@@ -827,7 +854,7 @@ vs
 
 - SQLite 事件存储；
 - resume/fork；
-- 上下文发现、Token 预算、可恢复摘要和显式长期记忆；
+- 上下文发现、Token 预算、可恢复摘要和分信任 Markdown 长期记忆；
 - usage/cost/doctor；
 - 通用任务集与鲲鹏任务集的稳定回放和对比报告。
 - 一级后台子 Agent Worker Pool、Git worktree 写隔离、状态机恢复。

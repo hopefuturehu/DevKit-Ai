@@ -11,6 +11,7 @@ from bot.core.approval import ApprovalHandler
 from bot.core.context import ContextAssembler
 from bot.core.events import EventBus, EventSink
 from bot.execution import LocalExecutionTarget
+from bot.memory import MarkdownMemoryStore, MemoryExtractor
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine
 from bot.providers import OpenAICompatibleProvider
@@ -34,6 +35,8 @@ class Runtime:
     compactor: ContextCompactor
     runner: AgentRunner
     subagents: BackgroundAgentPool
+    memory_store: MarkdownMemoryStore | None = None
+    memory_extractor: MemoryExtractor | None = None
     approval_handler: ApprovalHandler | None = None
     _closed: bool = field(default=False, init=False)
 
@@ -43,6 +46,8 @@ class Runtime:
                 raise RuntimeError("存在运行中的后台子 Agent，请使用 await runtime.aclose()")
             if self.target.has_live_processes:
                 raise RuntimeError("存在运行中的受管进程，请使用 await runtime.aclose()")
+            if self.memory_extractor is not None and self.memory_extractor.has_live_task:
+                raise RuntimeError("存在运行中的记忆提取任务，请使用 await runtime.aclose()")
             self.store.close()
             self._closed = True
 
@@ -54,6 +59,11 @@ class Runtime:
             await self.subagents.shutdown()
         except BaseException as exc:
             errors.append(exc)
+        if self.memory_extractor is not None:
+            try:
+                await self.memory_extractor.shutdown()
+            except BaseException as exc:
+                errors.append(exc)
         try:
             await self.target.aclose()
         except BaseException as exc:
@@ -106,11 +116,28 @@ def build_runtime(
         skill_catalog=catalog,
         max_skill_catalog_chars=config.skills.max_catalog_chars,
     )
+    memory_store: MarkdownMemoryStore | None = None
+    if config.memory.enabled:
+        memory_path = config.memory_path(workspace)
+        try:
+            workspace.relative_to(memory_path)
+        except ValueError:
+            pass
+        else:
+            raise ConfigError("memory.path 不能等于工作区或位于工作区上层")
+        memory_store = MarkdownMemoryStore(
+            memory_path,
+            sanitizer=redactor.redact,
+        )
+        migrated = memory_store.import_legacy(store.list_memories())
+        for memory_id in migrated:
+            store.delete_memory(memory_id)
     protected_state_paths = (
         store.path,
         Path(f"{store.path}-wal"),
         Path(f"{store.path}-shm"),
         Path(f"{store.path}-journal"),
+        *((memory_store.root,) if memory_store is not None else ()),
     )
     compactor = ContextCompactor(
         config=config,
@@ -160,6 +187,7 @@ def build_runtime(
             redactor=redactor,
             context_compactor=child_compactor,
             denied_tool_paths=protected_state_paths,
+            memory_store=memory_store,
         )
 
     subagents = BackgroundAgentPool(
@@ -171,6 +199,18 @@ def build_runtime(
         specs=default_agent_specs(config, tools),
         runner_factory=child_runner_factory,
         approval_handler=approval_handler,
+    )
+    memory_extractor = (
+        MemoryExtractor(
+            config=config,
+            workspace=workspace,
+            provider=provider,
+            store=store,
+            memory_store=memory_store,
+            event_bus=event_bus,
+        )
+        if memory_store is not None
+        else None
     )
     runner = AgentRunner(
         config=config,
@@ -187,6 +227,9 @@ def build_runtime(
         redactor=redactor,
         subagent_controller=subagents if config.subagents.enabled else None,
         context_compactor=compactor,
+        memory_store=memory_store,
+        memory_extractor=memory_extractor,
+        denied_tool_paths=protected_state_paths,
     )
     return Runtime(
         config=config,
@@ -200,5 +243,7 @@ def build_runtime(
         compactor=compactor,
         runner=runner,
         subagents=subagents,
+        memory_store=memory_store,
+        memory_extractor=memory_extractor,
         approval_handler=approval_handler,
     )

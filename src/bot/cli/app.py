@@ -35,6 +35,7 @@ from bot.core.events import JsonlEventSink
 from bot.core.models import RunRequest
 from bot.evals import load_eval_cases, run_eval_case, write_eval_results
 from bot.execution import LocalExecutionTarget
+from bot.memory import MarkdownMemoryStore
 from bot.observability import export_trace_bundle
 from bot.providers import ProviderError
 from bot.sessions import SQLiteSessionStore
@@ -311,7 +312,11 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     "active_skills": list(runtime.skills.active),
                     "context_manifest": runtime.context.manifest(),
                     "context": runtime.runner.context_status(session_id),
-                    "explicit_memories": len(runtime.store.list_memories()),
+                    "memory": (
+                        runtime.memory_store.stats()
+                        if runtime.memory_store is not None
+                        else {"legacy_sqlite": len(runtime.store.list_memories())}
+                    ),
                     "usage": usage,
                 }
             )
@@ -415,30 +420,58 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
         if prompt in {"/help", "?"}:
             console.print(
                 "/status /tools /skills /skills reload /remember <text> "
-                "/memories /forget <id> "
+                "/memories /forget <id-or-key> /memory extract [run-id] "
                 "/agents /model /permissions /compact /compact rebuild "
                 "/compact rollback <id> /new /exit"
             )
             continue
         if prompt.startswith("/remember "):
-            memory_id = runtime.store.add_memory(prompt.removeprefix("/remember "))
+            if runtime.memory_store is not None:
+                memory_id = runtime.memory_store.add_user_memory(prompt.removeprefix("/remember "))
+            else:
+                memory_id = str(runtime.store.add_memory(prompt.removeprefix("/remember ")))
             console.print(f"已保存显式记忆 [{memory_id}]")
             continue
         if prompt == "/memories":
-            memories = runtime.store.list_memories()
+            memories = (
+                runtime.memory_store.list_memories()
+                if runtime.memory_store is not None
+                else runtime.store.list_memories()
+            )
             if not memories:
                 console.print("暂无长期记忆。")
             for item in memories:
-                console.print(f"[{item['id']}] {item['content']} [dim]({item['source']})[/dim]")
+                if runtime.memory_store is not None:
+                    console.print(
+                        f"[{item.id}] {item.content} "
+                        f"[dim]({item.origin}/{item.status.value}; key={item.key})[/dim]"
+                    )
+                else:
+                    console.print(f"[{item['id']}] {item['content']} [dim]({item['source']})[/dim]")
             continue
         if prompt.startswith("/forget "):
-            try:
-                memory_id = int(prompt.removeprefix("/forget ").strip())
-            except ValueError:
-                console.print("[red]记忆 ID 必须是整数。[/red]")
-                continue
-            deleted = runtime.store.delete_memory(memory_id)
+            identifier = prompt.removeprefix("/forget ").strip()
+            if runtime.memory_store is not None:
+                deleted = runtime.memory_store.forget(identifier)
+            else:
+                try:
+                    deleted = runtime.store.delete_memory(int(identifier))
+                except ValueError:
+                    deleted = False
             console.print("已删除。" if deleted else "未找到该记忆。")
+            continue
+        if prompt == "/memory extract" or prompt.startswith("/memory extract "):
+            if runtime.memory_extractor is None:
+                console.print("[yellow]自动 Markdown 记忆未启用。[/yellow]")
+                continue
+            requested_run = prompt.removeprefix("/memory extract").strip() or None
+            result = await runtime.memory_extractor.extract_pending(requested_run)
+            console.print(
+                "记忆提取完成："
+                f"processed={result['processed']}，failed={result['failed']}，"
+                f"added={result['added']}，merged={result['merged']}，"
+                f"conflicts={result['conflicts']}，suppressed={result['suppressed']}。"
+            )
             continue
         if prompt == "/new":
             session_id = runtime.store.create_session(runtime.workspace)
@@ -630,6 +663,20 @@ def doctor_command(ctx: typer.Context) -> None:
     except OSError as exc:
         errors += 1
         console.print(f"[red]✗[/red] 状态库不可写: {exc}")
+    if config.memory.enabled:
+        try:
+            memory_path = config.memory_path(workspace)
+            try:
+                workspace.relative_to(memory_path)
+            except ValueError:
+                pass
+            else:
+                raise OSError("memory.path 不能等于工作区或位于工作区上层")
+            memory_store = MarkdownMemoryStore(memory_path)
+            console.print(f"[green]✓[/green] Markdown 记忆目录可写: {memory_store.root}")
+        except OSError as exc:
+            errors += 1
+            console.print(f"[red]✗[/red] Markdown 记忆目录不可写: {exc}")
     if errors:
         raise typer.Exit(1)
 
@@ -659,6 +706,17 @@ safety_margin_tokens = 2048
 # compaction_model = ""
 compaction_summary_tokens = 8000
 compaction_rebuild_every = 5
+
+[memory]
+enabled = true
+path = "./.bot/memory"
+auto_extract = true
+# 可选：单独指定记忆提取模型；留空则复用 model.name
+# model = ""
+max_runs_per_cycle = 3
+max_candidates_per_run = 5
+min_confidence = 0.75
+index_tokens = 2000
 
 [subagents]
 enabled = true

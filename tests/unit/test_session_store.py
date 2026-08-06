@@ -92,7 +92,7 @@ def test_session_store_migrates_legacy_event_schema(tmp_path: Path) -> None:
     versions = {row[0] for row in connection.execute("SELECT version FROM schema_migrations")}
     connection.close()
     assert "schema_version" in columns
-    assert 10 in versions
+    assert 11 in versions
 
 
 def test_new_schema_omits_episode_and_memory_card_tables(tmp_path: Path) -> None:
@@ -107,6 +107,7 @@ def test_new_schema_omits_episode_and_memory_card_tables(tmp_path: Path) -> None
     connection.close()
 
     assert "memories" in tables
+    assert "memory_extraction_runs" in tables
     assert "context_compactions" in tables
     assert (
         not {

@@ -40,6 +40,7 @@ def _environment_overlay() -> dict[str, Any]:
         "BOT_MODEL_API_KEY_REF": ("model", "api_key_ref"),
         "BOT_SKILLS_PATH": ("skills", "path"),
         "BOT_STATE_PATH": ("storage", "state_path"),
+        "BOT_MEMORY_PATH": ("memory", "path"),
         "BOT_PERMISSION_MODE": ("permissions", "mode"),
     }
     result: dict[str, Any] = {}

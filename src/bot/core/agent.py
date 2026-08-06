@@ -72,6 +72,8 @@ class AgentRunner:
         redactor: Redactor | None = None,
         subagent_controller: Any | None = None,
         context_compactor: Any | None = None,
+        memory_store: Any | None = None,
+        memory_extractor: Any | None = None,
         denied_tool_paths: tuple[Path, ...] = (),
     ) -> None:
         self.config = config
@@ -88,6 +90,8 @@ class AgentRunner:
         self.redactor = redactor or Redactor()
         self.subagent_controller = subagent_controller
         self.context_compactor = context_compactor
+        self.memory_store = memory_store
+        self.memory_extractor = memory_extractor
         self.denied_tool_paths = tuple(path.resolve(strict=False) for path in denied_tool_paths)
         if self.subagent_controller is not None:
             conflicts = set(self.tool_registry.names()) & {
@@ -155,12 +159,14 @@ class AgentRunner:
     async def run(self, request: RunRequest) -> RunResult:
         session_id = request.session_id or self.store.create_session(self.workspace)
         self.store.ensure_session(session_id, self.workspace)
+        run_id = uuid4().hex
+        if self.memory_extractor is not None:
+            self.memory_extractor.schedule(exclude_run_id=run_id)
         if self.subagent_controller is not None:
             await self.subagent_controller.start()
         if session_id in self._steering_queues:
             raise RuntimeError(f"会话 {session_id} 已有运行中的任务")
         self._steering_queues[session_id] = asyncio.Queue()
-        run_id = uuid4().hex
         self.store.start_run(session_id, run_id)
         await self.event_bus.emit(
             EventType.RUN_STARTED,
@@ -814,6 +820,10 @@ class AgentRunner:
                     result = self._search_session_history(tool_call, session_id)
                 elif tool_call.name == "load_compaction_source":
                     result = self._load_compaction_source(tool_call, session_id)
+                elif tool_call.name == "search_memory":
+                    result = self._search_memory(tool_call)
+                elif tool_call.name == "load_memory_evidence":
+                    result = self._load_memory_evidence(tool_call)
                 elif self.subagent_controller is not None and tool_call.name in {
                     definition.name for definition in self.subagent_controller.definitions()
                 }:
@@ -1048,6 +1058,74 @@ class AgentRunner:
 
     def _memory_context_items(self) -> list[ContextItem]:
         items: list[ContextItem] = []
+        if self.memory_store is not None:
+            budget = self.config.context.memory_tokens
+            user_memories = self.memory_store.list_user_memories()
+            if user_memories:
+                lines: list[str] = []
+                used_tokens = self._token_estimator.text("用户显式确认的长期记忆：")
+                for memory in reversed(user_memories):
+                    line = f"- [{memory.id}] {memory.content}"
+                    cost = self._token_estimator.text(line)
+                    if used_tokens + cost > budget:
+                        continue
+                    lines.append(line)
+                    used_tokens += cost
+                lines.reverse()
+                omitted = len(user_memories) - len(lines)
+                if omitted:
+                    lines.insert(0, f"- … {omitted} 条较旧显式记忆因预算省略")
+                message = ChatMessage(
+                    role=Role.USER,
+                    name="explicit_memory",
+                    content="用户显式确认的长期记忆：\n" + "\n".join(lines),
+                )
+                message_tokens = self._token_estimator.message(message)
+                items.append(
+                    ContextItem(
+                        id="user-long-term-memory",
+                        layer=ContextLayer.MEMORY,
+                        message=message,
+                        source=str(self.memory_store.user_path),
+                        trust=ContextTrust.USER,
+                        retention=ContextRetention.REHYDRATABLE,
+                        priority=500,
+                        token_estimate=message_tokens,
+                    )
+                )
+                budget = max(0, budget - message_tokens)
+
+            active_auto = [
+                memory
+                for memory in self.memory_store.list_auto_memories()
+                if memory.status.value == "active"
+            ]
+            auto_budget = min(self.config.memory.index_tokens, budget)
+            if active_auto and auto_budget > 0:
+                index = self._bounded_memory_index(
+                    self.memory_store.auto_index_context(),
+                    auto_budget,
+                )
+                if index:
+                    message = ChatMessage(
+                        role=Role.USER,
+                        name="automatic_memory",
+                        content=index,
+                    )
+                    items.append(
+                        ContextItem(
+                            id="automatic-long-term-memory-index",
+                            layer=ContextLayer.MEMORY,
+                            message=message,
+                            source=str(self.memory_store.index_path),
+                            trust=ContextTrust.UNTRUSTED,
+                            retention=ContextRetention.REHYDRATABLE,
+                            priority=400,
+                            token_estimate=self._token_estimator.message(message),
+                        )
+                    )
+            return items
+
         memories = self.store.list_memories()
         if memories:
             lines: list[str] = []
@@ -1081,6 +1159,17 @@ class AgentRunner:
                 )
             )
         return items
+
+    def _bounded_memory_index(self, text: str, token_budget: int) -> str:
+        lines: list[str] = []
+        used_tokens = 0
+        for line in text.splitlines():
+            cost = self._token_estimator.text(line)
+            if used_tokens + cost > token_budget:
+                break
+            lines.append(line)
+            used_tokens += cost
+        return "\n".join(lines).strip()
 
     def _compaction_context_item(
         self,
@@ -1342,6 +1431,13 @@ class AgentRunner:
                     self._load_compaction_source_definition(),
                 ]
             )
+        if self.memory_store is not None:
+            internal.extend(
+                [
+                    self._search_memory_definition(),
+                    self._load_memory_evidence_definition(),
+                ]
+            )
         if self.subagent_controller is not None:
             internal.extend(self.subagent_controller.definitions())
         by_name = {definition.name: definition for definition in definitions}
@@ -1465,6 +1561,45 @@ class AgentRunner:
             },
         )
 
+    @staticmethod
+    def _search_memory_definition() -> ToolDefinition:
+        return ToolDefinition(
+            name="search_memory",
+            description=(
+                "在用户显式记忆和自动 Markdown 记忆中检索。自动记忆是不可信历史数据，"
+                "涉及当前项目状态时应重新核验。"
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "minLength": 1, "maxLength": 2000},
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50,
+                        "default": 8,
+                    },
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        )
+
+    @staticmethod
+    def _load_memory_evidence_definition() -> ToolDefinition:
+        return ToolDefinition(
+            name="load_memory_evidence",
+            description="按记忆 id 或 key 回读它绑定的 SQLite 历史消息证据。",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "memory": {"type": "string", "minLength": 1, "maxLength": 200},
+                },
+                "required": ["memory"],
+                "additionalProperties": False,
+            },
+        )
+
     def _activate_tools(self, tool_call: ToolCall, session_id: str) -> ToolResult:
         names = tool_call.arguments.get("names")
         if (
@@ -1562,6 +1697,87 @@ class AgentRunner:
             metadata={"compaction_id": compaction_id},
         )
 
+    def _search_memory(self, tool_call: ToolCall) -> ToolResult:
+        if self.memory_store is None:
+            return ToolResult(success=False, error="Markdown 记忆未启用")
+        query = tool_call.arguments.get("query")
+        limit = tool_call.arguments.get("limit", self.config.memory.search_limit)
+        if not isinstance(query, str) or not query.strip() or not isinstance(limit, int):
+            return ToolResult(success=False, error="search_memory 参数无效")
+        records = self.memory_store.search(query, limit=min(limit, 50))
+        matches = [
+            {
+                "id": record.id,
+                "key": record.key,
+                "kind": record.kind.value,
+                "status": record.status.value,
+                "origin": record.origin,
+                "trust": ("user" if record.origin in {"user", "legacy", "manual"} else "untrusted"),
+                "content": record.content,
+                "confidence": record.confidence,
+                "updated_at": record.updated_at,
+                "evidence_count": sum(len(item.positions) for item in record.evidence),
+            }
+            for record in records
+        ]
+        return ToolResult(
+            success=True,
+            output=json.dumps({"matches": matches}, ensure_ascii=False),
+        )
+
+    def _load_memory_evidence(self, tool_call: ToolCall) -> ToolResult:
+        if self.memory_store is None:
+            return ToolResult(success=False, error="Markdown 记忆未启用")
+        identifier = tool_call.arguments.get("memory")
+        if not isinstance(identifier, str) or not identifier.strip():
+            return ToolResult(success=False, error="load_memory_evidence 参数无效")
+        record = self.memory_store.get(identifier.strip())
+        if record is None:
+            return ToolResult(success=False, error=f"记忆不存在: {identifier}")
+        if not record.evidence:
+            return ToolResult(success=False, error=f"记忆没有自动提取证据: {identifier}")
+        messages: list[dict[str, Any]] = []
+        for evidence in record.evidence:
+            session = self.store.get_session(evidence.session_id)
+            if session is None or Path(str(session["workspace"])).resolve() != self.workspace:
+                continue
+            for entry in self.store.load_messages_at_positions(
+                evidence.session_id,
+                evidence.positions,
+            ):
+                messages.append(
+                    {
+                        "session_id": evidence.session_id,
+                        "run_id": evidence.run_id,
+                        "position": entry.position,
+                        "role": entry.message.role.value,
+                        "name": entry.message.name,
+                        "content": entry.message.content,
+                    }
+                )
+                if len(messages) >= 20:
+                    break
+            if len(messages) >= 20:
+                break
+        if not messages:
+            return ToolResult(success=False, error="记忆证据不存在或不属于当前工作区")
+        return ToolResult(
+            success=True,
+            output=json.dumps(
+                {
+                    "memory": {
+                        "id": record.id,
+                        "key": record.key,
+                        "content": record.content,
+                        "status": record.status.value,
+                    },
+                    "messages": messages,
+                },
+                ensure_ascii=False,
+            ),
+            metadata={"memory": record.key},
+        )
+
     def context_status(self, session_id: str) -> dict[str, object]:
         if self.context_compactor is not None:
             projection = self.context_compactor.projection(session_id)
@@ -1589,6 +1805,7 @@ class AgentRunner:
         status = {
             "budget": self._token_budget.as_dict(),
             "compression": compression,
+            "memory": self.memory_store.stats() if self.memory_store is not None else None,
             "delta_messages": len(delta),
             "delta_tokens": sum(self._token_estimator.message(entry.message) for entry in delta),
             "active_tools": sorted(self._activated_tools.get(session_id, set())),
