@@ -735,6 +735,9 @@ warning_after_no_progress_steps = 4
 recovery_after_no_progress_steps = 7
 finalize_after_no_progress_steps = 11
 max_recovery_attempts_per_epoch = 1
+process_inactivity_warning_seconds = 300
+process_inactivity_recovery_seconds = 900
+# process_inactivity_finalize_seconds = 3600
 
 [agent.finalization]
 enabled = true

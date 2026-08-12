@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from bot.core.models import ToolDefinition
+from bot.core.progress import ProgressSignal
 from bot.execution import ExecutionTarget
 
 
@@ -57,6 +58,7 @@ class ToolResult(BaseModel):
     output: str = ""
     error: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    progress: ProgressSignal | None = None
     truncated: bool = False
 
     @model_validator(mode="after")

@@ -239,6 +239,8 @@ run.completed
 - `max_consecutive_failures`：默认关闭；旧部署需要立即熔断时可显式配置；
 - `process_wait_seconds`：命令 Tool 同步等待多久后返回受管进程句柄；
 - `process_hard_timeout_seconds`：默认 `None`；显式设置时是受管进程绝对存活上限；
+- `process_inactivity_warning_seconds`、`process_inactivity_recovery_seconds`：静默进程的提醒和检查
+  阈值；默认不设置自动 finalize 阈值，因此安静但仍存活的长计算不会被误杀；
 - `max_managed_processes`：单个 Runtime 可同时持有的受管进程上限；
 - `cancel_token`：CLI、信号和未来 Gateway 共用的取消机制。
 
@@ -254,10 +256,10 @@ run.completed
 3. 幂等工具反复返回相同结果。
 4. 固定周期的 Tool Call/Result 序列循环。
 
-每个工具步骤被归类为强进展、弱进展或无进展。强进展开启新 epoch 并清空恢复次数；弱进展
-允许探索但不能掩盖重复周期；无进展累积停滞计数。首次达到阈值时注入警告，随后进入一次受控
-恢复阶段；恢复后相同模式复发时，运行器撤销 Tool 定义，只允许模型生成一次事实化收尾。最终
-状态为 `blocked`，而不是把未完成任务误报为 `completed` 或笼统标记为 `failed`。
+Tool 通过 `ToolResult.progress` 显式返回强进展、弱进展、无进展或外部等待。强进展开启新 epoch；
+外部等待根据静默时长提醒但默认不会自动终止；无进展累积停滞计数。控制状态按 session 写入
+SQLite 并跨 Run 恢复。首次达到阈值时注入警告，随后进入一次受控恢复阶段；恢复后相同模式复发
+时撤销 Tool 定义，只允许模型生成一次事实化收尾。预算、上下文和失败也复用该终止协调器。
 
 ### 5.3 后台子 Agent Worker Pool
 

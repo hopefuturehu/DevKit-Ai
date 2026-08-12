@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import shlex
 from abc import abstractmethod
 from typing import Any
 
+from bot.core.progress import ProgressKind, ProgressSignal
 from bot.execution import ProcessEventKind, ProcessSpec
 from bot.tools.base import Tool, ToolContext, ToolResult
 
@@ -95,6 +97,14 @@ class SubprocessCliTool(Tool):
                 error=None if returncode == 0 else f"命令退出码 {returncode}",
                 truncated=truncated,
                 metadata={"argv": argv, "returncode": returncode},
+                progress=ProgressSignal(
+                    kind=(ProgressKind.WEAK if returncode == 0 else ProgressKind.NONE),
+                    summary=f"外部诊断工具以退出码 {returncode} 结束",
+                    evidence_key=(
+                        f"subprocess:{self.name}:{returncode}:"
+                        f"{hashlib.sha256(output.encode()).hexdigest()}"
+                    ),
+                ),
             )
         except (KeyError, OSError, ValueError, TimeoutError) as exc:
             return ToolResult(success=False, error=str(exc))

@@ -10,12 +10,12 @@
 |---|---|---|
 | 通用 CLI | 交互、自然语言入口、单次运行、JSONL、管理命令、会话内命令、steering 与取消 | `bot`、`bot run`、`bot resume` |
 | Provider | OpenAI-compatible Chat Completions，SSE 文本、结构化 Tool Call、usage 与异常归一化 | `src/bot/providers/` |
-| Agent Core | 无固定总步数的 Tool Loop、进展 epoch、停滞警告、纠偏、无 Tool 收尾及可选硬预算 | `src/bot/core/agent.py`、`src/bot/core/termination/` |
+| Agent Core | Tool 进展协议、持久化 epoch、外部等待/静默检查、停滞纠偏和统一无 Tool 收尾 | `src/bot/core/agent.py`、`src/bot/core/progress.py`、`src/bot/core/termination/` |
 | 通用 Tool | read、search、精确 patch、argv command、受控 shell、HTTP fetch，以及受管进程的轮询、输入、终止和列表 | `src/bot/tools/builtins.py` |
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、同步等待/进程寿命分离、增量输出、hard timeout、leader 退出后的 PGID 跟踪与异常关闭清理 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
 | 审批 | once/session/always/deny；永久授权按 workspace、Tool 和精确结构化参数匹配 | `src/bot/core/approval.py` |
-| 会话与审计 | SQLite migration v11、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork、记忆提取任务元数据和用量统计 | `src/bot/sessions/` |
+| 会话与审计 | SQLite migration v12、持久化 progress checkpoint、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork 和用量统计 | `src/bot/sessions/` |
 | 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、单一活动摘要、事务发布、原文重建/回滚和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py`、`src/bot/compaction/` |
 | 长期记忆 | SQLite 历史证据、`USER.md` 显式记忆、Root Run 异步提取、Markdown 自动索引、冲突隔离、遗忘抑制、分信任注入、检索和证据回读 | `src/bot/memory/`、`docs/markdown-memory.md` |
 | 子 Agent | 一级后台 Worker Pool、独立 child session/Runner/Skill/Policy、只读 profile、Git worktree 写隔离、定向 blob 授权、required 汇合、状态查询/等待/取消和 fail-closed 恢复 | `src/bot/subagents/` |

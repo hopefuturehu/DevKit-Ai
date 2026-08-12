@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 from collections.abc import Callable
@@ -14,6 +15,7 @@ from bot.config.models import AppConfig
 from bot.core.approval import ApprovalHandler, ApprovalResponse, DenyApprovalHandler
 from bot.core.events import EventBus, EventType
 from bot.core.models import RunRequest, ToolCall, ToolDefinition
+from bot.core.progress import ProgressKind, ProgressSignal
 from bot.execution import ExecutionTarget, ProcessEventKind, ProcessSpec
 from bot.sessions import SQLiteSessionStore
 from bot.subagents.models import (
@@ -217,10 +219,43 @@ class BackgroundAgentPool:
         metadata: dict[str, Any] = {"subagent_control": tool_call.name}
         if tool_call.name == "await_agents":
             metadata["reported_task_ids"] = payload.get("terminal_task_ids", [])
+        output = json.dumps(payload, ensure_ascii=False)
+        if tool_call.name in {"spawn_agent", "cancel_agent"}:
+            progress = ProgressSignal(
+                kind=ProgressKind.STRONG,
+                summary=f"子 Agent 控制状态已变化：{tool_call.name}",
+                evidence_key=f"subagent:{tool_call.name}:{tool_call.id}",
+            )
+        elif tool_call.name == "await_agents" and not payload.get("completed"):
+            task_ids = sorted(str(value) for value in tool_call.arguments["task_ids"])
+            progress = ProgressSignal(
+                kind=ProgressKind.WAITING,
+                summary="仍在等待子 Agent 完成",
+                evidence_key=f"subagent-wait:{','.join(task_ids)}",
+                inactivity_seconds=0,
+            )
+        elif tool_call.name == "await_agents":
+            progress = ProgressSignal(
+                kind=ProgressKind.STRONG,
+                summary="所需子 Agent 已完成",
+                evidence_key=(
+                    "subagent-results:"
+                    + ",".join(sorted(str(value) for value in payload["terminal_task_ids"]))
+                ),
+            )
+        else:
+            progress = ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary=f"取得了子 Agent 状态证据：{tool_call.name}",
+                evidence_key=(
+                    f"subagent-status:{hashlib.sha256(output.encode()).hexdigest()}"
+                ),
+            )
         return ToolResult(
             success=True,
-            output=json.dumps(payload, ensure_ascii=False),
+            output=output,
             metadata=metadata,
+            progress=progress,
         )
 
     async def collect_required_results(self, parent_session_id: str) -> list[dict]:

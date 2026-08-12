@@ -1,6 +1,6 @@
+from bot.core.progress import ProgressKind, ProgressSignal
 from bot.core.termination.controller import (
     ProgressController,
-    ProgressKind,
     ProgressReport,
     TerminationAction,
 )
@@ -9,5 +9,6 @@ __all__ = [
     "ProgressController",
     "ProgressKind",
     "ProgressReport",
+    "ProgressSignal",
     "TerminationAction",
 ]

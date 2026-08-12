@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 
+from bot.core.progress import ProgressKind, ProgressSignal
 from bot.execution import ProcessEventKind, ProcessSnapshot, ProcessSpec, ProcessStatus
 from bot.tools.base import (
     Tool,
@@ -59,6 +60,14 @@ class ReadFileTool(Tool):
                 output=selected,
                 truncated=truncated,
                 metadata={"path": str(path), "start_line": start, "end_line": end},
+                progress=ProgressSignal(
+                    kind=ProgressKind.WEAK,
+                    summary=f"读取了 {path.name} 的新证据",
+                    evidence_key=(
+                        f"read:{path}:{start}:{end}:"
+                        f"{hashlib.sha256(selected.encode()).hexdigest()}"
+                    ),
+                ),
             )
         except (KeyError, OSError, ValueError) as exc:
             return ToolResult(success=False, error=str(exc))
@@ -114,6 +123,7 @@ class SearchTextTool(Tool):
                                     output="\n".join(results),
                                     truncated=True,
                                     metadata={"result_count": len(results)},
+                                    progress=self._progress_signal(query, root, results),
                                 )
                 except (OSError, UnicodeError, ValueError):
                     continue
@@ -121,6 +131,7 @@ class SearchTextTool(Tool):
                 success=True,
                 output="\n".join(results) if results else "未找到匹配内容。",
                 metadata={"result_count": len(results)},
+                progress=self._progress_signal(query, root, results),
             )
         except (KeyError, OSError, ValueError, re.error) as exc:
             return ToolResult(success=False, error=str(exc))
@@ -132,6 +143,15 @@ class SearchTextTool(Tool):
             dirnames[:] = [name for name in dirnames if name not in ignored]
             for filename in filenames:
                 yield Path(directory) / filename
+
+    @staticmethod
+    def _progress_signal(query: str, root: Path, results: list[str]) -> ProgressSignal:
+        digest = hashlib.sha256("\n".join(results).encode()).hexdigest()
+        return ProgressSignal(
+            kind=ProgressKind.WEAK,
+            summary=f"搜索得到 {len(results)} 条证据",
+            evidence_key=f"search:{root}:{query}:{digest}",
+        )
 
 
 class ApplyPatchTool(Tool):
@@ -196,6 +216,19 @@ class ApplyPatchTool(Tool):
                     "before_sha256": before_hash,
                     "after_sha256": after_hash,
                 },
+                progress=ProgressSignal(
+                    kind=(
+                        ProgressKind.STRONG
+                        if before_hash != after_hash
+                        else ProgressKind.NONE
+                    ),
+                    summary=(
+                        f"文件 {path.name} 内容已变化"
+                        if before_hash != after_hash
+                        else f"文件 {path.name} 内容未变化"
+                    ),
+                    evidence_key=f"file:{path}:{after_hash}",
+                ),
             )
         except (KeyError, OSError, UnicodeError, ValueError) as exc:
             return ToolResult(success=False, error=str(exc))
@@ -218,6 +251,30 @@ def _process_metadata(snapshot: ProcessSnapshot) -> dict[str, Any]:
         ),
         "termination_reason": snapshot.termination_reason,
     }
+
+
+def _process_progress(snapshot: ProcessSnapshot) -> ProgressSignal:
+    if snapshot.status == ProcessStatus.RUNNING:
+        return ProgressSignal(
+            kind=ProgressKind.WAITING,
+            summary=f"进程 {snapshot.process_id} 仍在运行",
+            evidence_key=f"process:{snapshot.process_id}",
+            inactivity_seconds=snapshot.last_output_seconds_ago or 0,
+        )
+    if snapshot.status == ProcessStatus.COMPLETED:
+        return ProgressSignal(
+            kind=ProgressKind.WEAK,
+            summary=f"进程 {snapshot.process_id} 已完成",
+            evidence_key=(
+                f"process:{snapshot.process_id}:completed:{snapshot.returncode}:"
+                f"{hashlib.sha256((snapshot.stdout + snapshot.stderr).encode()).hexdigest()}"
+            ),
+        )
+    return ProgressSignal(
+        kind=ProgressKind.NONE,
+        summary=f"进程 {snapshot.process_id} 以 {snapshot.status.value} 结束",
+        evidence_key=f"process:{snapshot.process_id}:{snapshot.status.value}",
+    )
 
 
 def _combined_process_output(snapshot: ProcessSnapshot) -> str:
@@ -243,6 +300,7 @@ def _process_tool_result(snapshot: ProcessSnapshot) -> ToolResult:
             status=ToolResultStatus.RUNNING,
             output=output,
             metadata=metadata,
+            progress=_process_progress(snapshot),
             truncated=snapshot.truncated,
         )
     if snapshot.status == ProcessStatus.COMPLETED:
@@ -251,6 +309,7 @@ def _process_tool_result(snapshot: ProcessSnapshot) -> ToolResult:
             status=ToolResultStatus.COMPLETED,
             output=output,
             metadata=metadata,
+            progress=_process_progress(snapshot),
             truncated=snapshot.truncated,
         )
     result_status = {
@@ -266,6 +325,7 @@ def _process_tool_result(snapshot: ProcessSnapshot) -> ToolResult:
         output=output,
         error=error or f"进程状态为 {snapshot.status.value}",
         metadata=metadata,
+        progress=_process_progress(snapshot),
         truncated=snapshot.truncated,
     )
 
@@ -401,6 +461,14 @@ class RunCommandTool(Tool):
                 error=None if returncode == 0 else f"命令退出码 {returncode}",
                 truncated=truncated,
                 metadata={"returncode": returncode, "argv": argv, "cwd": str(cwd)},
+                progress=ProgressSignal(
+                    kind=(ProgressKind.WEAK if returncode == 0 else ProgressKind.NONE),
+                    summary=f"命令以退出码 {returncode} 结束",
+                    evidence_key=(
+                        f"command:{hashlib.sha256(repr(argv).encode()).hexdigest()}:"
+                        f"{returncode}:{hashlib.sha256(combined.encode()).hexdigest()}"
+                    ),
+                ),
             )
         except (
             KeyError,
@@ -505,19 +573,34 @@ class SendProcessInputTool(Tool):
 
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
         try:
+            data = str(arguments.get("data", ""))
+            eof = bool(arguments.get("eof", False))
             snapshot = await context.execution_target.send_process_input(
                 str(arguments["process_id"]),
-                str(arguments.get("data", "")),
-                eof=bool(arguments.get("eof", False)),
+                data,
+                eof=eof,
             )
+            changed = bool(data) or eof
             return ToolResult(
                 success=True,
                 output=(
                     f"已向进程 {snapshot.process_id} 写入 "
-                    f"{len(str(arguments.get('data', '')).encode())} bytes"
-                    + (" 并发送 EOF。" if arguments.get("eof", False) else "。")
+                    f"{len(data.encode())} bytes"
+                    + (" 并发送 EOF。" if eof else "。")
                 ),
                 metadata=_process_metadata(snapshot),
+                progress=ProgressSignal(
+                    kind=ProgressKind.STRONG if changed else ProgressKind.NONE,
+                    summary=(
+                        f"已向进程 {snapshot.process_id} 提交输入"
+                        if changed
+                        else f"没有向进程 {snapshot.process_id} 提交新输入"
+                    ),
+                    evidence_key=(
+                        f"process-input:{snapshot.process_id}:"
+                        f"{len(data.encode())}:{eof}"
+                    ),
+                ),
             )
         except (KeyError, NotImplementedError, OSError, ValueError) as exc:
             return ToolResult(success=False, error=str(exc))
@@ -551,6 +634,19 @@ class TerminateProcessTool(Tool):
                 success=True,
                 output=output,
                 metadata=_process_metadata(snapshot),
+                progress=ProgressSignal(
+                    kind=(
+                        ProgressKind.STRONG
+                        if snapshot.status == ProcessStatus.CANCELLED
+                        else ProgressKind.NONE
+                    ),
+                    summary=(
+                        f"进程 {snapshot.process_id} 已终止"
+                        if snapshot.status == ProcessStatus.CANCELLED
+                        else f"进程 {snapshot.process_id} 已处于终态"
+                    ),
+                    evidence_key=f"process:{snapshot.process_id}:{snapshot.status.value}",
+                ),
                 truncated=snapshot.truncated,
             )
         except (KeyError, NotImplementedError, ValueError) as exc:
@@ -573,7 +669,16 @@ class ListProcessesTool(Tool):
         except NotImplementedError as exc:
             return ToolResult(success=False, error=str(exc))
         if not snapshots:
-            return ToolResult(success=True, output="当前没有受管进程。", metadata={"count": 0})
+            return ToolResult(
+                success=True,
+                output="当前没有受管进程。",
+                metadata={"count": 0},
+                progress=ProgressSignal(
+                    kind=ProgressKind.WEAK,
+                    summary="确认当前没有受管进程",
+                    evidence_key="process-list:empty",
+                ),
+            )
         lines = [
             (
                 f"- {snapshot.process_id}: status={snapshot.status.value}, "
@@ -590,6 +695,21 @@ class ListProcessesTool(Tool):
                 "count": len(snapshots),
                 "processes": [_process_metadata(snapshot) for snapshot in snapshots],
             },
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary=f"检查了 {len(snapshots)} 个受管进程",
+                evidence_key=(
+                    "process-list:"
+                    + hashlib.sha256(
+                        repr(
+                            [
+                                (snapshot.process_id, snapshot.status.value, snapshot.returncode)
+                                for snapshot in snapshots
+                            ]
+                        ).encode()
+                    ).hexdigest()
+                ),
+            ),
         )
 
 
@@ -629,6 +749,14 @@ class FetchUrlTool(Tool):
                         "status_code": response.status_code,
                         "content_type": response.headers.get("content-type"),
                     },
+                    progress=ProgressSignal(
+                        kind=ProgressKind.WEAK,
+                        summary=f"获取了 {response.url} 的网络证据",
+                        evidence_key=(
+                            f"fetch:{response.url}:{response.status_code}:"
+                            f"{hashlib.sha256(output.encode()).hexdigest()}"
+                        ),
+                    ),
                 )
         except httpx.HTTPError as exc:
             return ToolResult(success=False, error=f"网络请求失败: {exc}")

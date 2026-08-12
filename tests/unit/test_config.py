@@ -117,6 +117,31 @@ def test_progress_thresholds_must_be_ordered() -> None:
             }
         )
 
+    assert AppConfig().agent.progress.process_inactivity_finalize_seconds is None
+    with pytest.raises(ValueError, match="process inactivity"):
+        AppConfig.model_validate(
+            {
+                "agent": {
+                    "progress": {
+                        "process_inactivity_warning_seconds": 10,
+                        "process_inactivity_recovery_seconds": 5,
+                    }
+                }
+            }
+        )
+    with pytest.raises(ValueError, match="process inactivity"):
+        AppConfig.model_validate(
+            {
+                "agent": {
+                    "progress": {
+                        "process_inactivity_warning_seconds": 1,
+                        "process_inactivity_recovery_seconds": 5,
+                        "process_inactivity_finalize_seconds": 4,
+                    }
+                }
+            }
+        )
+
 
 def test_config_writer_is_atomic_and_validates_values(tmp_path: Path) -> None:
     path = tmp_path / ".bot" / "config.toml"

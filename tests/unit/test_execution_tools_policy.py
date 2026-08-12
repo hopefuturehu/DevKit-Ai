@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from bot.config.models import PermissionsConfig
+from bot.core.progress import ProgressKind
 from bot.execution import (
     EnvironmentCapabilities,
     ExecutionTarget,
@@ -259,6 +260,9 @@ async def test_run_command_yields_and_polls_managed_process(tmp_path: Path) -> N
 
     assert started.success
     assert started.status == ToolResultStatus.RUNNING
+    assert started.progress is not None
+    assert started.progress.kind == ProgressKind.WAITING
+    assert started.progress.evidence_key == f"process:{started.metadata['process_id']}"
     process_id = started.metadata["process_id"]
 
     completed = await PollProcessTool().execute(
@@ -269,6 +273,8 @@ async def test_run_command_yields_and_polls_managed_process(tmp_path: Path) -> N
     assert completed.success
     assert completed.status == ToolResultStatus.COMPLETED
     assert completed.metadata["process_status"] == ProcessStatus.COMPLETED
+    assert completed.progress is not None
+    assert completed.progress.kind == ProgressKind.WEAK
     assert "start" in started.output + completed.output
     assert "end" in started.output + completed.output
     await target.aclose()
@@ -490,8 +496,12 @@ async def test_file_tools_enforce_workspace_and_exact_patch(tmp_path: Path) -> N
     escaped = await ReadFileTool().execute(context, {"path": "../outside.txt"})
 
     assert patch.success
+    assert patch.progress is not None
+    assert patch.progress.kind == ProgressKind.STRONG
     assert patch.metadata["before_sha256"] != patch.metadata["after_sha256"]
     assert read.output == "new\n"
+    assert read.progress is not None
+    assert read.progress.kind == ProgressKind.WEAK
     assert not escaped.success
     assert "超出工作区" in (escaped.error or "")
 

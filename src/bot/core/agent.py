@@ -5,7 +5,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 import jsonschema
@@ -36,7 +36,8 @@ from bot.core.models import (
     ToolCall,
     ToolDefinition,
 )
-from bot.core.termination import ProgressController, ProgressReport, TerminationAction
+from bot.core.progress import ProgressKind, ProgressSignal
+from bot.core.termination import ProgressController, TerminationAction
 from bot.execution import ExecutionTarget, ProcessStatus
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
@@ -52,6 +53,34 @@ class _ToolCallBuffer:
     id: str = ""
     name: str = ""
     arguments: str = ""
+
+
+class _RunTermination(Exception):
+    def __init__(
+        self,
+        *,
+        status: Literal["blocked", "failed", "limit_reached"],
+        reason_code: str,
+        message: str,
+        steps: int = 0,
+        partial_text: str = "",
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        cost_usd: float | None = None,
+        model_finalizer: bool = True,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.reason_code = reason_code
+        self.message = message
+        self.steps = steps
+        self.partial_text = partial_text
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.cost_usd = cost_usd
+        self.model_finalizer = model_finalizer
+        self.metadata = metadata or {}
 
 
 class AgentRunner:
@@ -200,6 +229,12 @@ class AgentRunner:
             else:
                 async with asyncio.timeout(wall_time_limit):
                     result = await self._run_loop(request, session_id=session_id, run_id=run_id)
+        except _RunTermination as termination:
+            result = await self._finalize_termination(
+                session_id=session_id,
+                run_id=run_id,
+                termination=termination,
+            )
         except TimeoutError as exc:
             if wall_time_limit is None:
                 error = f"运行时操作超时: {exc or '未提供具体原因'}"
@@ -209,16 +244,23 @@ class AgentRunner:
                 error = f"运行超过 {wall_time_limit:g} 秒限制"
                 status = "limit_reached"
                 termination_reason = "max_wall_time_seconds"
-            await self._fail_event(session_id, run_id, error)
-            result = RunResult(
+            result = await self._finalize_termination(
                 session_id=session_id,
-                status=status,
-                error=error,
-                termination_reason=termination_reason,
+                run_id=run_id,
+                termination=_RunTermination(
+                    status=status,
+                    reason_code=termination_reason,
+                    message=error,
+                ),
             )
         except asyncio.CancelledError:
             error = "运行已取消"
-            await self._fail_event(session_id, run_id, error)
+            await self.event_bus.emit(
+                EventType.RUN_CANCELLED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={"error": error, "termination_reason": "cancelled"},
+            )
             result = RunResult(
                 session_id=session_id,
                 status="cancelled",
@@ -227,8 +269,15 @@ class AgentRunner:
             )
         except Exception as exc:
             error = str(exc)
-            await self._fail_event(session_id, run_id, error)
-            result = RunResult(session_id=session_id, status="failed", error=error)
+            result = await self._finalize_termination(
+                session_id=session_id,
+                run_id=run_id,
+                termination=_RunTermination(
+                    status="failed",
+                    reason_code="runtime_error",
+                    message=error,
+                ),
+            )
         finally:
             self._steering_queues.pop(session_id, None)
         if self.subagent_controller is not None and result.status != "completed":
@@ -236,6 +285,8 @@ class AgentRunner:
                 session_id,
                 f"父 Agent 以 {result.status} 结束",
             )
+        if result.status == "completed":
+            self.store.clear_progress_state(session_id)
         self.store.finish_run(
             run_id,
             result.status,
@@ -341,22 +392,39 @@ class AgentRunner:
         cost_usd: float | None = None
         context_retry_used = False
         consecutive_empty_responses = 0
-        progress_controller = ProgressController(self.config.agent.progress)
+        stored_progress = self.store.load_progress_state(session_id)
+        progress_controller = ProgressController(
+            self.config.agent.progress,
+            state=stored_progress["state"] if stored_progress is not None else None,
+        )
+        if not self.config.agent.progress.enabled:
+            self.store.clear_progress_state(session_id)
+        elif stored_progress is not None and not progress_controller.restored:
+            self.store.clear_progress_state(session_id)
+        elif progress_controller.restored and stored_progress is not None:
+            await self.event_bus.emit(
+                EventType.RUN_PROGRESS_RESTORED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={
+                    "previous_run_id": stored_progress["run_id"],
+                    "checkpoint_updated_at": stored_progress["updated_at"],
+                    **progress_controller.state_summary(),
+                },
+            )
         step = 0
         while True:
             max_steps = self.config.agent.max_steps
             if max_steps is not None and step >= max_steps:
                 error = f"达到显式配置的最大步骤数 {max_steps}"
-                await self._fail_event(session_id, run_id, error)
-                return RunResult(
-                    session_id=session_id,
+                raise _RunTermination(
                     status="limit_reached",
+                    reason_code="max_steps",
+                    message=error,
                     steps=step,
-                    error=error,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
-                    termination_reason="max_steps",
                 )
             step += 1
             await self._drain_steering(conversation, session_id=session_id, run_id=run_id)
@@ -428,17 +496,17 @@ class AgentRunner:
                     payload=exc.report,
                 )
                 error = str(exc)
-                await self._fail_event(session_id, run_id, error)
-                return RunResult(
-                    session_id=session_id,
+                raise _RunTermination(
                     status="limit_reached",
+                    reason_code="context_limit",
+                    message=error,
                     steps=step - 1,
-                    error=error,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
-                    termination_reason="context_limit",
-                )
+                    model_finalizer=False,
+                    metadata={"context_report": exc.report},
+                ) from exc
             messages = context_pack.messages
             self._last_context_reports[session_id] = context_pack.overflow_report()
             if context_pack.dropped_items:
@@ -607,25 +675,22 @@ class AgentRunner:
                     error = (
                         f"模型在生成最终正文前达到长度限制（reasoning_chars={len(reasoning_text)}）"
                     )
-                    await self._fail_event(session_id, run_id, error)
-                    return RunResult(
-                        session_id=session_id,
+                    raise _RunTermination(
                         status="limit_reached",
+                        reason_code="model_output_limit",
+                        message=error,
                         steps=step,
-                        error=error,
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
-                        termination_reason="model_output_limit",
                     )
                 if finish_reason not in {None, "stop", "eof"}:
                     error = f"模型以非正常原因结束且没有正文或工具调用: {finish_reason}"
-                    await self._fail_event(session_id, run_id, error)
-                    return RunResult(
-                        session_id=session_id,
+                    raise _RunTermination(
                         status="failed",
+                        reason_code="model_finish_error",
+                        message=error,
                         steps=step,
-                        error=error,
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
@@ -668,16 +733,14 @@ class AgentRunner:
                         f"finish_reason={finish_reason}, reasoning_chars={len(reasoning_text)}, "
                         f"likely_cause={likely_cause}"
                     )
-                await self._fail_event(session_id, run_id, error)
-                return RunResult(
-                    session_id=session_id,
+                raise _RunTermination(
                     status="failed",
+                    reason_code="empty_model_response",
+                    message=error,
                     steps=step,
-                    error=error,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
-                    termination_reason="empty_model_response",
                 )
 
             consecutive_empty_responses = 0
@@ -712,17 +775,16 @@ class AgentRunner:
                 and cost_usd >= self.config.agent.max_cost_usd
             ):
                 error = f"模型费用达到运行上限 ${self.config.agent.max_cost_usd:g}"
-                await self._fail_event(session_id, run_id, error)
-                return RunResult(
-                    session_id=session_id,
+                raise _RunTermination(
                     status="limit_reached",
-                    final_text=assistant_text,
+                    reason_code="max_cost_usd",
+                    message=error,
+                    partial_text=assistant_text,
                     steps=step,
-                    error=error,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
-                    termination_reason="max_cost_usd",
+                    model_finalizer=False,
                 )
 
             if not tool_calls and steered_after_model:
@@ -730,27 +792,24 @@ class AgentRunner:
             if not tool_calls:
                 if finish_reason in {"length", "max_tokens"}:
                     error = "模型输出达到长度限制，答案可能不完整"
-                    await self._fail_event(session_id, run_id, error)
-                    return RunResult(
-                        session_id=session_id,
+                    raise _RunTermination(
                         status="limit_reached",
-                        final_text=assistant_text,
+                        reason_code="model_output_limit",
+                        message=error,
+                        partial_text=assistant_text,
                         steps=step,
-                        error=error,
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
-                        termination_reason="model_output_limit",
                     )
                 if finish_reason not in {None, "stop", "eof"}:
                     error = f"模型以非正常原因结束: {finish_reason}"
-                    await self._fail_event(session_id, run_id, error)
-                    return RunResult(
-                        session_id=session_id,
+                    raise _RunTermination(
                         status="failed",
-                        final_text=assistant_text,
+                        reason_code="model_finish_error",
+                        message=error,
+                        partial_text=assistant_text,
                         steps=step,
-                        error=error,
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
@@ -924,17 +983,15 @@ class AgentRunner:
                         f"累计 Tool 输出达到 {tool_output_bytes} bytes，超过运行上限 "
                         f"{total_output_limit} bytes"
                     )
-                    await self._fail_event(session_id, run_id, error)
-                    return RunResult(
-                        session_id=session_id,
+                    raise _RunTermination(
                         status="limit_reached",
-                        final_text=assistant_text,
+                        reason_code="max_total_tool_output_bytes",
+                        message=error,
+                        partial_text=assistant_text,
                         steps=step,
-                        error=error,
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
-                        termination_reason="max_total_tool_output_bytes",
                     )
 
                 if result.success:
@@ -944,17 +1001,15 @@ class AgentRunner:
                     failure_limit = self.config.agent.max_consecutive_failures
                     if failure_limit is not None and failures >= failure_limit:
                         error = f"连续 {failures} 次 Tool 执行失败，运行已熔断"
-                        await self._fail_event(session_id, run_id, error)
-                        return RunResult(
-                            session_id=session_id,
+                        raise _RunTermination(
                             status="failed",
-                            final_text=assistant_text,
+                            reason_code="max_consecutive_failures",
+                            message=error,
+                            partial_text=assistant_text,
                             steps=step,
-                            error=error,
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,
                             cost_usd=cost_usd,
-                            termination_reason="max_consecutive_failures",
                         )
 
                 if self.config.agent.progress.enabled:
@@ -965,6 +1020,7 @@ class AgentRunner:
                         success=result.success,
                         result_content=raw_model_content,
                         metadata=result.metadata,
+                        progress_signal=result.progress,
                         read_only=(
                             registered_tool.annotations.read_only
                             if registered_tool is not None
@@ -989,6 +1045,11 @@ class AgentRunner:
 
             if self.config.agent.progress.enabled:
                 progress_report = progress_controller.finish_step()
+                self.store.save_progress_state(
+                    session_id=session_id,
+                    run_id=run_id,
+                    state=progress_controller.snapshot(),
+                )
                 await self.event_bus.emit(
                     EventType.RUN_PROGRESS,
                     session_id=session_id,
@@ -1031,71 +1092,55 @@ class AgentRunner:
                         payload={"step": step, **progress_report.event_payload()},
                     )
                 elif progress_report.action == TerminationAction.FINALIZE:
-                    return await self._finalize_blocked_run(
-                        session_id=session_id,
-                        run_id=run_id,
-                        step=step,
-                        report=progress_report,
-                        base_items=base_items,
-                        memory_items=memory_items,
-                        active_skill_items=self._active_skill_items(),
-                        compaction_item=compaction_item,
-                        conversation=conversation,
-                        runtime_notes=runtime_notes,
+                    raise _RunTermination(
+                        status="blocked",
+                        reason_code=progress_report.reason_code,
+                        message=progress_report.message,
+                        steps=step,
+                        partial_text=assistant_text,
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
+                        metadata=progress_report.event_payload(),
                     )
 
-    async def _finalize_blocked_run(
+    async def _finalize_termination(
         self,
         *,
         session_id: str,
         run_id: str,
-        step: int,
-        report: ProgressReport,
-        base_items: list[ContextItem],
-        memory_items: list[ContextItem],
-        active_skill_items: list[ContextItem],
-        compaction_item: ContextItem | None,
-        conversation: list[PositionedMessage],
-        runtime_notes: list[ContextItem],
-        input_tokens: int,
-        output_tokens: int,
-        cost_usd: float | None,
+        termination: _RunTermination,
     ) -> RunResult:
-        reason = f"{report.reason_code}: {report.message}"
+        reason = f"{termination.reason_code}: {termination.message}"
+        step = termination.steps
+        input_tokens = termination.input_tokens
+        output_tokens = termination.output_tokens
+        cost_usd = termination.cost_usd
         await self.event_bus.emit(
             EventType.RUN_FINALIZING,
             session_id=session_id,
             run_id=run_id,
-            payload={"step": step, **report.event_payload()},
+            payload={
+                "step": step,
+                "status": termination.status,
+                "reason_code": termination.reason_code,
+                "message": termination.message,
+                "model_finalizer": termination.model_finalizer,
+                **termination.metadata,
+            },
         )
 
         final_text = ""
         finalization_error: str | None = None
-        if self.config.agent.finalization.enabled:
-            finalizer_notes = list(runtime_notes)
-            self._replace_runtime_note(
-                finalizer_notes,
-                note_id="progress-finalizer",
-                content=(
-                    "任务执行已因持续无进展进入最终收尾阶段。禁止调用任何工具，也不要声称"
-                    "未发生的结果。请只基于已有对话和工具证据，向用户说明：已完成的部分、"
-                    "尚未完成的部分、具体阻塞证据，以及恢复工作所需的最小下一步。"
-                    f"终止判定：{reason}"
-                ),
-                priority=1_000,
-            )
-            context_items = self._build_context_items(
-                base_items=base_items,
-                memory_items=memory_items,
-                active_skill_items=active_skill_items,
-                compaction_item=compaction_item,
-                conversation=conversation,
-                runtime_notes=finalizer_notes,
-            )
+        model_attempted = False
+        if self.config.agent.finalization.enabled and termination.model_finalizer:
             try:
+                context_items = await self._termination_context_items(
+                    session_id=session_id,
+                    run_id=run_id,
+                    reason=reason,
+                    status=termination.status,
+                )
                 context_pack = self._context_planner.pack(
                     context_items,
                     [],
@@ -1108,6 +1153,7 @@ class AgentRunner:
                     temperature=self.config.model.temperature,
                     max_output_tokens=self.config.model.max_output_tokens,
                 )
+                model_attempted = True
                 text_parts: list[str] = []
                 finalizer_finish_reason: str | None = None
                 finalizer_metadata: dict[str, Any] = {}
@@ -1172,20 +1218,26 @@ class AgentRunner:
                 )
                 if not final_text:
                     finalization_error = "收尾模型没有返回正文"
-            except (ContextLimitError, ProviderError, TimeoutError, ValueError) as exc:
+            except Exception as exc:
                 finalization_error = str(exc)
 
         if not final_text:
             if self.config.agent.finalization.fallback_summary:
+                retained = (
+                    f"最后一段模型输出（{len(termination.partial_text)} chars）已保留在会话中。"
+                    if termination.partial_text
+                    else "已有工具结果和中间改动均已保留在会话中。"
+                )
                 final_text = (
                     "任务尚未完整完成，执行器已停止继续尝试。\n\n"
-                    f"- 阻塞判定：{report.message}\n"
+                    f"- 终止状态：{termination.status}\n"
+                    f"- 终止原因：{termination.message}\n"
                     f"- 已执行步骤：{step}\n"
-                    "- 当前效果：已有工具结果和中间改动均已保留，但没有足够证据确认任务完成。\n"
-                    "- 下一步：检查最近的失败/重复调用记录，补充新的输入或采用不同实现路径后继续。"
+                    f"- 当前效果：{retained}\n"
+                    "- 下一步：处理上述限制或阻塞条件后，从当前会话继续。"
                 )
             else:
-                final_text = f"任务因持续无进展而停止：{report.message}"
+                final_text = f"任务以 {termination.status} 结束：{termination.message}"
 
         final_message = self.redactor.redact_message(
             ChatMessage(role=Role.ASSISTANT, content=final_text)
@@ -1199,36 +1251,93 @@ class AgentRunner:
                 "text": final_text,
                 "step": step,
                 "phase": "finalizing",
-                "fallback": finalization_error is not None
-                or not self.config.agent.finalization.enabled,
+                "fallback": not model_attempted or finalization_error is not None,
                 "finalization_error": finalization_error,
             },
         )
+        terminal_event = {
+            "blocked": EventType.RUN_BLOCKED,
+            "limit_reached": EventType.RUN_LIMIT_REACHED,
+            "failed": EventType.RUN_FAILED,
+        }[termination.status]
         await self.event_bus.emit(
-            EventType.RUN_BLOCKED,
+            terminal_event,
             session_id=session_id,
             run_id=run_id,
             payload={
                 "steps": step,
                 "final_text": final_text,
-                "termination_reason": report.reason_code,
+                "error": termination.message,
+                "message": termination.message,
+                "status": termination.status,
+                "termination_reason": termination.reason_code,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "cost_usd": cost_usd,
                 "finalization_error": finalization_error,
-                **report.event_payload(),
+                **termination.metadata,
             },
         )
         return RunResult(
             session_id=session_id,
-            status="blocked",
+            status=termination.status,
             final_text=final_text,
             steps=step,
             error=reason,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=cost_usd,
-            termination_reason=report.reason_code,
+            termination_reason=termination.reason_code,
+        )
+
+    async def _termination_context_items(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        reason: str,
+        status: str,
+    ) -> list[ContextItem]:
+        environment = await self.execution_target.probe(["ksys", "devkit"])
+        base_items = self.context.ledger_items(environment)
+        projection: dict[str, Any] = {"cursor_position": 0, "compaction": None}
+        if self.context_compactor is not None:
+            projection = self.context_compactor.projection(session_id)
+        cursor = int(projection["cursor_position"])
+        conversation = [
+            PositionedMessage(
+                entry.position,
+                self._externalize_message(
+                    entry.message,
+                    session_id=session_id,
+                    run_id=run_id,
+                ),
+            )
+            for entry in self.store.load_positioned_messages(
+                session_id,
+                after_position=cursor,
+            )
+            if entry.message.assistant_payload_error() is None
+        ]
+        runtime_notes: list[ContextItem] = []
+        await self._refresh_managed_process_note(runtime_notes)
+        self._replace_runtime_note(
+            runtime_notes,
+            note_id="termination-finalizer",
+            content=(
+                f"运行即将以 {status} 结束。禁止调用任何工具，也不要声称未发生的结果。"
+                "请只基于已有对话和工具证据，总结已完成部分、未完成部分、具体终止原因，"
+                f"以及恢复所需的最小下一步。终止判定：{reason}"
+            ),
+            priority=1_000,
+        )
+        return self._build_context_items(
+            base_items=base_items,
+            memory_items=self._memory_context_items(),
+            active_skill_items=self._active_skill_items(),
+            compaction_item=self._compaction_context_item(projection),
+            conversation=conversation,
+            runtime_notes=runtime_notes,
         )
 
     @staticmethod
@@ -1884,7 +1993,15 @@ class AgentRunner:
         if unknown:
             return ToolResult(success=False, error=f"未知 Tool: {', '.join(unknown)}")
         self._activated_tools.setdefault(session_id, set()).update(names)
-        return ToolResult(success=True, output=f"已激活 Tool schemas: {', '.join(names)}")
+        return ToolResult(
+            success=True,
+            output=f"已激活 Tool schemas: {', '.join(names)}",
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary="已加载新的 Tool schema",
+                evidence_key=f"tool-schemas:{','.join(sorted(names))}",
+            ),
+        )
 
     def _load_context_reference(self, tool_call: ToolCall, session_id: str) -> ToolResult:
         reference = tool_call.arguments.get("reference")
@@ -1911,6 +2028,14 @@ class AgentRunner:
             success=True,
             output=json.dumps(loaded, ensure_ascii=False),
             metadata={"reference": reference},
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary="读取了外置上下文证据",
+                evidence_key=(
+                    f"context-ref:{reference}:{offset}:{limit}:"
+                    f"{hashlib.sha256(repr(loaded).encode()).hexdigest()}"
+                ),
+            ),
         )
 
     def _search_session_history(
@@ -1927,9 +2052,15 @@ class AgentRunner:
             query,
             limit=min(limit, 50),
         )
+        output = json.dumps({"matches": matches}, ensure_ascii=False)
         return ToolResult(
             success=True,
-            output=json.dumps({"matches": matches}, ensure_ascii=False),
+            output=output,
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary=f"在会话历史中找到 {len(matches)} 条证据",
+                evidence_key=f"session-search:{hashlib.sha256(output.encode()).hexdigest()}",
+            ),
         )
 
     def _load_compaction_source(
@@ -1966,6 +2097,14 @@ class AgentRunner:
             success=True,
             output=json.dumps(source, ensure_ascii=False),
             metadata={"compaction_id": compaction_id},
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary="读取了压缩前原始证据",
+                evidence_key=(
+                    f"compaction-source:{compaction_id}:"
+                    f"{hashlib.sha256(repr(source).encode()).hexdigest()}"
+                ),
+            ),
         )
 
     def _search_memory(self, tool_call: ToolCall) -> ToolResult:
@@ -1991,9 +2130,15 @@ class AgentRunner:
             }
             for record in records
         ]
+        output = json.dumps({"matches": matches}, ensure_ascii=False)
         return ToolResult(
             success=True,
-            output=json.dumps({"matches": matches}, ensure_ascii=False),
+            output=output,
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary=f"检索到 {len(matches)} 条记忆",
+                evidence_key=f"memory-search:{hashlib.sha256(output.encode()).hexdigest()}",
+            ),
         )
 
     def _load_memory_evidence(self, tool_call: ToolCall) -> ToolResult:
@@ -2032,21 +2177,27 @@ class AgentRunner:
                 break
         if not messages:
             return ToolResult(success=False, error="记忆证据不存在或不属于当前工作区")
+        output = json.dumps(
+            {
+                "memory": {
+                    "id": record.id,
+                    "key": record.key,
+                    "content": record.content,
+                    "status": record.status.value,
+                },
+                "messages": messages,
+            },
+            ensure_ascii=False,
+        )
         return ToolResult(
             success=True,
-            output=json.dumps(
-                {
-                    "memory": {
-                        "id": record.id,
-                        "key": record.key,
-                        "content": record.content,
-                        "status": record.status.value,
-                    },
-                    "messages": messages,
-                },
-                ensure_ascii=False,
-            ),
+            output=output,
             metadata={"memory": record.key},
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary="读取了记忆的原始证据",
+                evidence_key=f"memory-evidence:{hashlib.sha256(output.encode()).hexdigest()}",
+            ),
         )
 
     def context_status(self, session_id: str) -> dict[str, object]:
@@ -2161,6 +2312,15 @@ class AgentRunner:
             output=content if skill else "",
             error=None if skill else content,
             metadata={"skill": name},
+            progress=(
+                ProgressSignal(
+                    kind=ProgressKind.WEAK,
+                    summary=f"激活了 Skill {name}",
+                    evidence_key=f"skill:{name}",
+                )
+                if skill is not None
+                else None
+            ),
         )
 
     async def _load_skill_resource(
@@ -2186,6 +2346,14 @@ class AgentRunner:
             success=True,
             output=content,
             metadata={"skill": skill_name, "path": relative_path},
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary=f"读取了 Skill {skill_name} 的资源",
+                evidence_key=(
+                    f"skill-resource:{skill_name}:{relative_path}:"
+                    f"{hashlib.sha256(content.encode()).hexdigest()}"
+                ),
+            ),
         )
 
     async def _execute_tool(self, tool_call: ToolCall, session_id: str, run_id: str) -> ToolResult:
@@ -2338,14 +2506,6 @@ class AgentRunner:
             result=result.model_dump(mode="json"),
         )
         return result
-
-    async def _fail_event(self, session_id: str, run_id: str, error: str) -> None:
-        await self.event_bus.emit(
-            EventType.RUN_FAILED,
-            session_id=session_id,
-            run_id=run_id,
-            payload={"error": error},
-        )
 
     async def _drain_steering(
         self,

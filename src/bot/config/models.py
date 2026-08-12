@@ -39,6 +39,11 @@ class ProgressConfig(StrictModel):
     max_cycle_period: int = Field(default=4, ge=1, le=32)
     cycles_before_warning: int = Field(default=2, ge=2)
     cycles_before_recovery: int = Field(default=3, ge=2)
+    process_inactivity_warning_seconds: float = Field(default=300, gt=0)
+    process_inactivity_recovery_seconds: float = Field(default=900, gt=0)
+    # None deliberately means that a quiet but live process is never killed or
+    # finalized solely because it has not produced output.
+    process_inactivity_finalize_seconds: float | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def validate_thresholds(self) -> ProgressConfig:
@@ -68,6 +73,17 @@ class ProgressConfig(StrictModel):
             raise ValueError(
                 "progress.cycle_window_size 必须容纳 max_cycle_period * cycles_before_recovery"
             )
+        if (
+            self.process_inactivity_warning_seconds
+            >= self.process_inactivity_recovery_seconds
+        ):
+            raise ValueError("process inactivity 的 warning 必须小于 recovery")
+        if (
+            self.process_inactivity_finalize_seconds is not None
+            and self.process_inactivity_recovery_seconds
+            >= self.process_inactivity_finalize_seconds
+        ):
+            raise ValueError("process inactivity 的 recovery 必须小于 finalize")
         return self
 
 

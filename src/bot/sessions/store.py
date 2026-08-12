@@ -14,7 +14,7 @@ from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 
 class SQLiteSessionStore(EventSink):
@@ -97,6 +97,14 @@ class SQLiteSessionStore(EventSink):
                     status TEXT NOT NULL,
                     result_json TEXT,
                     created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS progress_states (
+                    session_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL,
+                    state_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES sessions(id),
+                    FOREIGN KEY(run_id) REFERENCES runs(id)
                 );
                 CREATE TABLE IF NOT EXISTS approvals (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -599,6 +607,49 @@ class SQLiteSessionStore(EventSink):
                     cost_usd,
                     run_id,
                 ),
+            )
+
+    def load_progress_state(self, session_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT run_id, state_json, updated_at FROM progress_states WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "run_id": str(row["run_id"]),
+            "state": json.loads(str(row["state_json"])),
+            "updated_at": str(row["updated_at"]),
+        }
+
+    def save_progress_state(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        state: dict[str, Any],
+    ) -> None:
+        now = datetime.now(UTC).isoformat()
+        payload = json.dumps(self._sanitizer(state), ensure_ascii=False, sort_keys=True)
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO progress_states(session_id, run_id, state_json, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    run_id = excluded.run_id,
+                    state_json = excluded.state_json,
+                    updated_at = excluded.updated_at
+                """,
+                (session_id, run_id, payload, now),
+            )
+
+    def clear_progress_state(self, session_id: str) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                "DELETE FROM progress_states WHERE session_id = ?",
+                (session_id,),
             )
 
     async def publish(self, event: AgentEvent) -> None:

@@ -33,6 +33,14 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
         cost_usd=0.002,
     )
 
+    progress_state = {"version": 1, "epoch": 3, "recent_calls": ["hash-only"]}
+    store.save_progress_state(
+        session_id=session_id,
+        run_id=run_id,
+        state=progress_state,
+    )
+    assert store.load_progress_state(session_id)["state"] == progress_state
+
     assert store.latest_session(tmp_path) == session_id
     assert store.load_messages(session_id)[0].content == "hello"
     assert store.list_events(session_id)[0]["schema_version"] == 1
@@ -54,6 +62,9 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
         arguments={"argv": ["make", "test"]},
     )
     assert store.has_approval_rule(fingerprint)
+
+    store.clear_progress_state(session_id)
+    assert store.load_progress_state(session_id) is None
 
     forked = store.fork_session(session_id)
     assert store.get_session(forked)["parent_session_id"] == session_id
@@ -92,7 +103,7 @@ def test_session_store_migrates_legacy_event_schema(tmp_path: Path) -> None:
     versions = {row[0] for row in connection.execute("SELECT version FROM schema_migrations")}
     connection.close()
     assert "schema_version" in columns
-    assert 11 in versions
+    assert 12 in versions
 
 
 def test_new_schema_omits_episode_and_memory_card_tables(tmp_path: Path) -> None:
@@ -107,6 +118,7 @@ def test_new_schema_omits_episode_and_memory_card_tables(tmp_path: Path) -> None
     connection.close()
 
     assert "memories" in tables
+    assert "progress_states" in tables
     assert "memory_extraction_runs" in tables
     assert "context_compactions" in tables
     assert (

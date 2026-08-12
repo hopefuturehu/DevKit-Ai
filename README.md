@@ -62,6 +62,10 @@ warning_after_no_progress_steps = 4
 recovery_after_no_progress_steps = 7
 finalize_after_no_progress_steps = 11
 max_recovery_attempts_per_epoch = 1
+process_inactivity_warning_seconds = 300
+process_inactivity_recovery_seconds = 900
+# 默认不因静默自动终止仍存活的进程；需要时显式设置
+# process_inactivity_finalize_seconds = 3600
 
 [agent.finalization]
 enabled = true
@@ -107,9 +111,9 @@ path = "./skills"
 state_path = "./.bot/state.db"
 ```
 
-正常任务默认不受固定步骤数或总运行时长限制。运行器根据可验证进展识别重复失败、相同幂等
-结果和短周期 Tool 循环，依次执行警告、纠偏和一次无 Tool 收尾；只有显式配置的预算、上下文
-容量、费用、用户取消或不可恢复错误会硬终止。完整状态机见
+正常任务默认不受固定步骤数或总运行时长限制。Tool 通过结构化 `progress` 信号报告强/弱进展
+或外部等待；运行器识别重复失败和短周期循环，进展状态会写入 SQLite 并在 `resume` 时恢复。
+所有非取消终态统一生成一次无 Tool 或静态收尾。完整状态机见
 [docs/termination.md](docs/termination.md)。
 
 然后运行：

@@ -98,13 +98,22 @@ class RichEventSink:
             )
         elif event.type == EventType.RUN_FINALIZING:
             self._finish_stream()
-            self.console.print(Text("持续无进展，正在生成收尾说明…", style="yellow"))
+            self.console.print(Text("运行即将结束，正在生成收尾说明…", style="yellow"))
         elif event.type == EventType.RUN_BLOCKED:
             self._finish_stream()
             self.console.print(
                 Text(f"运行已阻塞：{payload.get('message')}", style="yellow"),
                 highlight=False,
             )
+        elif event.type == EventType.RUN_LIMIT_REACHED:
+            self._finish_stream()
+            self.console.print(
+                Text(f"运行达到策略边界：{payload.get('error')}", style="yellow"),
+                highlight=False,
+            )
+        elif event.type == EventType.RUN_CANCELLED:
+            self._finish_stream()
+            self.console.print(Text("运行已取消", style="yellow"), highlight=False)
         elif event.type == EventType.RUN_FAILED:
             self._finish_stream()
             self.console.print(

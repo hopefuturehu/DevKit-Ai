@@ -488,12 +488,55 @@ async def test_agent_has_no_default_thirty_step_limit(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_progress_state_is_restored_across_runs(tmp_path: Path) -> None:
+    (tmp_path / "input.txt").write_text("unchanged", encoding="utf-8")
+    provider = ScriptedProvider(
+        [
+            tool_turn("read-1", "read_file", '{"path":"input.txt"}'),
+            tool_turn("read-2", "read_file", '{"path":"input.txt"}'),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first run limit"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+            tool_turn("read-3", "read_file", '{"path":"input.txt"}'),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="recovered and done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={"max_steps": 2},
+        tools=[ReadFileTool()],
+    )
+
+    first = await runner.run(RunRequest(prompt="keep reading"))
+    second = await runner.run(
+        RunRequest(prompt="continue", session_id=first.session_id)
+    )
+
+    assert first.status == "limit_reached"
+    assert second.status == "completed"
+    event_types = [event["type"] for event in store.list_events(first.session_id)]
+    assert EventType.RUN_PROGRESS_RESTORED.value in event_types
+    assert EventType.RUN_RECOVERY_STARTED.value in event_types
+    assert store.load_progress_state(first.session_id) is None
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_agent_preserves_explicit_step_limit(tmp_path: Path) -> None:
     (tmp_path / "input.txt").write_text("value", encoding="utf-8")
     provider = ScriptedProvider(
         [
             tool_turn("read-1", "read_file", '{"path":"input.txt"}'),
             tool_turn("read-2", "read_file", '{"path":"input.txt"}'),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="step limit summary"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
         ]
     )
     runner, store = make_test_runner(
@@ -508,7 +551,9 @@ async def test_agent_preserves_explicit_step_limit(tmp_path: Path) -> None:
     assert result.status == "limit_reached"
     assert result.steps == 2
     assert result.termination_reason == "max_steps"
-    assert len(provider.requests) == 2
+    assert result.final_text == "step limit summary"
+    assert len(provider.requests) == 3
+    assert provider.requests[-1].tools == []
     store.close()
 
 
@@ -549,7 +594,11 @@ async def test_agent_treats_length_finish_as_limit(tmp_path: Path) -> None:
             [
                 ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="partial"),
                 ModelEvent(kind=ModelEventKind.FINISH, finish_reason="length"),
-            ]
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="length limit summary"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
         ]
     )
     runner, store = make_test_runner(tmp_path, provider)
@@ -557,7 +606,8 @@ async def test_agent_treats_length_finish_as_limit(tmp_path: Path) -> None:
     result = await runner.run(RunRequest(prompt="answer"))
 
     assert result.status == "limit_reached"
-    assert result.final_text == "partial"
+    assert result.final_text == "length limit summary"
+    assert provider.requests[-1].tools == []
     store.close()
 
 
@@ -656,7 +706,16 @@ async def test_agent_fails_two_empty_responses_without_poisoning_history(tmp_pat
         ModelEvent(kind=ModelEventKind.REASONING_DELTA, text="unfinished"),
         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
     ]
-    provider = ScriptedProvider([empty_turn, empty_turn])
+    provider = ScriptedProvider(
+        [
+            empty_turn,
+            empty_turn,
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="empty response summary"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
     runner, store = make_test_runner(tmp_path, provider)
 
     result = await runner.run(RunRequest(prompt="answer"))
@@ -664,7 +723,8 @@ async def test_agent_fails_two_empty_responses_without_poisoning_history(tmp_pat
     assert result.status == "failed"
     assert "连续 2 次" in (result.error or "")
     messages = store.load_messages(result.session_id)
-    assert [message.role for message in messages] == [Role.USER]
+    assert [message.role for message in messages] == [Role.USER, Role.ASSISTANT]
+    assert messages[-1].content == "empty response summary"
     empty_events = [
         event
         for event in store.list_events(result.session_id)
@@ -752,7 +812,9 @@ async def test_agent_enforces_cost_before_requested_tool_runs(tmp_path: Path) ->
 
     assert result.status == "limit_reached"
     assert result.cost_usd == 1
-    assert store.list_events(result.session_id)[-1]["type"] == "run.failed"
+    event_types = [event["type"] for event in store.list_events(result.session_id)]
+    assert event_types[-2:] == ["assistant.message", "run.limit_reached"]
+    assert "run.finalizing" in event_types
     store.close()
 
 

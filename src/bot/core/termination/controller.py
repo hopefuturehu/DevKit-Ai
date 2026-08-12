@@ -8,12 +8,7 @@ from enum import StrEnum
 from typing import Any
 
 from bot.config.models import ProgressConfig
-
-
-class ProgressKind(StrEnum):
-    NONE = "none"
-    WEAK = "weak"
-    STRONG = "strong"
+from bot.core.progress import ProgressKind, ProgressSignal
 
 
 class TerminationAction(StrEnum):
@@ -56,6 +51,7 @@ class _Observation:
     result_signature: str
     success: bool
     progress: ProgressKind
+    signal: ProgressSignal | None = None
     exact_failure_count: int = 0
     same_tool_failure_count: int = 0
     idempotent_repeat_count: int = 0
@@ -70,7 +66,9 @@ class ProgressController:
     moves the run to a one-shot finalization phase.
     """
 
-    def __init__(self, config: ProgressConfig) -> None:
+    STATE_VERSION = 1
+
+    def __init__(self, config: ProgressConfig, state: dict[str, Any] | None = None) -> None:
         self.config = config
         self.epoch = 0
         self.no_progress_steps = 0
@@ -81,6 +79,9 @@ class ProgressController:
         self._exact_failures: dict[str, tuple[str, int]] = {}
         self._same_tool_failure_counts: dict[str, int] = {}
         self._idempotent_results: dict[str, tuple[str, int]] = {}
+        self._waiting_warnings: set[str] = set()
+        self._waiting_recoveries: dict[str, int] = {}
+        self.restored = self._restore(state)
 
     def observe_tool(
         self,
@@ -90,11 +91,16 @@ class ProgressController:
         success: bool,
         result_content: str,
         metadata: dict[str, Any] | None,
+        progress_signal: ProgressSignal | None = None,
         read_only: bool,
         idempotent: bool,
     ) -> None:
         call_signature = self._fingerprint(tool_name, arguments)
-        result_signature = self._fingerprint(result_content)
+        result_signature = self._fingerprint(
+            progress_signal.evidence_key
+            if progress_signal is not None and progress_signal.evidence_key
+            else result_content
+        )
         progress = self._classify_progress(
             success=success,
             metadata=metadata or {},
@@ -102,6 +108,7 @@ class ProgressController:
             idempotent=idempotent,
             call_signature=call_signature,
             result_signature=result_signature,
+            progress_signal=progress_signal,
         )
 
         exact_failure_count = 0
@@ -133,7 +140,8 @@ class ProgressController:
                 idempotent_repeat_count,
             )
 
-        self._recent_calls.append(self._fingerprint(call_signature, result_signature))
+        if progress != ProgressKind.WAITING:
+            self._recent_calls.append(self._fingerprint(call_signature, result_signature))
         self._step_observations.append(
             _Observation(
                 tool_name=tool_name,
@@ -141,6 +149,7 @@ class ProgressController:
                 result_signature=result_signature,
                 success=success,
                 progress=progress,
+                signal=progress_signal,
                 exact_failure_count=exact_failure_count,
                 same_tool_failure_count=same_tool_failure_count,
                 idempotent_repeat_count=idempotent_repeat_count,
@@ -160,6 +169,8 @@ class ProgressController:
                 "strong_progress",
                 "检测到可验证的状态变化，已开启新的进展阶段。",
             )
+        if progress == ProgressKind.WAITING:
+            return self._finish_waiting(observations)
         if progress == ProgressKind.WEAK:
             self.no_progress_steps = max(0, self.no_progress_steps - 1)
         else:
@@ -271,9 +282,12 @@ class ProgressController:
         idempotent: bool,
         call_signature: str,
         result_signature: str,
+        progress_signal: ProgressSignal | None,
     ) -> ProgressKind:
         if not success:
             return ProgressKind.NONE
+        if progress_signal is not None:
+            return progress_signal.kind
         marker = metadata.get("progress")
         if isinstance(marker, dict):
             kind = marker.get("kind")
@@ -293,9 +307,99 @@ class ProgressController:
     def _step_progress(self, observations: list[_Observation]) -> ProgressKind:
         if any(item.progress == ProgressKind.STRONG for item in observations):
             return ProgressKind.STRONG
+        if any(item.progress == ProgressKind.WAITING for item in observations):
+            return ProgressKind.WAITING
         if any(item.progress == ProgressKind.WEAK for item in observations):
             return ProgressKind.WEAK
         return ProgressKind.NONE
+
+    def _finish_waiting(self, observations: list[_Observation]) -> ProgressReport:
+        waiting = [item for item in observations if item.progress == ProgressKind.WAITING]
+        selected = max(
+            waiting,
+            key=lambda item: (
+                item.signal.inactivity_seconds
+                if item.signal is not None and item.signal.inactivity_seconds is not None
+                else 0
+            ),
+        )
+        signal = selected.signal
+        inactivity = signal.inactivity_seconds if signal is not None else None
+        inactivity = inactivity or 0.0
+        subject = (
+            signal.evidence_key
+            if signal is not None and signal.evidence_key
+            else selected.call_signature
+        )
+        persisted_subject = self._fingerprint(subject)
+        summary = signal.summary if signal is not None and signal.summary else "外部进程仍在运行"
+        pattern = {
+            "tool": selected.tool_name,
+            "subject": subject,
+            "inactivity_seconds": round(inactivity, 3),
+        }
+
+        if inactivity < self.config.process_inactivity_warning_seconds:
+            self._waiting_warnings.discard(persisted_subject)
+            self._waiting_recoveries.pop(persisted_subject, None)
+            return self._report(
+                TerminationAction.CONTINUE,
+                ProgressKind.WAITING,
+                "process_active",
+                summary,
+                pattern=pattern,
+            )
+
+        finalize_after = self.config.process_inactivity_finalize_seconds
+        recovery_count = self._waiting_recoveries.get(persisted_subject, 0)
+        if finalize_after is not None and inactivity >= finalize_after and recovery_count > 0:
+            return self._report(
+                TerminationAction.FINALIZE,
+                ProgressKind.WAITING,
+                "process_inactive_after_recovery",
+                f"{summary}，已静默 {inactivity:.1f} 秒且恢复检查未发现活性。",
+                pattern=pattern,
+            )
+
+        if inactivity >= self.config.process_inactivity_recovery_seconds:
+            if recovery_count < self.config.max_recovery_attempts_per_epoch:
+                recovery_count += 1
+                self._waiting_recoveries[persisted_subject] = recovery_count
+                self.recovery_attempts = max(self.recovery_attempts, recovery_count)
+                return self._report(
+                    TerminationAction.RECOVER,
+                    ProgressKind.WAITING,
+                    "process_inactive",
+                    (
+                        f"{summary}，已静默 {inactivity:.1f} 秒；请检查进程状态、"
+                        "延长等待或显式终止，但不要重复短间隔轮询。"
+                    ),
+                    pattern=pattern,
+                )
+            return self._report(
+                TerminationAction.CONTINUE,
+                ProgressKind.WAITING,
+                "process_waiting_after_recovery",
+                f"{summary}，仍在等待外部进程；默认策略不会因静默而自动终止。",
+                pattern=pattern,
+            )
+
+        if persisted_subject not in self._waiting_warnings:
+            self._waiting_warnings.add(persisted_subject)
+            return self._report(
+                TerminationAction.WARN,
+                ProgressKind.WAITING,
+                "process_quiet",
+                f"{summary}，已静默 {inactivity:.1f} 秒。",
+                pattern=pattern,
+            )
+        return self._report(
+            TerminationAction.CONTINUE,
+            ProgressKind.WAITING,
+            "process_waiting",
+            f"{summary}，继续等待外部进程。",
+            pattern=pattern,
+        )
 
     def _strongest_signal(
         self,
@@ -373,6 +477,88 @@ class ProgressController:
         self._exact_failures.clear()
         self._same_tool_failure_counts.clear()
         self._idempotent_results.clear()
+        self._waiting_warnings.clear()
+        self._waiting_recoveries.clear()
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "version": self.STATE_VERSION,
+            "config_fingerprint": self._config_fingerprint(),
+            "epoch": self.epoch,
+            "no_progress_steps": self.no_progress_steps,
+            "recovery_attempts": self.recovery_attempts,
+            "warning_emitted": self._warning_emitted,
+            "recent_calls": list(self._recent_calls),
+            "exact_failures": self._exact_failures,
+            "same_tool_failure_counts": self._same_tool_failure_counts,
+            "idempotent_results": self._idempotent_results,
+            "waiting_warnings": sorted(self._waiting_warnings),
+            "waiting_recoveries": self._waiting_recoveries,
+        }
+
+    def state_summary(self) -> dict[str, Any]:
+        return {
+            "epoch": self.epoch,
+            "no_progress_steps": self.no_progress_steps,
+            "recovery_attempts": self.recovery_attempts,
+            "recent_call_count": len(self._recent_calls),
+            "waiting_subject_count": len(
+                self._waiting_warnings | set(self._waiting_recoveries)
+            ),
+        }
+
+    def _restore(self, state: dict[str, Any] | None) -> bool:
+        if not isinstance(state, dict):
+            return False
+        if state.get("version") != self.STATE_VERSION:
+            return False
+        if state.get("config_fingerprint") != self._config_fingerprint():
+            return False
+        try:
+            self.epoch = max(0, int(state.get("epoch", 0)))
+            self.no_progress_steps = max(0, int(state.get("no_progress_steps", 0)))
+            self.recovery_attempts = max(0, int(state.get("recovery_attempts", 0)))
+            self._warning_emitted = bool(state.get("warning_emitted", False))
+            self._recent_calls.extend(str(value) for value in state.get("recent_calls", []))
+            self._exact_failures = self._restore_pairs(state.get("exact_failures"))
+            self._idempotent_results = self._restore_pairs(state.get("idempotent_results"))
+            self._same_tool_failure_counts = self._restore_counts(
+                state.get("same_tool_failure_counts")
+            )
+            self._waiting_warnings = {
+                str(value) for value in state.get("waiting_warnings", [])
+            }
+            self._waiting_recoveries = self._restore_counts(
+                state.get("waiting_recoveries")
+            )
+        except (TypeError, ValueError):
+            self._clear_repetition_evidence()
+            self.epoch = 0
+            self.no_progress_steps = 0
+            self.recovery_attempts = 0
+            self._warning_emitted = False
+            return False
+        return True
+
+    def _config_fingerprint(self) -> str:
+        return self._fingerprint(self.config.model_dump(mode="json"))
+
+    @staticmethod
+    def _restore_counts(value: Any) -> dict[str, int]:
+        if not isinstance(value, dict):
+            return {}
+        return {str(key): max(0, int(count)) for key, count in value.items()}
+
+    @staticmethod
+    def _restore_pairs(value: Any) -> dict[str, tuple[str, int]]:
+        if not isinstance(value, dict):
+            return {}
+        restored: dict[str, tuple[str, int]] = {}
+        for key, pair in value.items():
+            if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+                continue
+            restored[str(key)] = (str(pair[0]), max(0, int(pair[1])))
+        return restored
 
     def _report(
         self,

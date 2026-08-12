@@ -72,9 +72,13 @@ async def test_progress_recovery_and_blocked_events_are_visible() -> None:
     )
     await sink.publish(_event(EventType.RUN_FINALIZING, {}))
     await sink.publish(_event(EventType.RUN_BLOCKED, {"message": "恢复后仍无进展"}))
+    await sink.publish(_event(EventType.RUN_LIMIT_REACHED, {"error": "达到费用边界"}))
+    await sink.publish(_event(EventType.RUN_CANCELLED, {}))
 
     output = stream.getvalue()
     assert "进展警告：重复读取" in output
     assert "正在纠偏：切换路径" in output
     assert "正在生成收尾说明" in output
     assert "运行已阻塞：恢复后仍无进展" in output
+    assert "运行达到策略边界：达到费用边界" in output
+    assert "运行已取消" in output
