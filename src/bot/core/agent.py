@@ -5,7 +5,6 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from time import monotonic
 from typing import Any
 from uuid import uuid4
 
@@ -37,6 +36,7 @@ from bot.core.models import (
     ToolCall,
     ToolDefinition,
 )
+from bot.core.termination import ProgressController, ProgressReport, TerminationAction
 from bot.execution import ExecutionTarget, ProcessStatus
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
@@ -172,23 +172,59 @@ class AgentRunner:
             EventType.RUN_STARTED,
             session_id=session_id,
             run_id=run_id,
-            payload={"prompt": request.prompt, "workspace": str(self.workspace)},
+            payload={
+                "prompt": request.prompt,
+                "workspace": str(self.workspace),
+                "termination_policy": {
+                    "max_steps": self.config.agent.max_steps,
+                    "max_wall_time_seconds": self.config.agent.max_wall_time_seconds,
+                    "max_total_tool_output_bytes": (
+                        self.config.agent.max_total_tool_output_bytes
+                    ),
+                    "max_consecutive_failures": (
+                        self.config.agent.max_consecutive_failures
+                    ),
+                    "max_cost_usd": self.config.agent.max_cost_usd,
+                    "process_hard_timeout_seconds": (
+                        self.config.agent.process_hard_timeout_seconds
+                    ),
+                    "progress": self.config.agent.progress.model_dump(mode="json"),
+                    "finalization": self.config.agent.finalization.model_dump(mode="json"),
+                },
+            },
         )
         try:
-            async with asyncio.timeout(self.config.agent.max_wall_time_seconds):
+            wall_time_limit = self.config.agent.max_wall_time_seconds
+            if wall_time_limit is None:
                 result = await self._run_loop(request, session_id=session_id, run_id=run_id)
-        except TimeoutError:
-            error = f"运行超过 {self.config.agent.max_wall_time_seconds:g} 秒限制"
+            else:
+                async with asyncio.timeout(wall_time_limit):
+                    result = await self._run_loop(request, session_id=session_id, run_id=run_id)
+        except TimeoutError as exc:
+            if wall_time_limit is None:
+                error = f"运行时操作超时: {exc or '未提供具体原因'}"
+                status = "failed"
+                termination_reason = "runtime_timeout"
+            else:
+                error = f"运行超过 {wall_time_limit:g} 秒限制"
+                status = "limit_reached"
+                termination_reason = "max_wall_time_seconds"
             await self._fail_event(session_id, run_id, error)
             result = RunResult(
                 session_id=session_id,
-                status="limit_reached",
+                status=status,
                 error=error,
+                termination_reason=termination_reason,
             )
         except asyncio.CancelledError:
             error = "运行已取消"
             await self._fail_event(session_id, run_id, error)
-            result = RunResult(session_id=session_id, status="cancelled", error=error)
+            result = RunResult(
+                session_id=session_id,
+                status="cancelled",
+                error=error,
+                termination_reason="cancelled",
+            )
         except Exception as exc:
             error = str(exc)
             await self._fail_event(session_id, run_id, error)
@@ -299,19 +335,30 @@ class AgentRunner:
         )
 
         failures = 0
-        failed_fingerprints: dict[str, int] = {}
-        last_idempotent_result: str | None = None
-        repeated_idempotent_results = 0
         input_tokens = 0
         output_tokens = 0
         tool_output_bytes = 0
         cost_usd: float | None = None
         context_retry_used = False
         consecutive_empty_responses = 0
-        started_at = monotonic()
-        for step in range(1, self.config.agent.max_steps + 1):
-            if monotonic() - started_at > self.config.agent.max_wall_time_seconds:
-                raise TimeoutError
+        progress_controller = ProgressController(self.config.agent.progress)
+        step = 0
+        while True:
+            max_steps = self.config.agent.max_steps
+            if max_steps is not None and step >= max_steps:
+                error = f"达到显式配置的最大步骤数 {max_steps}"
+                await self._fail_event(session_id, run_id, error)
+                return RunResult(
+                    session_id=session_id,
+                    status="limit_reached",
+                    steps=step,
+                    error=error,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    termination_reason="max_steps",
+                )
+            step += 1
             await self._drain_steering(conversation, session_id=session_id, run_id=run_id)
             await self._refresh_managed_process_note(runtime_notes)
             request_tools = self.tool_registry.definitions()
@@ -390,6 +437,7 @@ class AgentRunner:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
+                    termination_reason="context_limit",
                 )
             messages = context_pack.messages
             self._last_context_reports[session_id] = context_pack.overflow_report()
@@ -540,7 +588,7 @@ class AgentRunner:
                 normal_finish = finish_reason in {None, "stop", "eof"}
                 will_retry = (
                     normal_finish
-                    and step < self.config.agent.max_steps
+                    and (max_steps is None or step < max_steps)
                     and (steered_after_model or consecutive_empty_responses < 2)
                 )
                 await self.event_bus.emit(
@@ -568,6 +616,7 @@ class AgentRunner:
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
+                        termination_reason="model_output_limit",
                     )
                 if finish_reason not in {None, "stop", "eof"}:
                     error = f"模型以非正常原因结束且没有正文或工具调用: {finish_reason}"
@@ -615,7 +664,7 @@ class AgentRunner:
                 else:
                     error = (
                         "模型没有返回正文或工具调用，且运行已没有可用重试步骤；"
-                        f"step={step}/{self.config.agent.max_steps}, "
+                        f"step={step}/{max_steps}, "
                         f"finish_reason={finish_reason}, reasoning_chars={len(reasoning_text)}, "
                         f"likely_cause={likely_cause}"
                     )
@@ -628,6 +677,7 @@ class AgentRunner:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
+                    termination_reason="empty_model_response",
                 )
 
             consecutive_empty_responses = 0
@@ -672,6 +722,7 @@ class AgentRunner:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
+                    termination_reason="max_cost_usd",
                 )
 
             if not tool_calls and steered_after_model:
@@ -689,6 +740,7 @@ class AgentRunner:
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
+                        termination_reason="model_output_limit",
                     )
                 if finish_reason not in {None, "stop", "eof"}:
                     error = f"模型以非正常原因结束: {finish_reason}"
@@ -866,10 +918,11 @@ class AgentRunner:
                     )
                 conversation.append(PositionedMessage(result_position, result_message))
                 tool_output_bytes += len(raw_model_content.encode("utf-8"))
-                if tool_output_bytes > self.config.agent.max_total_tool_output_bytes:
+                total_output_limit = self.config.agent.max_total_tool_output_bytes
+                if total_output_limit is not None and tool_output_bytes > total_output_limit:
                     error = (
                         f"累计 Tool 输出达到 {tool_output_bytes} bytes，超过运行上限 "
-                        f"{self.config.agent.max_total_tool_output_bytes} bytes"
+                        f"{total_output_limit} bytes"
                     )
                     await self._fail_event(session_id, run_id, error)
                     return RunResult(
@@ -881,81 +934,15 @@ class AgentRunner:
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cost_usd=cost_usd,
+                        termination_reason="max_total_tool_output_bytes",
                     )
 
-                fingerprint = self._fingerprint(tool_call)
                 if result.success:
                     failures = 0
-                    failed_fingerprints.pop(fingerprint, None)
-                    tool = self.tool_registry.get(tool_call.name)
-                    if tool is not None and tool.annotations.idempotent:
-                        result_fingerprint = self._result_fingerprint(tool_call, result)
-                        if result_fingerprint == last_idempotent_result:
-                            repeated_idempotent_results += 1
-                        else:
-                            last_idempotent_result = result_fingerprint
-                            repeated_idempotent_results = 1
-                        if repeated_idempotent_results == 2:
-                            runtime_notes.append(
-                                ContextItem(
-                                    id="repeated-idempotent-warning",
-                                    layer=ContextLayer.RUNTIME_NOTE,
-                                    message=ChatMessage(
-                                        role=Role.SYSTEM,
-                                        content=(
-                                            f"幂等 Tool {tool_call.name} 已连续返回相同结果。"
-                                            "当前方案没有产生新证据，请改变下一步。"
-                                        ),
-                                    ),
-                                    source="agent-loop",
-                                    trust=ContextTrust.TRUSTED,
-                                    retention=ContextRetention.DISPOSABLE,
-                                    priority=800,
-                                )
-                            )
-                        elif repeated_idempotent_results >= 3:
-                            error = (
-                                f"幂等 Tool {tool_call.name} 连续返回相同结果，运行因无进展而熔断"
-                            )
-                            await self._fail_event(session_id, run_id, error)
-                            return RunResult(
-                                session_id=session_id,
-                                status="failed",
-                                final_text=assistant_text,
-                                steps=step,
-                                error=error,
-                                input_tokens=input_tokens,
-                                output_tokens=output_tokens,
-                                cost_usd=cost_usd,
-                            )
-                    else:
-                        last_idempotent_result = None
-                        repeated_idempotent_results = 0
                 else:
-                    last_idempotent_result = None
-                    repeated_idempotent_results = 0
                     failures += 1
-                    failed_fingerprints[fingerprint] = failed_fingerprints.get(fingerprint, 0) + 1
-                    if failed_fingerprints[fingerprint] >= 2:
-                        runtime_notes.append(
-                            ContextItem(
-                                id=f"tool-failure-{fingerprint}",
-                                layer=ContextLayer.RUNTIME_NOTE,
-                                message=ChatMessage(
-                                    role=Role.SYSTEM,
-                                    content=(
-                                        "相同 Tool Call 已连续失败 "
-                                        f"{failed_fingerprints[fingerprint]} 次。"
-                                        "禁止原样重试；请改变方案或向用户说明阻塞。"
-                                    ),
-                                ),
-                                source="agent-loop",
-                                trust=ContextTrust.TRUSTED,
-                                retention=ContextRetention.DISPOSABLE,
-                                priority=800,
-                            ),
-                        )
-                    if failures >= self.config.agent.max_consecutive_failures:
+                    failure_limit = self.config.agent.max_consecutive_failures
+                    if failure_limit is not None and failures >= failure_limit:
                         error = f"连续 {failures} 次 Tool 执行失败，运行已熔断"
                         await self._fail_event(session_id, run_id, error)
                         return RunResult(
@@ -967,18 +954,302 @@ class AgentRunner:
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,
                             cost_usd=cost_usd,
+                            termination_reason="max_consecutive_failures",
                         )
 
-        error = f"达到最大步骤数 {self.config.agent.max_steps}"
-        await self._fail_event(session_id, run_id, error)
+                if self.config.agent.progress.enabled:
+                    registered_tool = self.tool_registry.get(tool_call.name)
+                    progress_controller.observe_tool(
+                        tool_name=tool_call.name,
+                        arguments=tool_call.arguments,
+                        success=result.success,
+                        result_content=raw_model_content,
+                        metadata=result.metadata,
+                        read_only=(
+                            registered_tool.annotations.read_only
+                            if registered_tool is not None
+                            else True
+                        ),
+                        idempotent=(
+                            registered_tool.annotations.idempotent
+                            if registered_tool is not None
+                            else tool_call.name
+                            in {
+                                "activate_skill",
+                                "activate_tools",
+                                "load_skill_resource",
+                                "load_context_reference",
+                                "search_session_history",
+                                "load_compaction_source",
+                                "search_memory",
+                                "load_memory_evidence",
+                            }
+                        ),
+                    )
+
+            if self.config.agent.progress.enabled:
+                progress_report = progress_controller.finish_step()
+                await self.event_bus.emit(
+                    EventType.RUN_PROGRESS,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={"step": step, **progress_report.event_payload()},
+                )
+                if progress_report.reason_code == "strong_progress":
+                    runtime_notes[:] = [
+                        item
+                        for item in runtime_notes
+                        if item.id not in {"progress-stall-warning", "progress-recovery"}
+                    ]
+                elif progress_report.action == TerminationAction.WARN:
+                    self._replace_runtime_note(
+                        runtime_notes,
+                        note_id="progress-stall-warning",
+                        content=progress_controller.warning_guidance(progress_report),
+                        priority=875,
+                    )
+                    await self.event_bus.emit(
+                        EventType.RUN_STALL_WARNING,
+                        session_id=session_id,
+                        run_id=run_id,
+                        payload={"step": step, **progress_report.event_payload()},
+                    )
+                elif progress_report.action == TerminationAction.RECOVER:
+                    runtime_notes[:] = [
+                        item for item in runtime_notes if item.id != "progress-stall-warning"
+                    ]
+                    self._replace_runtime_note(
+                        runtime_notes,
+                        note_id="progress-recovery",
+                        content=progress_controller.recovery_guidance(progress_report),
+                        priority=900,
+                    )
+                    await self.event_bus.emit(
+                        EventType.RUN_RECOVERY_STARTED,
+                        session_id=session_id,
+                        run_id=run_id,
+                        payload={"step": step, **progress_report.event_payload()},
+                    )
+                elif progress_report.action == TerminationAction.FINALIZE:
+                    return await self._finalize_blocked_run(
+                        session_id=session_id,
+                        run_id=run_id,
+                        step=step,
+                        report=progress_report,
+                        base_items=base_items,
+                        memory_items=memory_items,
+                        active_skill_items=self._active_skill_items(),
+                        compaction_item=compaction_item,
+                        conversation=conversation,
+                        runtime_notes=runtime_notes,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
+
+    async def _finalize_blocked_run(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        step: int,
+        report: ProgressReport,
+        base_items: list[ContextItem],
+        memory_items: list[ContextItem],
+        active_skill_items: list[ContextItem],
+        compaction_item: ContextItem | None,
+        conversation: list[PositionedMessage],
+        runtime_notes: list[ContextItem],
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: float | None,
+    ) -> RunResult:
+        reason = f"{report.reason_code}: {report.message}"
+        await self.event_bus.emit(
+            EventType.RUN_FINALIZING,
+            session_id=session_id,
+            run_id=run_id,
+            payload={"step": step, **report.event_payload()},
+        )
+
+        final_text = ""
+        finalization_error: str | None = None
+        if self.config.agent.finalization.enabled:
+            finalizer_notes = list(runtime_notes)
+            self._replace_runtime_note(
+                finalizer_notes,
+                note_id="progress-finalizer",
+                content=(
+                    "任务执行已因持续无进展进入最终收尾阶段。禁止调用任何工具，也不要声称"
+                    "未发生的结果。请只基于已有对话和工具证据，向用户说明：已完成的部分、"
+                    "尚未完成的部分、具体阻塞证据，以及恢复工作所需的最小下一步。"
+                    f"终止判定：{reason}"
+                ),
+                priority=1_000,
+            )
+            context_items = self._build_context_items(
+                base_items=base_items,
+                memory_items=memory_items,
+                active_skill_items=active_skill_items,
+                compaction_item=compaction_item,
+                conversation=conversation,
+                runtime_notes=finalizer_notes,
+            )
+            try:
+                context_pack = self._context_planner.pack(
+                    context_items,
+                    [],
+                    exact_counter=self._exact_context_tokens,
+                )
+                finalizer_request = ModelRequest(
+                    model=self.config.model.name,
+                    messages=context_pack.messages,
+                    tools=[],
+                    temperature=self.config.model.temperature,
+                    max_output_tokens=self.config.model.max_output_tokens,
+                )
+                text_parts: list[str] = []
+                finalizer_finish_reason: str | None = None
+                finalizer_metadata: dict[str, Any] = {}
+
+                async def consume_finalizer() -> None:
+                    nonlocal input_tokens, output_tokens, cost_usd
+                    nonlocal finalizer_finish_reason, finalizer_metadata
+                    async for event in self.provider.stream(finalizer_request):
+                        if event.kind == ModelEventKind.TEXT_DELTA and event.text:
+                            text_parts.append(event.text)
+                            await self.event_bus.emit(
+                                EventType.ASSISTANT_DELTA,
+                                session_id=session_id,
+                                run_id=run_id,
+                                payload={
+                                    "step": step,
+                                    "phase": "finalizing",
+                                    "text": event.text,
+                                },
+                            )
+                        elif event.kind == ModelEventKind.USAGE:
+                            input_tokens += event.input_tokens or 0
+                            output_tokens += event.output_tokens or 0
+                            cost_usd = self._calculate_cost(input_tokens, output_tokens)
+                            await self.event_bus.emit(
+                                EventType.MODEL_USAGE,
+                                session_id=session_id,
+                                run_id=run_id,
+                                payload={
+                                    "input_tokens": input_tokens,
+                                    "output_tokens": output_tokens,
+                                    "cost_usd": cost_usd,
+                                    "step": step,
+                                    "phase": "finalizing",
+                                    "provider_metadata": event.provider_metadata,
+                                },
+                            )
+                        elif event.kind == ModelEventKind.FINISH:
+                            finalizer_finish_reason = event.finish_reason
+                            finalizer_metadata = event.provider_metadata
+
+                timeout_seconds = self.config.agent.finalization.model_timeout_seconds
+                if timeout_seconds is None:
+                    await consume_finalizer()
+                else:
+                    async with asyncio.timeout(timeout_seconds):
+                        await consume_finalizer()
+                final_text = "".join(text_parts).strip()
+                await self.event_bus.emit(
+                    EventType.MODEL_RESPONSE,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={
+                        "step": step,
+                        "phase": "finalizing",
+                        "finish_reason": finalizer_finish_reason,
+                        "content_chars": len(final_text),
+                        "tool_call_count": 0,
+                        "empty": not final_text,
+                        "provider_metadata": finalizer_metadata,
+                    },
+                )
+                if not final_text:
+                    finalization_error = "收尾模型没有返回正文"
+            except (ContextLimitError, ProviderError, TimeoutError, ValueError) as exc:
+                finalization_error = str(exc)
+
+        if not final_text:
+            if self.config.agent.finalization.fallback_summary:
+                final_text = (
+                    "任务尚未完整完成，执行器已停止继续尝试。\n\n"
+                    f"- 阻塞判定：{report.message}\n"
+                    f"- 已执行步骤：{step}\n"
+                    "- 当前效果：已有工具结果和中间改动均已保留，但没有足够证据确认任务完成。\n"
+                    "- 下一步：检查最近的失败/重复调用记录，补充新的输入或采用不同实现路径后继续。"
+                )
+            else:
+                final_text = f"任务因持续无进展而停止：{report.message}"
+
+        final_message = self.redactor.redact_message(
+            ChatMessage(role=Role.ASSISTANT, content=final_text)
+        )
+        self.store.append_message(session_id, run_id, final_message)
+        await self.event_bus.emit(
+            EventType.ASSISTANT_MESSAGE,
+            session_id=session_id,
+            run_id=run_id,
+            payload={
+                "text": final_text,
+                "step": step,
+                "phase": "finalizing",
+                "fallback": finalization_error is not None
+                or not self.config.agent.finalization.enabled,
+                "finalization_error": finalization_error,
+            },
+        )
+        await self.event_bus.emit(
+            EventType.RUN_BLOCKED,
+            session_id=session_id,
+            run_id=run_id,
+            payload={
+                "steps": step,
+                "final_text": final_text,
+                "termination_reason": report.reason_code,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost_usd,
+                "finalization_error": finalization_error,
+                **report.event_payload(),
+            },
+        )
         return RunResult(
             session_id=session_id,
-            status="limit_reached",
-            steps=self.config.agent.max_steps,
-            error=error,
+            status="blocked",
+            final_text=final_text,
+            steps=step,
+            error=reason,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=cost_usd,
+            termination_reason=report.reason_code,
+        )
+
+    @staticmethod
+    def _replace_runtime_note(
+        runtime_notes: list[ContextItem],
+        *,
+        note_id: str,
+        content: str,
+        priority: int,
+    ) -> None:
+        runtime_notes[:] = [item for item in runtime_notes if item.id != note_id]
+        runtime_notes.append(
+            ContextItem(
+                id=note_id,
+                layer=ContextLayer.RUNTIME_NOTE,
+                message=ChatMessage(role=Role.SYSTEM, content=content),
+                source="progress-controller",
+                trust=ContextTrust.TRUSTED,
+                retention=ContextRetention.DISPOSABLE,
+                priority=priority,
+            )
         )
 
     async def _refresh_managed_process_note(
@@ -2132,19 +2403,6 @@ class AgentRunner:
                 "workspace": str(self.workspace),
                 "name": tool_call.name,
                 "arguments": tool_call.arguments,
-            },
-            sort_keys=True,
-            ensure_ascii=False,
-        )
-        return hashlib.sha256(payload.encode()).hexdigest()
-
-    @staticmethod
-    def _result_fingerprint(tool_call: ToolCall, result: ToolResult) -> str:
-        payload = json.dumps(
-            {
-                "name": tool_call.name,
-                "arguments": tool_call.arguments,
-                "result": result.model_dump(mode="json"),
             },
             sort_keys=True,
             ensure_ascii=False,

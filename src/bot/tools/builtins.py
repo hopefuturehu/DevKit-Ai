@@ -316,7 +316,8 @@ class RunCommandTool(Tool):
         "在受控工作目录中启动参数数组形式的命令，不经过 Shell 解析。"
         "默认同步等待 10 秒；仍未结束时返回 process_id 而不会杀死进程，"
         "随后使用 poll_process、send_process_input 或 terminate_process 管理。"
-        "timeout_seconds 是进程的 hard timeout，不是同步等待时间。"
+        "timeout_seconds 是可选的进程 hard timeout，不是同步等待时间；"
+        "省略时进程没有固定存活上限。"
     )
     input_schema = {
         "type": "object",
@@ -325,11 +326,12 @@ class RunCommandTool(Tool):
             "cwd": {"type": "string", "default": "."},
             "wait_seconds": {"type": "number", "minimum": 0, "maximum": 60, "default": 10},
             "timeout_seconds": {
-                "type": "number",
-                "minimum": 0.1,
-                "maximum": 86400,
-                "default": 1800,
-                "description": "进程绝对存活上限；超过同步等待时间不会自动杀死",
+                "anyOf": [
+                    {"type": "number", "minimum": 0.1},
+                    {"type": "null"},
+                ],
+                "default": None,
+                "description": "可选的进程绝对存活上限；null 表示不设固定上限",
             },
             "interactive": {
                 "type": "boolean",
@@ -353,11 +355,14 @@ class RunCommandTool(Tool):
             if not argv:
                 return ToolResult(success=False, error="argv 不能为空")
             cwd = resolve_path(context, str(arguments.get("cwd", ".")), must_exist=True)
+            configured_timeout = arguments.get(
+                "timeout_seconds", context.process_hard_timeout_seconds
+            )
             spec = ProcessSpec(
                 argv=argv,
                 cwd=cwd,
-                timeout_seconds=float(
-                    arguments.get("timeout_seconds", context.process_hard_timeout_seconds)
+                timeout_seconds=(
+                    float(configured_timeout) if configured_timeout is not None else None
                 ),
                 output_limit_bytes=context.max_output_bytes,
                 interactive=bool(arguments.get("interactive", False)),
@@ -422,10 +427,11 @@ class RunShellTool(Tool):
             "cwd": {"type": "string", "default": "."},
             "wait_seconds": {"type": "number", "minimum": 0, "maximum": 60, "default": 10},
             "timeout_seconds": {
-                "type": "number",
-                "minimum": 0.1,
-                "maximum": 86400,
-                "default": 1800,
+                "anyOf": [
+                    {"type": "number", "minimum": 0.1},
+                    {"type": "null"},
+                ],
+                "default": None,
             },
             "interactive": {"type": "boolean", "default": False},
         },

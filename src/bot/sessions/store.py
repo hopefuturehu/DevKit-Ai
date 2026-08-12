@@ -694,7 +694,8 @@ class SQLiteSessionStore(EventSink):
                     UPDATE agent_tasks SET reported_at = ?
                     WHERE parent_session_id = ? AND id IN ({placeholders})
                         AND status IN (
-                            'completed', 'failed', 'limit_reached', 'cancelled', 'interrupted'
+                            'completed', 'blocked', 'failed', 'limit_reached',
+                            'cancelled', 'interrupted'
                         )
                     """,
                     (
@@ -759,7 +760,8 @@ class SQLiteSessionStore(EventSink):
                     UPDATE agent_tasks SET reported_at = ?
                     WHERE parent_session_id = ? AND id IN ({placeholders})
                         AND status IN (
-                            'completed', 'failed', 'limit_reached', 'cancelled', 'interrupted'
+                            'completed', 'blocked', 'failed', 'limit_reached',
+                            'cancelled', 'interrupted'
                         )
                     """,
                     (now, session_id, *unique_task_ids),
@@ -1596,7 +1598,14 @@ class SQLiteSessionStore(EventSink):
         *,
         workspace: Path | None = None,
     ) -> int:
-        terminal = ("completed", "failed", "limit_reached", "cancelled", "interrupted")
+        terminal = (
+            "completed",
+            "blocked",
+            "failed",
+            "limit_reached",
+            "cancelled",
+            "interrupted",
+        )
         placeholders = ",".join("?" for _ in terminal)
         query = f"SELECT COUNT(*) FROM agent_tasks WHERE status NOT IN ({placeholders})"
         arguments: list[Any] = list(terminal)
@@ -1665,7 +1674,7 @@ class SQLiteSessionStore(EventSink):
         result: dict[str, Any] | None,
         error: str | None,
     ) -> bool:
-        if status not in {"completed", "failed", "limit_reached", "cancelled"}:
+        if status not in {"completed", "blocked", "failed", "limit_reached", "cancelled"}:
             raise ValueError(f"非法子 Agent 终态: {status}")
         from_statuses = ("running", "waiting_approval")
         if status == "cancelled":
@@ -1697,7 +1706,14 @@ class SQLiteSessionStore(EventSink):
             if row is None:
                 return None
             status = str(row["status"])
-            if status in {"completed", "failed", "limit_reached", "cancelled", "interrupted"}:
+            if status in {
+                "completed",
+                "blocked",
+                "failed",
+                "limit_reached",
+                "cancelled",
+                "interrupted",
+            }:
                 return status
             if status == "queued":
                 cursor = self._connection.execute(

@@ -13,7 +13,9 @@ class EvalCase(BaseModel):
     prompt: str
     workspace: str = "."
     explicit_skills: list[str] = Field(default_factory=list)
-    expected_status: Literal["completed", "failed", "cancelled", "limit_reached"] = "completed"
+    expected_status: Literal[
+        "completed", "failed", "cancelled", "limit_reached", "blocked"
+    ] = "completed"
     final_contains: list[str] = Field(default_factory=list)
     final_not_contains: list[str] = Field(default_factory=list)
     files_contain: dict[str, list[str]] = Field(default_factory=dict)

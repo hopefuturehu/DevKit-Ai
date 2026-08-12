@@ -80,6 +80,30 @@ def test_agent_task_round_trip_survives_store_reopen(tmp_path: Path) -> None:
     reopened.close()
 
 
+def test_blocked_agent_task_is_a_terminal_result(tmp_path: Path) -> None:
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    parent_session_id = store.create_session(tmp_path)
+    task = _create_task(
+        store,
+        parent_session_id=parent_session_id,
+        task_id="task-blocked",
+    )
+    assert store.claim_agent_task(task["id"], owner_id="worker-one")
+
+    assert store.finish_agent_task(
+        task["id"],
+        status="blocked",
+        result={"summary": "缺少外部输入"},
+        error="no_progress_after_recovery",
+    )
+
+    persisted = store.get_agent_task(task["id"])
+    assert persisted is not None
+    assert persisted["status"] == "blocked"
+    assert store.count_agent_tasks(parent_session_id) == 0
+    store.close()
+
+
 def test_agent_tasks_are_isolated_by_parent_session(tmp_path: Path) -> None:
     store = SQLiteSessionStore(tmp_path / "state.db")
     first_parent = store.create_session(tmp_path)

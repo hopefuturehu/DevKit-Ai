@@ -491,7 +491,9 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                 explicit_skills=explicit_skills,
             ),
         )
-        if result.status not in {"completed"}:
+        if result.status == "blocked":
+            console.print(f"[yellow]{result.error or result.status}[/yellow]")
+        elif result.status != "completed":
             console.print(f"[red]{result.error or result.status}[/red]")
 
 
@@ -584,6 +586,8 @@ def run_command(
         if result.status != "completed":
             if json_output:
                 print(result.model_dump_json())
+            elif result.status == "blocked":
+                console.print(f"[yellow]{result.error or result.status}[/yellow]")
             else:
                 console.print(f"[red]{result.error or result.status}[/red]")
             raise typer.Exit(1)
@@ -723,9 +727,18 @@ enabled = true
 max_concurrent = 3
 max_queued = 32
 max_tasks_per_session = 16
-max_steps = 15
-max_wall_time_seconds = 900
 allow_worktree_writes = true
+
+[agent.progress]
+enabled = true
+warning_after_no_progress_steps = 4
+recovery_after_no_progress_steps = 7
+finalize_after_no_progress_steps = 11
+max_recovery_attempts_per_epoch = 1
+
+[agent.finalization]
+enabled = true
+model_timeout_seconds = 120
 
 [skills]
 path = "./skills"

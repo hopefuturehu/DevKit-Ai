@@ -220,33 +220,44 @@ run.completed
           → 执行工具并流式返回结果
           → 规范化、截断和标记工具输出
           → 保存事件并进入下一轮
-  → 达到限制、取消或不可恢复错误时安全结束
+  → 每轮评估可验证进展
+      → 停滞警告：要求获取新证据或改变参数
+      → 恢复阶段：强制切换工具、假设或实现路径
+      → 恢复后复发：执行一次无 Tool 收尾并以 blocked 结束
+  → 显式资源限制、取消或不可恢复错误时安全结束
 ```
 
-### 5.1 运行限制
+### 5.1 运行预算与安全边界
 
-每次 Run 都应有明确预算，而不是让模型决定何时停止：
+正常 Run 默认不设置固定总步骤数和总墙钟上限。长任务依靠进展状态机持续运行，资源层仍保留
+局部边界和用户取消能力：
 
-- `max_steps`：最大模型轮次/工具轮次；
-- `max_wall_time`：最大运行时间；
+- `max_steps`、`max_wall_time_seconds`：默认 `None`；显式设置时作为部署或评测硬策略；
 - `max_input_tokens`、`max_output_tokens`；
-- `max_cost`：Provider 能提供价格信息时生效；
-- `max_tool_output_bytes`：单次和累计工具输出限制；
-- `max_consecutive_failures`：连续工具失败熔断；
+- `max_cost_usd`：默认关闭，Provider 能提供价格信息且显式设置时生效；
+- `max_tool_output_bytes`：单次工具输出边界；累计边界默认关闭，可显式配置；
+- `max_consecutive_failures`：默认关闭；旧部署需要立即熔断时可显式配置；
 - `process_wait_seconds`：命令 Tool 同步等待多久后返回受管进程句柄；
-- `process_hard_timeout_seconds`：受管进程的绝对安全上限，不等同于同步等待时间；
+- `process_hard_timeout_seconds`：默认 `None`；显式设置时是受管进程绝对存活上限；
 - `max_managed_processes`：单个 Runtime 可同时持有的受管进程上限；
 - `cancel_token`：CLI、信号和未来 Gateway 共用的取消机制。
 
+上下文窗口、单次输出大小、并发进程数量和权限审批属于局部安全边界，不因取消全局任务硬上限而
+取消。SWE-bench、Terminal-Bench 等评测入口继续显式传入步骤、墙钟和费用预算，以保证样本可比。
+
 ### 5.2 防循环
 
-至少检测三类无进展行为：
+检测四类无进展行为：
 
 1. 完全相同且失败的 Tool Call 重复出现；
 2. 同一工具用不同参数持续失败；
 3. 幂等工具反复返回相同结果。
+4. 固定周期的 Tool Call/Result 序列循环。
 
-首次达到阈值时给模型反馈；再次达到阈值则阻断执行并要求模型换方案或向用户求助。非交互模式默认硬停止。
+每个工具步骤被归类为强进展、弱进展或无进展。强进展开启新 epoch 并清空恢复次数；弱进展
+允许探索但不能掩盖重复周期；无进展累积停滞计数。首次达到阈值时注入警告，随后进入一次受控
+恢复阶段；恢复后相同模式复发时，运行器撤销 Tool 定义，只允许模型生成一次事实化收尾。最终
+状态为 `blocked`，而不是把未完成任务误报为 `completed` 或笼统标记为 `failed`。
 
 ### 5.3 后台子 Agent Worker Pool
 
@@ -668,20 +679,28 @@ temperature = 0.2
 context_window_tokens = 131072
 
 [agent]
-max_steps = 30
-max_wall_time_seconds = 1800
 max_cost_usd = 2.0
 process_wait_seconds = 10
-process_hard_timeout_seconds = 1800
 max_managed_processes = 16
+# max_steps = 100                 # 可选硬策略
+# max_wall_time_seconds = 7200    # 可选硬策略
+# process_hard_timeout_seconds = 14400
+
+[agent.progress]
+warning_after_no_progress_steps = 4
+recovery_after_no_progress_steps = 7
+finalize_after_no_progress_steps = 11
+max_recovery_attempts_per_epoch = 1
+
+[agent.finalization]
+enabled = true
+model_timeout_seconds = 120
 
 [subagents]
 enabled = true
 max_concurrent = 3
 max_queued = 32
 max_tasks_per_session = 16
-max_steps = 15
-max_wall_time_seconds = 900
 allow_worktree_writes = true
 worktree_dir = ".bot/agent-worktrees"
 

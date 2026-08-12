@@ -14,7 +14,7 @@ class ProcessSpec(BaseModel):
     argv: list[str] = Field(min_length=1)
     cwd: Path
     env: dict[str, str] = Field(default_factory=dict)
-    timeout_seconds: float = Field(default=300, gt=0)
+    timeout_seconds: float | None = Field(default=None, gt=0)
     output_limit_bytes: int = Field(default=1_000_000, gt=0)
     interactive: bool = False
 
@@ -50,7 +50,7 @@ class ProcessSnapshot(BaseModel):
     argv: list[str]
     cwd: Path
     elapsed_seconds: float = Field(ge=0)
-    hard_timeout_seconds: float = Field(gt=0)
+    hard_timeout_seconds: float | None = Field(default=None, gt=0)
     interactive: bool = False
     returncode: int | None = None
     stdout: str = ""

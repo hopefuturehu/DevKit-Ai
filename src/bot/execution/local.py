@@ -114,7 +114,8 @@ class LocalExecutionTarget(ExecutionTarget):
             asyncio.create_task(self._capture_managed_stream(managed, process.stderr, "stderr")),
         ]
         managed.monitor = asyncio.create_task(self._monitor_managed_process(managed))
-        managed.timeout_task = asyncio.create_task(self._enforce_managed_timeout(managed))
+        if managed.spec.timeout_seconds is not None:
+            managed.timeout_task = asyncio.create_task(self._enforce_managed_timeout(managed))
         return process_id
 
     async def poll_process(
@@ -285,14 +286,17 @@ class LocalExecutionTarget(ExecutionTarget):
     async def _enforce_managed_timeout(self, managed: _ManagedProcess) -> None:
         if managed.status != ProcessStatus.RUNNING:
             return
+        timeout_seconds = managed.spec.timeout_seconds
+        if timeout_seconds is None:
+            return
         try:
-            await asyncio.sleep(managed.spec.timeout_seconds)
+            await asyncio.sleep(timeout_seconds)
         except asyncio.CancelledError:
             return
         if managed.status != ProcessStatus.RUNNING:
             return
         managed.status = ProcessStatus.TIMED_OUT
-        managed.termination_reason = f"达到 hard timeout {managed.spec.timeout_seconds:g} 秒"
+        managed.termination_reason = f"达到 hard timeout {timeout_seconds:g} 秒"
         try:
             await self._terminate(
                 managed.process,
@@ -376,22 +380,27 @@ class LocalExecutionTarget(ExecutionTarget):
             asyncio.create_task(read_stream(process.stderr, ProcessEventKind.STDERR)),
         ]
         waiter = asyncio.create_task(process.wait())
-        deadline = asyncio.get_running_loop().time() + spec.timeout_seconds
+        deadline = (
+            asyncio.get_running_loop().time() + spec.timeout_seconds
+            if spec.timeout_seconds is not None
+            else None
+        )
         completed_streams = 0
         emitted_bytes = 0
         truncated = False
         completed = False
         try:
             while completed_streams < 2:
-                remaining = deadline - asyncio.get_running_loop().time()
-                if remaining <= 0:
-                    raise TimeoutError(f"命令执行超过 {spec.timeout_seconds:g} 秒: {spec.argv[0]}")
-                try:
-                    kind, chunk = await asyncio.wait_for(queue.get(), timeout=remaining)
-                except TimeoutError:
-                    raise TimeoutError(
-                        f"命令执行超过 {spec.timeout_seconds:g} 秒: {spec.argv[0]}"
-                    ) from None
+                if deadline is None:
+                    kind, chunk = await queue.get()
+                else:
+                    remaining = deadline - asyncio.get_running_loop().time()
+                    if remaining <= 0:
+                        raise self._process_timeout_error(spec)
+                    try:
+                        kind, chunk = await asyncio.wait_for(queue.get(), timeout=remaining)
+                    except TimeoutError:
+                        raise self._process_timeout_error(spec) from None
                 if chunk is None:
                     completed_streams += 1
                     continue
@@ -408,21 +417,24 @@ class LocalExecutionTarget(ExecutionTarget):
                     data=selected.decode(errors="replace"),
                     truncated=truncated,
                 )
-            remaining = deadline - asyncio.get_running_loop().time()
-            if remaining <= 0:
-                raise TimeoutError(f"命令执行超过 {spec.timeout_seconds:g} 秒: {spec.argv[0]}")
-            try:
-                returncode = await asyncio.wait_for(waiter, timeout=remaining)
-            except TimeoutError:
-                raise TimeoutError(
-                    f"命令执行超过 {spec.timeout_seconds:g} 秒: {spec.argv[0]}"
-                ) from None
-            remaining = deadline - asyncio.get_running_loop().time()
-            if remaining <= 0 or not await self._wait_for_process_group_exit(
-                process_group_id,
-                timeout_seconds=max(0.0, remaining),
-            ):
-                raise TimeoutError(f"命令执行超过 {spec.timeout_seconds:g} 秒: {spec.argv[0]}")
+            if deadline is None:
+                returncode = await waiter
+                group_exited = await self._wait_for_process_group_exit(process_group_id)
+            else:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise self._process_timeout_error(spec)
+                try:
+                    returncode = await asyncio.wait_for(waiter, timeout=remaining)
+                except TimeoutError:
+                    raise self._process_timeout_error(spec) from None
+                remaining = deadline - asyncio.get_running_loop().time()
+                group_exited = remaining > 0 and await self._wait_for_process_group_exit(
+                    process_group_id,
+                    timeout_seconds=max(0.0, remaining),
+                )
+            if not group_exited:
+                raise self._process_timeout_error(spec)
             completed = True
             yield ProcessEvent(
                 kind=ProcessEventKind.COMPLETED,
@@ -438,6 +450,13 @@ class LocalExecutionTarget(ExecutionTarget):
             await asyncio.gather(*readers, return_exceptions=True)
             if not waiter.done():
                 waiter.cancel()
+
+    @staticmethod
+    def _process_timeout_error(spec: ProcessSpec) -> TimeoutError:
+        timeout_seconds = spec.timeout_seconds
+        if timeout_seconds is None:
+            return TimeoutError(f"命令执行等待被中断: {spec.argv[0]}")
+        return TimeoutError(f"命令执行超过 {timeout_seconds:g} 秒: {spec.argv[0]}")
 
     @staticmethod
     def _safe_environment() -> dict[str, str]:

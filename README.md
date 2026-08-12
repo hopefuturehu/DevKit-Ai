@@ -45,22 +45,33 @@ input_cost_per_million = 0.0
 output_cost_per_million = 0.0
 
 [agent]
-max_steps = 30
-max_wall_time_seconds = 1800
 max_tool_output_bytes = 1000000
-max_total_tool_output_bytes = 5000000
 process_wait_seconds = 10
-process_hard_timeout_seconds = 1800
 max_managed_processes = 16
 # max_cost_usd = 2.0
+# 兼容/部署策略：仅在确实需要硬预算时显式配置
+# max_steps = 100
+# max_wall_time_seconds = 7200
+# max_total_tool_output_bytes = 50000000
+# max_consecutive_failures = 10
+# process_hard_timeout_seconds = 14400
+
+[agent.progress]
+enabled = true
+warning_after_no_progress_steps = 4
+recovery_after_no_progress_steps = 7
+finalize_after_no_progress_steps = 11
+max_recovery_attempts_per_epoch = 1
+
+[agent.finalization]
+enabled = true
+model_timeout_seconds = 120
 
 [subagents]
 enabled = true
 max_concurrent = 3
 max_queued = 32
 max_tasks_per_session = 16
-max_steps = 15
-max_wall_time_seconds = 900
 allow_worktree_writes = true
 # max_cost_usd_per_task = 0.5
 # max_total_cost_usd_per_session = 2.0
@@ -95,6 +106,11 @@ path = "./skills"
 # 相对路径以工作区为基准
 state_path = "./.bot/state.db"
 ```
+
+正常任务默认不受固定步骤数或总运行时长限制。运行器根据可验证进展识别重复失败、相同幂等
+结果和短周期 Tool 循环，依次执行警告、纠偏和一次无 Tool 收尾；只有显式配置的预算、上下文
+容量、费用、用户取消或不可恢复错误会硬终止。完整状态机见
+[docs/termination.md](docs/termination.md)。
 
 然后运行：
 

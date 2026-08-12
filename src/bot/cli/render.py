@@ -81,6 +81,30 @@ class RichEventSink:
             line = Text("✓ Skill", style="magenta")
             line.append(f" {payload.get('name')} ({explicit})")
             self.console.print(line, highlight=False)
+        elif event.type == EventType.RUN_STALL_WARNING:
+            self._finish_stream()
+            self.console.print(
+                Text(f"进展警告：{payload.get('message')}", style="yellow"),
+                highlight=False,
+            )
+        elif event.type == EventType.RUN_RECOVERY_STARTED:
+            self._finish_stream()
+            self.console.print(
+                Text(
+                    f"正在纠偏：{payload.get('message')} ",
+                    style="yellow",
+                ).append(f"attempt={payload.get('recovery_attempt')}", style="dim"),
+                highlight=False,
+            )
+        elif event.type == EventType.RUN_FINALIZING:
+            self._finish_stream()
+            self.console.print(Text("持续无进展，正在生成收尾说明…", style="yellow"))
+        elif event.type == EventType.RUN_BLOCKED:
+            self._finish_stream()
+            self.console.print(
+                Text(f"运行已阻塞：{payload.get('message')}", style="yellow"),
+                highlight=False,
+            )
         elif event.type == EventType.RUN_FAILED:
             self._finish_stream()
             self.console.print(
@@ -96,6 +120,11 @@ class RichEventSink:
             self._finish_stream()
             line = Text("✓ Subagent", style="green")
             line.append(f" {str(payload.get('task_id', ''))[:8]} completed", style="dim")
+            self.console.print(line, highlight=False)
+        elif event.type == EventType.SUBAGENT_BLOCKED:
+            self._finish_stream()
+            line = Text("! Subagent", style="yellow")
+            line.append(f" {str(payload.get('task_id', ''))[:8]} blocked", style="dim")
             self.console.print(line, highlight=False)
         elif event.type == EventType.SUBAGENT_WAITING_APPROVAL:
             self._finish_stream()

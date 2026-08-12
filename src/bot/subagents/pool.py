@@ -584,6 +584,7 @@ class BackgroundAgentPool:
     async def _emit_terminal(self, task: AgentTask, result: AgentResult) -> None:
         event_type = {
             WorkerStatus.COMPLETED: EventType.SUBAGENT_COMPLETED,
+            WorkerStatus.BLOCKED: EventType.SUBAGENT_BLOCKED,
             WorkerStatus.CANCELLED: EventType.SUBAGENT_CANCELLED,
             WorkerStatus.INTERRUPTED: EventType.SUBAGENT_INTERRUPTED,
         }.get(result.status, EventType.SUBAGENT_FAILED)

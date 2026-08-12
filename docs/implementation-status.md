@@ -10,7 +10,7 @@
 |---|---|---|
 | 通用 CLI | 交互、自然语言入口、单次运行、JSONL、管理命令、会话内命令、steering 与取消 | `bot`、`bot run`、`bot resume` |
 | Provider | OpenAI-compatible Chat Completions，SSE 文本、结构化 Tool Call、usage 与异常归一化 | `src/bot/providers/` |
-| Agent Core | 多轮 Tool Loop、预算、费用、上下文上限、重复失败和幂等无进展熔断 | `src/bot/core/agent.py` |
+| Agent Core | 无固定总步数的 Tool Loop、进展 epoch、停滞警告、纠偏、无 Tool 收尾及可选硬预算 | `src/bot/core/agent.py`、`src/bot/core/termination/` |
 | 通用 Tool | read、search、精确 patch、argv command、受控 shell、HTTP fetch，以及受管进程的轮询、输入、终止和列表 | `src/bot/tools/builtins.py` |
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、同步等待/进程寿命分离、增量输出、hard timeout、leader 退出后的 PGID 跟踪与异常关闭清理 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |

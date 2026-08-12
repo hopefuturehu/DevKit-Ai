@@ -56,3 +56,25 @@ async def test_assistant_markdown_is_preserved_for_the_output_consumer() -> None
     output = stream.getvalue()
     assert "\x1b" not in output
     assert output == markdown + "\n"
+
+
+@pytest.mark.asyncio
+async def test_progress_recovery_and_blocked_events_are_visible() -> None:
+    stream = StringIO()
+    sink = RichEventSink(create_cli_console(file=stream, width=500))
+
+    await sink.publish(_event(EventType.RUN_STALL_WARNING, {"message": "重复读取"}))
+    await sink.publish(
+        _event(
+            EventType.RUN_RECOVERY_STARTED,
+            {"message": "切换路径", "recovery_attempt": 1},
+        )
+    )
+    await sink.publish(_event(EventType.RUN_FINALIZING, {}))
+    await sink.publish(_event(EventType.RUN_BLOCKED, {"message": "恢复后仍无进展"}))
+
+    output = stream.getvalue()
+    assert "进展警告：重复读取" in output
+    assert "正在纠偏：切换路径" in output
+    assert "正在生成收尾说明" in output
+    assert "运行已阻塞：恢复后仍无进展" in output

@@ -11,6 +11,7 @@ class WorkerStatus(StrEnum):
     WAITING_APPROVAL = "waiting_approval"
     CANCELLING = "cancelling"
     COMPLETED = "completed"
+    BLOCKED = "blocked"
     FAILED = "failed"
     LIMIT_REACHED = "limit_reached"
     CANCELLED = "cancelled"
@@ -24,6 +25,7 @@ class WorkerStatus(StrEnum):
 TERMINAL_WORKER_STATUSES = frozenset(
     {
         WorkerStatus.COMPLETED,
+        WorkerStatus.BLOCKED,
         WorkerStatus.FAILED,
         WorkerStatus.LIMIT_REACHED,
         WorkerStatus.CANCELLED,
@@ -45,8 +47,8 @@ class AgentSpec(BaseModel):
     instructions: str
     allowed_tools: list[str] = Field(default_factory=list)
     isolation: WorkerIsolation = WorkerIsolation.READ_ONLY
-    max_steps: int = Field(default=15, ge=1)
-    max_wall_time_seconds: float = Field(default=900, gt=0)
+    max_steps: int | None = Field(default=None, ge=1)
+    max_wall_time_seconds: float | None = Field(default=None, gt=0)
     max_cost_usd: float | None = Field(default=None, gt=0)
     explicit_skills: list[str] = Field(default_factory=list)
 

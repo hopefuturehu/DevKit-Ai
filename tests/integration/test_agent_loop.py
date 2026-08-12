@@ -413,6 +413,13 @@ async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
             tool_turn("read-1", "read_file", '{"path":"input.txt"}'),
             tool_turn("read-2", "read_file", '{"path":"input.txt"}'),
             tool_turn("read-3", "read_file", '{"path":"input.txt"}'),
+            tool_turn("read-4", "read_file", '{"path":"input.txt"}'),
+            tool_turn("read-5", "read_file", '{"path":"input.txt"}'),
+            tool_turn("read-6", "read_file", '{"path":"input.txt"}'),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="blocked summary"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
         ]
     )
     config = AppConfig.model_validate(
@@ -420,7 +427,6 @@ async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
             "model": {"base_url": "https://unused", "name": "mock"},
             "storage": {"state_path": str(tmp_path / "state.db")},
             "skills": {"path": str(tmp_path / "skills")},
-            "agent": {"max_steps": 5},
         }
     )
     catalog = SkillCatalog(tmp_path / "skills")
@@ -428,6 +434,7 @@ async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
     store = SQLiteSessionStore(tmp_path / "state.db")
     registry = ToolRegistry()
     registry.register(ReadFileTool())
+    memory = MemoryEventSink()
     runner = AgentRunner(
         config=config,
         workspace=tmp_path,
@@ -438,14 +445,70 @@ async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
         skills=SkillManager(catalog),
         context=ContextAssembler(workspace=tmp_path, skill_catalog=catalog),
         store=store,
-        event_bus=EventBus([store]),
+        event_bus=EventBus([store, memory]),
     )
 
     result = await runner.run(RunRequest(prompt="read until it changes"))
 
-    assert result.status == "failed"
-    assert "无进展" in (result.error or "")
-    assert len(provider.requests) == 3
+    assert result.status == "blocked"
+    assert result.final_text == "blocked summary"
+    assert result.termination_reason == "tool_cycle_after_recovery"
+    assert len(provider.requests) == 7
+    assert provider.requests[-1].tools == []
+    event_types = [event.type for event in memory.events]
+    assert EventType.RUN_STALL_WARNING in event_types
+    assert EventType.RUN_RECOVERY_STARTED in event_types
+    assert EventType.RUN_FINALIZING in event_types
+    assert EventType.RUN_BLOCKED in event_types
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_has_no_default_thirty_step_limit(tmp_path: Path) -> None:
+    turns: list[list[ModelEvent]] = []
+    for index in range(31):
+        path = f"input-{index}.txt"
+        (tmp_path / path).write_text(str(index), encoding="utf-8")
+        turns.append(tool_turn(f"read-{index}", "read_file", json.dumps({"path": path})))
+    turns.append(
+        [
+            ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="all read"),
+            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+        ]
+    )
+    provider = ScriptedProvider(turns)
+    runner, store = make_test_runner(tmp_path, provider, tools=[ReadFileTool()])
+
+    result = await runner.run(RunRequest(prompt="read all inputs"))
+
+    assert result.status == "completed"
+    assert result.steps == 32
+    assert result.final_text == "all read"
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_preserves_explicit_step_limit(tmp_path: Path) -> None:
+    (tmp_path / "input.txt").write_text("value", encoding="utf-8")
+    provider = ScriptedProvider(
+        [
+            tool_turn("read-1", "read_file", '{"path":"input.txt"}'),
+            tool_turn("read-2", "read_file", '{"path":"input.txt"}'),
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={"max_steps": 2, "progress": {"enabled": False}},
+        tools=[ReadFileTool()],
+    )
+
+    result = await runner.run(RunRequest(prompt="keep reading"))
+
+    assert result.status == "limit_reached"
+    assert result.steps == 2
+    assert result.termination_reason == "max_steps"
+    assert len(provider.requests) == 2
     store.close()
 
 

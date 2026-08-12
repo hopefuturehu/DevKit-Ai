@@ -23,16 +23,74 @@ class ModelConfig(StrictModel):
     output_cost_per_million: float | None = Field(default=None, ge=0)
 
 
+class ProgressConfig(StrictModel):
+    enabled: bool = True
+    warning_after_no_progress_steps: int = Field(default=4, ge=1)
+    recovery_after_no_progress_steps: int = Field(default=7, ge=2)
+    finalize_after_no_progress_steps: int = Field(default=11, ge=3)
+    max_recovery_attempts_per_epoch: int = Field(default=1, ge=0, le=10)
+    exact_failure_warning: int = Field(default=2, ge=1)
+    exact_failure_recovery: int = Field(default=3, ge=2)
+    same_tool_failure_warning: int = Field(default=3, ge=1)
+    same_tool_failure_recovery: int = Field(default=5, ge=2)
+    idempotent_repeat_warning: int = Field(default=2, ge=1)
+    idempotent_repeat_recovery: int = Field(default=3, ge=2)
+    cycle_window_size: int = Field(default=16, ge=4, le=256)
+    max_cycle_period: int = Field(default=4, ge=1, le=32)
+    cycles_before_warning: int = Field(default=2, ge=2)
+    cycles_before_recovery: int = Field(default=3, ge=2)
+
+    @model_validator(mode="after")
+    def validate_thresholds(self) -> ProgressConfig:
+        if not (
+            self.warning_after_no_progress_steps
+            < self.recovery_after_no_progress_steps
+            < self.finalize_after_no_progress_steps
+        ):
+            raise ValueError("progress 的 warning/recovery/finalize 阈值必须严格递增")
+        for warning, recovery, name in (
+            (self.exact_failure_warning, self.exact_failure_recovery, "exact_failure"),
+            (
+                self.same_tool_failure_warning,
+                self.same_tool_failure_recovery,
+                "same_tool_failure",
+            ),
+            (
+                self.idempotent_repeat_warning,
+                self.idempotent_repeat_recovery,
+                "idempotent_repeat",
+            ),
+            (self.cycles_before_warning, self.cycles_before_recovery, "cycles"),
+        ):
+            if warning >= recovery:
+                raise ValueError(f"progress.{name} 的 warning 必须小于 recovery")
+        if self.max_cycle_period * self.cycles_before_recovery > self.cycle_window_size:
+            raise ValueError(
+                "progress.cycle_window_size 必须容纳 max_cycle_period * cycles_before_recovery"
+            )
+        return self
+
+
+class FinalizationConfig(StrictModel):
+    enabled: bool = True
+    model_timeout_seconds: float | None = Field(default=120, gt=0)
+    fallback_summary: bool = True
+
+
 class AgentConfig(StrictModel):
-    max_steps: int = Field(default=30, ge=1)
-    max_wall_time_seconds: float = Field(default=1800, gt=0)
+    # None means that normal task execution has no fixed global budget.  These
+    # fields remain available as explicit compatibility/safety policies.
+    max_steps: int | None = Field(default=None, ge=1)
+    max_wall_time_seconds: float | None = Field(default=None, gt=0)
     max_tool_output_bytes: int = Field(default=1_000_000, gt=0)
-    max_total_tool_output_bytes: int = Field(default=5_000_000, gt=0)
-    max_consecutive_failures: int = Field(default=3, ge=1)
+    max_total_tool_output_bytes: int | None = Field(default=None, gt=0)
+    max_consecutive_failures: int | None = Field(default=None, ge=1)
     max_cost_usd: float | None = Field(default=None, gt=0)
     process_wait_seconds: float = Field(default=10, ge=0, le=60)
-    process_hard_timeout_seconds: float = Field(default=1800, gt=0, le=86400)
+    process_hard_timeout_seconds: float | None = Field(default=None, gt=0)
     max_managed_processes: int = Field(default=16, ge=1, le=256)
+    progress: ProgressConfig = Field(default_factory=ProgressConfig)
+    finalization: FinalizationConfig = Field(default_factory=FinalizationConfig)
 
 
 class SubagentsConfig(StrictModel):
@@ -40,8 +98,8 @@ class SubagentsConfig(StrictModel):
     max_concurrent: int = Field(default=3, ge=1, le=32)
     max_queued: int = Field(default=32, ge=1, le=512)
     max_tasks_per_session: int = Field(default=16, ge=1, le=256)
-    max_steps: int = Field(default=15, ge=1)
-    max_wall_time_seconds: float = Field(default=900, gt=0)
+    max_steps: int | None = Field(default=None, ge=1)
+    max_wall_time_seconds: float | None = Field(default=None, gt=0)
     max_cost_usd_per_task: float | None = Field(default=None, gt=0)
     max_total_cost_usd_per_session: float | None = Field(default=None, gt=0)
     result_inline_chars: int = Field(default=8_000, ge=512, le=64_000)

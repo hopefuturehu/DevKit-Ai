@@ -8,6 +8,7 @@ from bot.config import (
     resolve_api_key,
     set_config_value,
 )
+from bot.config.models import AppConfig
 
 
 def test_config_precedence_and_relative_skill_path(tmp_path: Path, monkeypatch) -> None:
@@ -88,6 +89,33 @@ def test_subagent_limits_are_strictly_validated(tmp_path: Path) -> None:
         load_config(tmp_path, overrides={"subagents": {"worktree_dir": "../escape"}})
     with pytest.raises(ConfigError, match="memory.path"):
         load_config(tmp_path, overrides={"memory": {"path": "."}})
+
+
+def test_execution_has_no_fixed_global_limit_by_default() -> None:
+    config = AppConfig()
+
+    assert config.agent.max_steps is None
+    assert config.agent.max_wall_time_seconds is None
+    assert config.agent.max_total_tool_output_bytes is None
+    assert config.agent.max_consecutive_failures is None
+    assert config.agent.process_hard_timeout_seconds is None
+    assert config.subagents.max_steps is None
+    assert config.subagents.max_wall_time_seconds is None
+
+
+def test_progress_thresholds_must_be_ordered() -> None:
+    with pytest.raises(ValueError, match="严格递增"):
+        AppConfig.model_validate(
+            {
+                "agent": {
+                    "progress": {
+                        "warning_after_no_progress_steps": 5,
+                        "recovery_after_no_progress_steps": 4,
+                        "finalize_after_no_progress_steps": 6,
+                    }
+                }
+            }
+        )
 
 
 def test_config_writer_is_atomic_and_validates_values(tmp_path: Path) -> None:

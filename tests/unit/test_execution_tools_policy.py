@@ -45,6 +45,12 @@ def _process_effectively_running(pid: int) -> bool:
     return True
 
 
+def test_process_spec_has_no_default_hard_timeout() -> None:
+    spec = ProcessSpec(argv=["true"], cwd=Path("."))
+
+    assert spec.timeout_seconds is None
+
+
 @pytest.mark.asyncio
 async def test_local_execution_uses_argv_and_captures_streams(tmp_path: Path) -> None:
     target = LocalExecutionTarget()

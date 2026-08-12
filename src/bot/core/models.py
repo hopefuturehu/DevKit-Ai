@@ -132,13 +132,13 @@ class ModelCapabilities(BaseModel):
 class RunLimits(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    max_steps: int = Field(default=30, ge=1)
-    max_wall_time_seconds: float = Field(default=1800, gt=0)
+    max_steps: int | None = Field(default=None, ge=1)
+    max_wall_time_seconds: float | None = Field(default=None, gt=0)
     max_input_tokens: int = Field(default=120_000, gt=0)
     max_output_tokens: int | None = Field(default=None, gt=0)
     max_tool_output_bytes: int = Field(default=1_000_000, gt=0)
-    max_total_tool_output_bytes: int = Field(default=5_000_000, gt=0)
-    max_consecutive_failures: int = Field(default=3, ge=1)
+    max_total_tool_output_bytes: int | None = Field(default=None, gt=0)
+    max_consecutive_failures: int | None = Field(default=None, ge=1)
 
 
 class RunRequest(BaseModel):
@@ -154,10 +154,11 @@ class RunResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     session_id: str
-    status: Literal["completed", "failed", "cancelled", "limit_reached"]
+    status: Literal["completed", "failed", "cancelled", "limit_reached", "blocked"]
     final_text: str = ""
     steps: int = 0
     error: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float | None = None
+    termination_reason: str | None = None

@@ -32,7 +32,7 @@ class ToolContext(BaseModel):
     workspace_only: bool = True
     max_output_bytes: int = Field(default=1_000_000, gt=0)
     process_wait_seconds: float = Field(default=10, ge=0, le=60)
-    process_hard_timeout_seconds: float = Field(default=1800, gt=0, le=86400)
+    process_hard_timeout_seconds: float | None = Field(default=None, gt=0)
     output_callback: Callable[[str, str], Awaitable[None]] | None = None
     denied_paths: tuple[Path, ...] = ()
 
