@@ -611,7 +611,11 @@ KSYS、Tuner Adapter 只负责命令能力，例如采集、报告和具体分�
 
 ### 8.5 审批语义
 
-支持：`allow once`、`allow for session`、`always allow matching rule`、`deny`。永久规则保存的是结构化匹配条件，而不是模糊的整段自然语言。
+支持：`allow once`、`allow for session`、`always allow matching rule`、`deny`，交互入口同时支持
+`Y/S/A/N` 单键。常见测试、格式化、构建命令和只读 SQLite 查询使用 workspace 绑定的保守
+argv 前缀生成匹配规则，路径、测试选择等尾部参数变化时无需反复审批；动态 Shell、重定向、
+写 SQL、任意解释器代码和高危命令继续按完整参数匹配。永久规则保存结构化条件，而不是模糊的
+整段自然语言。
 
 非 TTY/无人值守场景遇到 `Ask` 必须 fail closed，除非调用方提前提供了明确策略。
 

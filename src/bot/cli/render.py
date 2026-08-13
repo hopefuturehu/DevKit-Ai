@@ -207,14 +207,30 @@ class InteractiveApprovalHandler:
         prompt = (
             f"批准 Tool {action.tool_name}？\n原因：{decision.reason}\n参数：{action.arguments}"
         )
+        if decision.approval_pattern is not None:
+            prompt += f"\n复用规则：{decision.approval_pattern.description}"
         self.console.print(prompt, markup=False)
+        aliases = {
+            "": "once",
+            "y": "once",
+            "yes": "once",
+            "once": "once",
+            "s": "session",
+            "session": "session",
+            "a": "always",
+            "always": "always",
+            "n": "deny",
+            "no": "deny",
+            "deny": "deny",
+        }
         while True:
-            answer = (
-                await prompt_session.prompt_async("[approve: once/session/always/deny] ")
-            ).strip()
-            if answer in {"once", "session", "always", "deny"}:
+            raw_answer = await prompt_session.prompt_async(
+                "[approve: Y=本次/S=本会话/A=项目永久/N=拒绝；回车=Y] "
+            )
+            answer = aliases.get(raw_answer.strip().casefold())
+            if answer is not None:
                 break
-            self.console.print("请输入 once、session、always 或 deny。")
+            self.console.print("请输入 Y、S、A、N，或 once、session、always、deny。")
         if answer == "deny":
             response = ApprovalResponse(approved=False)
         else:

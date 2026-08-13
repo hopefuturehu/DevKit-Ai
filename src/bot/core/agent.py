@@ -2438,9 +2438,18 @@ class AgentRunner:
         if decision.kind == PolicyDecisionKind.DENY:
             return ToolResult(success=False, error=f"策略拒绝: {decision.reason}")
         if decision.kind == PolicyDecisionKind.ASK:
-            fingerprint = self._fingerprint(tool_call)
-            session_preapproved = (session_id, fingerprint) in self._session_approvals
-            always_preapproved = self.store.has_approval_rule(fingerprint)
+            approval_pattern = self.policy.approval_pattern(action)
+            decision = decision.model_copy(update={"approval_pattern": approval_pattern})
+            fingerprint = approval_pattern.fingerprint()
+            legacy_fingerprint = self._fingerprint(tool_call)
+            session_preapproved = any(
+                (session_id, candidate) in self._session_approvals
+                for candidate in {fingerprint, legacy_fingerprint}
+            )
+            always_preapproved = any(
+                self.store.has_approval_rule(candidate)
+                for candidate in {fingerprint, legacy_fingerprint}
+            )
             preapproved = session_preapproved or always_preapproved
             if preapproved:
                 approved = True
@@ -2455,6 +2464,7 @@ class AgentRunner:
                         "name": tool.name,
                         "arguments": tool_call.arguments,
                         "reason": decision.reason,
+                        "approval_pattern": approval_pattern.model_dump(mode="json"),
                     },
                 )
                 response = await self.approval_handler.approve(action, decision)
@@ -2466,7 +2476,7 @@ class AgentRunner:
                     self.store.save_approval_rule(
                         tool_name=tool.name,
                         action_fingerprint=fingerprint,
-                        arguments=tool_call.arguments,
+                        arguments=approval_pattern.model_dump(mode="json"),
                     )
             self.store.record_approval(
                 session_id=session_id,
@@ -2485,6 +2495,7 @@ class AgentRunner:
                     "approved": approved,
                     "scope": scope.value,
                     "preapproved": preapproved,
+                    "approval_pattern": approval_pattern.model_dump(mode="json"),
                 },
             )
             if not approved:

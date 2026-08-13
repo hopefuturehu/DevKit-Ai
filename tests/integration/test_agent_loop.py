@@ -152,6 +152,28 @@ class DestructiveTestTool(Tool):
         return ToolResult(success=True, output="executed")
 
 
+class CommandApprovalTestTool(Tool):
+    name = "run_command"
+    description = "A command-shaped test tool without subprocess execution."
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+            "cwd": {"type": "string"},
+        },
+        "required": ["argv"],
+        "additionalProperties": False,
+    }
+    annotations = ToolAnnotations(read_only=False)
+
+    def __init__(self) -> None:
+        self.executions = 0
+
+    async def execute(self, context, arguments) -> ToolResult:
+        self.executions += 1
+        return ToolResult(success=True, output="command simulated")
+
+
 class LargeSchemaTool(Tool):
     description = "x" * 1_200
     input_schema = {
@@ -1117,6 +1139,85 @@ async def test_agent_persists_always_approval_across_sessions(tmp_path: Path) ->
     assert first.session_id != second.session_id
     assert tool.executions == 2
     assert approval.calls == 1
+    store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("scope", "expected_approval_calls"),
+    [(ApprovalScope.ONCE, 2), (ApprovalScope.SESSION, 1)],
+)
+async def test_command_family_approval_reuses_different_pytest_arguments(
+    tmp_path: Path,
+    scope: ApprovalScope,
+    expected_approval_calls: int,
+) -> None:
+    provider = ScriptedProvider(
+        [
+            tool_turn(
+                "pytest-a",
+                "run_command",
+                '{"argv":["python3","-m","pytest","tests/a.py"]}',
+            ),
+            tool_turn(
+                "pytest-b",
+                "run_command",
+                '{"argv":["python3","-m","pytest","tests/b.py","-q"]}',
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="tests done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    tool = CommandApprovalTestTool()
+    runner, store = make_test_runner(tmp_path, provider, tools=[tool])
+    approval = ApprovalHandlerStub(scope)
+    runner.approval_handler = approval
+
+    result = await runner.run(RunRequest(prompt="run two test selections"))
+
+    assert result.status == "completed"
+    assert tool.executions == 2
+    assert approval.calls == expected_approval_calls
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_command_family_always_approval_reuses_across_sessions(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            tool_turn(
+                "pytest-a",
+                "run_command",
+                '{"argv":["python3","-m","pytest","tests/a.py"]}',
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+            tool_turn(
+                "pytest-b",
+                "run_command",
+                '{"argv":["python3","-m","pytest","tests/b.py"]}',
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="second done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    tool = CommandApprovalTestTool()
+    runner, store = make_test_runner(tmp_path, provider, tools=[tool])
+    approval = ApprovalHandlerStub(ApprovalScope.ALWAYS)
+    runner.approval_handler = approval
+
+    first = await runner.run(RunRequest(prompt="first selection"))
+    second = await runner.run(RunRequest(prompt="second selection"))
+
+    assert first.status == second.status == "completed"
+    assert approval.calls == 1
+    assert tool.executions == 2
     store.close()
 
 

@@ -14,7 +14,7 @@
 | 通用 Tool | read、search、精确 patch、argv command、受控 shell、HTTP fetch，以及受管进程的轮询、输入、终止和列表 | `src/bot/tools/builtins.py` |
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、同步等待/进程寿命分离、增量输出、hard timeout、leader 退出后的 PGID 跟踪与异常关闭清理 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
-| 审批 | once/session/always/deny；永久授权按 workspace、Tool 和精确结构化参数匹配 | `src/bot/core/approval.py` |
+| 审批 | once/session/always/deny 与单键交互；常用开发命令按 workspace 和保守 argv 前缀复用，动态/高危命令保持精确匹配 | `src/bot/core/approval.py`、`src/bot/policy/engine.py` |
 | 会话与审计 | SQLite migration v12、持久化 progress checkpoint、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork 和用量统计 | `src/bot/sessions/` |
 | 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、单一活动摘要、事务发布、原文重建/回滚和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py`、`src/bot/compaction/` |
 | 长期记忆 | SQLite 历史证据、`USER.md` 显式记忆、Root Run 异步提取、Markdown 自动索引、冲突隔离、遗忘抑制、分信任注入、检索和证据回读 | `src/bot/memory/`、`docs/markdown-memory.md` |

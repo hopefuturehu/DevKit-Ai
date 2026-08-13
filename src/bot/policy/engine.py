@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 import shlex
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from bot.config.models import PermissionsConfig
 from bot.tools.base import ToolAnnotations
@@ -17,11 +20,51 @@ class PolicyDecisionKind(StrEnum):
     ASK = "ask"
 
 
+class ApprovalPatternKind(StrEnum):
+    EXACT = "exact"
+    COMMAND_PREFIX = "command_prefix"
+
+
+class ApprovalPattern(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: int = 1
+    kind: ApprovalPatternKind
+    workspace: str
+    tool_name: str
+    description: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    command_prefix: list[str] = Field(default_factory=list)
+    interactive: bool = False
+
+    def fingerprint(self) -> str:
+        if self.kind == ApprovalPatternKind.EXACT:
+            # Preserve compatibility with approval rules written before
+            # structured command-family matching was introduced.
+            payload = {
+                "workspace": self.workspace,
+                "name": self.tool_name,
+                "arguments": self.arguments,
+            }
+        else:
+            payload = {
+                "version": self.version,
+                "kind": self.kind.value,
+                "workspace": self.workspace,
+                "name": self.tool_name,
+                "command_prefix": self.command_prefix,
+                "interactive": self.interactive,
+            }
+        encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(encoded.encode()).hexdigest()
+
+
 class PolicyDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: PolicyDecisionKind
     reason: str
+    approval_pattern: ApprovalPattern | None = None
 
 
 class ToolAction(BaseModel):
@@ -127,6 +170,117 @@ class DefaultPolicyEngine:
                 reason=f"{action.tool_name} 将启动用户指定的 workload",
             )
         return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="符合当前安全策略")
+
+    def approval_pattern(self, action: ToolAction) -> ApprovalPattern:
+        prefix = self._reusable_command_prefix(action)
+        if prefix is None:
+            return ApprovalPattern(
+                kind=ApprovalPatternKind.EXACT,
+                workspace=str(self.workspace),
+                tool_name=action.tool_name,
+                arguments=action.arguments,
+                description="仅当前完整 Tool 参数；参数变化后会再次询问",
+            )
+        command = shlex.join(prefix)
+        return ApprovalPattern(
+            kind=ApprovalPatternKind.COMMAND_PREFIX,
+            workspace=str(self.workspace),
+            tool_name=action.tool_name,
+            command_prefix=prefix,
+            interactive=bool(action.arguments.get("interactive", False)),
+            description=f"当前项目内的同类命令：{command} …",
+        )
+
+    def _reusable_command_prefix(self, action: ToolAction) -> list[str] | None:
+        annotations = action.annotations
+        if annotations.destructive or annotations.network_access or annotations.secret_access:
+            return None
+        argv: list[str] | None = None
+        if action.tool_name == "run_command":
+            raw_argv = action.arguments.get("argv")
+            if isinstance(raw_argv, list) and all(isinstance(item, str) for item in raw_argv):
+                argv = raw_argv
+        elif action.tool_name == "run_shell":
+            script = action.arguments.get("script")
+            if not isinstance(script, str) or any(
+                marker in script for marker in ("`", "$", ">", "<", "\n", "\r")
+            ):
+                return None
+            try:
+                segments = self._parse_shell_segments(script)
+            except ValueError:
+                return None
+            if len(segments) == 1:
+                argv = segments[0]
+        if not argv:
+            return None
+        return self._command_family_prefix(argv)
+
+    def _command_family_prefix(self, argv: list[str]) -> list[str] | None:
+        command = Path(argv[0]).name
+        executable = argv[0]
+        tail = argv[1:]
+        if command in {"pytest", "py.test"}:
+            return [executable]
+        if command in {"python", "python3"} and len(tail) >= 2:
+            if tail[:2] in (["-m", "pytest"], ["-m", "unittest"]):
+                return [executable, *tail[:2]]
+            return None
+        if command == "ruff" and tail and tail[0] in {"check", "format"}:
+            return [executable, tail[0]]
+        if command == "git" and tail and tail[0] in {"add", "commit"}:
+            return [executable, tail[0]]
+        if command == "cargo" and tail and tail[0] in {
+            "build",
+            "check",
+            "clippy",
+            "fmt",
+            "test",
+        }:
+            return [executable, tail[0]]
+        if command == "go" and tail and tail[0] in {"build", "fmt", "test", "vet"}:
+            return [executable, tail[0]]
+        if command in {"npm", "pnpm", "yarn"}:
+            if tail and tail[0] == "test":
+                return [executable, "test"]
+            if len(tail) >= 2 and tail[0] == "run" and not tail[1].startswith("-"):
+                return [executable, "run", tail[1]]
+            return None
+        if command == "make":
+            target = next((item for item in tail if not item.startswith("-")), None)
+            return [executable, target] if target else [executable]
+        if command == "sqlite3":
+            return self._sqlite_read_prefix(executable, tail)
+        return None
+
+    def _sqlite_read_prefix(self, command: str, tail: list[str]) -> list[str] | None:
+        safe_flags = {"-bail", "-batch", "-column", "-csv", "-header", "-json", "-line"}
+        flags: list[str] = []
+        cursor = 0
+        while cursor < len(tail) and tail[cursor].startswith("-"):
+            if tail[cursor] not in safe_flags:
+                return None
+            flags.append(tail[cursor])
+            cursor += 1
+        if cursor >= len(tail):
+            return None
+        database = tail[cursor]
+        queries = [part.strip() for part in " ".join(tail[cursor + 1 :]).split(";") if part.strip()]
+        if not queries:
+            return None
+        forbidden = re.compile(
+            r"\b(?:ATTACH|DETACH)\b|\b(?:LOAD_EXTENSION|WRITEFILE)\s*\(",
+            re.IGNORECASE,
+        )
+        for query in queries:
+            normalized = " ".join(query.upper().split())
+            if not (normalized.startswith("SELECT ") or normalized.startswith("EXPLAIN SELECT ")):
+                return None
+            if forbidden.search(normalized):
+                return None
+        raw = Path(database).expanduser()
+        resolved = raw if raw.is_absolute() else self.workspace / raw
+        return [command, *flags, str(resolved.resolve(strict=False))]
 
     def _check_paths(self, arguments: dict[str, Any]) -> PolicyDecision | None:
         for value in self._iter_path_values(arguments):
@@ -246,29 +400,9 @@ class DefaultPolicyEngine:
                 reason="多行 Shell 脚本需要显式审批",
             )
         try:
-            lexer = shlex.shlex(script, posix=True, punctuation_chars=";&|")
-            lexer.whitespace_split = True
-            tokens = list(lexer)
+            segments = self._parse_shell_segments(script)
         except ValueError as exc:
             return PolicyDecision(kind=PolicyDecisionKind.DENY, reason=f"Shell 解析失败: {exc}")
-        segments: list[list[str]] = [[]]
-        for token in tokens:
-            if token in {";", "&&", "||", "|", "&"}:
-                if not segments[-1]:
-                    return PolicyDecision(
-                        kind=PolicyDecisionKind.DENY,
-                        reason="Shell 脚本存在空命令段",
-                    )
-                segments.append([])
-            elif token and set(token) <= set(";&|"):
-                return PolicyDecision(
-                    kind=PolicyDecisionKind.DENY,
-                    reason=f"不支持的 Shell 控制符: {token}",
-                )
-            else:
-                segments[-1].append(token)
-        if not segments[-1]:
-            return PolicyDecision(kind=PolicyDecisionKind.DENY, reason="Shell 脚本结尾不完整")
         decisions = [self._evaluate_command({"argv": segment}) for segment in segments]
         denied = [
             decision.reason for decision in decisions if decision.kind == PolicyDecisionKind.DENY
@@ -279,3 +413,22 @@ class DefaultPolicyEngine:
         if ask:
             return PolicyDecision(kind=PolicyDecisionKind.ASK, reason="; ".join(ask))
         return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="所有 Shell 命令段均为只读命令")
+
+    @staticmethod
+    def _parse_shell_segments(script: str) -> list[list[str]]:
+        lexer = shlex.shlex(script, posix=True, punctuation_chars=";&|")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+        segments: list[list[str]] = [[]]
+        for token in tokens:
+            if token in {";", "&&", "||", "|", "&"}:
+                if not segments[-1]:
+                    raise ValueError("Shell 脚本存在空命令段")
+                segments.append([])
+            elif token and set(token) <= set(";&|"):
+                raise ValueError(f"不支持的 Shell 控制符: {token}")
+            else:
+                segments[-1].append(token)
+        if not segments[-1]:
+            raise ValueError("Shell 脚本结尾不完整")
+        return segments

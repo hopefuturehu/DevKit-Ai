@@ -606,6 +606,77 @@ def test_policy_separately_evaluates_shell_segments(tmp_path: Path) -> None:
     assert policy.evaluate(workload).kind == PolicyDecisionKind.ASK
 
 
+def test_policy_reuses_only_profiled_command_families(tmp_path: Path) -> None:
+    policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
+
+    pytest_a = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["python3", "-m", "pytest", "tests/a.py"]},
+        annotations=RunCommandTool.annotations,
+    )
+    pytest_b = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["python3", "-m", "pytest", "tests/b.py", "-q"]},
+        annotations=RunCommandTool.annotations,
+    )
+    arbitrary_a = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["python3", "-c", "print('a')"]},
+        annotations=RunCommandTool.annotations,
+    )
+    arbitrary_b = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["python3", "-c", "print('b')"]},
+        annotations=RunCommandTool.annotations,
+    )
+
+    pytest_pattern_a = policy.approval_pattern(pytest_a)
+    pytest_pattern_b = policy.approval_pattern(pytest_b)
+    arbitrary_pattern_a = policy.approval_pattern(arbitrary_a)
+    arbitrary_pattern_b = policy.approval_pattern(arbitrary_b)
+
+    assert pytest_pattern_a.kind.value == "command_prefix"
+    assert pytest_pattern_a.command_prefix == ["python3", "-m", "pytest"]
+    assert pytest_pattern_a.fingerprint() == pytest_pattern_b.fingerprint()
+    assert arbitrary_pattern_a.kind.value == "exact"
+    assert arbitrary_pattern_a.fingerprint() != arbitrary_pattern_b.fingerprint()
+
+    disguised_pytest = policy.approval_pattern(
+        ToolAction(
+            tool_name="run_command",
+            arguments={"argv": ["/tmp/pytest", "tests/unit"]},
+            annotations=RunCommandTool.annotations,
+        )
+    )
+    assert disguised_pytest.kind.value == "command_prefix"
+    assert disguised_pytest.fingerprint() != pytest_pattern_a.fingerprint()
+
+
+def test_policy_reuses_read_only_sqlite_queries_but_not_mutations(tmp_path: Path) -> None:
+    policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
+
+    def action(query: str) -> ToolAction:
+        return ToolAction(
+            tool_name="run_shell",
+            arguments={"script": f"sqlite3 .bot/state.db {query!r}"},
+            annotations=RunShellTool.annotations,
+        )
+
+    select_a = policy.approval_pattern(action("SELECT id FROM runs"))
+    select_b = policy.approval_pattern(action("SELECT status FROM runs"))
+    update = policy.approval_pattern(action("UPDATE runs SET status='failed'"))
+    shell_escape = policy.approval_pattern(action("SELECT writefile('/tmp/x','x')"))
+    spaced_shell_escape = policy.approval_pattern(
+        action("SELECT writefile ('/tmp/x','x')")
+    )
+
+    assert select_a.kind.value == "command_prefix"
+    assert select_a.fingerprint() == select_b.fingerprint()
+    assert update.kind.value == "exact"
+    assert shell_escape.kind.value == "exact"
+    assert spaced_shell_escape.kind.value == "exact"
+
+
 def test_policy_prevents_read_only_commands_from_escaping_workspace(tmp_path: Path) -> None:
     policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
     absolute_escape = ToolAction(
