@@ -64,12 +64,14 @@ config_app = typer.Typer(help="查看生效配置。")
 model_app = typer.Typer(help="查看或切换模型。")
 eval_app = typer.Typer(help="运行可复现的 Agent 评测任务。")
 trace_app = typer.Typer(help="导出和阅读完整 Agent 执行轨迹。")
+web_app = typer.Typer(help="启动 Web 界面。")
 app.add_typer(skill_app, name="skill")
 app.add_typer(session_app, name="session")
 app.add_typer(config_app, name="config")
 app.add_typer(model_app, name="model")
 app.add_typer(eval_app, name="eval")
 app.add_typer(trace_app, name="trace")
+app.add_typer(web_app, name="web")
 console = create_cli_console()
 DEFAULT_WORKSPACE = Path.cwd()
 
@@ -1003,6 +1005,46 @@ def eval_run(
         console.print(f"结果已写入 {output.resolve()}")
     if any(not result.passed for result in results):
         raise typer.Exit(1)
+
+
+# ── web command ───────────────────────────────────────────────────────────────
+
+
+@web_app.command("start")
+def web_start(
+    ctx: typer.Context,
+    host: Annotated[str, typer.Option("--host", "-h", help="监听地址")] = "0.0.0.0",
+    port: Annotated[int, typer.Option("--port", "-p", help="监听端口")] = 8080,
+) -> None:
+    """启动 Web 界面服务器。"""
+    try:
+        import uvicorn  # noqa: F401
+    except ImportError:
+        console.print(
+            "[red]Web UI 需要额外依赖。请安装: pip install fastapi uvicorn[/red]"
+        )
+        raise typer.Exit(1) from None
+
+    workspace = ctx.obj["workspace"].resolve()
+    config_path = ctx.obj.get("config_path")
+
+    # Import here so the CLI help works even without web deps
+    from bot.web.server import create_app
+
+    web_app_instance = create_app(workspace=workspace, config_path=config_path)
+
+    console.print(
+        f"[green]Bot Web UI 启动中...[/green]\n"
+        f"  http://{host}:{port}\n"
+        f"  工作区: {workspace}"
+    )
+
+    uvicorn.run(
+        web_app_instance,
+        host=host,
+        port=port,
+        log_level="info",
+    )
 
 
 if __name__ == "__main__":
