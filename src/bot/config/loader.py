@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import os
+import re
 import tomllib
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
+
+from dotenv import dotenv_values
 
 from bot.config.models import AppConfig
 
@@ -71,11 +74,34 @@ def load_config(
         raise ConfigError(f"配置校验失败: {exc}") from exc
 
 
-def resolve_api_key(reference: str) -> str:
+def _reference_variable(reference: str, prefix: str) -> str:
+    variable = reference.removeprefix(prefix)
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", variable):
+        raise ConfigError(f"API Key 引用中的变量名无效: {variable or '<empty>'}")
+    return variable
+
+
+def resolve_api_key(reference: str, *, workspace: Path | None = None) -> str:
+    if reference.startswith("dotenv:"):
+        variable = _reference_variable(reference, "dotenv:")
+        if workspace is None:
+            raise ConfigError("解析 dotenv: API Key 引用时必须提供 workspace")
+        dotenv_path = workspace.resolve() / ".env"
+        if not dotenv_path.is_file():
+            raise ConfigError(f".env 文件不存在: {dotenv_path}")
+        try:
+            value = dotenv_values(dotenv_path).get(variable)
+        except (OSError, UnicodeError) as exc:
+            raise ConfigError(f"无法读取 .env 文件 {dotenv_path}: {exc}") from exc
+        if not value:
+            raise ConfigError(f".env 文件 {dotenv_path} 中未设置 {variable}")
+        return value
     if reference.startswith("env:"):
-        variable = reference.removeprefix("env:")
+        variable = _reference_variable(reference, "env:")
         value = os.environ.get(variable)
         if not value:
             raise ConfigError(f"环境变量 {variable} 未设置")
         return value
-    raise ConfigError("api_key_ref 目前只支持 env:<VARIABLE>，不允许在配置中保存明文密钥")
+    raise ConfigError(
+        "api_key_ref 只支持 dotenv:<VARIABLE> 或 env:<VARIABLE>，不允许在配置中保存明文密钥"
+    )

@@ -37,7 +37,7 @@ python3 -m venv .venv
 [model]
 provider = "openai_compatible"
 base_url = "https://your-provider.example/v1"
-api_key_ref = "env:BOT_MODEL_API_KEY"
+api_key_ref = "dotenv:BOT_MODEL_API_KEY"
 name = "your-model-id"
 context_window_tokens = 131072
 # 可选；配置后才能计算并限制费用
@@ -116,13 +116,25 @@ state_path = "./.bot/state.db"
 所有非取消终态统一生成一次无 Tool 或静态收尾。完整状态机见
 [docs/termination.md](docs/termination.md)。
 
+复制示例环境文件并填写模型 API Key（`.env` 已加入 `.gitignore`，不会被 Git 提交）：
+
+```bash
+cp .env.example .env
+```
+
+```dotenv
+BOT_MODEL_API_KEY=your-api-key
+```
+
 然后运行：
 
 ```bash
-export BOT_MODEL_API_KEY='...'
 bot doctor
 bot
 ```
+
+`dotenv:<VARIABLE>` 直接读取工作区根目录的 `.env`，不会修改进程环境。部署场景仍可使用
+`api_key_ref = "env:<VARIABLE>"` 从已有环境变量读取密钥。
 
 `bot init` 会创建项目配置，并在目标 Skill 不存在时把随包发布的
 `kunpeng-performance-analysis` 脚手架到工作区 `./skills`；已有同名目录不会被覆盖。

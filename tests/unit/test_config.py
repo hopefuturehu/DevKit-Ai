@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -61,11 +62,38 @@ safety_margin_tokens = 1000
         load_config(tmp_path, config_path=config_path)
 
 
-def test_api_key_must_be_an_environment_reference(monkeypatch) -> None:
+def test_api_key_supports_dotenv_and_environment_references(
+    tmp_path: Path, monkeypatch
+) -> None:
+    (tmp_path / ".env").write_text(
+        'TEST_DOTENV_KEY="dotenv secret"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("TEST_DOTENV_KEY", raising=False)
     monkeypatch.setenv("TEST_BOT_KEY", "secret")
+
+    assert (
+        resolve_api_key("dotenv:TEST_DOTENV_KEY", workspace=tmp_path)
+        == "dotenv secret"
+    )
+    assert "TEST_DOTENV_KEY" not in os.environ
     assert resolve_api_key("env:TEST_BOT_KEY") == "secret"
     with pytest.raises(ConfigError, match="不允许在配置中保存明文"):
         resolve_api_key("secret")
+
+
+def test_dotenv_api_key_reports_missing_file_and_variable(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match=r"\.env 文件不存在"):
+        resolve_api_key("dotenv:BOT_MODEL_API_KEY", workspace=tmp_path)
+
+    (tmp_path / ".env").write_text("OTHER_KEY=value\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="未设置 BOT_MODEL_API_KEY"):
+        resolve_api_key("dotenv:BOT_MODEL_API_KEY", workspace=tmp_path)
+
+
+def test_api_key_reference_rejects_invalid_variable_name(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="变量名无效"):
+        resolve_api_key("dotenv:not-valid!", workspace=tmp_path)
 
 
 def test_subagent_limits_are_strictly_validated(tmp_path: Path) -> None:

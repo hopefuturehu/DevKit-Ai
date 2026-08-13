@@ -33,7 +33,7 @@ def test_cli_json_run_connects_config_provider_agent_and_store(tmp_path: Path, m
         """
 [model]
 base_url = "https://provider.example/v1"
-api_key_ref = "env:BOT_MODEL_API_KEY"
+api_key_ref = "dotenv:BOT_MODEL_API_KEY"
 name = "mock-model"
 
 [storage]
@@ -41,11 +41,11 @@ state_path = "./.bot/state.db"
 """,
         encoding="utf-8",
     )
+    (tmp_path / ".env").write_text("BOT_MODEL_API_KEY=test-key\n", encoding="utf-8")
 
     result = CliRunner().invoke(
         app,
         ["-C", str(tmp_path), "run", "say hello", "--json"],
-        env={"BOT_MODEL_API_KEY": "test-key"},
     )
 
     assert result.exit_code == 0, result.output

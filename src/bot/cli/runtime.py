@@ -89,7 +89,7 @@ def build_runtime(
     config = load_config(workspace, config_path=config_path, overrides=config_overrides)
     if not config.model.name:
         raise ConfigError("model.name 未配置")
-    api_key = resolve_api_key(config.model.api_key_ref)
+    api_key = resolve_api_key(config.model.api_key_ref, workspace=workspace)
     provider = OpenAICompatibleProvider(
         base_url=config.model.base_url,
         api_key=api_key,

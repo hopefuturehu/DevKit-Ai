@@ -679,7 +679,7 @@ SQLite 表的最小集合：
 [model]
 provider = "openai_compatible"
 base_url = "<customer-or-model-provider-api>"
-api_key_ref = "env:BOT_MODEL_API_KEY"
+api_key_ref = "dotenv:BOT_MODEL_API_KEY"
 name = "<deepseek-v4-flash-or-pro-model-id>"
 temperature = 0.2
 context_window_tokens = 131072

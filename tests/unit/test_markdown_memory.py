@@ -276,13 +276,12 @@ def test_agent_loads_physical_memory_files_with_separate_trust(tmp_path: Path) -
 
 def test_runtime_migrates_legacy_sqlite_memory_and_protects_markdown_root(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     state_path = tmp_path / ".bot" / "state.db"
     store = SQLiteSessionStore(state_path)
     store.add_memory("legacy preference")
     store.close()
-    monkeypatch.setenv("BOT_MODEL_API_KEY", "test-key")
+    (tmp_path / ".env").write_text("BOT_MODEL_API_KEY=test-key\n", encoding="utf-8")
 
     runtime = build_runtime(
         workspace=tmp_path,

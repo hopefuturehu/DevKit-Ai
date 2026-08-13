@@ -637,7 +637,7 @@ def doctor_command(ctx: typer.Context) -> None:
         errors += 1
         console.print("[red]✗[/red] model.name 未配置")
     try:
-        resolve_api_key(config.model.api_key_ref)
+        resolve_api_key(config.model.api_key_ref, workspace=workspace)
         console.print(f"[green]✓[/green] API Key 引用有效: {config.model.api_key_ref}")
     except ConfigError as exc:
         errors += 1
@@ -698,7 +698,7 @@ def init_command(ctx: typer.Context) -> None:
     template = """[model]
 provider = "openai_compatible"
 base_url = ""
-api_key_ref = "env:BOT_MODEL_API_KEY"
+api_key_ref = "dotenv:BOT_MODEL_API_KEY"
 name = ""
 context_window_tokens = 131072
 
