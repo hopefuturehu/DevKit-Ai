@@ -16,6 +16,7 @@ from bot.core.approval import (
 from bot.core.context import MANAGED_PROCESS_REMINDER, ContextAssembler
 from bot.core.events import EventBus, EventType, MemoryEventSink
 from bot.core.models import (
+    ChatMessage,
     ModelCapabilities,
     ModelEvent,
     ModelEventKind,
@@ -63,6 +64,52 @@ class SteerableProvider(ModelProvider):
             yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="first answer")
         else:
             yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="steered answer")
+        yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+
+class SteerableToolProvider(ModelProvider):
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.requests: list[ModelRequest] = []
+
+    def capabilities(self, model: str) -> ModelCapabilities:
+        return ModelCapabilities()
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
+        self.requests.append(request)
+        if len(self.requests) == 1:
+            self.started.set()
+            await self.release.wait()
+            for index, (call_id, path) in enumerate(
+                (("steer-call-a", "a.txt"), ("steer-call-b", "b.txt"))
+            ):
+                yield ModelEvent(
+                    kind=ModelEventKind.TOOL_CALL_DELTA,
+                    tool_index=index,
+                    tool_call_id=call_id,
+                    tool_name="read_file",
+                    arguments_delta=json.dumps({"path": path}),
+                )
+            yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="tool_calls")
+            return
+        yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="steering handled")
+        yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+
+class UsageThenProviderError(ModelProvider):
+    def __init__(self) -> None:
+        self.requests: list[ModelRequest] = []
+
+    def capabilities(self, model: str) -> ModelCapabilities:
+        return ModelCapabilities()
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
+        self.requests.append(request)
+        if len(self.requests) == 1:
+            yield ModelEvent(kind=ModelEventKind.USAGE, input_tokens=12, output_tokens=3)
+            raise ProviderError("模型 API 返回 HTTP 400: invalid request")
+        yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="provider failure summary")
         yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
 
 
@@ -402,6 +449,179 @@ async def test_agent_applies_steering_at_model_boundary(tmp_path: Path) -> None:
         "focus on the new requirement" in (message.content or "")
         for message in provider.requests[1].messages
     )
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_defers_steering_until_all_tool_results_are_persisted(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("a", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("b", encoding="utf-8")
+    provider = SteerableToolProvider()
+    runner, store = make_test_runner(tmp_path, provider, tools=[ReadFileTool()])
+    session_id = store.create_session(tmp_path)
+
+    run_task = asyncio.create_task(
+        runner.run(RunRequest(prompt="inspect", session_id=session_id))
+    )
+    await provider.started.wait()
+    assert await runner.steer(session_id, "use the new direction")
+    provider.release.set()
+    result = await run_task
+
+    assert result.status == "completed"
+    persisted = store.load_messages(session_id)
+    assistant_index = next(
+        index for index, message in enumerate(persisted) if message.tool_calls
+    )
+    assert [message.role for message in persisted[assistant_index : assistant_index + 4]] == [
+        Role.ASSISTANT,
+        Role.TOOL,
+        Role.TOOL,
+        Role.USER,
+    ]
+    second_request = provider.requests[1].messages
+    request_assistant_index = next(
+        index for index, message in enumerate(second_request) if message.tool_calls
+    )
+    assert [
+        message.role
+        for message in second_request[request_assistant_index : request_assistant_index + 4]
+    ] == [Role.ASSISTANT, Role.TOOL, Role.TOOL, Role.USER]
+    assert "use the new direction" in (second_request[request_assistant_index + 3].content or "")
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_repairs_legacy_interleaved_tool_history_before_request(
+    tmp_path: Path,
+) -> None:
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="recovered history"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider)
+    session_id = store.create_session(tmp_path)
+    legacy_run_id = "legacy-tool-order"
+    store.start_run(session_id, legacy_run_id)
+    store.append_message(
+        session_id,
+        legacy_run_id,
+        ChatMessage(
+            role=Role.ASSISTANT,
+            tool_calls=[ToolCall(id="legacy-call", name="read_file", arguments={})],
+        ),
+    )
+    store.append_message(
+        session_id,
+        legacy_run_id,
+        ChatMessage(role=Role.USER, content="interleaved steering"),
+    )
+    store.append_message(
+        session_id,
+        legacy_run_id,
+        ChatMessage(role=Role.TOOL, tool_call_id="legacy-call", content="legacy result"),
+    )
+    store.finish_run(legacy_run_id, "failed")
+
+    result = await runner.run(RunRequest(prompt="continue", session_id=session_id))
+
+    assert result.status == "completed"
+    request_messages = provider.requests[0].messages
+    assistant_index = next(
+        index for index, message in enumerate(request_messages) if message.tool_calls
+    )
+    assert request_messages[assistant_index + 1].role == Role.TOOL
+    assert request_messages[assistant_index + 2].role == Role.USER
+    repair_events = [
+        event
+        for event in store.list_events(session_id)
+        if event["type"] == EventType.CONTEXT_TOOL_PROTOCOL_REPAIRED.value
+    ]
+    assert repair_events[-1]["payload"]["moved_tool_results"] == 1
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_provider_error_preserves_step_and_usage_for_finalization(tmp_path: Path) -> None:
+    provider = UsageThenProviderError()
+    runner, store = make_test_runner(tmp_path, provider)
+
+    result = await runner.run(RunRequest(prompt="fail after usage"))
+
+    assert result.status == "failed"
+    assert result.termination_reason == "provider_error"
+    assert result.steps == 1
+    assert result.input_tokens == 12
+    assert result.output_tokens == 3
+    assert result.final_text == "provider failure summary"
+    assert provider.requests[-1].tools == []
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_finalizer_synthesizes_unexecuted_tool_result_after_batch_limit(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("large result", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("not executed", encoding="utf-8")
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(
+                    kind=ModelEventKind.TOOL_CALL_DELTA,
+                    tool_index=0,
+                    tool_call_id="limit-call-a",
+                    tool_name="read_file",
+                    arguments_delta='{"path":"a.txt"}',
+                ),
+                ModelEvent(
+                    kind=ModelEventKind.TOOL_CALL_DELTA,
+                    tool_index=1,
+                    tool_call_id="limit-call-b",
+                    tool_name="read_file",
+                    arguments_delta='{"path":"b.txt"}',
+                ),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="tool_calls"),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="batch limit summary"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={"max_total_tool_output_bytes": 1},
+        tools=[ReadFileTool()],
+    )
+
+    result = await runner.run(RunRequest(prompt="read both"))
+
+    assert result.status == "limit_reached"
+    assert result.final_text == "batch limit summary"
+    finalizer_messages = provider.requests[-1].messages
+    assistant_index = next(
+        index for index, message in enumerate(finalizer_messages) if len(message.tool_calls) == 2
+    )
+    assert [
+        message.tool_call_id
+        for message in finalizer_messages[assistant_index + 1 : assistant_index + 3]
+    ] == ["limit-call-a", "limit-call-b"]
+    assert "结果未知" in (finalizer_messages[assistant_index + 2].content or "")
+    repair_events = [
+        event
+        for event in store.list_events(result.session_id)
+        if event["type"] == EventType.CONTEXT_TOOL_PROTOCOL_REPAIRED.value
+    ]
+    assert repair_events[-1]["payload"]["phase"] == "finalizing"
+    assert repair_events[-1]["payload"]["synthesized_tool_results"] == 1
     store.close()
 
 

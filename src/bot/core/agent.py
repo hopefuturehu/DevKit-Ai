@@ -24,6 +24,7 @@ from bot.core.context import (
     PositionedMessage,
     TokenBudget,
     TokenEstimator,
+    repair_tool_protocol,
 )
 from bot.core.events import EventBus, EventType
 from bot.core.models import (
@@ -508,6 +509,13 @@ class AgentRunner:
                     metadata={"context_report": exc.report},
                 ) from exc
             messages = context_pack.messages
+            messages = await self._prepare_model_messages(
+                messages,
+                session_id=session_id,
+                run_id=run_id,
+                phase="running",
+                step=step,
+            )
             self._last_context_reports[session_id] = context_pack.overflow_report()
             if context_pack.dropped_items:
                 await self.event_bus.emit(
@@ -612,7 +620,16 @@ class AgentRunner:
                         payload={"provider_error": str(exc), **retry_details},
                     )
                     continue
-                raise
+                raise _RunTermination(
+                    status="failed",
+                    reason_code="provider_error",
+                    message=str(exc),
+                    partial_text="".join(text_parts),
+                    steps=step,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                ) from exc
 
             assistant_text = "".join(text_parts)
             reasoning_text = "".join(reasoning_parts)
@@ -764,9 +781,14 @@ class AgentRunner:
                 )
             )
 
-            steered_after_model = await self._drain_steering(
-                conversation, session_id=session_id, run_id=run_id
-            )
+            # A user message may not split assistant(tool_calls) from its Tool
+            # results. Plain-text responses have no pending protocol envelope,
+            # so steering can still be applied immediately for that case.
+            steered_after_model = False
+            if not tool_calls:
+                steered_after_model = await self._drain_steering(
+                    conversation, session_id=session_id, run_id=run_id
+                )
 
             if (
                 tool_calls
@@ -1043,6 +1065,11 @@ class AgentRunner:
                         ),
                     )
 
+            steered_after_tools = await self._drain_steering(
+                conversation,
+                session_id=session_id,
+                run_id=run_id,
+            )
             if self.config.agent.progress.enabled:
                 progress_report = progress_controller.finish_step()
                 self.store.save_progress_state(
@@ -1092,6 +1119,17 @@ class AgentRunner:
                         payload={"step": step, **progress_report.event_payload()},
                     )
                 elif progress_report.action == TerminationAction.FINALIZE:
+                    if steered_after_tools:
+                        self._replace_runtime_note(
+                            runtime_notes,
+                            note_id="progress-user-steering",
+                            content=(
+                                "用户刚刚补充或改变了当前任务方向。先处理这条新指令，"
+                                "不要仅依据补充前的停滞证据结束运行。"
+                            ),
+                            priority=925,
+                        )
+                        continue
                     raise _RunTermination(
                         status="blocked",
                         reason_code=progress_report.reason_code,
@@ -1148,7 +1186,13 @@ class AgentRunner:
                 )
                 finalizer_request = ModelRequest(
                     model=self.config.model.name,
-                    messages=context_pack.messages,
+                    messages=await self._prepare_model_messages(
+                        context_pack.messages,
+                        session_id=session_id,
+                        run_id=run_id,
+                        phase="finalizing",
+                        step=step,
+                    ),
                     tools=[],
                     temperature=self.config.model.temperature,
                     max_output_tokens=self.config.model.max_output_tokens,
@@ -1585,6 +1629,7 @@ class AgentRunner:
         tools: list[ToolDefinition],
     ) -> int | None:
         try:
+            messages, _ = repair_tool_protocol(messages)
             return self.provider.count_tokens(
                 ModelRequest(
                     model=self.config.model.name,
@@ -1598,6 +1643,25 @@ class AgentRunner:
             # Tokenizer availability must not become a new runtime dependency;
             # the Unicode-aware conservative estimate remains the safe fallback.
             return None
+
+    async def _prepare_model_messages(
+        self,
+        messages: list[ChatMessage],
+        *,
+        session_id: str,
+        run_id: str,
+        phase: str,
+        step: int,
+    ) -> list[ChatMessage]:
+        repaired, report = repair_tool_protocol(messages)
+        if report.changed:
+            await self.event_bus.emit(
+                EventType.CONTEXT_TOOL_PROTOCOL_REPAIRED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={"phase": phase, "step": step, **report.event_payload()},
+            )
+        return repaired
 
     def _build_context_items(
         self,

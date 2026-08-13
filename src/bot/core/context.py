@@ -113,6 +113,102 @@ class PositionedMessage:
     message: ChatMessage
 
 
+@dataclass(frozen=True)
+class ToolProtocolRepair:
+    moved_tool_results: int = 0
+    synthesized_tool_results: int = 0
+    dropped_orphan_tool_results: int = 0
+
+    @property
+    def changed(self) -> bool:
+        return any(
+            (
+                self.moved_tool_results,
+                self.synthesized_tool_results,
+                self.dropped_orphan_tool_results,
+            )
+        )
+
+    def event_payload(self) -> dict[str, int]:
+        return {
+            "moved_tool_results": self.moved_tool_results,
+            "synthesized_tool_results": self.synthesized_tool_results,
+            "dropped_orphan_tool_results": self.dropped_orphan_tool_results,
+        }
+
+
+def repair_tool_protocol(
+    messages: list[ChatMessage],
+) -> tuple[list[ChatMessage], ToolProtocolRepair]:
+    """Return an OpenAI-compatible message sequence without losing user turns.
+
+    Tool results are request-scoped protocol envelopes: every assistant Tool
+    Call must be followed immediately by one result for each call id. Historical
+    steering could split that atomic group, and an interrupted run may have no
+    persisted result at all. Move existing results next to their owner, synthesize
+    an interrupted result when needed, and discard Tool messages with no owner.
+    The durable transcript is left untouched for auditability.
+    """
+
+    responses: dict[str, list[tuple[int, ChatMessage]]] = {}
+    tool_message_indexes: set[int] = set()
+    for index, message in enumerate(messages):
+        if message.role != Role.TOOL:
+            continue
+        tool_message_indexes.add(index)
+        if message.tool_call_id:
+            responses.setdefault(message.tool_call_id, []).append((index, message))
+
+    repaired: list[ChatMessage] = []
+    consumed: set[int] = set()
+    moved = 0
+    synthesized = 0
+    for index, message in enumerate(messages):
+        if message.role == Role.TOOL:
+            continue
+        repaired.append(message)
+        if message.role != Role.ASSISTANT or not message.tool_calls:
+            continue
+
+        actual: list[tuple[int, ChatMessage]] = []
+        missing = []
+        for call in message.tool_calls:
+            available = responses.get(call.id, [])
+            selected = next((item for item in available if item[0] not in consumed), None)
+            if selected is None:
+                missing.append(call)
+                continue
+            consumed.add(selected[0])
+            actual.append(selected)
+        actual.sort(key=lambda item: item[0])
+        expected_indexes = list(range(index + 1, index + 1 + len(actual)))
+        moved += sum(
+            actual_index != expected_index
+            for (actual_index, _), expected_index in zip(actual, expected_indexes, strict=True)
+        )
+        repaired.extend(result for _, result in actual)
+        for call in missing:
+            repaired.append(
+                ChatMessage(
+                    role=Role.TOOL,
+                    name=call.name,
+                    tool_call_id=call.id,
+                    content=(
+                        "该 Tool Call 所在运行在结果持久化前中断；"
+                        "未执行或执行结果未知，请不要假设操作已成功。"
+                    ),
+                )
+            )
+            synthesized += 1
+
+    report = ToolProtocolRepair(
+        moved_tool_results=moved,
+        synthesized_tool_results=synthesized,
+        dropped_orphan_tool_results=len(tool_message_indexes - consumed),
+    )
+    return repaired, report
+
+
 @dataclass
 class ContextItem:
     id: str

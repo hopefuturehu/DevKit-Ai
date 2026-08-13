@@ -15,6 +15,7 @@ from bot.core.context import (
     SnapshotBuilder,
     TokenBudget,
     TokenEstimator,
+    repair_tool_protocol,
 )
 from bot.core.models import ChatMessage, Role, ToolCall
 from bot.sessions import SQLiteSessionStore
@@ -115,6 +116,42 @@ def test_planner_keeps_assistant_tool_group_atomic() -> None:
     ids = {item["id"] for item in pack.dropped_items}
     assert {"assistant", "tool"}.issubset(ids)
     assert all(message.tool_call_id != "call" for message in pack.messages)
+
+
+def test_tool_protocol_repair_moves_steering_after_complete_tool_batch() -> None:
+    assistant = ChatMessage(
+        role=Role.ASSISTANT,
+        tool_calls=[
+            ToolCall(id="call-a", name="first", arguments={}),
+            ToolCall(id="call-b", name="second", arguments={}),
+        ],
+    )
+    steering = ChatMessage(role=Role.USER, content="change direction")
+    first = ChatMessage(role=Role.TOOL, tool_call_id="call-a", content="a")
+    second = ChatMessage(role=Role.TOOL, tool_call_id="call-b", content="b")
+
+    repaired, report = repair_tool_protocol([assistant, steering, first, second])
+
+    assert repaired == [assistant, first, second, steering]
+    assert report.moved_tool_results == 2
+    assert report.synthesized_tool_results == 0
+    assert report.dropped_orphan_tool_results == 0
+
+
+def test_tool_protocol_repair_synthesizes_missing_and_drops_orphan_results() -> None:
+    assistant = ChatMessage(
+        role=Role.ASSISTANT,
+        tool_calls=[ToolCall(id="missing", name="demo", arguments={})],
+    )
+    orphan = ChatMessage(role=Role.TOOL, tool_call_id="orphan", content="unknown")
+
+    repaired, report = repair_tool_protocol([orphan, assistant])
+
+    assert [message.role for message in repaired] == [Role.ASSISTANT, Role.TOOL]
+    assert repaired[1].tool_call_id == "missing"
+    assert "结果未知" in (repaired[1].content or "")
+    assert report.synthesized_tool_results == 1
+    assert report.dropped_orphan_tool_results == 1
 
 
 def test_planner_reports_irreducible_pinned_overflow() -> None:

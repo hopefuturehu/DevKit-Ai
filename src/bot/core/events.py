@@ -35,6 +35,7 @@ class EventType(StrEnum):
     CONTEXT_LIMIT_REACHED = "context.limit_reached"
     CONTEXT_RETRY = "context.retry"
     CONTEXT_INVALID_MESSAGE_DROPPED = "context.invalid_message_dropped"
+    CONTEXT_TOOL_PROTOCOL_REPAIRED = "context.tool_protocol_repaired"
     MEMORY_EXTRACTION_STARTED = "memory.extraction.started"
     MEMORY_EXTRACTION_COMPLETED = "memory.extraction.completed"
     MEMORY_EXTRACTION_FAILED = "memory.extraction.failed"
