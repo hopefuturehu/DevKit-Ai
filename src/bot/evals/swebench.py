@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
 
-from bot.config import load_config
+from bot.config import api_key_reference_variable, load_config, resolve_api_key
 from bot.evals.connect_proxy import restricted_connect_proxy
 from bot.observability import export_trace_bundle
 
@@ -67,17 +67,31 @@ def build_agent_prompt(instance: SWEbenchInstance) -> str:
     )
 
 
-def _run(argv: list[str], *, cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _run(
+    argv: list[str],
+    *,
+    cwd: Path,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         argv,
         cwd=cwd,
         check=check,
         text=True,
         capture_output=True,
+        env=env,
     )
 
 
-def _run_streaming(argv: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Path) -> int:
+def _run_streaming(
+    argv: list[str],
+    *,
+    cwd: Path,
+    stdout_path: Path,
+    stderr_path: Path,
+    env: dict[str, str] | None = None,
+) -> int:
     """Run a process with output written directly to tail-able host files."""
     with (
         stdout_path.open("w", encoding="utf-8") as stdout,
@@ -89,6 +103,7 @@ def _run_streaming(argv: list[str], *, cwd: Path, stdout_path: Path, stderr_path
             text=True,
             stdout=stdout,
             stderr=stderr,
+            env=env,
             start_new_session=os.name == "posix",
         )
         try:
@@ -113,6 +128,20 @@ def _run_streaming(argv: list[str], *, cwd: Path, stdout_path: Path, stderr_path
                     process.kill()
                 process.wait()
             raise
+
+
+def _api_key_process_environment(
+    reference: str,
+    *,
+    workspace: Path,
+) -> tuple[str, dict[str, str]]:
+    """Resolve a host credential and normalize it for a child process."""
+    variable = api_key_reference_variable(reference)
+    value = resolve_api_key(reference, workspace=workspace)
+    environment = os.environ.copy()
+    environment[variable] = value
+    environment["BOT_MODEL_API_KEY_REF"] = f"env:{variable}"
+    return variable, environment
 
 
 def _append_log(path: Path, content: str) -> None:
@@ -165,7 +194,18 @@ def run_instance(
     bot_executable: Path,
     config_path: Path,
     output_path: Path,
+    credential_workspace: Path | None = None,
 ) -> int:
+    if credential_workspace is None:
+        config_parent = config_path.resolve().parent
+        credential_workspace = (
+            config_parent.parent if config_parent.name == ".bot" else config_parent
+        )
+    config = load_config(credential_workspace, config_path=config_path)
+    _, process_environment = _api_key_process_environment(
+        config.model.api_key_ref,
+        workspace=credential_workspace,
+    )
     prepare_workspace(instance, workspace)
     prompt = build_agent_prompt(instance)
     command = [
@@ -178,14 +218,13 @@ def run_instance(
         prompt,
         "--json",
     ]
-    completed = _run(command, cwd=workspace, check=False)
+    completed = _run(command, cwd=workspace, check=False, env=process_environment)
     patch = collect_model_patch(workspace)
-    model_name = load_config(workspace, config_path=config_path).model.name
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     prediction = {
         "instance_id": instance.instance_id,
-        "model_name_or_path": os.environ.get("BOT_MODEL_NAME", model_name),
+        "model_name_or_path": process_environment.get("BOT_MODEL_NAME", config.model.name),
         "model_patch": patch,
     }
     output_path.write_text(json.dumps(prediction, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -218,6 +257,10 @@ def run_container_instance(
         raise ValueError("SWE-bench max_cost_usd 必须大于 0")
 
     config = load_config(project_root, config_path=config_path)
+    key_variable, process_environment = _api_key_process_environment(
+        config.model.api_key_ref,
+        workspace=project_root,
+    )
     model_url = urlparse(config.model.base_url)
     if model_url.scheme != "https" or not model_url.hostname:
         raise ValueError("容器评测要求 model.base_url 使用有效的 HTTPS URL")
@@ -336,7 +379,9 @@ def run_container_instance(
                     "docker",
                     "exec",
                     "--env",
-                    "BOT_MODEL_API_KEY",
+                    key_variable,
+                    "--env",
+                    f"BOT_MODEL_API_KEY_REF=env:{key_variable}",
                     "--env",
                     f"HTTPS_PROXY={proxy_url}",
                     "--env",
@@ -366,6 +411,7 @@ def run_container_instance(
                 cwd=project_root,
                 stdout_path=events_path,
                 stderr_path=stderr_path,
+                env=process_environment,
             )
             copied_state = _run(
                 ["docker", "cp", f"{container_name}:/tmp/trace-state.db", str(state_path)],

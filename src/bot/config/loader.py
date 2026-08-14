@@ -81,27 +81,40 @@ def _reference_variable(reference: str, prefix: str) -> str:
     return variable
 
 
+def api_key_reference_variable(reference: str) -> str:
+    for prefix in ("auto:", "dotenv:", "env:"):
+        if reference.startswith(prefix):
+            return _reference_variable(reference, prefix)
+    raise ConfigError(
+        "api_key_ref 只支持 auto:<VARIABLE>、dotenv:<VARIABLE> 或 env:<VARIABLE>，"
+        "不允许在配置中保存明文密钥"
+    )
+
+
+def _resolve_dotenv_api_key(variable: str, workspace: Path | None) -> str:
+    if workspace is None:
+        raise ConfigError("解析 dotenv API Key 引用时必须提供 workspace")
+    dotenv_path = workspace.resolve() / ".env"
+    if not dotenv_path.is_file():
+        raise ConfigError(f".env 文件不存在: {dotenv_path}")
+    try:
+        value = dotenv_values(dotenv_path).get(variable)
+    except (OSError, UnicodeError) as exc:
+        raise ConfigError(f"无法读取 .env 文件 {dotenv_path}: {exc}") from exc
+    if not value:
+        raise ConfigError(f".env 文件 {dotenv_path} 中未设置 {variable}")
+    return value
+
+
 def resolve_api_key(reference: str, *, workspace: Path | None = None) -> str:
-    if reference.startswith("dotenv:"):
-        variable = _reference_variable(reference, "dotenv:")
-        if workspace is None:
-            raise ConfigError("解析 dotenv: API Key 引用时必须提供 workspace")
-        dotenv_path = workspace.resolve() / ".env"
-        if not dotenv_path.is_file():
-            raise ConfigError(f".env 文件不存在: {dotenv_path}")
-        try:
-            value = dotenv_values(dotenv_path).get(variable)
-        except (OSError, UnicodeError) as exc:
-            raise ConfigError(f"无法读取 .env 文件 {dotenv_path}: {exc}") from exc
-        if not value:
-            raise ConfigError(f".env 文件 {dotenv_path} 中未设置 {variable}")
-        return value
+    variable = api_key_reference_variable(reference)
     if reference.startswith("env:"):
-        variable = _reference_variable(reference, "env:")
         value = os.environ.get(variable)
         if not value:
             raise ConfigError(f"环境变量 {variable} 未设置")
         return value
-    raise ConfigError(
-        "api_key_ref 只支持 dotenv:<VARIABLE> 或 env:<VARIABLE>，不允许在配置中保存明文密钥"
-    )
+    if reference.startswith("auto:"):
+        value = os.environ.get(variable)
+        if value:
+            return value
+    return _resolve_dotenv_api_key(variable, workspace)

@@ -10,6 +10,7 @@ import pytest
 from bot.evals.connect_proxy import _connect_target_allowed
 from bot.evals.swebench import (
     SWEbenchInstance,
+    _api_key_process_environment,
     _run_streaming,
     build_agent_prompt,
     collect_model_patch,
@@ -125,6 +126,26 @@ def test_restricted_connect_proxy_only_accepts_configured_upstream() -> None:
     assert _connect_target_allowed("CONNECT api.example:443 HTTP/1.1", "api.example", 443)
     assert not _connect_target_allowed("CONNECT forbidden.example:443 HTTP/1.1", "api.example", 443)
     assert not _connect_target_allowed("GET api.example:443 HTTP/1.1", "api.example", 443)
+
+
+def test_api_key_environment_normalizes_dotenv_for_child_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("SWEBENCH_TEST_KEY", raising=False)
+    (tmp_path / ".env").write_text(
+        "SWEBENCH_TEST_KEY=dotenv-secret\n",
+        encoding="utf-8",
+    )
+
+    variable, environment = _api_key_process_environment(
+        "dotenv:SWEBENCH_TEST_KEY",
+        workspace=tmp_path,
+    )
+
+    assert variable == "SWEBENCH_TEST_KEY"
+    assert environment[variable] == "dotenv-secret"
+    assert environment["BOT_MODEL_API_KEY_REF"] == "env:SWEBENCH_TEST_KEY"
+    assert "SWEBENCH_TEST_KEY" not in os.environ
 
 
 def test_streaming_process_writes_stdout_and_stderr_to_files(tmp_path: Path) -> None:

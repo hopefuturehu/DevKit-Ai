@@ -13,7 +13,7 @@ class StrictModel(BaseModel):
 class ModelConfig(StrictModel):
     provider: Literal["openai_compatible"] = "openai_compatible"
     base_url: str = ""
-    api_key_ref: str = "dotenv:BOT_MODEL_API_KEY"
+    api_key_ref: str = "auto:BOT_MODEL_API_KEY"
     name: str = ""
     temperature: float = Field(default=0.2, ge=0, le=2)
     timeout_seconds: float = Field(default=120, gt=0)

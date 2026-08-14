@@ -5,6 +5,7 @@ import pytest
 
 from bot.config import (
     ConfigError,
+    api_key_reference_variable,
     load_config,
     resolve_api_key,
     set_config_value,
@@ -78,6 +79,14 @@ def test_api_key_supports_dotenv_and_environment_references(
     )
     assert "TEST_DOTENV_KEY" not in os.environ
     assert resolve_api_key("env:TEST_BOT_KEY") == "secret"
+    monkeypatch.setenv("TEST_DOTENV_KEY", "environment secret")
+    assert (
+        resolve_api_key("auto:TEST_DOTENV_KEY", workspace=tmp_path)
+        == "environment secret"
+    )
+    monkeypatch.delenv("TEST_DOTENV_KEY")
+    assert resolve_api_key("auto:TEST_DOTENV_KEY", workspace=tmp_path) == "dotenv secret"
+    assert "TEST_DOTENV_KEY" not in os.environ
     with pytest.raises(ConfigError, match="不允许在配置中保存明文"):
         resolve_api_key("secret")
 
@@ -94,6 +103,9 @@ def test_dotenv_api_key_reports_missing_file_and_variable(tmp_path: Path) -> Non
 def test_api_key_reference_rejects_invalid_variable_name(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="变量名无效"):
         resolve_api_key("dotenv:not-valid!", workspace=tmp_path)
+    assert api_key_reference_variable("auto:BOT_MODEL_API_KEY") == "BOT_MODEL_API_KEY"
+    with pytest.raises(ConfigError, match="只支持 auto"):
+        api_key_reference_variable("file:BOT_MODEL_API_KEY")
 
 
 def test_subagent_limits_are_strictly_validated(tmp_path: Path) -> None:
@@ -122,6 +134,7 @@ def test_subagent_limits_are_strictly_validated(tmp_path: Path) -> None:
 def test_execution_has_no_fixed_global_limit_by_default() -> None:
     config = AppConfig()
 
+    assert config.model.api_key_ref == "auto:BOT_MODEL_API_KEY"
     assert config.agent.max_steps is None
     assert config.agent.max_wall_time_seconds is None
     assert config.agent.max_total_tool_output_bytes is None

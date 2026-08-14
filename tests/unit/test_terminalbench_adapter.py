@@ -51,6 +51,7 @@ def test_build_harbor_command_uses_dataset_adapter_and_secret_template(
     assert TERMINALBENCH_DATASET in command
     assert HARBOR_AGENT_IMPORT_PATH in command
     assert "BOT_MODEL_API_KEY=${BOT_MODEL_API_KEY}" in command
+    assert "BOT_MODEL_API_KEY_REF=env:BOT_MODEL_API_KEY" in command
     assert "terminal-bench/openssl-selfsigned-cert" in command
     assert "package_path=" + str(wheel) in command
 
@@ -78,9 +79,11 @@ def test_build_harbor_command_requires_explicit_task_scope(tmp_path: Path) -> No
 
 def test_terminalbench_model_connection_validation() -> None:
     assert api_key_env_name("env:MODEL_KEY") == "MODEL_KEY"
+    assert api_key_env_name("auto:MODEL_KEY") == "MODEL_KEY"
+    assert api_key_env_name("dotenv:MODEL_KEY") == "MODEL_KEY"
     assert model_hostname("https://api.example.com/v1") == "api.example.com"
     validate_api_key_value("sk-valid-example")
-    with pytest.raises(ValueError, match="环境变量名"):
+    with pytest.raises(ValueError, match="变量名无效"):
         api_key_env_name("env:not-valid!")
     with pytest.raises(ValueError, match="HTTPS"):
         model_hostname("http://api.example.com/v1")

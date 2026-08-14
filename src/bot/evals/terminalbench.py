@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import shlex
 import shutil
 import signal
@@ -10,7 +9,12 @@ import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
 
-from bot.config import load_config
+from bot.config import (
+    ConfigError,
+    api_key_reference_variable,
+    load_config,
+    resolve_api_key,
+)
 
 HARBOR_VERSION = "0.20.0"
 TERMINALBENCH_DATASET = "terminal-bench/terminal-bench-2-1"
@@ -21,12 +25,10 @@ DEFAULT_TERMINALBENCH_MAX_COST_USD = 1.0
 
 
 def api_key_env_name(reference: str) -> str:
-    if not reference.startswith("env:"):
-        raise ValueError("Terminal-Bench 适配器要求 model.api_key_ref 使用 env:<VARIABLE>")
-    name = reference.removeprefix("env:")
-    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
-        raise ValueError("model.api_key_ref 缺少有效的环境变量名")
-    return name
+    try:
+        return api_key_reference_variable(reference)
+    except ConfigError as exc:
+        raise ValueError(str(exc)) from exc
 
 
 def validate_api_key_value(value: str) -> None:
@@ -105,6 +107,8 @@ def build_harbor_command(
         f"subagents_enabled={str(subagents_enabled).lower()}",
         "--agent-env",
         f"{api_key_variable}=${{{api_key_variable}}}",
+        "--agent-env",
+        f"BOT_MODEL_API_KEY_REF=env:{api_key_variable}",
         "--allow-agent-host",
         model_host,
         "--n-concurrent",
@@ -279,13 +283,14 @@ def main(argv: list[str] | None = None) -> int:
     if not config.model.name:
         raise SystemExit("model.name 未配置")
     key_variable = api_key_env_name(config.model.api_key_ref)
-    key_value = os.environ.get(key_variable)
-    if not key_value:
-        raise SystemExit(f"环境变量 {key_variable} 未设置")
+    try:
+        key_value = resolve_api_key(config.model.api_key_ref, workspace=project_root)
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from exc
     try:
         validate_api_key_value(key_value)
     except ValueError as exc:
-        raise SystemExit(f"环境变量 {key_variable} 无效: {exc}") from exc
+        raise SystemExit(f"API Key 引用 {config.model.api_key_ref} 的值无效: {exc}") from exc
     host = model_hostname(config.model.base_url)
 
     if args.wheel is None:
@@ -323,10 +328,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         return 0
     jobs_dir.mkdir(parents=True, exist_ok=True)
+    harbor_env = _harbor_subprocess_env()
+    harbor_env[key_variable] = key_value
     return _run_harbor(
         command,
         cwd=project_root,
-        env=_harbor_subprocess_env(),
+        env=harbor_env,
     )
 
 

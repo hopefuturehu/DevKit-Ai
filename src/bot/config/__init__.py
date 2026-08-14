@@ -1,4 +1,9 @@
-from bot.config.loader import ConfigError, load_config, resolve_api_key
+from bot.config.loader import (
+    ConfigError,
+    api_key_reference_variable,
+    load_config,
+    resolve_api_key,
+)
 from bot.config.models import AppConfig
 from bot.config.writer import (
     config_target,
@@ -10,6 +15,7 @@ from bot.config.writer import (
 __all__ = [
     "AppConfig",
     "ConfigError",
+    "api_key_reference_variable",
     "config_target",
     "get_config_value",
     "load_config",

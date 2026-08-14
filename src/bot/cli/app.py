@@ -7,6 +7,7 @@ import re
 import shlex
 import signal
 import sqlite3
+import stat
 import subprocess
 import sys
 from importlib.resources import files
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from dotenv import dotenv_values
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from rich.table import Table
@@ -24,6 +26,7 @@ from bot.cli.render import InteractiveApprovalHandler, RichEventSink, create_cli
 from bot.cli.runtime import build_runtime
 from bot.config import (
     ConfigError,
+    api_key_reference_variable,
     config_target,
     get_config_value,
     load_config,
@@ -643,6 +646,38 @@ def doctor_command(ctx: typer.Context) -> None:
         errors += 1
         console.print(f"[red]✗[/red] {exc}")
 
+    dotenv_path = workspace / ".env"
+    try:
+        variable = api_key_reference_variable(config.model.api_key_ref)
+    except ConfigError:
+        variable = None
+    if variable is not None and dotenv_path.is_file():
+        try:
+            dotenv_value = dotenv_values(dotenv_path).get(variable)
+        except (OSError, UnicodeError):
+            dotenv_value = None
+        environment_value = os.environ.get(variable)
+        if environment_value and dotenv_value and environment_value != dotenv_value:
+            selected = (
+                ".env"
+                if config.model.api_key_ref.startswith("dotenv:")
+                else "环境变量"
+            )
+            console.print(
+                f"[yellow]![/yellow] 环境变量 {variable} 与 {dotenv_path} 中的值不同；"
+                f"当前引用会使用{selected}，请确认这是预期行为"
+            )
+        if os.name == "posix":
+            try:
+                mode = stat.S_IMODE(dotenv_path.stat().st_mode)
+            except OSError:
+                mode = 0
+            if mode & 0o077:
+                console.print(
+                    f"[yellow]![/yellow] {dotenv_path} 权限为 {mode:04o}，"
+                    "建议执行 chmod 600 .env"
+                )
+
     target = LocalExecutionTarget()
     environment = _run(target.probe(["ksys", "devkit", "rg", "git"]))
     console.print(
@@ -698,7 +733,7 @@ def init_command(ctx: typer.Context) -> None:
     template = """[model]
 provider = "openai_compatible"
 base_url = ""
-api_key_ref = "dotenv:BOT_MODEL_API_KEY"
+api_key_ref = "auto:BOT_MODEL_API_KEY"
 name = ""
 context_window_tokens = 131072
 
@@ -751,8 +786,19 @@ auto_activate = true
 max_auto_activated = 3
 """
     target.write_text(template, encoding="utf-8")
+    env_example = workspace / ".env.example"
+    created_env_example = False
+    if not env_example.exists():
+        env_example.write_text(
+            "# Copy this file to .env and replace the placeholder.\n"
+            "BOT_MODEL_API_KEY=your-api-key\n",
+            encoding="utf-8",
+        )
+        created_env_example = True
     installed_skills = _install_bundled_skills(workspace / "skills")
     console.print(f"[green]已创建[/green] {target}")
+    if created_env_example:
+        console.print(f"[green]已创建[/green] {env_example}")
     if installed_skills:
         console.print(f"[green]已安装内置 Skill[/green] {', '.join(installed_skills)}")
 
