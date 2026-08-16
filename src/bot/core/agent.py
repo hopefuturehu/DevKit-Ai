@@ -159,6 +159,8 @@ class AgentRunner:
         """Immediately consolidate all completed history for an idle session."""
         if not self.store.session_exists(session_id):
             raise ValueError(f"会话不存在: {session_id}")
+        if session_id in self._steering_queues:
+            raise RuntimeError(f"会话 {session_id} 仍有运行中的任务，不能执行显式压缩")
         if self.context_compactor is None:
             raise RuntimeError("可恢复上下文压缩未启用")
         previous_cursor = int(self.context_compactor.projection(session_id)["cursor_position"])
@@ -166,6 +168,7 @@ class AgentRunner:
             session_id,
             trigger="explicit_compaction",
             through_position=self.store.latest_message_position(session_id),
+            active_run_ids=(),
         )
         self._force_compact_sessions.discard(session_id)
         return {
@@ -458,6 +461,7 @@ class AgentRunner:
             if force_compact or unplanned_tokens > self._token_budget.target_input_limit:
                 checkpoint = await self._consolidate_conversation(
                     session_id=session_id,
+                    active_run_id=run_id,
                     conversation=conversation,
                     force=force_compact,
                 )
@@ -597,6 +601,7 @@ class AgentRunner:
                     context_retry_used = True
                     checkpoint = await self._consolidate_conversation(
                         session_id=session_id,
+                        active_run_id=run_id,
                         conversation=conversation,
                         force=True,
                     )
@@ -1729,6 +1734,7 @@ class AgentRunner:
         self,
         *,
         session_id: str,
+        active_run_id: str,
         conversation: list[PositionedMessage],
         force: bool,
     ) -> tuple[dict[str, Any], list[PositionedMessage], dict[str, object]] | None:
@@ -1756,6 +1762,7 @@ class AgentRunner:
             session_id,
             through_position=max(entry.position for entry in older),
             trigger="context_pressure_forced" if force else "context_pressure",
+            active_run_ids={active_run_id},
         )
         if not result.compacted:
             return None

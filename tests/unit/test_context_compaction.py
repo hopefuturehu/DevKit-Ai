@@ -222,6 +222,150 @@ async def test_failed_compaction_does_not_advance_active_boundary(
 
 
 @pytest.mark.asyncio
+async def test_compaction_logically_closes_missing_results_from_inactive_run(
+    tmp_path: Path,
+) -> None:
+    compactor, provider, store, events = make_compactor(tmp_path)
+    session_id = store.create_session(tmp_path)
+    store.start_run(session_id, "base-run")
+    store.append_message(
+        session_id,
+        "base-run",
+        ChatMessage(role=Role.USER, content="初始目标必须保留。"),
+    )
+    store.append_message(
+        session_id,
+        "base-run",
+        ChatMessage(role=Role.ASSISTANT, content="已记录目标。"),
+    )
+    store.finish_run("base-run", "completed")
+    first = await compactor.compact(
+        session_id,
+        through_position=2,
+        trigger="context_pressure",
+    )
+    assert first.compacted is True
+
+    store.start_run(session_id, "stale-run")
+    store.append_message(
+        session_id,
+        "stale-run",
+        ChatMessage(
+            role=Role.ASSISTANT,
+            tool_calls=[ToolCall(id="interrupted-call", name="read_file", arguments={})],
+        ),
+    )
+    store.start_run(session_id, "active-run")
+    store.append_message(
+        session_id,
+        "active-run",
+        ChatMessage(role=Role.USER, content="继续处理后续任务。"),
+    )
+
+    second = await compactor.compact(
+        session_id,
+        through_position=4,
+        trigger="context_pressure",
+        active_run_ids={"active-run"},
+    )
+
+    assert second.compacted is True
+    assert second.covered_end_position == 4
+    assert len(store.load_positioned_messages(session_id)) == 4
+    payload = json.loads(provider.requests[-1].messages[-1].content or "{}")
+    derived = [item for item in payload["new_messages"] if item.get("derived")]
+    assert len(derived) == 1
+    assert derived[0]["position"] == 3
+    assert derived[0]["tool_call_id"] == "interrupted-call"
+    assert derived[0]["logical_resolution"] == "interrupted_result_unknown"
+    assert derived[0]["stored_run_status"] == "running"
+    started = [
+        event for event in events.events if event.type == EventType.CONTEXT_COMPACTION_STARTED
+    ]
+    assert started[-1].payload["logical_tool_closures"] == [
+        {
+            "assistant_position": 3,
+            "tool_call_id": "interrupted-call",
+            "run_id": "stale-run",
+            "stored_run_status": "running",
+            "resolution": "interrupted_result_unknown",
+            "reason": "inactive_run",
+        }
+    ]
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_compaction_blocks_live_missing_result_and_emits_diagnostic(
+    tmp_path: Path,
+) -> None:
+    compactor, provider, store, events = make_compactor(tmp_path)
+    session_id = store.create_session(tmp_path)
+    store.start_run(session_id, "base-run")
+    store.append_message(
+        session_id,
+        "base-run",
+        ChatMessage(role=Role.USER, content="初始目标必须保留。"),
+    )
+    store.append_message(
+        session_id,
+        "base-run",
+        ChatMessage(role=Role.ASSISTANT, content="已记录目标。"),
+    )
+    store.finish_run("base-run", "completed")
+    first = await compactor.compact(
+        session_id,
+        through_position=2,
+        trigger="context_pressure",
+    )
+    assert first.compacted is True
+
+    store.start_run(session_id, "live-run")
+    store.append_message(
+        session_id,
+        "live-run",
+        ChatMessage(
+            role=Role.ASSISTANT,
+            tool_calls=[ToolCall(id="live-call", name="read_file", arguments={})],
+        ),
+    )
+
+    blocked = await compactor.compact(
+        session_id,
+        through_position=3,
+        trigger="context_pressure",
+        active_run_ids={"live-run"},
+    )
+
+    assert blocked.compacted is False
+    assert blocked.reason == "incomplete_tool_group"
+    assert blocked.covered_end_position == 2
+    assert len(provider.requests) == 1
+    blocked_events = [
+        event for event in events.events if event.type == EventType.CONTEXT_COMPACTION_BLOCKED
+    ]
+    assert len(blocked_events) == 1
+    assert blocked_events[0].payload["requested_boundary"] == 3
+    assert blocked_events[0].payload["safe_boundary"] == 2
+    assert blocked_events[0].payload["blocking_tool_groups"][0]["calls"][0] == {
+        "tool_call_id": "live-call",
+        "tool_name": "read_file",
+        "reason": "missing_result_in_active_run",
+        "result_position": None,
+    }
+
+    skipped = await compactor.compact(
+        session_id,
+        through_position=2,
+        trigger="context_pressure",
+        active_run_ids={"live-run"},
+    )
+    assert skipped.reason == "no_new_messages"
+    assert any(event.type == EventType.CONTEXT_COMPACTION_SKIPPED for event in events.events)
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_rebuild_rollback_and_corruption_recovery_use_version_chain(
     tmp_path: Path,
 ) -> None:

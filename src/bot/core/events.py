@@ -31,6 +31,8 @@ class EventType(StrEnum):
     CONTEXT_COMPACTION_STARTED = "context.compaction.started"
     CONTEXT_COMPACTION_COMPLETED = "context.compaction.completed"
     CONTEXT_COMPACTION_FAILED = "context.compaction.failed"
+    CONTEXT_COMPACTION_SKIPPED = "context.compaction.skipped"
+    CONTEXT_COMPACTION_BLOCKED = "context.compaction.blocked"
     CONTEXT_PACKED = "context.packed"
     CONTEXT_LIMIT_REACHED = "context.limit_reached"
     CONTEXT_RETRY = "context.retry"

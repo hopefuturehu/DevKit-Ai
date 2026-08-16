@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from bot.core.models import ChatMessage, Role, ToolDefinition
+from bot.core.models import ChatMessage, Role, ToolCall, ToolDefinition
 from bot.execution import EnvironmentCapabilities
 from bot.skills import SkillCatalog
 
@@ -111,6 +111,14 @@ class TokenBudget:
 class PositionedMessage:
     position: int
     message: ChatMessage
+    run_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ToolProtocolIssue:
+    owner_index: int
+    tool_call_id: str
+    tool_name: str
 
 
 @dataclass(frozen=True)
@@ -118,6 +126,8 @@ class ToolProtocolRepair:
     moved_tool_results: int = 0
     synthesized_tool_results: int = 0
     dropped_orphan_tool_results: int = 0
+    synthesized_calls: tuple[ToolProtocolIssue, ...] = ()
+    unresolved_calls: tuple[ToolProtocolIssue, ...] = ()
 
     @property
     def changed(self) -> bool:
@@ -134,20 +144,24 @@ class ToolProtocolRepair:
             "moved_tool_results": self.moved_tool_results,
             "synthesized_tool_results": self.synthesized_tool_results,
             "dropped_orphan_tool_results": self.dropped_orphan_tool_results,
+            "unresolved_tool_calls": len(self.unresolved_calls),
         }
 
 
 def repair_tool_protocol(
     messages: list[ChatMessage],
+    *,
+    synthesize_missing: Callable[[int, ToolCall], bool] | None = None,
 ) -> tuple[list[ChatMessage], ToolProtocolRepair]:
-    """Return an OpenAI-compatible message sequence without losing user turns.
+    """Build a canonical Tool protocol view without changing the durable transcript.
 
     Tool results are request-scoped protocol envelopes: every assistant Tool
     Call must be followed immediately by one result for each call id. Historical
     steering could split that atomic group, and an interrupted run may have no
     persisted result at all. Move existing results next to their owner, synthesize
-    an interrupted result when needed, and discard Tool messages with no owner.
-    The durable transcript is left untouched for auditability.
+    an interrupted result when allowed, and discard Tool messages with no owner.
+    Callers such as compaction may keep missing results unresolved for live runs.
+    The durable transcript is always left untouched for auditability.
     """
 
     responses: dict[str, list[tuple[int, ChatMessage]]] = {}
@@ -163,6 +177,8 @@ def repair_tool_protocol(
     consumed: set[int] = set()
     moved = 0
     synthesized = 0
+    synthesized_calls: list[ToolProtocolIssue] = []
+    unresolved_calls: list[ToolProtocolIssue] = []
     for index, message in enumerate(messages):
         if message.role == Role.TOOL:
             continue
@@ -188,6 +204,14 @@ def repair_tool_protocol(
         )
         repaired.extend(result for _, result in actual)
         for call in missing:
+            issue = ToolProtocolIssue(
+                owner_index=index,
+                tool_call_id=call.id,
+                tool_name=call.name,
+            )
+            if synthesize_missing is not None and not synthesize_missing(index, call):
+                unresolved_calls.append(issue)
+                continue
             repaired.append(
                 ChatMessage(
                     role=Role.TOOL,
@@ -200,11 +224,14 @@ def repair_tool_protocol(
                 )
             )
             synthesized += 1
+            synthesized_calls.append(issue)
 
     report = ToolProtocolRepair(
         moved_tool_results=moved,
         synthesized_tool_results=synthesized,
         dropped_orphan_tool_results=len(tool_message_indexes - consumed),
+        synthesized_calls=tuple(synthesized_calls),
+        unresolved_calls=tuple(unresolved_calls),
     )
     return repaired, report
 

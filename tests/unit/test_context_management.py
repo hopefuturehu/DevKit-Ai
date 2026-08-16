@@ -154,6 +154,22 @@ def test_tool_protocol_repair_synthesizes_missing_and_drops_orphan_results() -> 
     assert report.dropped_orphan_tool_results == 1
 
 
+def test_tool_protocol_repair_can_leave_live_tool_call_unresolved() -> None:
+    assistant = ChatMessage(
+        role=Role.ASSISTANT,
+        tool_calls=[ToolCall(id="live", name="demo", arguments={})],
+    )
+
+    repaired, report = repair_tool_protocol(
+        [assistant],
+        synthesize_missing=lambda _owner_index, _call: False,
+    )
+
+    assert repaired == [assistant]
+    assert report.synthesized_tool_results == 0
+    assert [issue.tool_call_id for issue in report.unresolved_calls] == ["live"]
+
+
 def test_planner_reports_irreducible_pinned_overflow() -> None:
     estimator = TokenEstimator()
     planner = ContextPlanner(

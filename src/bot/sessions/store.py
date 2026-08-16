@@ -609,6 +609,18 @@ class SQLiteSessionStore(EventSink):
                 ),
             )
 
+    def run_statuses(self, run_ids: set[str]) -> dict[str, str]:
+        selected = sorted(identifier for identifier in run_ids if identifier)
+        if not selected:
+            return {}
+        placeholders = ",".join("?" for _ in selected)
+        with self._lock:
+            rows = self._connection.execute(
+                f"SELECT id, status FROM runs WHERE id IN ({placeholders})",
+                selected,
+            ).fetchall()
+        return {str(row["id"]): str(row["status"]) for row in rows}
+
     def load_progress_state(self, session_id: str) -> dict[str, Any] | None:
         with self._lock:
             row = self._connection.execute(
@@ -842,7 +854,10 @@ class SQLiteSessionStore(EventSink):
         after_position: int = 0,
         through_position: int | None = None,
     ) -> list[PositionedMessage]:
-        query = "SELECT position, message_json FROM messages WHERE session_id = ? AND position > ?"
+        query = (
+            "SELECT position, run_id, message_json FROM messages "
+            "WHERE session_id = ? AND position > ?"
+        )
         arguments: list[Any] = [session_id, after_position]
         if through_position is not None:
             query += " AND position <= ?"
@@ -854,6 +869,7 @@ class SQLiteSessionStore(EventSink):
             PositionedMessage(
                 position=int(row["position"]),
                 message=ChatMessage.model_validate_json(row["message_json"]),
+                run_id=str(row["run_id"]),
             )
             for row in rows
         ]
@@ -2044,7 +2060,7 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             rows = self._connection.execute(
                 """
-                SELECT position, message_json
+                SELECT position, run_id, message_json
                 FROM messages WHERE run_id = ? ORDER BY position
                 """,
                 (run_id,),
@@ -2053,6 +2069,7 @@ class SQLiteSessionStore(EventSink):
             PositionedMessage(
                 position=int(row["position"]),
                 message=ChatMessage.model_validate_json(row["message_json"]),
+                run_id=str(row["run_id"]),
             )
             for row in rows
         ]
@@ -2069,7 +2086,7 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             rows = self._connection.execute(
                 f"""
-                SELECT position, message_json
+                SELECT position, run_id, message_json
                 FROM messages
                 WHERE session_id = ? AND position IN ({placeholders})
                 ORDER BY position
@@ -2080,6 +2097,7 @@ class SQLiteSessionStore(EventSink):
             PositionedMessage(
                 position=int(row["position"]),
                 message=ChatMessage.model_validate_json(row["message_json"]),
+                run_id=str(row["run_id"]),
             )
             for row in rows
         ]
