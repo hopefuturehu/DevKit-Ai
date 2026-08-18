@@ -1011,16 +1011,50 @@ class SQLiteSessionStore(EventSink):
             ).fetchone()
         return self._decode_context_compaction(row)
 
-    def fail_context_compaction(self, compaction_id: str, error: str) -> None:
+    def fail_context_compaction(
+        self,
+        compaction_id: str,
+        error: str,
+        *,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        duration_ms: float = 0,
+    ) -> None:
         with self._lock, self._connection:
             self._connection.execute(
                 """
                 UPDATE context_compactions
-                SET status = 'failed', error = ?
+                SET status = 'failed', error = ?, input_tokens = ?,
+                    output_tokens = ?, duration_ms = ?
                 WHERE id = ? AND status = 'building'
                 """,
-                (str(self._sanitizer(error)), compaction_id),
+                (
+                    str(self._sanitizer(error)),
+                    max(0, input_tokens),
+                    max(0, output_tokens),
+                    max(0.0, duration_ms),
+                    compaction_id,
+                ),
             )
+
+    def latest_failed_context_compaction(
+        self,
+        session_id: str,
+        *,
+        parent_id: str | None,
+        delta_start_position: int,
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT * FROM context_compactions
+                WHERE session_id = ? AND status = 'failed'
+                  AND parent_id IS ? AND delta_start_position = ?
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (session_id, parent_id, delta_start_position),
+            ).fetchone()
+        return self._decode_context_compaction(row) if row is not None else None
 
     def get_context_compaction(
         self,

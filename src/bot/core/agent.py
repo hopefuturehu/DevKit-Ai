@@ -56,6 +56,14 @@ class _ToolCallBuffer:
     arguments: str = ""
 
 
+@dataclass
+class _ConsolidationOutcome:
+    result: Any
+    projection: dict[str, Any] | None
+    conversation: list[PositionedMessage]
+    details: dict[str, object]
+
+
 class _RunTermination(Exception):
     def __init__(
         self,
@@ -164,20 +172,64 @@ class AgentRunner:
         if self.context_compactor is None:
             raise RuntimeError("可恢复上下文压缩未启用")
         previous_cursor = int(self.context_compactor.projection(session_id)["cursor_position"])
-        result = await self.context_compactor.compact(
-            session_id,
-            trigger="explicit_compaction",
-            through_position=self.store.latest_message_position(session_id),
-            active_run_ids=(),
-        )
+        target = self.store.latest_message_position(session_id)
+        total_input_tokens = 0
+        total_output_tokens = 0
+        chunks = 0
+        result = None
+        cursor = previous_cursor
+        stop_reason: str | None = None
+        while cursor < target and chunks < 100:
+            result = await self.context_compactor.compact(
+                session_id,
+                trigger="explicit_compaction",
+                through_position=target,
+                active_run_ids=(),
+            )
+            total_input_tokens += result.input_tokens
+            total_output_tokens += result.output_tokens
+            if not result.compacted or result.covered_end_position <= cursor:
+                stop_reason = result.reason or "no_progress"
+                break
+            cursor = result.covered_end_position
+            chunks += 1
+            cost_usd = self._calculate_cost(total_input_tokens, total_output_tokens)
+            if (
+                self.config.agent.max_cost_usd is not None
+                and cost_usd is not None
+                and cost_usd >= self.config.agent.max_cost_usd
+            ):
+                stop_reason = "max_cost_usd"
+                break
         self._force_compact_sessions.discard(session_id)
+        if result is None:
+            return {
+                "compacted": False,
+                "reason": "no_new_messages",
+                "compaction_id": None,
+                "cursor_position": previous_cursor,
+                "messages_consolidated": 0,
+                "summary_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "chunks": 0,
+                "budget": self._token_budget.as_dict(),
+            }
+        if cursor < target and stop_reason is None:
+            stop_reason = "chunk_limit"
+        active = self.context_compactor.projection(session_id).get("compaction")
         return {
-            "compacted": result.compacted,
-            "reason": result.reason,
-            "compaction_id": result.compaction_id,
-            "cursor_position": result.covered_end_position,
-            "messages_consolidated": max(0, result.covered_end_position - previous_cursor),
-            "summary_tokens": result.summary_tokens,
+            "compacted": chunks > 0,
+            "reason": stop_reason,
+            "compaction_id": active["id"] if isinstance(active, dict) else None,
+            "cursor_position": cursor,
+            "messages_consolidated": max(0, cursor - previous_cursor),
+            "summary_tokens": (
+                int(active["summary_token_estimate"]) if isinstance(active, dict) else 0
+            ),
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "chunks": chunks,
             "rebuilt_from_raw": result.rebuilt_from_raw,
             "budget": self._token_budget.as_dict(),
         }
@@ -459,15 +511,32 @@ class AgentRunner:
                 [item.message for item in context_items], request_tools
             )
             if force_compact or unplanned_tokens > self._token_budget.target_input_limit:
-                checkpoint = await self._consolidate_conversation(
+                consolidation = await self._consolidate_conversation(
                     session_id=session_id,
                     active_run_id=run_id,
                     conversation=conversation,
                     force=force_compact,
                 )
                 self._force_compact_sessions.discard(session_id)
-                if checkpoint is not None:
-                    compaction_projection, conversation, compacted = checkpoint
+                if consolidation is not None:
+                    input_tokens, output_tokens, cost_usd = await self._account_compaction_usage(
+                        consolidation.result,
+                        session_id=session_id,
+                        run_id=run_id,
+                        step=step,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                    )
+                    self._enforce_compaction_cost_limit(
+                        step=step,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
+                if consolidation is not None and consolidation.projection is not None:
+                    compaction_projection = consolidation.projection
+                    conversation = consolidation.conversation
+                    compacted = consolidation.details
                     compaction_item = self._compaction_context_item(compaction_projection)
                     context_items = self._build_context_items(
                         base_items=base_items,
@@ -599,14 +668,33 @@ class AgentRunner:
             except ProviderError as exc:
                 if not context_retry_used and self._is_context_length_error(exc):
                     context_retry_used = True
-                    checkpoint = await self._consolidate_conversation(
+                    consolidation = await self._consolidate_conversation(
                         session_id=session_id,
                         active_run_id=run_id,
                         conversation=conversation,
                         force=True,
                     )
-                    if checkpoint is not None:
-                        compaction_projection, conversation, retry_details = checkpoint
+                    if consolidation is not None:
+                        input_tokens, output_tokens, cost_usd = (
+                            await self._account_compaction_usage(
+                                consolidation.result,
+                                session_id=session_id,
+                                run_id=run_id,
+                                step=step,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                            )
+                        )
+                        self._enforce_compaction_cost_limit(
+                            step=step,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cost_usd=cost_usd,
+                        )
+                    if consolidation is not None and consolidation.projection is not None:
+                        compaction_projection = consolidation.projection
+                        conversation = consolidation.conversation
+                        retry_details = consolidation.details
                         compaction_item = self._compaction_context_item(compaction_projection)
                     else:
                         conversation = self._aggressively_externalize(
@@ -617,6 +705,9 @@ class AgentRunner:
                         retry_details = {
                             "consolidation_id": None,
                             "messages_externalized": len(conversation),
+                            **(
+                                consolidation.details if consolidation is not None else {}
+                            ),
                         }
                     await self.event_bus.emit(
                         EventType.CONTEXT_RETRY,
@@ -1737,7 +1828,7 @@ class AgentRunner:
         active_run_id: str,
         conversation: list[PositionedMessage],
         force: bool,
-    ) -> tuple[dict[str, Any], list[PositionedMessage], dict[str, object]] | None:
+    ) -> _ConsolidationOutcome | None:
         if not conversation or self.context_compactor is None:
             return None
         groups = self._conversation_groups(conversation)
@@ -1765,16 +1856,31 @@ class AgentRunner:
             active_run_ids={active_run_id},
         )
         if not result.compacted:
-            return None
+            return _ConsolidationOutcome(
+                result=result,
+                projection=None,
+                conversation=conversation,
+                details={
+                    "compaction_id": result.compaction_id,
+                    "compaction_reason": result.reason,
+                    "compaction_error": result.error,
+                },
+            )
         projection = self.context_compactor.projection(session_id)
         cursor = int(projection["cursor_position"])
         remaining = [entry for entry in conversation if entry.position > cursor]
         if len(remaining) >= len(conversation):
-            return None
-        return (
-            projection,
-            remaining,
-            {
+            return _ConsolidationOutcome(
+                result=result,
+                projection=None,
+                conversation=conversation,
+                details={"compaction_id": result.compaction_id, "compaction_reason": "no_progress"},
+            )
+        return _ConsolidationOutcome(
+            result=result,
+            projection=projection,
+            conversation=remaining,
+            details={
                 "compaction_id": result.compaction_id,
                 "cursor_position": cursor,
                 "messages_consolidated": len(conversation) - len(remaining),
@@ -1784,6 +1890,63 @@ class AgentRunner:
                 "rebuilt_from_raw": result.rebuilt_from_raw,
                 "forced": force,
             },
+        )
+
+    async def _account_compaction_usage(
+        self,
+        result: Any,
+        *,
+        session_id: str,
+        run_id: str,
+        step: int,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> tuple[int, int, float | None]:
+        added_input = max(0, int(result.input_tokens))
+        added_output = max(0, int(result.output_tokens))
+        input_tokens += added_input
+        output_tokens += added_output
+        cost_usd = self._calculate_cost(input_tokens, output_tokens)
+        if added_input or added_output:
+            await self.event_bus.emit(
+                EventType.MODEL_USAGE,
+                session_id=session_id,
+                run_id=run_id,
+                payload={
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cost_usd": cost_usd,
+                    "step": step,
+                    "phase": "compaction",
+                    "compaction_id": result.compaction_id,
+                    "compaction_usage": {
+                        "input_tokens": added_input,
+                        "output_tokens": added_output,
+                    },
+                },
+            )
+        return input_tokens, output_tokens, cost_usd
+
+    def _enforce_compaction_cost_limit(
+        self,
+        *,
+        step: int,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: float | None,
+    ) -> None:
+        limit = self.config.agent.max_cost_usd
+        if limit is None or cost_usd is None or cost_usd < limit:
+            return
+        raise _RunTermination(
+            status="limit_reached",
+            reason_code="max_cost_usd",
+            message=f"模型费用达到运行上限 ${limit:g}（包含上下文压缩）",
+            steps=step,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
+            model_finalizer=False,
         )
 
     @staticmethod

@@ -21,6 +21,7 @@ class ContextCompactionResult(BaseModel):
     parent_id: str | None = None
     covered_start_position: int = 0
     covered_end_position: int = 0
+    requested_end_position: int = 0
     previous_end_position: int = 0
     messages_compacted: int = 0
     summary_tokens: int = 0
@@ -30,5 +31,9 @@ class ContextCompactionResult(BaseModel):
     summary_chars: int = 0
     source_refs: list[str] = Field(default_factory=list)
     rebuilt_from_raw: bool = False
+    attempts: int = 0
+    repair_attempts: int = 0
+    planned_input_tokens: int = 0
+    input_limit: int = 0
     reason: str | None = None
     error: str | None = None

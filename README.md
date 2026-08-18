@@ -90,6 +90,11 @@ safety_margin_tokens = 2048
 # compaction_model = "<summary-model-id>"
 compaction_summary_tokens = 8000
 compaction_max_output_tokens = 8192
+compaction_max_input_tokens = 60000
+compaction_input_target_ratio = 0.8
+compaction_repair_attempts = 1
+compaction_range_attempts = 2
+compaction_failure_backoff_seconds = 300
 compaction_rebuild_every = 5
 
 [memory]

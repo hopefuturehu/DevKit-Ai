@@ -725,6 +725,11 @@ recent_conversation_tokens = 48000
 memory_tokens = 8000
 tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
+compaction_max_input_tokens = 60000
+compaction_input_target_ratio = 0.8
+compaction_repair_attempts = 1
+compaction_range_attempts = 2
+compaction_failure_backoff_seconds = 300
 
 [memory]
 enabled = true

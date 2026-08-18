@@ -192,6 +192,17 @@ async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_sour
     projection = compactor.projection(session_id)
     cursor = int(projection["cursor_position"])
     assert result.status == "completed"
+    assert result.input_tokens == 1_000
+    assert result.output_tokens == 300
+    compaction_usage = [
+        event
+        for event in events.events
+        if event.type == EventType.MODEL_USAGE and event.payload.get("phase") == "compaction"
+    ]
+    assert compaction_usage[-1].payload["compaction_usage"] == {
+        "input_tokens": 1_000,
+        "output_tokens": 300,
+    }
     assert 0 < cursor < seed_latest
     assert len(store.list_context_compactions(session_id)) == 1
     assert any(event.type == EventType.CONTEXT_CONSOLIDATED for event in events.events)
@@ -217,6 +228,68 @@ async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_sour
     assert calls <= results
     assert original_digest == _digest_through(store, session_id, seed_latest)
     assert store.latest_context_snapshot(session_id) is None
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_compaction_usage_is_subject_to_run_cost_limit(tmp_path: Path) -> None:
+    workspace = tmp_path / "compaction-cost-limit"
+    workspace.mkdir()
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "benchmark-model",
+                "context_window_tokens": 32_000,
+                "input_cost_per_million": 1,
+                "output_cost_per_million": 1,
+            },
+            "agent": {"max_cost_usd": 0.0005},
+            "context": {
+                "max_input_tokens": 26_000,
+                "auto_compact_threshold": 0.55,
+                "recent_conversation_tokens": 5_000,
+                "compaction_summary_tokens": 4_000,
+                "compaction_max_output_tokens": 4_000,
+            },
+            "storage": {"state_path": str(workspace / "state.db")},
+            "skills": {"path": str(workspace / "skills")},
+        }
+    )
+    provider = _AgentAndCompactionProvider()
+    store = SQLiteSessionStore(workspace / "state.db")
+    event_bus = EventBus([store])
+    session_id, _ = _seed_long_context(store, workspace)
+    catalog = SkillCatalog(workspace / "skills")
+    catalog.scan()
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=event_bus,
+    )
+    runner = AgentRunner(
+        config=config,
+        workspace=workspace,
+        provider=provider,
+        tool_registry=ToolRegistry(),
+        policy=DefaultPolicyEngine(config.permissions, workspace),
+        execution_target=LocalExecutionTarget(),
+        skills=SkillManager(catalog),
+        context=ContextAssembler(workspace=workspace, skill_catalog=catalog),
+        store=store,
+        event_bus=event_bus,
+        context_compactor=compactor,
+    )
+
+    result = await runner.run(RunRequest(prompt="继续长任务", session_id=session_id))
+
+    assert result.status == "limit_reached"
+    assert result.termination_reason == "max_cost_usd"
+    assert result.input_tokens == 1_000
+    assert result.output_tokens == 300
+    assert result.cost_usd == pytest.approx(0.0013)
+    assert provider.agent_requests == []
     store.close()
 
 

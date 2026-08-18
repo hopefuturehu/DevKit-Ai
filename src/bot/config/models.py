@@ -147,6 +147,11 @@ class ContextConfig(StrictModel):
     compaction_model: str | None = None
     compaction_summary_tokens: int = Field(default=8_000, ge=512)
     compaction_max_output_tokens: int = Field(default=8_192, ge=512)
+    compaction_max_input_tokens: int = Field(default=60_000, ge=2_048)
+    compaction_input_target_ratio: float = Field(default=0.8, gt=0, le=1)
+    compaction_repair_attempts: int = Field(default=1, ge=0, le=3)
+    compaction_range_attempts: int = Field(default=2, ge=1, le=5)
+    compaction_failure_backoff_seconds: float = Field(default=300, ge=0, le=86_400)
     compaction_max_message_chars: int = Field(default=12_000, ge=500)
     compaction_rebuild_every: int = Field(default=5, ge=1, le=100)
 
@@ -208,6 +213,16 @@ class AppConfig(StrictModel):
         if reserved >= self.model.context_window_tokens:
             raise ValueError(
                 "context 的 output/protocol/safety reserve 总和必须小于 model.context_window_tokens"
+            )
+        compaction_reserved = (
+            self.context.compaction_max_output_tokens
+            + self.context.protocol_reserve_tokens
+            + self.context.safety_margin_tokens
+        )
+        if compaction_reserved >= self.model.context_window_tokens:
+            raise ValueError(
+                "context 的 compaction output/protocol/safety reserve 总和必须小于 "
+                "model.context_window_tokens"
             )
         if self.subagents.max_concurrent > self.subagents.max_queued:
             raise ValueError("subagents.max_concurrent 不能大于 max_queued")
