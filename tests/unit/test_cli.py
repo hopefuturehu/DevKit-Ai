@@ -18,6 +18,8 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     assert 'api_key_ref = "auto:BOT_MODEL_API_KEY"' in (
         tmp_path / ".bot" / "config.toml"
     ).read_text(encoding="utf-8")
+    if os.name == "posix":
+        assert (tmp_path / ".bot" / "config.toml").stat().st_mode & 0o077 == 0
     assert (tmp_path / "skills" / "kunpeng-performance-analysis" / "SKILL.md").is_file()
 
     updated = runner.invoke(
@@ -41,6 +43,21 @@ def test_cli_help_and_version_do_not_require_model_configuration() -> None:
     assert "doctor" in help_result.output
     assert version_result.exit_code == 0
     assert "0.1.0" in version_result.output
+
+
+def test_config_get_redacts_direct_api_key(tmp_path: Path) -> None:
+    config_path = tmp_path / ".bot" / "config.toml"
+    config_path.parent.mkdir()
+    config_path.write_text(
+        '[model]\napi_key = "must-not-leak"\nname = "test-model"\n',
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["-C", str(tmp_path), "config", "get", "model"])
+
+    assert result.exit_code == 0, result.output
+    assert "must-not-leak" not in result.output
+    assert "<redacted>" in result.output
 
 
 def test_doctor_warns_when_environment_and_dotenv_credentials_differ(

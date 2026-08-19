@@ -31,7 +31,7 @@ from bot.config import (
     get_config_value,
     load_config,
     parse_config_value,
-    resolve_api_key,
+    resolve_model_api_key,
     set_config_value,
 )
 from bot.core.events import JsonlEventSink
@@ -640,17 +640,25 @@ def doctor_command(ctx: typer.Context) -> None:
         errors += 1
         console.print("[red]✗[/red] model.name 未配置")
     try:
-        resolve_api_key(config.model.api_key_ref, workspace=workspace)
-        console.print(f"[green]✓[/green] API Key 引用有效: {config.model.api_key_ref}")
+        resolve_model_api_key(config.model, workspace=workspace)
+        source = (
+            "model.api_key（已脱敏）"
+            if config.model.api_key
+            else f"引用 {config.model.api_key_ref}"
+        )
+        console.print(f"[green]✓[/green] API Key 配置有效: {source}")
     except ConfigError as exc:
         errors += 1
         console.print(f"[red]✗[/red] {exc}")
 
     dotenv_path = workspace / ".env"
-    try:
-        variable = api_key_reference_variable(config.model.api_key_ref)
-    except ConfigError:
+    if config.model.api_key:
         variable = None
+    else:
+        try:
+            variable = api_key_reference_variable(config.model.api_key_ref)
+        except ConfigError:
+            variable = None
     if variable is not None and dotenv_path.is_file():
         try:
             dotenv_value = dotenv_values(dotenv_path).get(variable)
@@ -733,6 +741,8 @@ def init_command(ctx: typer.Context) -> None:
     template = """[model]
 provider = "openai_compatible"
 base_url = ""
+# 可选：直接保存模型凭据；工作区配置应保持 0600 且不得提交到 Git
+# api_key = ""
 api_key_ref = "auto:BOT_MODEL_API_KEY"
 name = ""
 context_window_tokens = 131072
@@ -786,6 +796,7 @@ auto_activate = true
 max_auto_activated = 3
 """
     target.write_text(template, encoding="utf-8")
+    target.chmod(0o600)
     env_example = workspace / ".env.example"
     created_env_example = False
     if not env_example.exists():
@@ -936,6 +947,7 @@ def config_get(
     workspace = ctx.obj["workspace"].resolve()
     config = load_config(workspace, config_path=ctx.obj["config_path"])
     data = config.model_dump(mode="json")
+    data["model"]["api_key"] = "<redacted>" if config.model.api_key else None
     data["model"]["api_key_ref"] = config.model.api_key_ref
     try:
         value = get_config_value(data, key) if key else data

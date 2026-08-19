@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from bot.compaction import ContextCompactor
-from bot.config import AppConfig, ConfigError, load_config, resolve_api_key
+from bot.config import AppConfig, ConfigError, load_config, resolve_model_api_key
 from bot.core import AgentRunner
 from bot.core.approval import ApprovalHandler
 from bot.core.context import ContextAssembler
@@ -89,7 +89,7 @@ def build_runtime(
     config = load_config(workspace, config_path=config_path, overrides=config_overrides)
     if not config.model.name:
         raise ConfigError("model.name 未配置")
-    api_key = resolve_api_key(config.model.api_key_ref, workspace=workspace)
+    api_key = resolve_model_api_key(config.model, workspace=workspace)
     provider = OpenAICompatibleProvider(
         base_url=config.model.base_url,
         api_key=api_key,

@@ -9,11 +9,21 @@ from typing import Any
 
 from dotenv import dotenv_values
 
-from bot.config.models import AppConfig
+from bot.config.models import AppConfig, ModelConfig
 
 
 class ConfigError(RuntimeError):
     pass
+
+
+def redact_config_secrets(message: str, data: dict[str, Any]) -> str:
+    model = data.get("model")
+    if not isinstance(model, dict):
+        return message
+    api_key = model.get("api_key")
+    if isinstance(api_key, str) and api_key:
+        return message.replace(api_key, "<redacted>")
+    return message
 
 
 def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
@@ -71,7 +81,8 @@ def load_config(
     try:
         return AppConfig.model_validate(data)
     except Exception as exc:
-        raise ConfigError(f"配置校验失败: {exc}") from exc
+        detail = redact_config_secrets(str(exc), data)
+        raise ConfigError(f"配置校验失败: {detail}") from exc
 
 
 def _reference_variable(reference: str, prefix: str) -> str:
@@ -118,3 +129,14 @@ def resolve_api_key(reference: str, *, workspace: Path | None = None) -> str:
         if value:
             return value
     return _resolve_dotenv_api_key(variable, workspace)
+
+
+def resolve_model_api_key(
+    model: ModelConfig,
+    *,
+    workspace: Path | None = None,
+) -> str:
+    """Resolve a model credential without logging or persisting derived values."""
+    if model.api_key:
+        return model.api_key.get_secret_value()
+    return resolve_api_key(model.api_key_ref, workspace=workspace)

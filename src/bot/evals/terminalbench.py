@@ -13,7 +13,7 @@ from bot.config import (
     ConfigError,
     api_key_reference_variable,
     load_config,
-    resolve_api_key,
+    resolve_model_api_key,
 )
 
 HARBOR_VERSION = "0.20.0"
@@ -284,7 +284,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("model.name 未配置")
     key_variable = api_key_env_name(config.model.api_key_ref)
     try:
-        key_value = resolve_api_key(config.model.api_key_ref, workspace=project_root)
+        key_value = resolve_model_api_key(config.model, workspace=project_root)
     except ConfigError as exc:
         raise SystemExit(str(exc)) from exc
     try:

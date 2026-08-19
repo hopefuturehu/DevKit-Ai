@@ -3,6 +3,7 @@ from bot.config.loader import (
     api_key_reference_variable,
     load_config,
     resolve_api_key,
+    resolve_model_api_key,
 )
 from bot.config.models import AppConfig
 from bot.config.writer import (
@@ -21,5 +22,6 @@ __all__ = [
     "load_config",
     "parse_config_value",
     "resolve_api_key",
+    "resolve_model_api_key",
     "set_config_value",
 ]

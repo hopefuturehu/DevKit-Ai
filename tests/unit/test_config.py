@@ -8,6 +8,7 @@ from bot.config import (
     api_key_reference_variable,
     load_config,
     resolve_api_key,
+    resolve_model_api_key,
     set_config_value,
 )
 from bot.config.models import AppConfig
@@ -89,6 +90,22 @@ def test_api_key_supports_dotenv_and_environment_references(
     assert "TEST_DOTENV_KEY" not in os.environ
     with pytest.raises(ConfigError, match="不允许在配置中保存明文"):
         resolve_api_key("secret")
+
+
+def test_model_api_key_supports_direct_value_and_reference_fallback(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("TEST_MODEL_KEY", "environment-secret")
+    direct = AppConfig.model_validate(
+        {"model": {"api_key": "toml-secret", "api_key_ref": "env:TEST_MODEL_KEY"}}
+    )
+    referenced = AppConfig.model_validate(
+        {"model": {"api_key_ref": "env:TEST_MODEL_KEY"}}
+    )
+
+    assert resolve_model_api_key(direct.model, workspace=tmp_path) == "toml-secret"
+    assert resolve_model_api_key(referenced.model, workspace=tmp_path) == "environment-secret"
+    assert "toml-secret" not in repr(direct.model)
 
 
 def test_dotenv_api_key_reports_missing_file_and_variable(tmp_path: Path) -> None:
@@ -192,5 +209,20 @@ def test_config_writer_is_atomic_and_validates_values(tmp_path: Path) -> None:
     config = load_config(tmp_path, config_path=path)
     assert config.model.name == "model-a"
     assert config.permissions.workspace_only is False
-    with pytest.raises(ConfigError, match="不允许把明文"):
-        set_config_value(path, "model.api_key", "secret")
+    set_config_value(path, "model.api_key", "secret")
+    config = load_config(tmp_path, config_path=path)
+    assert resolve_model_api_key(config.model, workspace=tmp_path) == "secret"
+    assert path.stat().st_mode & 0o077 == 0
+
+
+def test_config_validation_error_redacts_direct_api_key(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    path.write_text(
+        "[model]\napi_key = \"must-not-leak\"\ncontext_window_tokens = 1000\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError) as captured:
+        load_config(tmp_path, config_path=path)
+
+    assert "must-not-leak" not in str(captured.value)

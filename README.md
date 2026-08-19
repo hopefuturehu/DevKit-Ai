@@ -37,6 +37,8 @@ python3 -m venv .venv
 [model]
 provider = "openai_compatible"
 base_url = "https://your-provider.example/v1"
+# 可选：直接保存在工作区 TOML；该文件必须保持 0600 且不得提交
+# api_key = "your-api-key"
 api_key_ref = "auto:BOT_MODEL_API_KEY"
 name = "your-model-id"
 context_window_tokens = 131072
@@ -141,6 +143,9 @@ bot
 
 `auto:<VARIABLE>` 优先读取已有环境变量，未设置时回退到工作区根目录的 `.env`，且不会修改
 进程环境。需要固定来源时，可分别使用严格的 `env:<VARIABLE>` 或 `dotenv:<VARIABLE>`。
+也可以通过 `model.api_key` 直接提供凭据；直接值优先于 `api_key_ref`，`bot config get` 只显示
+`<redacted>`。删除或清空直接值后，仍会按 `api_key_ref` 从环境变量或 `.env` 读取。工作区
+`.bot/` 默认被 Git 忽略，但保存凭据的配置文件仍应设置为 `chmod 600 .bot/config.toml`。
 
 `bot init` 会创建项目配置和不含真实密钥的 `.env.example`，并在目标 Skill 不存在时把随包发布的
 `kunpeng-performance-analysis` 脚手架到工作区 `./skills`；已有同名目录不会被覆盖。

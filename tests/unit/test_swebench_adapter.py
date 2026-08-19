@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from bot.config.models import ModelConfig
 from bot.evals.connect_proxy import _connect_target_allowed
 from bot.evals.swebench import (
     SWEbenchInstance,
@@ -138,7 +139,7 @@ def test_api_key_environment_normalizes_dotenv_for_child_process(
     )
 
     variable, environment = _api_key_process_environment(
-        "dotenv:SWEBENCH_TEST_KEY",
+        ModelConfig(api_key_ref="dotenv:SWEBENCH_TEST_KEY"),
         workspace=tmp_path,
     )
 

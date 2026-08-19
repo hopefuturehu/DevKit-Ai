@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
 
 class StrictModel(BaseModel):
@@ -13,6 +13,7 @@ class StrictModel(BaseModel):
 class ModelConfig(StrictModel):
     provider: Literal["openai_compatible"] = "openai_compatible"
     base_url: str = ""
+    api_key: SecretStr | None = Field(default=None, min_length=1, repr=False)
     api_key_ref: str = "auto:BOT_MODEL_API_KEY"
     name: str = ""
     temperature: float = Field(default=0.2, ge=0, le=2)

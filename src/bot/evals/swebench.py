@@ -13,7 +13,8 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
 
-from bot.config import api_key_reference_variable, load_config, resolve_api_key
+from bot.config import api_key_reference_variable, load_config, resolve_model_api_key
+from bot.config.models import ModelConfig
 from bot.evals.connect_proxy import restricted_connect_proxy
 from bot.observability import export_trace_bundle
 
@@ -131,13 +132,13 @@ def _run_streaming(
 
 
 def _api_key_process_environment(
-    reference: str,
+    model: ModelConfig,
     *,
     workspace: Path,
 ) -> tuple[str, dict[str, str]]:
     """Resolve a host credential and normalize it for a child process."""
-    variable = api_key_reference_variable(reference)
-    value = resolve_api_key(reference, workspace=workspace)
+    variable = api_key_reference_variable(model.api_key_ref)
+    value = resolve_model_api_key(model, workspace=workspace)
     environment = os.environ.copy()
     environment[variable] = value
     environment["BOT_MODEL_API_KEY_REF"] = f"env:{variable}"
@@ -203,7 +204,7 @@ def run_instance(
         )
     config = load_config(credential_workspace, config_path=config_path)
     _, process_environment = _api_key_process_environment(
-        config.model.api_key_ref,
+        config.model,
         workspace=credential_workspace,
     )
     prepare_workspace(instance, workspace)
@@ -258,7 +259,7 @@ def run_container_instance(
 
     config = load_config(project_root, config_path=config_path)
     key_variable, process_environment = _api_key_process_environment(
-        config.model.api_key_ref,
+        config.model,
         workspace=project_root,
     )
     model_url = urlparse(config.model.base_url)

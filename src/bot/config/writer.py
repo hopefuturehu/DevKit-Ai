@@ -9,7 +9,7 @@ from typing import Any
 
 import tomli_w
 
-from bot.config.loader import ConfigError
+from bot.config.loader import ConfigError, redact_config_secrets
 from bot.config.models import AppConfig
 
 
@@ -29,8 +29,8 @@ def parse_config_value(value: str) -> Any:
 def set_config_value(path: Path, dotted_key: str, value: Any) -> None:
     if not dotted_key or any(not part for part in dotted_key.split(".")):
         raise ConfigError("配置键必须是 section.key 形式")
-    if dotted_key in {"model.api_key", "model.api_key_value"}:
-        raise ConfigError("不允许把明文 API Key 写入配置，请使用 model.api_key_ref")
+    if dotted_key == "model.api_key_value":
+        raise ConfigError("配置键不存在: model.api_key_value")
     data: dict[str, Any] = {}
     if path.exists():
         try:
@@ -49,7 +49,8 @@ def set_config_value(path: Path, dotted_key: str, value: Any) -> None:
     try:
         AppConfig.model_validate(data)
     except Exception as exc:
-        raise ConfigError(f"配置值不合法: {exc}") from exc
+        detail = redact_config_secrets(str(exc), data)
+        raise ConfigError(f"配置值不合法: {detail}") from exc
     _atomic_write(path, tomli_w.dumps(data))
 
 
