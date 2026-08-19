@@ -2,7 +2,7 @@
 
 > 状态：分析与候选方案，暂不实施
 >
-> 日期：2026-08-18
+> 日期：2026-08-18；缓存命中率补充：2026-08-19
 >
 > 代码基线：`f78d911 fix(context): bound and recover compaction backlog`
 > 关联设计：[recoverable-context-compaction.md](recoverable-context-compaction.md)
@@ -256,6 +256,106 @@ Tool Call 和 Tool Result 必须作为原子组保存，否则主模型可能看
 
 本次进程一直存活，HTTPS 连接也保持 `ESTABLISHED`，但交互上与死锁没有区别。当前配置未启用
 `agent.max_cost_usd`，显式压缩也没有独立的请求数和墙钟预算。
+
+### 4.8 关联影响：Provider 前缀缓存命中率大幅降低
+
+历史排查中，DeepSeek 控制台显示的 Prompt Cache 命中率一度只有约 10%。这不是
+`TokenEstimator._cache` 的本地哈希缓存，而是 Provider 返回的前缀/KV Cache 指标。原始数据
+其实已经随 `model.usage` 事件落库：
+
+```json
+{
+  "prompt_tokens": 98500,
+  "prompt_cache_hit_tokens": 6528,
+  "prompt_cache_miss_tokens": 91972
+}
+```
+
+框架当时没有把这些字段归一化为正式指标，也没有查询命令；调查使用
+`turn_usage.prompt_cache_hit_tokens` 和 `prompt_cache_miss_tokens` 离线计算。代表性结果为：
+
+| Run | 调用数 | Prompt token | Cache hit token | Token 加权命中率 |
+|---|---:|---:|---:|---:|
+| `8c2991b8faa0` | 21 | 2,044,299 | 124,800 | 6.1% |
+| `53b6f551b33e` | 6 | 573,373 | 39,552 | 6.9% |
+| `7376c04d24bf` | 5 | 191,420 | 158,336 | 82.7% |
+
+前两个低命中 Run 中，单次请求通常约 95K–99K token，但预热后每次只命中约
+6.5K–6.8K，说明 Provider 能复用的基本只有固定 System/项目上下文和少量稳定前缀；体积最大的
+对话部分从很靠前的位置就已经变化。第三个 Run 说明相同 Provider 和模型在前缀稳定时可以达到
+高命中率，因此问题主要来自请求形态，而不是 DeepSeek 缓存整体失效。
+
+造成这一结果的代码链路有四层。
+
+#### 4.8.1 压缩游标停滞使主循环长期进入“滑动装箱”
+
+活动摘要只覆盖消息 1–104，而缓存调查已经发生在 570 之后。由于压缩边界被中断 Tool Call
+阻塞，随后又反复生成无效摘要，`cursor` 后积累了数百条原始消息。每次调用都会超过
+`target_input_limit`，但 Compaction 又不能稳定推进，于是只能依赖 `ContextPlanner.pack()`
+临时裁剪后继续调用主模型。
+
+这解释了为什么“压缩只成功过一次”和“缓存命中率突然降到约 10%”同时出现：前者使请求从
+正常的 append-only 对话退化成每一步都重新选择历史子集的请求。
+
+#### 4.8.2 Planner 优先保证语义优先级和 Tool 原子性，不保证缓存前缀单调
+
+`ContextPlanner.pack()` 先按 `priority`、再按消息新旧选择可选原子组，最后恢复时间顺序。用户
+消息优先级高于 Assistant/Tool 消息；当预算被占满时，新加入一个组会挤掉另一个旧组。因此相邻
+两步并不一定是：
+
+```text
+request N + 新消息 → request N+1
+```
+
+而更可能是：
+
+```text
+固定头 + 历史子集 A + 当前轮
+固定头 + 历史子集 B + 下一轮
+```
+
+即使两次请求都接近 96K，Provider 也只能命中 `A`、`B` 首次分歧之前的约 6.5K 固定头。这个
+策略对“不超过上下文上限”和“不拆 Tool Call/Result”是正确的，但在 Compaction 长期不可用时
+会牺牲前缀缓存局部性。
+
+#### 4.8.3 对话之前仍有会变化的上下文块和 Tool Schema
+
+当前渲染顺序中，`ACTIVE_SKILL`、`RUNTIME_NOTE` 和 `COMPACTION` 都位于原始对话之前；Tool
+schemas 还会因预算卸载、`activate_tools` 或 Skill 激活而改变。以下变化都会让其后的大段对话
+失去缓存：
+
+- 激活或卸载 Skill 正文；
+- Progress/受管进程等 Runtime Note 出现、消失或换内容；
+- 发布新 Compaction 后替换活动摘要；
+- Tool schema 集合或顺序变化。
+
+仓库此前已经做过两项针对性优化：`4b0741f` 将易变 Memory 移到对话之后，`377285e` 将受管
+进程详情改成内容恒定的提醒。但这些修复没有覆盖 Planner 的滑动历史子集，也不能消除
+Runtime Note 的有无变化、摘要替换和 Tool schema 变化。
+
+成功 Compaction 替换一次摘要而使缓存重建是正常成本；异常之处在于压缩长期失败后，主请求
+每一步都发生历史子集变化。
+
+#### 4.8.4 控制台聚合混入不同 Prompt 家族，放大了低命中观感
+
+同一个 API Key/模型还承载主 Agent、Compaction 生成、格式修复、范围缩小重试和 Memory
+Extraction。它们的 System Prompt、User payload 和输入范围不同，不能相互复用完整前缀。本次
+显式 `/compact` 就产生了 19 次 LLM 调用和 441,252 个输入 token，其中生成、修复和缩范围请求
+大多是不同 Prompt 家族。
+
+因此 Provider 控制台的全局命中率同时包含两部分：
+
+1. 主 Agent 因滑动装箱产生的真实低命中；
+2. 辅助模型调用和失败重试混入分母造成的聚合口径下降。
+
+后者不是主请求本身的缓存退化，但会让 API Key 级别的总命中率更低。当前 `raw_usage` 虽然
+保留了 DeepSeek 字段，框架仍缺少按 `phase`、`session_id`、`run_id`、模型和请求类型拆分的
+命中率报表；仅看控制台总百分比，无法判断是主循环前缀不稳定，还是 Compaction/Memory 调用
+占比上升。
+
+综上，低命中率的首要修复不是增加一个本地缓存，而是先保证 Compaction 能推进，使主请求
+恢复为“稳定摘要 + append-only 原始尾部”；其次才是让 Planner 在降级时保留稳定缓存锚点、
+减少对话前的动态块，并将缓存指标按请求阶段分别统计。
 
 ## 5. 为什么不是持久化失效
 
