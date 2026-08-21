@@ -111,3 +111,8 @@ compaction_rebuild_every = 5
 
 `tests/integration/test_context_compaction_benchmark.py` 以 10 阶段长任务验证运行时只注入一个
 摘要、保留近期原文、Tool 原子性、原始消息摘要不变和 snapshot-free。
+
+`tests/integration/test_long_context_cache_benchmark.py` 使用离线确定性 Provider，让同一个任务
+经历多次“增长 → 压缩 → 再增长”，并与不压缩反事实比较缓存折算后的单轮成本。生产窗口规模
+的 `tests/soak/test_context_cache_soak.py` 由 `RUN_CONTEXT_CACHE_SOAK=1` 显式开启。完整指标、
+产物和控制变量方法见 [长任务上下文缓存评测](context-cache-benchmark.md)。
