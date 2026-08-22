@@ -7,7 +7,7 @@ import pytest
 from bot.cli.runtime import build_runtime
 from bot.config.models import AppConfig
 from bot.core import AgentRunner
-from bot.core.context import ContextAssembler, ContextTrust
+from bot.core.context import ContextAssembler, ContextLayer, ContextTrust
 from bot.core.events import EventBus, MemoryEventSink
 from bot.core.models import (
     ChatMessage,
@@ -248,9 +248,13 @@ def test_agent_loads_physical_memory_files_with_separate_trust(tmp_path: Path) -
 
     items = runner._memory_context_items()  # noqa: SLF001
 
-    assert [(item.message.name, item.trust) for item in items] == [
-        ("explicit_memory", ContextTrust.USER),
-        ("automatic_memory", ContextTrust.UNTRUSTED),
+    assert [(item.message.name, item.layer, item.trust) for item in items] == [
+        ("explicit_memory", ContextLayer.MEMORY, ContextTrust.USER),
+        (
+            "automatic_memory",
+            ContextLayer.AUTOMATIC_MEMORY,
+            ContextTrust.UNTRUSTED,
+        ),
     ]
     definitions, _ = runner._select_tool_definitions("session", [])  # noqa: SLF001
     assert {definition.name for definition in definitions} >= {

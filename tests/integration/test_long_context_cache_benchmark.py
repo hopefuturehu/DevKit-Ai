@@ -54,3 +54,21 @@ async def test_fast_suite_measures_growth_compaction_and_counterfactual(
         assert (artifacts / "summary.json").is_file()
         assert (artifacts / "requests.jsonl").is_file()
         assert (artifacts / "epochs.csv").is_file()
+
+
+@pytest.mark.asyncio
+async def test_benchmark_reuses_workspace_without_stacking_memory(tmp_path: Path) -> None:
+    profile = FAST_CONTEXT_CACHE_PROFILE.with_overrides(
+        logical_turns=2,
+        tool_output_chars=256,
+        stable_memory_chars=512,
+    )
+    workspace = tmp_path / "repeated"
+
+    first = await run_context_cache_benchmark(profile=profile, workspace=workspace)
+    second = await run_context_cache_benchmark(profile=profile, workspace=workspace)
+
+    assert first.summary["workload"] == second.summary["workload"]
+    assert first.summary["metrics"] == second.summary["metrics"]
+    assert first.summary["quality"]["passed"] is True
+    assert second.summary["quality"]["passed"] is True

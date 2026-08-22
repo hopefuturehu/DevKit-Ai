@@ -576,8 +576,7 @@ async def run_context_cache_benchmark(
     event_bus = EventBus([store, events])
     session_id = store.create_session(workspace)
     stable_memory = _stable_memory_content(profile)
-    if stable_memory:
-        store.add_memory(stable_memory, source="context-cache-benchmark")
+    _seed_stable_memory(store, stable_memory)
     cache = PrefixCacheSimulator(
         minimum_cacheable_tokens=profile.minimum_cacheable_tokens,
     )
@@ -850,6 +849,25 @@ def _stable_memory_content(profile: ContextCacheBenchmarkProfile) -> str:
     unit = f" stable-prefix-{profile.seed:04d};"
     repeats = max(0, (profile.stable_memory_chars - len(marker) + len(unit) - 1) // len(unit))
     return (marker + unit * repeats)[: profile.stable_memory_chars]
+
+
+def _seed_stable_memory(store: SQLiteSessionStore, content: str) -> None:
+    """Keep repeated runs in one benchmark workspace input-identical."""
+
+    source = "context-cache-benchmark"
+    memories = store.list_memories()
+    foreign = [memory for memory in memories if memory["source"] != source]
+    if foreign:
+        raise ValueError(
+            "context-cache benchmark workspace 含有非评测长期记忆；"
+            "请改用独立输出目录"
+        )
+    if len(memories) == 1 and memories[0]["content"] == content:
+        return
+    for memory in memories:
+        store.delete_memory(int(memory["id"]))
+    if content:
+        store.add_memory(content, source=source)
 
 
 def _logical_turn(messages: Iterable[ChatMessage]) -> int:
