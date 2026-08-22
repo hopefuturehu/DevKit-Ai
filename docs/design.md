@@ -420,15 +420,15 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 
 ### 7.1 上下文分层
 
-按稳定程度和优先级确定性装配：
+按稳定程度、因果顺序和更新频率确定性装配。模型消息的实际顺序是：Core Policy、根到当前
+目录的 `AGENTS.md`、Environment、Skill Catalog、预算卸载后的 Tool Catalog、Active
+Skills、显式记忆、单活动压缩摘要、兼容 Snapshot、近期会话/Tool Result、自动记忆索引、
+Runtime Note。Tool schema 不混入消息，而是作为独立请求字段按名称排序。
 
-1. **Core Policy**：安全规则、工具协议、不可被项目内容覆盖的系统约束；
-2. **User Identity**：用户级偏好和全局指令；
-3. **Project Context**：从工作区根到当前目录发现的 `AGENTS.md` 与项目配置；
-4. **Active Skills**：本次由用户显式启用或模型可靠匹配的 Skill；
-5. **Memory**：经过用户确认的长期事实和偏好；
-6. **Session History**：当前会话消息和工具结果；
-7. **Volatile State**：时间、工作目录、Git 状态和当前运行限制。
+这个顺序形成“稳定前缀 → 因果历史 → 易变尾部”：显式记忆通常稳定，放在会话前参与缓存；
+异步自动记忆和运行提示可能高频变化，放在会话后，避免击穿整段历史。layer 排序只决定模型
+看到的顺序；预算保留仍由 retention、priority 和 Tool 原子组单独决定。完整表格、角色、
+来源和请求修复流程见 [模型上下文分块与组装顺序](context-assembly.md)。
 
 上下文装配必须输出可检查的 manifest，用户可通过 `/status` 或调试命令看到“加载了什么、来自哪里、占用多少 Token”。
 

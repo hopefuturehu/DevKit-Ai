@@ -22,8 +22,9 @@ Transcript。只有模型 Provider 与 Tool 被替换为确定性离线实现，
 
 ### Fast：CI 与本地回归
 
-Fast 使用 24K effective input budget、40 个逻辑轮和 5,500 字符的每轮 Tool 输出。默认至少
-跨过 3 次压缩；当前基线通常会产生 4 次压缩。它会同时运行：
+Fast 使用 24K effective input budget、40 个逻辑轮、5,500 字符的每轮 Tool 输出和 6,000
+字符的确定性稳定显式记忆。默认至少跨过 3 次压缩；当前配置通常产生 5 次压缩。它会同时
+运行：
 
 - `current`：当前上下文压缩机制；
 - `no-compaction`：同一工作负载、同一消息和 Tool schema，但给 Context Planner 一个足够大的
@@ -35,8 +36,9 @@ Fast 使用 24K effective input budget、40 个逻辑轮和 5,500 字符的每�
 
 ### Soak：生产窗口规模
 
-Soak 使用 131,072 context window、120K configured input limit、168 个逻辑轮和默认生产压缩
-参数，要求完整经历至少 6 次压缩。它默认不会随普通 `pytest` 执行：
+Soak 使用 131,072 context window、120K configured input limit、168 个逻辑轮、16,000 字符
+的稳定显式记忆和默认生产压缩参数，要求完整经历至少 6 次压缩。它默认不会随普通 `pytest`
+执行：
 
 ```bash
 RUN_CONTEXT_CACHE_SOAK=1 \
@@ -70,6 +72,7 @@ RUN_CONTEXT_CACHE_SOAK=1 \
 
 - `--turns`：逻辑轮数；
 - `--tool-output-chars`：每轮确定性 Tool 输出量；
+- `--stable-memory-chars`：每次请求都必须保留的确定性显式记忆量；
 - `--minimum-cacheable-tokens`：缓存最小可复用前缀；
 - `--seed`：工作负载 seed；
 - `--cached-input-cost-ratio` 和 `--output-cost-ratio`：成本模型。
@@ -131,6 +134,7 @@ prompt/read/miss 和请求指纹，不保存原始 prompt 或任何密钥。
 
 - 每个逻辑轮都正常完成；
 - 所有已引入的 `CACHE_FACT` 在后续最终模型请求中仍可见；
+- 稳定显式记忆在每轮最终模型请求中完整可见；
 - 任一主模型请求最多只有一个 `context_compaction`；
 - 每次压缩前的既有 SQLite Transcript SHA-256 完全不变；
 - 没有 Tool protocol repair、context limit 或 compaction failure；
@@ -154,3 +158,68 @@ prompt/read/miss 和请求指纹，不保存原始 prompt 或任何密钥。
    指标。
 
 这样可以把“工作负载变化”“正确性退化”和“缓存布局改善”三者分离。
+
+重复使用同一个 benchmark 输出目录时，评测会复用内容相同的专用记忆，而不会叠加多份。
+如果目录中的 SQLite 含有非 benchmark 长期记忆，评测会拒绝运行，防止隐式污染控制变量。
+
+## 组装顺序优化实验（2026-08-23）
+
+### 可还原代码点和控制变量
+
+- 旧顺序：本地分支 `context-cache-order-baseline`，commit `cb911b1`；
+- 新顺序：主分支 commit `d16b203`；
+- Fast workload SHA-256：
+  `7c63935ef76595f81c50601756554b29becede6965dd64101d7f1410943a867e`；
+- Soak workload SHA-256：
+  `7b978d0752ced358c269df1be61924dbb77b3f1e22731a7a340be98a59733f58`；
+- 两边使用相同 seed、轮数、Tool 输出、稳定记忆、预算、压缩配置和成本比例；所有 quality
+  gate 均通过，Fast 都压缩 5 次，Soak 都压缩 7 次。
+
+旧顺序是：
+
+```text
+稳定 system → runtime note → compaction → history → explicit/automatic memory
+```
+
+它导致稳定显式记忆每轮都被插到增长中的会话后面，既不能进入可复用前缀，也会挡住同一
+Run 后续 Tool step 的 append-only 边界。新顺序拆成：
+
+```text
+稳定 system/tool catalog/active skill/explicit memory
+→ compaction/history
+→ automatic memory/runtime note
+```
+
+同时 Tool schema 改为按名称确定性排序。完整分块和取舍见
+[模型上下文分块与组装顺序](context-assembly.md)。
+
+### 结果
+
+| Suite / Variant | 指标 | 旧顺序 `cb911b1` | 新顺序 `d16b203` | 变化 |
+|---|---|---:|---:|---:|
+| Fast / current | 全请求加权命中率 | 70.4433% | 84.8110% | +14.37 pp |
+| Fast / current | 主 Agent 命中率 | 75.5406% | 90.9818% | +15.44 pp |
+| Fast / current | 每逻辑轮折算成本 | 7,857.92 | 5,106.16 | -35.02% |
+| Fast / current | cache miss token | 251,463 | 129,189 | -48.63% |
+| Fast / no-compaction | 全请求加权命中率 | 93.0252% | 97.6648% | +4.64 pp |
+| Fast / no-compaction | 每逻辑轮折算成本 | 10,783.60 | 8,028.35 | -25.55% |
+| Soak / current | 全请求加权命中率 | 89.7017% | 95.6215% | +5.92 pp |
+| Soak / current | 主 Agent 命中率 | 90.9821% | 96.9864% | +6.00 pp |
+| Soak / current | 每逻辑轮折算成本 | 26,482.36 | 19,174.94 | -27.59% |
+| Soak / current | cache miss token | 2,372,697 | 1,008,757 | -57.48% |
+
+Fast 在压缩后首个 Agent 请求的命中率由约 15.8% 提升到约 41.7%–42.2%，恢复到 80% 命中
+从 6 个请求缩短到 2 个。Soak 因 Provider 的 1,024-token 最小缓存单元，压缩后首请求从完全
+不计命中提升到约 9.36%；后续恢复仍为 2 个请求，但第 0 epoch 的首次稳定恢复从 17 个请求
+缩短到 3 个。
+
+### Trade-off
+
+- 显式记忆若由用户修改，会在修改后的首个请求重建前缀；这是让它在其余绝大多数请求中
+  被缓存的代价。
+- 自动记忆和 runtime note 留在尾部，因此其自身复用率较低；换来的是后台提取或运行状态
+  更新不会击穿整段会话缓存。
+- compaction summary 每次替换都会形成新 epoch，不能通过纯排序消除；新顺序只扩大摘要前
+  仍可复用的稳定区。
+- Tool 按名称排序改变了模型看到的展示次序，但不改变名称、schema、权限或执行语义；收益是
+  注册/扫描顺序不再制造无意义 cache miss。
