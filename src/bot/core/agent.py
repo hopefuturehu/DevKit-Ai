@@ -1635,7 +1635,7 @@ class AgentRunner:
                     items.append(
                         ContextItem(
                             id="automatic-long-term-memory-index",
-                            layer=ContextLayer.MEMORY,
+                            layer=ContextLayer.AUTOMATIC_MEMORY,
                             message=message,
                             source=str(self.memory_store.index_path),
                             trust=ContextTrust.UNTRUSTED,
@@ -2055,11 +2055,14 @@ class AgentRunner:
         if self.subagent_controller is not None:
             internal.extend(self.subagent_controller.definitions())
         by_name = {definition.name: definition for definition in definitions}
-        all_definitions = [*definitions, *internal]
+        all_definitions = sorted(
+            [*definitions, *internal],
+            key=lambda definition: definition.name,
+        )
         total = sum(self._token_estimator.tool(item) for item in all_definitions)
         if total <= self.config.context.tool_schema_tokens:
             return all_definitions, None
-        selected = list(internal)
+        selected = sorted(internal, key=lambda definition: definition.name)
         used = sum(self._token_estimator.tool(item) for item in selected)
         activated = self._activated_tools.setdefault(session_id, set())
         for name in sorted(activated):
@@ -2070,7 +2073,9 @@ class AgentRunner:
             if used + cost <= self.config.context.tool_schema_tokens:
                 selected.append(definition)
                 used += cost
-        omitted = [name for name in by_name if name not in {item.name for item in selected}]
+        selected.sort(key=lambda definition: definition.name)
+        selected_names = {item.name for item in selected}
+        omitted = sorted(name for name in by_name if name not in selected_names)
         catalog_lines = ["Tool schemas 已按预算卸载。可调用 activate_tools 加载："]
         catalog_tokens = self._token_estimator.text(catalog_lines[0])
         for name in omitted:
@@ -2084,7 +2089,7 @@ class AgentRunner:
         catalog = "\n".join(catalog_lines)
         note = ContextItem(
             id="tool-schema-catalog",
-            layer=ContextLayer.RUNTIME_NOTE,
+            layer=ContextLayer.TOOL_CATALOG,
             message=ChatMessage(role=Role.SYSTEM, content=catalog),
             source="tool-registry",
             trust=ContextTrust.TRUSTED,

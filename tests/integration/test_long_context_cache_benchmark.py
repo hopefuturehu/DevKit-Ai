@@ -26,6 +26,11 @@ async def test_fast_suite_measures_growth_compaction_and_counterfactual(
 
     assert current.summary["quality"]["passed"] is True
     assert no_compaction.summary["quality"]["passed"] is True
+    assert current.summary["quality"]["gates"]["stable_memory_visible"] is True
+    assert (
+        current.summary["quality"]["stable_memory_visibility_checks"]
+        == FAST_CONTEXT_CACHE_PROFILE.logical_turns
+    )
     assert current.summary["workload"]["sha256"] == no_compaction.summary["workload"]["sha256"]
     assert current.summary["compaction"]["completed"] >= 3
     assert current.summary["compaction"]["rebuild_from_raw"] >= 1

@@ -342,9 +342,28 @@ def test_agent_sheds_and_reactivates_tool_schemas(tmp_path: Path) -> None:
     )
 
     assert catalog is not None
+    assert catalog.layer.value == "tool_catalog"
+    assert [tool.name for tool in initial] == sorted(tool.name for tool in initial)
     assert "large_0" not in {tool.name for tool in initial}
     assert activated.success
     assert "large_0" in {tool.name for tool in after}
+    assert [tool.name for tool in after] == sorted(tool.name for tool in after)
+    store.close()
+
+
+def test_agent_sorts_tool_schemas_when_all_fit_budget(tmp_path: Path) -> None:
+    runner, store = make_test_runner(
+        tmp_path,
+        ScriptedProvider([]),
+        tools=[LargeSchemaTool("z_tool"), LargeSchemaTool("a_tool")],
+    )
+
+    selected, catalog = runner._select_tool_definitions(  # noqa: SLF001
+        "session", runner.tool_registry.definitions()
+    )
+
+    assert catalog is None
+    assert [tool.name for tool in selected] == sorted(tool.name for tool in selected)
     store.close()
 
 

@@ -118,6 +118,60 @@ def test_planner_keeps_assistant_tool_group_atomic() -> None:
     assert all(message.tool_call_id != "call" for message in pack.messages)
 
 
+def test_planner_renders_stable_prefix_before_history_and_volatile_suffix() -> None:
+    estimator = TokenEstimator()
+    planner = ContextPlanner(TokenBudget(10_000, 10_000, 0, 0, 0, 1.0), estimator)
+
+    def item(
+        identifier: str,
+        layer: ContextLayer,
+        *,
+        position: int | None = None,
+    ) -> ContextItem:
+        return ContextItem(
+            id=identifier,
+            layer=layer,
+            message=ChatMessage(role=Role.USER, content=identifier),
+            source="test",
+            trust=ContextTrust.USER,
+            retention=ContextRetention.PINNED,
+            priority=1,
+            position=position,
+        )
+
+    items = [
+        item("runtime", ContextLayer.RUNTIME_NOTE),
+        item("history-new", ContextLayer.RECENT_CONVERSATION, position=20),
+        item("automatic-memory", ContextLayer.AUTOMATIC_MEMORY),
+        item("compaction", ContextLayer.COMPACTION, position=10),
+        item("explicit-memory", ContextLayer.MEMORY),
+        item("active-skill", ContextLayer.ACTIVE_SKILL),
+        item("tool-catalog", ContextLayer.TOOL_CATALOG),
+        item("skill-catalog", ContextLayer.SKILL_CATALOG),
+        item("environment", ContextLayer.ENVIRONMENT),
+        item("project", ContextLayer.PROJECT_INSTRUCTION),
+        item("policy", ContextLayer.CORE_POLICY),
+        item("history-old", ContextLayer.RECENT_CONVERSATION, position=11),
+    ]
+
+    pack = planner.pack(items, [])
+
+    assert [message.content for message in pack.messages] == [
+        "policy",
+        "project",
+        "environment",
+        "skill-catalog",
+        "tool-catalog",
+        "active-skill",
+        "explicit-memory",
+        "compaction",
+        "history-old",
+        "history-new",
+        "automatic-memory",
+        "runtime",
+    ]
+
+
 def test_tool_protocol_repair_moves_steering_after_complete_tool_batch() -> None:
     assistant = ChatMessage(
         role=Role.ASSISTANT,

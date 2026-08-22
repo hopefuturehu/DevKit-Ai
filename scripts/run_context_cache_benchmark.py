@@ -42,6 +42,11 @@ def _parser() -> argparse.ArgumentParser:
         help="覆盖逻辑轮数（探索模式会关闭最小压缩次数门禁）。",
     )
     parser.add_argument("--tool-output-chars", type=int, help="覆盖每轮确定性 Tool 输出字符数。")
+    parser.add_argument(
+        "--stable-memory-chars",
+        type=int,
+        help="覆盖每次请求都应保留的确定性稳定长期记忆字符数。",
+    )
     parser.add_argument("--minimum-cacheable-tokens", type=int, help="覆盖缓存最小前缀 token 数。")
     parser.add_argument("--seed", type=int, help="覆盖确定性工作负载 seed。")
     parser.add_argument(
@@ -66,6 +71,7 @@ async def _run(args: argparse.Namespace) -> list[ContextCacheBenchmarkResult]:
         profile = context_cache_profile(suite).with_overrides(
             logical_turns=args.turns,
             tool_output_chars=args.tool_output_chars,
+            stable_memory_chars=args.stable_memory_chars,
             minimum_cacheable_tokens=args.minimum_cacheable_tokens,
             seed=args.seed,
         )
@@ -105,6 +111,8 @@ def main() -> int:
         raise SystemExit("--turns 必须大于 0")
     if args.tool_output_chars is not None and args.tool_output_chars < 256:
         raise SystemExit("--tool-output-chars 至少为 256")
+    if args.stable_memory_chars is not None and args.stable_memory_chars < 0:
+        raise SystemExit("--stable-memory-chars 不能小于 0")
     if args.minimum_cacheable_tokens is not None and args.minimum_cacheable_tokens < 0:
         raise SystemExit("--minimum-cacheable-tokens 不能小于 0")
     results = asyncio.run(_run(args))

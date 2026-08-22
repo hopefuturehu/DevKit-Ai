@@ -41,7 +41,9 @@ class ContextLayer(StrEnum):
     PROJECT_INSTRUCTION = "project_instruction"
     ENVIRONMENT = "environment"
     MEMORY = "memory"
+    AUTOMATIC_MEMORY = "automatic_memory"
     SKILL_CATALOG = "skill_catalog"
+    TOOL_CATALOG = "tool_catalog"
     ACTIVE_SKILL = "active_skill"
     COMPACTION = "compaction"
     SNAPSHOT = "snapshot"
@@ -675,19 +677,22 @@ class ContextPlanner:
 
     @staticmethod
     def _render_order(item: ContextItem) -> tuple[int, int, str]:
-        # The single compaction precedes its raw tail so the reconstructed
-        # timeline stays causal. Legacy semantic memory remains after the
-        # conversation to preserve the stable prompt prefix for old callers.
+        # Keep stable, reusable context ahead of the append-only transcript.
+        # The active compaction must still precede its raw tail to preserve the
+        # reconstructed timeline. Volatile automatic memory and runtime notes
+        # stay behind the transcript so a refresh cannot invalidate its prefix.
         system_order = {
             ContextLayer.CORE_POLICY: 0,
             ContextLayer.PROJECT_INSTRUCTION: 1,
             ContextLayer.ENVIRONMENT: 2,
-            ContextLayer.SKILL_CATALOG: 4,
+            ContextLayer.SKILL_CATALOG: 3,
+            ContextLayer.TOOL_CATALOG: 4,
             ContextLayer.ACTIVE_SKILL: 5,
-            ContextLayer.RUNTIME_NOTE: 6,
+            ContextLayer.MEMORY: 6,
             ContextLayer.COMPACTION: 7,
             ContextLayer.SNAPSHOT: 8,
-            ContextLayer.MEMORY: 10,
+            ContextLayer.AUTOMATIC_MEMORY: 10,
+            ContextLayer.RUNTIME_NOTE: 11,
         }
         return (system_order.get(item.layer, 9), item.position or -1, item.id)
 

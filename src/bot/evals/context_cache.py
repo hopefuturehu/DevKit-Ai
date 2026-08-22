@@ -57,6 +57,7 @@ class ContextCacheBenchmarkProfile:
     compaction_rebuild_every: int
     logical_turns: int
     tool_output_chars: int
+    stable_memory_chars: int
     fact_every: int
     minimum_cacheable_tokens: int
     expected_min_compactions: int
@@ -68,6 +69,7 @@ class ContextCacheBenchmarkProfile:
         *,
         logical_turns: int | None = None,
         tool_output_chars: int | None = None,
+        stable_memory_chars: int | None = None,
         minimum_cacheable_tokens: int | None = None,
         seed: int | None = None,
     ) -> ContextCacheBenchmarkProfile:
@@ -75,6 +77,9 @@ class ContextCacheBenchmarkProfile:
             self,
             logical_turns=logical_turns or self.logical_turns,
             tool_output_chars=tool_output_chars or self.tool_output_chars,
+            stable_memory_chars=(
+                self.stable_memory_chars if stable_memory_chars is None else stable_memory_chars
+            ),
             minimum_cacheable_tokens=(
                 self.minimum_cacheable_tokens
                 if minimum_cacheable_tokens is None
@@ -108,6 +113,7 @@ FAST_CONTEXT_CACHE_PROFILE = ContextCacheBenchmarkProfile(
     compaction_rebuild_every=2,
     logical_turns=40,
     tool_output_chars=5_500,
+    stable_memory_chars=6_000,
     fact_every=5,
     minimum_cacheable_tokens=64,
     expected_min_compactions=3,
@@ -130,6 +136,7 @@ SOAK_CONTEXT_CACHE_PROFILE = ContextCacheBenchmarkProfile(
     compaction_rebuild_every=5,
     logical_turns=168,
     tool_output_chars=14_000,
+    stable_memory_chars=16_000,
     fact_every=12,
     minimum_cacheable_tokens=1_024,
     expected_min_compactions=6,
@@ -476,7 +483,15 @@ class DeterministicContextCacheProvider(ModelProvider):
         if last.name == "context_compaction_repair":
             return "repair", None, None, None
         logical_turn = _logical_turn(request.messages)
-        agent_step = 2 if last.role == Role.TOOL else 1
+        tool_call_id = f"cache-benchmark-{logical_turn:04d}"
+        agent_step = (
+            2
+            if any(
+                message.role == Role.TOOL and message.tool_call_id == tool_call_id
+                for message in request.messages
+            )
+            else 1
+        )
         return "agent", logical_turn, agent_step, None
 
     def _summary(self, payload: dict[str, Any]) -> str:
@@ -560,6 +575,9 @@ async def run_context_cache_benchmark(
     events = MemoryEventSink()
     event_bus = EventBus([store, events])
     session_id = store.create_session(workspace)
+    stable_memory = _stable_memory_content(profile)
+    if stable_memory:
+        store.add_memory(stable_memory, source="context-cache-benchmark")
     cache = PrefixCacheSimulator(
         minimum_cacheable_tokens=profile.minimum_cacheable_tokens,
     )
@@ -601,9 +619,13 @@ async def run_context_cache_benchmark(
     )
     expected_facts: dict[str, str] = {}
     fact_checks = 0
+    stable_memory_checks = 0
     immutable_checks = 0
     run_statuses: list[str] = []
     workload_hasher = hashlib.sha256()
+    workload_hasher.update(b"stable-memory\0")
+    workload_hasher.update(stable_memory.encode())
+    workload_hasher.update(b"\n")
 
     try:
         for turn in range(1, profile.logical_turns + 1):
@@ -649,6 +671,13 @@ async def run_context_cache_benchmark(
                 raise AssertionError(
                     f"turn {turn} 的最终模型请求丢失或改写事实: {', '.join(incorrect)}"
                 )
+            if stable_memory:
+                memory_visible = any(
+                    stable_memory in (message.content or "") for message in last_request.messages
+                )
+                if not memory_visible:
+                    raise AssertionError(f"turn {turn} 的最终模型请求缺少稳定长期记忆")
+                stable_memory_checks += 1
             summaries = sum(
                 message.name == "context_compaction" for message in last_request.messages
             )
@@ -683,6 +712,7 @@ async def run_context_cache_benchmark(
         workload_sha256=workload_hasher.hexdigest(),
         expected_fact_count=len(expected_facts),
         fact_checks=fact_checks,
+        stable_memory_checks=stable_memory_checks,
         immutable_checks=immutable_checks,
         run_statuses=run_statuses,
         compactions=len(completed_events),
@@ -811,6 +841,17 @@ def _workload_prompt(
     return "\n".join(lines), introduced
 
 
+def _stable_memory_content(profile: ContextCacheBenchmarkProfile) -> str:
+    """Build one deterministic, session-stable memory block for prefix tests."""
+
+    if profile.stable_memory_chars <= 0:
+        return ""
+    marker = f"[CACHE_STABLE_MEMORY seed={profile.seed}]"
+    unit = f" stable-prefix-{profile.seed:04d};"
+    repeats = max(0, (profile.stable_memory_chars - len(marker) + len(unit) - 1) // len(unit))
+    return (marker + unit * repeats)[: profile.stable_memory_chars]
+
+
 def _logical_turn(messages: Iterable[ChatMessage]) -> int:
     for message in reversed(list(messages)):
         if message.role != Role.USER:
@@ -911,6 +952,7 @@ def _benchmark_summary(
     workload_sha256: str,
     expected_fact_count: int,
     fact_checks: int,
+    stable_memory_checks: int,
     immutable_checks: int,
     run_statuses: list[str],
     compactions: int,
@@ -937,6 +979,11 @@ def _benchmark_summary(
     quality_gates = {
         "all_runs_completed": all(status == "completed" for status in run_statuses),
         "all_facts_retained": fact_checks == profile.logical_turns,
+        "stable_memory_visible": (
+            stable_memory_checks == profile.logical_turns
+            if profile.stable_memory_chars > 0
+            else stable_memory_checks == 0
+        ),
         "single_active_summary": all(item.active_summary_count <= 1 for item in agent),
         "transcript_immutable": immutable_checks == compactions,
         "no_tool_protocol_repairs": protocol_repairs == 0,
@@ -961,6 +1008,7 @@ def _benchmark_summary(
             "logical_turns": profile.logical_turns,
             "tool_output_chars_per_turn": profile.tool_output_chars,
             "total_tool_output_chars": profile.logical_turns * profile.tool_output_chars,
+            "stable_memory_chars": profile.stable_memory_chars,
             "expected_fact_count": expected_fact_count,
         },
         "requests": {
@@ -996,6 +1044,7 @@ def _benchmark_summary(
         },
         "quality": {
             "fact_visibility_checks": fact_checks,
+            "stable_memory_visibility_checks": stable_memory_checks,
             "transcript_immutability_checks": immutable_checks,
             "tool_protocol_repairs": protocol_repairs,
             "context_limit_events": context_limits,
