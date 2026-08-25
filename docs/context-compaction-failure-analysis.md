@@ -1,8 +1,8 @@
 # 长会话上下文压缩问题：原因、案例、方案与取舍
 
-> 状态：分析与候选方案，暂不实施
+> 状态：分析与候选方案；推荐方案已于 2026-08-25 实施并通过推广门禁，见第 16 节
 >
-> 日期：2026-08-18；缓存命中率补充：2026-08-19
+> 日期：2026-08-18；缓存命中率补充：2026-08-19；落地验证补充：2026-08-25
 >
 > 代码基线：`f78d911 fix(context): bound and recover compaction backlog`
 > 关联设计：[recoverable-context-compaction.md](recoverable-context-compaction.md)
@@ -780,7 +780,7 @@ CLI 可展示：
 
 ## 14. 分阶段实施建议
 
-本文不立即修改实现。若后续决定推进，建议顺序为：
+以下保留实施前的阶段计划；实际执行过程和结果见第 16 节。原建议顺序为：
 
 ### 阶段 1：可观测性与错误分类
 
@@ -827,4 +827,174 @@ CLI 可展示：
 4. 普通失败保持 fail closed，极端压力是否允许确定性 fallback；
 5. 单次 `/compact` 默认允许消耗多少请求、时间和费用。
 
-在这些取舍确认前，当前代码保持不变；本文作为后续设计和评测的共同基线。
+以上是实施前的待决策项。最终取舍、测试过程和推广结果记录在第 16 节；本文前 15 节继续作为
+问题诊断与方案选择的历史基线。
+
+## 16. 实施与验证记录（2026-08-25）
+
+推荐的混合方案已在提交 `cff6338` 中落地。可复用的评测入口、产物格式和后续运行方法见
+[上下文压缩有效性评测](context-compaction-effectiveness.md)。本节补充实际执行过程，包括没有
+通过的中间方案和为此做出的修正，避免只保留最终成功数字。
+
+### 16.1 被验证的最终配置
+
+| 项目 | 最终值或行为 |
+|---|---|
+| 压缩模型 | `compaction_model` 显式值；为空时冻结进程启动时的 `model.name`，不跟随 `/model` |
+| 近期原文 | 20K token，并至少保留最近 3 个用户轮次及完整 Tool 原子组 |
+| 摘要预算 | 3K 软目标、4K 可见正文硬限制、8,192 wire 输出上限 |
+| 溯源 | 默认范围、原始 positions 和 SHA-256；不再要求正文逐条 `[m:N]` |
+| 输出恢复 | `length` 只凝练候选；`format` 只修复候选，不重发完整原文 |
+| Provider 恢复 | 429/5xx/timeout/transport 同范围有限重试；仅 Context overflow 缩小范围 |
+| Fail closed | authentication/payment/configuration/persistence 立即停止，cursor 不推进 |
+| 预算 | 单请求 90 秒；单命令最多 8 请求、600 秒、默认 `$0.25`（需配置单价） |
+| DeepSeek 思考 | 官方端点仅对压缩请求发送 `thinking.type=disabled`；普通 Agent 请求不变 |
+
+### 16.2 测试负载、评分方法与产物
+
+离线和真实 Provider 使用同一个确定性合成 Transcript：12 个用户轮次，每轮包含用户消息、
+Assistant Tool Call、14,000 字符 Tool Result 和 Assistant 完成消息，共 48 条消息。每个用户轮次
+携带一个从 `F01` 到 `F12` 的 `[EVAL_FACT:...]` 稳定事实标记。
+
+`hybrid-20k` 在该负载上压缩位置 1–27，保留 21 条近期原文和 5 个用户轮次。保留数量大于最低
+3 轮，是 20K token 预算与 Tool 原子边界共同计算的结果。每次回放同时检查：
+
+- 12 个关键事实全部可见，摘要不得产生输入中不存在的数字事实 ID；
+- Transcript SHA-256 前后不变，cursor 只单调推进；
+- 最多一份活动摘要，失败不替换旧 `ready`；
+- 输入不超过规划上限，近期 Tool Call/Result 始终平衡；
+- 最近用户轮次满足下限，长度或格式恢复不得再次发送完整原文。
+
+请求事件写入 `requests.jsonl`，包含阶段、范围、模型、思考模式、usage、可见摘要 token、
+reasoning 字符数、耗时、费用和错误分类；`summary.json` 保存质量门禁与 cursor 结果。产物不保存
+原始 prompt。本次真实产物位于临时目录 `/private/tmp/bot-compaction-live-confirmation`，未提交到
+仓库。
+
+### 16.3 离线故障矩阵
+
+先使用确定性 Provider 运行单元与集成回放：
+
+```bash
+.venv/bin/pytest -q tests/unit/test_context_compaction.py
+.venv/bin/pytest -q tests/integration/test_compaction_effectiveness.py
+
+.venv/bin/python scripts/run_compaction_effectiveness.py \
+  --provider scripted \
+  --variant hybrid-20k \
+  --scenario length \
+  --output /private/tmp/bot-compaction-scripted-final
+```
+
+六类故障均得到预期分流：
+
+| 场景 | 请求序列 | 结果 |
+|---|---|---|
+| `success` | generate | 1 次请求发布摘要 |
+| `length` | generate → condense | 2 次请求成功；condense 只携带候选 |
+| `format` | generate → format repair | 2 次请求成功；repair 只携带候选 |
+| `rate-limit` | generate → 同范围 transport retry | 2 次请求成功；没有缩小范围 |
+| `context-overflow` | generate → 缩小 Tool 原子范围后 generate | 2 次请求成功；这是唯一缩范围场景 |
+| `authentication` | generate | 1 次请求失败；不重试，cursor 保持 0 |
+
+额外单元测试覆盖了 repair 响应再次遇到 `length` 时切换到 condense、请求超时、费用耗尽、
+SQLite 发布失败、模型冻结、范围溯源和损坏恢复。
+
+### 16.4 真实 Provider 探索过程
+
+真实请求使用 DeepSeek V4 Flash。第一次从受限 sandbox 发起的调用在到达 Provider 前即发生
+transport 失败，因此不计入模型成功率、延迟或费用；获得网络授权后才开始以下有效样本。先逐次
+冒烟定位剩余变量，没有直接跳到 20 次确认：
+
+| 步骤 | 配置与结果 | 得到的结论或修正 |
+|---|---|---|
+| A2a 严格逐条引用 | 2 请求，35.46s，`$0.031665`；生成与格式修复后仍因缺少消息引用失败 | 逐条引用仍是独立的高失败因素，改用范围级结构化溯源 |
+| Hybrid，思考开启 | 1 请求，19.19s，`$0.016717`；发布成功但事实 recall 为 50% | 模型把 `F01`–`F07` 泛化成模式；提示词增加稳定事实标记必须逐条原样保留的规则 |
+| 修正提示词后 | 1 请求，32.16s，`$0.021077`；摘要实际保留事实，但评分器把 `...`、`FXX` 示例当成事实 ID | 评分器改为只识别 `F` 加数字的 golden ID，排除格式占位符 |
+| 修正评分器后 | 1 请求，32.98s，`$0.021387`；12/12 事实通过 | Provider 输入 12,411、completion 4,488、可见摘要 815 token，比值 5.51；剩余瓶颈是默认思考 |
+| 关闭压缩思考 | 1 请求，5.48s，`$0.013498`；12/12 事实通过 | Provider 输入 12,332、completion 583、可见摘要 538 token，比值 1.084，`reasoning_chars=0` |
+
+最后一步依据 [DeepSeek Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode/) 的
+思考模式开关实现：官方端点默认思考开启，可通过 `thinking: {"type": "disabled"}` 关闭。
+实现只在压缩请求上设置该字段，并为其他 OpenAI-compatible 端点保留 Provider 默认行为。
+
+原计划还包括 A0、A1、A2a、A2b 各 3 次的完整因子筛选；实际执行在历史基线已经证明主模型
+继承代价高、且 A2a 单次即暴露严格引用硬失败后，停止继续为已淘汰组合付费，转而验证包含全部
+修正的 Hybrid。所以下述 20 次结果证明 Hybrid 满足绝对推广门禁，但不用于声称每个参数的独立
+边际收益或 A0/A1/A2b 之间的统计排序。
+
+### 16.5 20 次真实确认
+
+单次关闭思考冒烟通过后，按费用上限执行最终确认：
+
+```bash
+RUN_CONTEXT_COMPACTION_LIVE=1 \
+  .venv/bin/python scripts/run_compaction_effectiveness.py \
+  --provider live \
+  --variant hybrid-20k \
+  --scenario success \
+  --repeat 20 \
+  --max-cost-usd 0.50 \
+  --output /private/tmp/bot-compaction-live-confirmation
+```
+
+聚合结果如下：
+
+| 指标 | 门禁 | 实际结果 |
+|---|---:|---:|
+| 成功率 | ≥95% | 20/20，100% |
+| 质量门禁 | 全部通过 | 20/20；最低事实 recall 100% |
+| 每次请求数 | 越少越好 | 固定 1；总计 20，无 repair/retry |
+| p50 延迟 | ≤30s | 5.57s |
+| p95 延迟 | ≤60s | 9.96s |
+| 单次最大延迟 | ≤90s | 9.96s |
+| completion / 可见摘要 p95 | ≤2 | 1.216 |
+| Provider 输入 token | ≤60K | 每次 12,332 |
+| completion token | 观察值 | 473–796，p50 681 |
+| 可见摘要 token | 3K 软目标、4K 硬限制 | 443–675，p50 570 |
+| reasoning 字符数 | 0 | 最大 0 |
+| 总费用 | ≤`$0.50` | `$0.272528` |
+
+因此 `hybrid-20k` 通过推广门禁，并成为默认策略。这里的延迟改进不能与历史 491.6 秒事件做
+严格同分布比较：历史数据来自真实长会话和旧恢复链路，本次确认来自固定合成回放；它能直接
+证明的是新策略在固定负载下有界、可重复且不依赖隐藏 reasoning 输出。
+
+### 16.6 全量回归与缓存成本
+
+实现完成后执行：
+
+```bash
+.venv/bin/ruff check .
+.venv/bin/pytest -q
+RUN_CONTEXT_CACHE_SOAK=1 .venv/bin/pytest -q tests/soak/test_context_cache_soak.py
+.venv/bin/python scripts/run_context_cache_benchmark.py \
+  --suite all \
+  --variants current no-compaction \
+  --output /private/tmp/bot-context-cache-documentation-final
+git diff --check
+```
+
+最终结果为 214 个 pytest 用例中 213 通过、1 个默认跳过的 Soak 用例；显式开启后 Soak 通过。
+Ruff 和 whitespace 检查通过。测试仅出现已有的 Starlette/httpx 弃用警告。
+
+固定 seed 缓存基准结果：
+
+| Suite | 当前压缩 cost/turn | 无压缩反事实 | 降幅 | 压缩结果 |
+|---|---:|---:|---:|---|
+| Fast | 5,109.7425 | 8,028.7950 | 36.36% | 5 次成功、0 失败；1 次 rebuild + 4 次 incremental |
+| Soak | 19,178.3226 | 39,236.6089 | 51.12% | 7 次成功、0 失败；1 次 rebuild + 6 次 incremental |
+
+两组都通过事实可见、稳定记忆可见、Transcript 不变、单活动摘要、零 Context limit 和零 Tool
+协议修复门禁。原始 cache hit ratio 在无压缩反事实中更高，但它发送了远大得多的 prompt，因而
+主判据使用 cache-adjusted `cost_per_logical_turn`。
+
+全量回归还发现一次配置兼容问题：若把 3K 软目标直接设成字段值，旧测试中仅覆盖 2K 硬限制的
+配置会变成“软目标大于硬限制”。最终改为未显式配置时动态使用
+`min(3000, compaction_summary_tokens)`；用户显式配置冲突值时仍拒绝启动。修正后重新运行上述
+全部门禁并通过。
+
+### 16.7 结论与尚未覆盖的范围
+
+本轮测试确认了错误分流、调用上界、事实保留、可恢复性、默认参数和 DeepSeek 延迟成本目标，
+也确认默认 20K 尾部在固定负载上实际保留了 5 个完整用户轮次。尚未声称覆盖的是不同 Provider
+对 `thinking` 扩展字段的兼容性、真实业务 Transcript 的语义多样性，以及跨版本模型漂移；这些
+场景应继续使用脱敏回放，并以同一组请求级产物和质量门禁监控。
