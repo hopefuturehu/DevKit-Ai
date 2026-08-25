@@ -392,7 +392,11 @@ Extraction。它们的 System Prompt、User payload 和输入范围不同，不�
 completion 开销中。因此不能通过“把最终摘要再裁短一点”单独解决问题；需要调整生成合同和
 失败路径。
 
-## 7. 本地开源实现对比
+## 7. 本地开源实现对比（原始摘要合同调研）
+
+> 本节保留 2026-08-24 为压缩失败分析所做的摘要合同调研。包含 OpenCode、reasoning 回传、
+> 请求组装、长对话切分和最新源码快照的完整端到端对比，见
+> [本地开源 Agent 框架上下文管理对比](context-framework-comparison.md)。
 
 本次只读分析了 `codespace` 中的以下 checkout：
 

@@ -15,9 +15,10 @@
 本文回答两个问题：当前 `bot` 的上下文压缩实际如何工作，以及为什么在输入已经有界之后，
 压缩仍然有 57.7% 的失败率和数分钟级停顿。
 
-历史演进、开源框架对比和候选改造方案见
-[context-compaction-failure-analysis.md](context-compaction-failure-analysis.md)；可恢复压缩的原始设计见
-[recoverable-context-compaction.md](recoverable-context-compaction.md)。
+端到端开源框架对比见
+[本地开源 Agent 框架上下文管理对比](context-framework-comparison.md)；历史演进、失败归因和候选
+改造方案见 [context-compaction-failure-analysis.md](context-compaction-failure-analysis.md)；可恢复
+压缩的原始设计见 [recoverable-context-compaction.md](recoverable-context-compaction.md)。
 
 ## 1. 结论摘要
 

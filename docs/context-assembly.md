@@ -4,6 +4,10 @@
 记忆和 Skill 文件是事实源；组装过程只生成本次 `ModelRequest`，不会为了排序或修复协议而改写
 原始 Transcript。
 
+Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端组装、reasoning
+回传、长对话压缩与摘要差异见
+[本地开源 Agent 框架上下文管理对比](context-framework-comparison.md)。
+
 ## 从事实源到模型请求
 
 一次 Run 开始时，Agent 先探测环境并读取基础上下文，再读取当前活动压缩的游标。SQLite 只
@@ -106,7 +110,9 @@ Assistant Tool Call 后；对已中断且没有结果的调用生成“结果未
 
 ## 为什么采用这个顺序
 
-本地调研的版本为 OpenCode `da4730e`、Codex `41ece455b7` 和 Pi `a4453b79b`：
+本节只解释组装顺序的直接来源；完整源码对比另见
+[本地开源 Agent 框架上下文管理对比](context-framework-comparison.md)。本地调研的直接参照版本为
+OpenCode `da4730e`、Codex `41ece455b7` 和 Pi `a4453b79b`：
 
 - OpenCode 将环境、项目指令和 Skill 合并为 system 前缀，再追加模型消息，并按名称排序
   Tool；

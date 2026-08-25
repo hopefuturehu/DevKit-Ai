@@ -222,7 +222,9 @@ Tool 原子组边界生成一个活动摘要，
 并以事务方式推进游标。原始消息不会因压缩而删除，模型可通过
 `search_session_history` 和 `load_compaction_source` 检索、回溯。完整设计见
 [可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)，故障回放与真实 Provider
-门禁见[上下文压缩有效性评测](docs/context-compaction-effectiveness.md)。
+门禁见[上下文压缩有效性评测](docs/context-compaction-effectiveness.md)，与本地 Codex、OpenCode、
+Pi、Hermes Agent、DeepSeek Harness、Nanobot 的架构差异见
+[开源 Agent 框架上下文管理对比](docs/context-framework-comparison.md)。
 
 会话和证据继续保存在 SQLite；显式记忆写入受保护的 `USER.md` 并以 `USER` 信任加载，
 已完成 Root Run 会在后续运行开始时异步提取为 Markdown 自动记忆。自动记忆不需要逐条
