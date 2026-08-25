@@ -6,8 +6,23 @@ from typing import Any
 
 import httpx
 
-from bot.core.models import ModelCapabilities, ModelEvent, ModelEventKind, ModelRequest
-from bot.providers.base import ModelProvider, ProviderError
+from bot.core.models import (
+    ModelCapabilities,
+    ModelEvent,
+    ModelEventKind,
+    ModelRequest,
+)
+from bot.providers.base import ModelProvider, ProviderError, ProviderErrorKind
+
+_CONTEXT_ERROR_MARKERS = (
+    "context length",
+    "context_length",
+    "context window",
+    "maximum context",
+    "max context",
+    "too many tokens",
+    "token limit",
+)
 
 
 class OpenAICompatibleProvider(ModelProvider):
@@ -20,9 +35,15 @@ class OpenAICompatibleProvider(ModelProvider):
         client: httpx.AsyncClient | None = None,
     ) -> None:
         if not base_url.strip():
-            raise ProviderError("model.base_url 未配置")
+            raise ProviderError(
+                "model.base_url 未配置",
+                kind=ProviderErrorKind.CONFIGURATION,
+            )
         if not api_key:
-            raise ProviderError("模型 API Key 为空")
+            raise ProviderError(
+                "模型 API Key 为空",
+                kind=ProviderErrorKind.CONFIGURATION,
+            )
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout_seconds = timeout_seconds
@@ -48,7 +69,10 @@ class OpenAICompatibleProvider(ModelProvider):
             try:
                 messages.append(message.to_openai())
             except ValueError as exc:
-                raise ProviderError(f"模型请求中的第 {index} 条消息无效: {exc}") from exc
+                raise ProviderError(
+                    f"模型请求中的第 {index} 条消息无效: {exc}",
+                    kind=ProviderErrorKind.CONFIGURATION,
+                ) from exc
         payload: dict[str, Any] = {
             "model": request.model,
             "messages": messages,
@@ -60,6 +84,8 @@ class OpenAICompatibleProvider(ModelProvider):
             payload["tool_choice"] = "auto"
         if request.max_output_tokens is not None:
             payload["max_tokens"] = request.max_output_tokens
+        if request.thinking is not None:
+            payload["thinking"] = {"type": request.thinking}
         return payload
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
@@ -80,7 +106,9 @@ class OpenAICompatibleProvider(ModelProvider):
                     body = (await response.aread()).decode(errors="replace")[:4000]
                     raise ProviderError(
                         f"模型 API 返回 HTTP {response.status_code}: "
-                        f"{body or response.reason_phrase}"
+                        f"{body or response.reason_phrase}",
+                        kind=self._http_error_kind(response.status_code, body),
+                        status_code=response.status_code,
                     )
                 response_metadata = {
                     "provider": "openai_compatible",
@@ -101,7 +129,10 @@ class OpenAICompatibleProvider(ModelProvider):
                     try:
                         chunk = json.loads(data)
                     except json.JSONDecodeError as exc:
-                        raise ProviderError(f"无法解析模型 SSE 数据: {data[:500]}") from exc
+                        raise ProviderError(
+                            f"无法解析模型 SSE 数据: {data[:500]}",
+                            kind=ProviderErrorKind.PROTOCOL,
+                        ) from exc
 
                     usage = chunk.get("usage")
                     if usage:
@@ -209,9 +240,41 @@ class OpenAICompatibleProvider(ModelProvider):
                         "choices": serializable_diagnostics,
                     },
                 )
+        except ProviderError:
+            raise
+        except httpx.TimeoutException as exc:
+            detail = str(exc).strip() or type(exc).__name__
+            raise ProviderError(
+                f"模型 API 请求超时: {detail}",
+                kind=ProviderErrorKind.TIMEOUT,
+            ) from exc
+        except httpx.TransportError as exc:
+            detail = str(exc).strip() or type(exc).__name__
+            raise ProviderError(
+                f"模型 API 请求失败: {detail}",
+                kind=ProviderErrorKind.TRANSPORT,
+            ) from exc
         except httpx.HTTPError as exc:
             detail = str(exc).strip() or type(exc).__name__
-            raise ProviderError(f"模型 API 请求失败: {detail}") from exc
+            raise ProviderError(
+                f"模型 API 请求失败: {detail}",
+                kind=ProviderErrorKind.PROTOCOL,
+            ) from exc
         finally:
             if owned_client:
                 await client.aclose()
+
+    @staticmethod
+    def _http_error_kind(status_code: int, body: str) -> ProviderErrorKind:
+        normalized = body.casefold()
+        if status_code in {401, 403}:
+            return ProviderErrorKind.AUTHENTICATION
+        if status_code == 402:
+            return ProviderErrorKind.PAYMENT
+        if status_code == 429:
+            return ProviderErrorKind.RATE_LIMIT
+        if any(marker in normalized for marker in _CONTEXT_ERROR_MARKERS):
+            return ProviderErrorKind.CONTEXT_LENGTH
+        if status_code >= 500:
+            return ProviderErrorKind.SERVER
+        return ProviderErrorKind.PROTOCOL

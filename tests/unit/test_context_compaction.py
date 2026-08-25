@@ -1,10 +1,11 @@
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
 
-from bot.compaction import ContextCompactor
+from bot.compaction import CompactionErrorClass, ContextCompactor
 from bot.config.models import AppConfig
 from bot.core.context import TokenEstimator
 from bot.core.events import EventBus, EventType, MemoryEventSink
@@ -17,7 +18,7 @@ from bot.core.models import (
     Role,
     ToolCall,
 )
-from bot.providers import ModelProvider
+from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
 from bot.sessions import SQLiteSessionStore
 
 
@@ -63,7 +64,12 @@ class CompactionProvider(ModelProvider):
 
 
 class SequenceCompactionProvider(ModelProvider):
-    def __init__(self, responses: list[str | None]) -> None:
+    def __init__(
+        self,
+        responses: list[
+            str | None | tuple[str | None, str] | ProviderError
+        ],
+    ) -> None:
         self.responses = responses
         self.requests: list[ModelRequest] = []
 
@@ -73,12 +79,30 @@ class SequenceCompactionProvider(ModelProvider):
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
         self.requests.append(request)
         response = self.responses.pop(0)
+        if isinstance(response, ProviderError):
+            raise response
+        finish_reason = "stop"
+        if isinstance(response, tuple):
+            response, finish_reason = response
         if response is None:
             payload = json.loads(request.messages[-1].content or "{}")
             start, end = payload.get("covered_range") or payload["allowed_reference_range"]
             response = CompactionProvider._summary(start, end)
         yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=response)
         yield ModelEvent(kind=ModelEventKind.USAGE, input_tokens=222, output_tokens=111)
+        yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason=finish_reason)
+
+
+class SlowCompactionProvider(ModelProvider):
+    def __init__(self) -> None:
+        self.requests: list[ModelRequest] = []
+
+    def capabilities(self, model: str) -> ModelCapabilities:
+        return ModelCapabilities()
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
+        self.requests.append(request)
+        await asyncio.sleep(1)
         yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
 
 
@@ -88,7 +112,7 @@ def make_compactor(
     config = AppConfig.model_validate(
         {
             "model": {
-                "base_url": "https://unused",
+                "base_url": "https://api.deepseek.com/v1",
                 "name": "compaction-model",
                 "context_window_tokens": 32_000,
             },
@@ -323,7 +347,7 @@ async def test_compaction_repairs_invalid_candidate_without_resending_source(
 
 
 @pytest.mark.asyncio
-async def test_compaction_shrinks_range_after_unrepairable_candidate(tmp_path: Path) -> None:
+async def test_compaction_shrinks_range_only_after_context_overflow(tmp_path: Path) -> None:
     config = AppConfig.model_validate(
         {
             "model": {
@@ -341,7 +365,15 @@ async def test_compaction_shrinks_range_after_unrepairable_candidate(tmp_path: P
             "storage": {"state_path": str(tmp_path / "state.db")},
         }
     )
-    provider = SequenceCompactionProvider(["无效摘要", None])
+    provider = SequenceCompactionProvider(
+        [
+            ProviderError(
+                "maximum context length exceeded",
+                kind=ProviderErrorKind.CONTEXT_LENGTH,
+            ),
+            None,
+        ]
+    )
     store = SQLiteSessionStore(tmp_path / "state.db")
     compactor = ContextCompactor(
         config=config,
@@ -367,11 +399,465 @@ async def test_compaction_shrinks_range_after_unrepairable_candidate(tmp_path: P
     assert result.covered_end_position == 4
     assert result.requested_end_position == 8
     assert result.attempts == 2
-    assert result.input_tokens == 444
+    failed_request_tokens = TokenEstimator().request(provider.requests[0].messages, [])
+    assert result.input_tokens == failed_request_tokens + 222
     assert [item["status"] for item in store.list_context_compactions(session_id)] == [
         "ready",
         "failed",
     ]
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_format_failure_does_not_shrink_or_resend_source(tmp_path: Path) -> None:
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "compaction_repair_attempts": 0,
+                "compaction_range_attempts": 2,
+                "compaction_failure_backoff_seconds": 0,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SequenceCompactionProvider(["无效摘要"])
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    session_id = store.create_session(tmp_path)
+    for position in range(1, 9):
+        store.append_message(
+            session_id,
+            "run",
+            ChatMessage(role=Role.USER, content=f"message-{position}"),
+        )
+
+    result = await compactor.compact(
+        session_id,
+        through_position=8,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is False
+    assert result.error_class == CompactionErrorClass.FORMAT
+    assert result.attempts == 1
+    assert result.request_count == 1
+    assert len(provider.requests) == 1
+    assert compactor.projection(session_id)["cursor_position"] == 0
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_length_failure_condenses_candidate_without_resending_source(
+    tmp_path: Path,
+) -> None:
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "compaction_summary_tokens": 2_048,
+                "compaction_max_output_tokens": 3_000,
+                "compaction_repair_attempts": 0,
+                "compaction_condense_attempts": 1,
+                "compaction_range_attempts": 2,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SequenceCompactionProvider(
+        [(CompactionProvider._summary(1, 1), "length"), None]
+    )
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    events = MemoryEventSink()
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store, events]),
+    )
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is True
+    assert result.condense_attempts == 1
+    assert result.request_count == 2
+    assert [request.messages[-1].name for request in provider.requests] == [
+        "context_compaction_input",
+        "context_compaction_condense",
+    ]
+    condense_payload = json.loads(provider.requests[1].messages[-1].content or "{}")
+    assert "new_messages" not in condense_payload
+    assert "raw_messages" not in condense_payload
+    assert condense_payload["candidate_summary"].startswith("# Goal")
+    completed = [
+        event
+        for event in events.events
+        if event.type == EventType.CONTEXT_COMPACTION_REQUEST_COMPLETED
+    ]
+    assert [event.payload["original_phase"] for event in completed] == [
+        "generate",
+        "condense",
+    ]
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_length_after_format_repair_switches_to_candidate_condense(
+    tmp_path: Path,
+) -> None:
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "compaction_summary_tokens": 2_048,
+                "compaction_max_output_tokens": 3_000,
+                "compaction_repair_attempts": 1,
+                "compaction_condense_attempts": 1,
+                "compaction_range_attempts": 1,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SequenceCompactionProvider(
+        ["# Goal\n- 缺少其余章节。 [m:1]", (None, "length"), None]
+    )
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is True
+    assert result.repair_attempts == 1
+    assert result.condense_attempts == 1
+    assert [request.messages[-1].name for request in provider.requests] == [
+        "context_compaction_input",
+        "context_compaction_repair",
+        "context_compaction_condense",
+    ]
+    for request in provider.requests[1:]:
+        payload = json.loads(request.messages[-1].content or "{}")
+        assert "new_messages" not in payload
+        assert "raw_messages" not in payload
+        assert payload["candidate_summary"]
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_compaction_cost_budget_stops_before_repair_request(tmp_path: Path) -> None:
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+                "input_cost_per_million": 1.0,
+                "output_cost_per_million": 1.0,
+            },
+            "context": {
+                "compaction_repair_attempts": 1,
+                "compaction_range_attempts": 1,
+                "compaction_command_max_cost_usd": 0.0001,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SequenceCompactionProvider(["# Goal\n- 缺少其余章节。 [m:1]"])
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is False
+    assert result.error_class == CompactionErrorClass.REQUEST_BUDGET
+    assert result.request_count == 1
+    assert len(provider.requests) == 1
+    assert compactor.projection(session_id)["cursor_position"] == 0
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_authentication_failure_is_not_retried_or_range_shrunk(tmp_path: Path) -> None:
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "compaction_transport_retries": 3,
+                "compaction_range_attempts": 3,
+                "compaction_failure_backoff_seconds": 0,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SequenceCompactionProvider(
+        [ProviderError("HTTP 401", kind=ProviderErrorKind.AUTHENTICATION)]
+    )
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is False
+    assert result.error_class == CompactionErrorClass.AUTHENTICATION
+    assert result.request_count == 1
+    assert len(provider.requests) == 1
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_retries_same_source_range_once(tmp_path: Path) -> None:
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "compaction_transport_retries": 1,
+                "compaction_transport_retry_backoff_seconds": 0,
+                "compaction_range_attempts": 2,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SequenceCompactionProvider(
+        [ProviderError("HTTP 429", kind=ProviderErrorKind.RATE_LIMIT), None]
+    )
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    session_id = store.create_session(tmp_path)
+    for position in range(1, 5):
+        store.append_message(
+            session_id,
+            "run",
+            ChatMessage(role=Role.USER, content=f"message-{position}"),
+        )
+
+    result = await compactor.compact(
+        session_id,
+        through_position=4,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is True
+    assert result.covered_end_position == 4
+    assert result.transport_retries == 1
+    assert result.request_count == 2
+    first_payload = json.loads(provider.requests[0].messages[-1].content or "{}")
+    second_payload = json.loads(provider.requests[1].messages[-1].content or "{}")
+    assert first_payload["covered_range"] == second_payload["covered_range"] == [1, 4]
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_request_wall_timeout_fails_closed(tmp_path: Path) -> None:
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "compaction_request_timeout_seconds": 0.01,
+                "compaction_transport_retries": 0,
+                "compaction_range_attempts": 1,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SlowCompactionProvider()
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is False
+    assert result.error_class == CompactionErrorClass.TIMEOUT
+    assert result.request_count == 1
+    assert compactor.projection(session_id)["cursor_position"] == 0
+    assert [item["status"] for item in store.list_context_compactions(session_id)] == [
+        "failed"
+    ]
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_persistence_failure_does_not_retry_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compactor, provider, store, _ = make_compactor(tmp_path)
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+
+    def fail_publish(*args, **kwargs) -> None:
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr(store, "complete_context_compaction", fail_publish)
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is False
+    assert result.error_class == CompactionErrorClass.PERSISTENCE
+    assert len(provider.requests) == 1
+    assert compactor.projection(session_id)["cursor_position"] == 0
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_compaction_model_is_frozen_across_runtime_model_switch(tmp_path: Path) -> None:
+    compactor, provider, store, _ = make_compactor(tmp_path)
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+    compactor.config.model.name = "reasoning-agent-model"
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is True
+    assert provider.requests[0].model == "compaction-model"
+    assert provider.requests[0].thinking == "disabled"
+    assert store.list_context_compactions(session_id)[0]["model"] == "compaction-model"
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_range_source_mode_accepts_summary_without_item_references(tmp_path: Path) -> None:
+    summary = "\n\n".join(
+        f"# {section}\n- 保留原始事实。"
+        for section in (
+            "Goal",
+            "Constraints",
+            "Progress",
+            "Key Decisions",
+            "Relevant Files",
+            "Failures",
+            "Next Steps",
+            "Critical Context",
+        )
+    )
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "compaction-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "compaction_source_refs": "range",
+                "compaction_repair_attempts": 0,
+            },
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        }
+    )
+    provider = SequenceCompactionProvider([summary])
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=EventBus([store]),
+    )
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+
+    result = await compactor.compact(
+        session_id,
+        through_position=1,
+        trigger="context_pressure",
+    )
+
+    assert result.compacted is True
+    assert result.source_refs == []
+    assert provider.requests[0].thinking is None
+    assert "[EVAL_FACT:...]" in (provider.requests[0].messages[0].content or "")
+    source = compactor.read_source(session_id=session_id, compaction_id=result.compaction_id or "")
+    assert source is not None
+    assert source["source_verification"]["verified"] is True
     store.close()
 
 

@@ -88,15 +88,29 @@ auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
-# 可选；留空时复用主模型
+# 可选；留空时冻结启动时的主模型，后续 /model 不影响压缩
 # compaction_model = "<summary-model-id>"
-compaction_summary_tokens = 8000
+recent_conversation_tokens = 20000
+compaction_summary_target_tokens = 3000
+compaction_summary_tokens = 4000
 compaction_max_output_tokens = 8192
 compaction_max_input_tokens = 60000
 compaction_input_target_ratio = 0.8
 compaction_repair_attempts = 1
+compaction_condense_attempts = 1
+compaction_empty_retries = 1
+compaction_transport_retries = 1
+compaction_transport_retry_backoff_seconds = 1
 compaction_range_attempts = 2
 compaction_failure_backoff_seconds = 300
+compaction_request_timeout_seconds = 90
+compaction_command_max_requests = 8
+compaction_command_max_seconds = 600
+compaction_command_max_cost_usd = 0.25
+compaction_min_recent_user_turns = 3
+compaction_source_refs = "range"
+# auto 仅对 DeepSeek 官方端点关闭思考；也可设为 provider_default/enabled/disabled
+compaction_thinking = "auto"
 compaction_rebuild_every = 5
 
 [memory]
@@ -207,7 +221,8 @@ Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 
 Tool 原子组边界生成一个活动摘要，
 并以事务方式推进游标。原始消息不会因压缩而删除，模型可通过
 `search_session_history` 和 `load_compaction_source` 检索、回溯。完整设计见
-[可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)。
+[可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)，故障回放与真实 Provider
+门禁见[上下文压缩有效性评测](docs/context-compaction-effectiveness.md)。
 
 会话和证据继续保存在 SQLite；显式记忆写入受保护的 `USER.md` 并以 `USER` 信任加载，
 已完成 Root Run 会在后续运行开始时异步提取为 Markdown 自动记忆。自动记忆不需要逐条

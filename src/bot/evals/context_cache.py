@@ -50,6 +50,7 @@ class ContextCacheBenchmarkProfile:
     protocol_reserve_tokens: int
     safety_margin_tokens: int
     recent_conversation_tokens: int
+    minimum_recent_user_turns: int
     compaction_summary_tokens: int
     compaction_max_output_tokens: int
     compaction_max_input_tokens: int
@@ -106,6 +107,7 @@ FAST_CONTEXT_CACHE_PROFILE = ContextCacheBenchmarkProfile(
     protocol_reserve_tokens=512,
     safety_margin_tokens=512,
     recent_conversation_tokens=4_000,
+    minimum_recent_user_turns=1,
     compaction_summary_tokens=2_000,
     compaction_max_output_tokens=2_048,
     compaction_max_input_tokens=40_000,
@@ -129,6 +131,7 @@ SOAK_CONTEXT_CACHE_PROFILE = ContextCacheBenchmarkProfile(
     protocol_reserve_tokens=2_048,
     safety_margin_tokens=2_048,
     recent_conversation_tokens=48_000,
+    minimum_recent_user_turns=3,
     compaction_summary_tokens=8_000,
     compaction_max_output_tokens=8_192,
     compaction_max_input_tokens=60_000,
@@ -806,6 +809,7 @@ def _benchmark_config(
                 "protocol_reserve_tokens": profile.protocol_reserve_tokens,
                 "safety_margin_tokens": profile.safety_margin_tokens,
                 "recent_conversation_tokens": profile.recent_conversation_tokens,
+                "compaction_min_recent_user_turns": profile.minimum_recent_user_turns,
                 "compaction_summary_tokens": profile.compaction_summary_tokens,
                 "compaction_max_output_tokens": profile.compaction_max_output_tokens,
                 "compaction_max_input_tokens": profile.compaction_max_input_tokens,

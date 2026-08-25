@@ -12,6 +12,22 @@ class ContextCompactionStatus(StrEnum):
     FAILED = "failed"
 
 
+class CompactionErrorClass(StrEnum):
+    AUTHENTICATION = "authentication"
+    PAYMENT = "payment"
+    CONFIGURATION = "configuration"
+    RATE_LIMIT = "rate_limit"
+    TRANSPORT = "transport"
+    TIMEOUT = "timeout"
+    CONTEXT_OVERFLOW = "context_overflow"
+    OUTPUT_LENGTH = "output_length"
+    FORMAT = "format"
+    EMPTY = "empty"
+    PERSISTENCE = "persistence"
+    REQUEST_BUDGET = "request_budget"
+    UNKNOWN = "unknown"
+
+
 class ContextCompactionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -33,7 +49,12 @@ class ContextCompactionResult(BaseModel):
     rebuilt_from_raw: bool = False
     attempts: int = 0
     repair_attempts: int = 0
+    condense_attempts: int = 0
+    transport_retries: int = 0
+    request_count: int = 0
+    duration_ms: float = 0
     planned_input_tokens: int = 0
     input_limit: int = 0
     reason: str | None = None
     error: str | None = None
+    error_class: CompactionErrorClass | None = None

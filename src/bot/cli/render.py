@@ -81,6 +81,41 @@ class RichEventSink:
             line = Text("✓ Skill", style="magenta")
             line.append(f" {payload.get('name')} ({explicit})")
             self.console.print(line, highlight=False)
+        elif event.type == EventType.CONTEXT_COMPACTION_REQUEST_STARTED:
+            self._finish_stream()
+            source_range = payload.get("source_range") or ["?", "?"]
+            self.console.print(
+                Text(
+                    "压缩上下文："
+                    f"{source_range[0]}–{source_range[-1]} "
+                    f"{payload.get('phase')}，"
+                    f"input≈{payload.get('planned_input_tokens', 0)} tokens",
+                    style="cyan",
+                ),
+                highlight=False,
+            )
+        elif event.type == EventType.CONTEXT_COMPACTION_REQUEST_COMPLETED:
+            self._finish_stream()
+            self.console.print(
+                Text(
+                    "压缩请求完成："
+                    f"{payload.get('phase')}，"
+                    f"duration={float(payload.get('duration_ms') or 0) / 1000:.1f}s，"
+                    f"output={payload.get('visible_summary_tokens', 0)} tokens",
+                    style="green",
+                ),
+                highlight=False,
+            )
+        elif event.type == EventType.CONTEXT_COMPACTION_REQUEST_FAILED:
+            self._finish_stream()
+            self.console.print(
+                Text(
+                    "压缩请求失败："
+                    f"{payload.get('error_class')}，{payload.get('error')}",
+                    style="yellow",
+                ),
+                highlight=False,
+            )
         elif event.type == EventType.RUN_STALL_WARNING:
             self._finish_stream()
             self.console.print(

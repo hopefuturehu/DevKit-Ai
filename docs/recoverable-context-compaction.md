@@ -26,8 +26,8 @@ Core / Project / Skills / USER.md / 自动记忆短索引
    `ready`。
 2. **原始记录不删除**：压缩只推进派生视图的 `cursor`，不删除或改写 `messages`、
    Tool Run 和事件。
-3. **来源可验证**：每个活动摘要保存覆盖范围和该范围原始消息的 SHA-256；摘要事实使用
-   `[m:N]` 或 `[m:N-M]` 引用。加载和恢复时重新计算哈希并校验引用。
+3. **来源可验证**：每个活动摘要保存覆盖范围、精确原始位置和该范围消息的 SHA-256；默认
+   不要求正文逐条引用，兼容模式仍可要求 `[m:N]`。加载和恢复时重新计算原文哈希。
 4. **失败不推进**：超时、Provider 错误、缺章节、越界引用或摘要超预算都只会把
    `building` 标记为 `failed`。旧活动摘要和游标保持不变。
 
@@ -62,12 +62,13 @@ Core / Project / Skills / USER.md / 自动记忆短索引
 /compact rollback <compaction-id>
 ```
 
-摘要首次校验失败时，系统只携带候选摘要和校验错误发起小型格式修复请求，不会重发整段
-原文。修复仍失败时，本次覆盖范围会缩小后重试。所有范围尝试均失败后，相同父摘要和增量
-起点进入持久化退避，避免每个 Agent step 重复消耗模型额度。压缩调用的 Token 和费用计入
-所属主 Run，并受 `agent.max_cost_usd` 约束。
+摘要首次校验失败时，系统先本地规范化；格式仍不合法时只携带候选摘要发起一次修复。长度
+截断进入候选凝练，transport 错误同范围重试，只有 Context overflow 才缩小 Tool 原子范围。
+鉴权、配置和持久化错误立即停止。压缩调用受单请求墙钟和 `/compact` 请求数、总时间、费用
+预算约束，同时保留原有 `agent.max_cost_usd` 总运行门禁；费用门禁要求配置模型的输入、输出
+单价。
 
-恢复会话时只加载 `ready` 版本。若哈希或摘要引用校验失败，该版本转为 `failed`，系统沿
+恢复会话时只加载 `ready` 版本。若哈希或摘要结构校验失败，该版本转为 `failed`，系统沿
 `parent_id` 自动恢复最近的有效父版本。初始用户目标位置作为锚点保存，并以原文逐字放入
 活动压缩消息，避免目标只依赖派生摘要。
 
@@ -79,7 +80,9 @@ Core / Project / Skills / USER.md / 自动记忆短索引
 ## 摘要过大时
 
 系统不会叠加多份摘要。每次生成的新摘要必须替换旧摘要，并受
-`context.compaction_summary_tokens` 硬限制；超出时发布失败、游标不推进。随着任务增长，
+`context.compaction_summary_tokens` 可见正文硬限制；软目标由
+`context.compaction_summary_target_tokens` 控制。长度截断只会凝练候选，不会重发完整原文；
+仍无法通过时发布失败、游标不推进。随着任务增长，
 低价值已完成步骤应在下一版中合并，目标、约束、未完成事项、失败、决定和关键文件继续
 保留。
 
@@ -91,26 +94,47 @@ Planner 会报告不可压缩层，而不是静默删除目标或伪造成功。
 
 ```toml
 [context]
-# 留空时复用 model.name
+# 留空时冻结启动时的 model.name，后续 /model 不影响压缩
 # compaction_model = "low-cost-summary-model"
-compaction_summary_tokens = 8000
+recent_conversation_tokens = 20000
+compaction_summary_target_tokens = 3000
+compaction_summary_tokens = 4000
 compaction_max_output_tokens = 8192
 compaction_max_input_tokens = 60000
 compaction_input_target_ratio = 0.8
 compaction_repair_attempts = 1
+compaction_condense_attempts = 1
+compaction_empty_retries = 1
+compaction_transport_retries = 1
+compaction_transport_retry_backoff_seconds = 1
 compaction_range_attempts = 2
 compaction_failure_backoff_seconds = 300
+compaction_request_timeout_seconds = 90
+compaction_command_max_requests = 8
+compaction_command_max_seconds = 600
+compaction_command_max_cost_usd = 0.25
+compaction_min_recent_user_turns = 3
+compaction_source_refs = "range"
+compaction_thinking = "auto"
 compaction_max_message_chars = 12000
 compaction_rebuild_every = 5
 ```
 
+`compaction_thinking = "auto"` 会在 DeepSeek 官方端点上仅为压缩请求发送
+`thinking.type = "disabled"`，避免结构化摘要消耗大量不可见推理 token；其他 OpenAI-compatible
+端点沿用 Provider 默认行为。可按端点能力显式改为 `provider_default`、`enabled` 或
+`disabled`，普通 Agent 请求不受此配置影响。
+
 ## 测试
 
-`tests/unit/test_context_compaction.py` 验证事务发布、原文保留、有界分块、格式修复、范围缩小、
-失败退避、回滚、原文重建、来源读取、检索和损坏自动降级。
+`tests/unit/test_context_compaction.py` 验证事务发布、原文保留、有界分块、分类恢复、候选凝练、
+请求超时、范围缩小、失败退避、回滚、模型隔离、范围来源和损坏自动降级。
 
 `tests/integration/test_context_compaction_benchmark.py` 以 10 阶段长任务验证运行时只注入一个
 摘要、保留近期原文、Tool 原子性、原始消息摘要不变和 snapshot-free。
+
+`scripts/run_compaction_effectiveness.py` 使用确定性或显式开启的真实 Provider 回放 success、
+length、format、429、Context overflow 和 authentication 场景，产出请求级 JSONL 与质量门禁。
 
 `tests/integration/test_long_context_cache_benchmark.py` 使用离线确定性 Provider，让同一个任务
 经历多次“增长 → 压缩 → 再增长”，并与不压缩反事实比较缓存折算后的单轮成本。生产窗口规模

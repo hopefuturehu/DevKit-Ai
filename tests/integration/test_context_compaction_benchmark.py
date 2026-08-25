@@ -293,6 +293,75 @@ async def test_compaction_usage_is_subject_to_run_cost_limit(tmp_path: Path) -> 
     store.close()
 
 
+@pytest.mark.asyncio
+async def test_explicit_compaction_keeps_three_user_turns_and_stops_at_request_budget(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "explicit-budget"
+    workspace.mkdir()
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "benchmark-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "recent_conversation_tokens": 1_000,
+                "compaction_min_recent_user_turns": 3,
+                "compaction_summary_tokens": 4_000,
+                "compaction_max_output_tokens": 4_000,
+                "compaction_max_input_tokens": 10_000,
+                "compaction_command_max_requests": 1,
+                "compaction_command_max_cost_usd": None,
+                "compaction_range_attempts": 1,
+            },
+            "storage": {"state_path": str(workspace / "state.db")},
+            "skills": {"path": str(workspace / "skills")},
+        }
+    )
+    provider = _AgentAndCompactionProvider()
+    store = SQLiteSessionStore(workspace / "state.db")
+    event_bus = EventBus([store])
+    session_id, original_digest = _seed_long_context(store, workspace)
+    catalog = SkillCatalog(workspace / "skills")
+    catalog.scan()
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=event_bus,
+    )
+    runner = AgentRunner(
+        config=config,
+        workspace=workspace,
+        provider=provider,
+        tool_registry=ToolRegistry(),
+        policy=DefaultPolicyEngine(config.permissions, workspace),
+        execution_target=LocalExecutionTarget(),
+        skills=SkillManager(catalog),
+        context=ContextAssembler(workspace=workspace, skill_catalog=catalog),
+        store=store,
+        event_bus=event_bus,
+        context_compactor=compactor,
+    )
+
+    result = await runner.compact_session(session_id)
+
+    assert result["compacted"] is True
+    assert result["reason"] == "compaction_command_max_requests"
+    assert result["request_count"] == 1
+    assert result["chunks"] == 1
+    assert result["cursor_position"] < result["target_position"] == 28
+    remaining = store.load_positioned_messages(
+        session_id,
+        after_position=int(result["target_position"]),
+    )
+    assert sum(entry.message.role == Role.USER for entry in remaining) == 3
+    assert original_digest == _digest(store, session_id)
+    store.close()
+
+
 def _message(item: dict) -> ChatMessage:
     return ChatMessage.model_validate(item["message"])
 

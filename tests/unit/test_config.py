@@ -159,6 +159,26 @@ def test_execution_has_no_fixed_global_limit_by_default() -> None:
     assert config.agent.process_hard_timeout_seconds is None
     assert config.subagents.max_steps is None
     assert config.subagents.max_wall_time_seconds is None
+    assert config.context.compaction_request_timeout_seconds == 90
+    assert config.context.compaction_command_max_requests == 8
+    assert config.context.compaction_command_max_seconds == 600
+    assert config.context.recent_conversation_tokens == 20_000
+    assert config.context.compaction_summary_target_tokens is None
+    assert config.context.compaction_summary_tokens == 4_000
+    assert config.context.compaction_source_refs == "range"
+    assert config.context.compaction_thinking == "auto"
+
+
+def test_compaction_summary_target_cannot_exceed_visible_hard_limit() -> None:
+    with pytest.raises(ValueError, match="summary_target_tokens"):
+        AppConfig.model_validate(
+            {
+                "context": {
+                    "compaction_summary_target_tokens": 4_001,
+                    "compaction_summary_tokens": 4_000,
+                }
+            }
+        )
 
 
 def test_progress_thresholds_must_be_ordered() -> None:

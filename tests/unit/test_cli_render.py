@@ -82,3 +82,42 @@ async def test_progress_recovery_and_blocked_events_are_visible() -> None:
     assert "运行已阻塞：恢复后仍无进展" in output
     assert "运行达到策略边界：达到费用边界" in output
     assert "运行已取消" in output
+
+
+@pytest.mark.asyncio
+async def test_compaction_request_progress_is_visible() -> None:
+    stream = StringIO()
+    sink = RichEventSink(create_cli_console(file=stream, width=500))
+
+    await sink.publish(
+        _event(
+            EventType.CONTEXT_COMPACTION_REQUEST_STARTED,
+            {
+                "source_range": [105, 231],
+                "phase": "generate",
+                "planned_input_tokens": 47_619,
+            },
+        )
+    )
+    await sink.publish(
+        _event(
+            EventType.CONTEXT_COMPACTION_REQUEST_COMPLETED,
+            {
+                "phase": "condense",
+                "duration_ms": 12_500,
+                "visible_summary_tokens": 3_200,
+            },
+        )
+    )
+    await sink.publish(
+        _event(
+            EventType.CONTEXT_COMPACTION_REQUEST_FAILED,
+            {"error_class": "timeout", "error": "90 秒超时"},
+        )
+    )
+
+    output = stream.getvalue()
+    assert "105–231 generate" in output
+    assert "input≈47619 tokens" in output
+    assert "condense，duration=12.5s" in output
+    assert "timeout，90 秒超时" in output

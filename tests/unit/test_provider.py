@@ -11,7 +11,7 @@ from bot.core.models import (
     ToolCall,
     ToolDefinition,
 )
-from bot.providers import OpenAICompatibleProvider, ProviderError
+from bot.providers import OpenAICompatibleProvider, ProviderError, ProviderErrorKind
 
 
 @pytest.mark.asyncio
@@ -107,6 +107,15 @@ def test_provider_round_trips_reasoning_for_tool_calls_and_rejects_empty_assista
 
     assert payload["messages"][0]["reasoning_content"] == "full reasoning"
     assert payload["messages"][0]["tool_calls"][0]["function"]["name"] == "read_file"
+    assert "thinking" not in payload
+    non_thinking = provider._payload(
+        ModelRequest(
+            model="test",
+            messages=[ChatMessage(role=Role.USER, content="summarize")],
+            thinking="disabled",
+        )
+    )
+    assert non_thinking["thinking"] == {"type": "disabled"}
     with pytest.raises(ProviderError, match="第 0 条消息无效"):
         provider._payload(ModelRequest(model="test", messages=[ChatMessage(role=Role.ASSISTANT)]))
 
@@ -125,6 +134,48 @@ async def test_provider_surfaces_http_error_without_authorization_value() -> Non
         _ = [event async for event in provider.stream(request)]
     await client.aclose()
     assert "do-not-leak" not in str(captured.value)
+    assert captured.value.kind == ProviderErrorKind.AUTHENTICATION
+    assert captured.value.status_code == 401
+    assert captured.value.retryable is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status_code", "body", "expected_kind", "retryable"),
+    [
+        (402, '{"error":"payment required"}', ProviderErrorKind.PAYMENT, False),
+        (429, '{"error":"slow down"}', ProviderErrorKind.RATE_LIMIT, True),
+        (500, '{"error":"upstream"}', ProviderErrorKind.SERVER, True),
+        (
+            400,
+            '{"error":"maximum context length exceeded"}',
+            ProviderErrorKind.CONTEXT_LENGTH,
+            False,
+        ),
+    ],
+)
+async def test_provider_classifies_http_failures(
+    status_code: int,
+    body: str,
+    expected_kind: ProviderErrorKind,
+    retryable: bool,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code, text=body)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = OpenAICompatibleProvider(
+        base_url="https://example.test/v1", api_key="secret", client=client
+    )
+    request = ModelRequest(model="test", messages=[ChatMessage(role=Role.USER, content="hello")])
+
+    with pytest.raises(ProviderError) as captured:
+        _ = [event async for event in provider.stream(request)]
+    await client.aclose()
+
+    assert captured.value.kind == expected_kind
+    assert captured.value.status_code == status_code
+    assert captured.value.retryable is retryable
 
 
 @pytest.mark.asyncio

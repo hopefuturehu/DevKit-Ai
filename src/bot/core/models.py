@@ -95,6 +95,7 @@ class ModelRequest(BaseModel):
     tools: list[ToolDefinition] = Field(default_factory=list)
     temperature: float = 0.2
     max_output_tokens: int | None = None
+    thinking: Literal["enabled", "disabled"] | None = None
 
 
 class ModelEventKind(StrEnum):

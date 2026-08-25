@@ -377,12 +377,16 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
         if prompt == "/compact":
             result = await runtime.runner.compact_session(session_id)
             if result["compacted"]:
+                stop = f"，stop={result['reason']}" if result.get("reason") else ""
                 console.print(
                     "已发布可恢复上下文摘要："
                     f"id={result['compaction_id']}，"
                     f"cursor={result['cursor_position']}，"
                     f"messages={result['messages_consolidated']}，"
-                    f"summary_tokens≈{result['summary_tokens']}。"
+                    f"summary_tokens≈{result['summary_tokens']}，"
+                    f"requests={result['request_count']}，"
+                    f"duration={float(result['duration_ms']) / 1000:.1f}s"
+                    f"{stop}。"
                 )
             else:
                 console.print(f"无需压缩：{result['reason']}。")
@@ -753,9 +757,28 @@ auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
-# 可选：单独指定上下文压缩模型；留空则复用 model.name
+# 近期原文尾部按 token 保留，并至少保留三个用户轮次
+recent_conversation_tokens = 20000
+compaction_min_recent_user_turns = 3
+# 可选：单独指定上下文压缩模型；留空则冻结启动时的 model.name
 # compaction_model = ""
-compaction_summary_tokens = 8000
+compaction_summary_target_tokens = 3000
+compaction_summary_tokens = 4000
+compaction_max_output_tokens = 8192
+compaction_source_refs = "range"
+# auto 仅对 DeepSeek 官方端点关闭思考；其他兼容端点沿用 Provider 默认值
+compaction_thinking = "auto"
+compaction_request_timeout_seconds = 90
+compaction_repair_attempts = 1
+compaction_transport_retries = 1
+compaction_transport_retry_backoff_seconds = 1
+compaction_condense_attempts = 1
+compaction_empty_retries = 1
+compaction_range_attempts = 2
+compaction_failure_backoff_seconds = 300
+compaction_command_max_requests = 8
+compaction_command_max_seconds = 600
+compaction_command_max_cost_usd = 0.25
 compaction_rebuild_every = 5
 
 [memory]

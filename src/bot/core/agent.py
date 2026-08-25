@@ -172,64 +172,104 @@ class AgentRunner:
         if self.context_compactor is None:
             raise RuntimeError("可恢复上下文压缩未启用")
         previous_cursor = int(self.context_compactor.projection(session_id)["cursor_position"])
-        target = self.store.latest_message_position(session_id)
+        conversation = self.store.load_positioned_messages(
+            session_id,
+            after_position=previous_cursor,
+        )
+        retained_positions = self._retained_conversation_positions(
+            conversation,
+            force=False,
+        )
+        older = [entry for entry in conversation if entry.position not in retained_positions]
+        target = max((entry.position for entry in older), default=previous_cursor)
         total_input_tokens = 0
         total_output_tokens = 0
+        total_requests = 0
         chunks = 0
         result = None
         cursor = previous_cursor
         stop_reason: str | None = None
-        while cursor < target and chunks < 100:
-            result = await self.context_compactor.compact(
-                session_id,
-                trigger="explicit_compaction",
-                through_position=target,
-                active_run_ids=(),
-            )
-            total_input_tokens += result.input_tokens
-            total_output_tokens += result.output_tokens
-            if not result.compacted or result.covered_end_position <= cursor:
-                stop_reason = result.reason or "no_progress"
-                break
-            cursor = result.covered_end_position
-            chunks += 1
-            cost_usd = self._calculate_cost(total_input_tokens, total_output_tokens)
-            if (
-                self.config.agent.max_cost_usd is not None
-                and cost_usd is not None
-                and cost_usd >= self.config.agent.max_cost_usd
-            ):
-                stop_reason = "max_cost_usd"
-                break
-        self._force_compact_sessions.discard(session_id)
+        started = asyncio.get_running_loop().time()
+        max_requests = self.config.context.compaction_command_max_requests
+        try:
+            async with asyncio.timeout(self.config.context.compaction_command_max_seconds):
+                while cursor < target and total_requests < max_requests:
+                    result = await self.context_compactor.compact(
+                        session_id,
+                        trigger="explicit_compaction",
+                        through_position=target,
+                        active_run_ids=(),
+                        request_limit=max_requests - total_requests,
+                    )
+                    total_input_tokens += result.input_tokens
+                    total_output_tokens += result.output_tokens
+                    total_requests += result.request_count
+                    if not result.compacted or result.covered_end_position <= cursor:
+                        stop_reason = result.reason or "no_progress"
+                        break
+                    cursor = result.covered_end_position
+                    chunks += 1
+                    cost_usd = self._calculate_cost(total_input_tokens, total_output_tokens)
+                    command_cost_limit = (
+                        self.config.context.compaction_command_max_cost_usd
+                    )
+                    if (
+                        command_cost_limit is not None
+                        and cost_usd is not None
+                        and cost_usd >= command_cost_limit
+                    ):
+                        stop_reason = "compaction_command_max_cost_usd"
+                        break
+                    if (
+                        self.config.agent.max_cost_usd is not None
+                        and cost_usd is not None
+                        and cost_usd >= self.config.agent.max_cost_usd
+                    ):
+                        stop_reason = "max_cost_usd"
+                        break
+        except TimeoutError:
+            stop_reason = "compaction_command_timeout"
+        finally:
+            self._force_compact_sessions.discard(session_id)
+        duration_ms = (asyncio.get_running_loop().time() - started) * 1_000
         if result is None:
             return {
                 "compacted": False,
-                "reason": "no_new_messages",
+                "reason": stop_reason
+                or ("recent_tail_retained" if conversation else "no_new_messages"),
                 "compaction_id": None,
                 "cursor_position": previous_cursor,
+                "target_position": target,
                 "messages_consolidated": 0,
                 "summary_tokens": 0,
                 "input_tokens": 0,
                 "output_tokens": 0,
+                "request_count": 0,
                 "chunks": 0,
+                "duration_ms": duration_ms,
+                "cost_usd": 0.0,
                 "budget": self._token_budget.as_dict(),
             }
         if cursor < target and stop_reason is None:
-            stop_reason = "chunk_limit"
+            stop_reason = "compaction_command_max_requests"
         active = self.context_compactor.projection(session_id).get("compaction")
+        cost_usd = self._calculate_cost(total_input_tokens, total_output_tokens)
         return {
             "compacted": chunks > 0,
             "reason": stop_reason,
             "compaction_id": active["id"] if isinstance(active, dict) else None,
             "cursor_position": cursor,
+            "target_position": target,
             "messages_consolidated": max(0, cursor - previous_cursor),
             "summary_tokens": (
                 int(active["summary_token_estimate"]) if isinstance(active, dict) else 0
             ),
             "input_tokens": total_input_tokens,
             "output_tokens": total_output_tokens,
+            "request_count": total_requests,
             "chunks": chunks,
+            "duration_ms": duration_ms,
+            "cost_usd": cost_usd,
             "rebuilt_from_raw": result.rebuilt_from_raw,
             "budget": self._token_budget.as_dict(),
         }
@@ -1834,18 +1874,10 @@ class AgentRunner:
         groups = self._conversation_groups(conversation)
         if len(groups) <= 1:
             return None
-        retained: list[list[PositionedMessage]] = []
-        retained_tokens = 0
-        retain_limit = self.config.context.recent_conversation_tokens
-        for group in reversed(groups):
-            cost = sum(self._token_estimator.message(entry.message) for entry in group)
-            if retained and (force or retained_tokens + cost > retain_limit):
-                break
-            retained.append(group)
-            retained_tokens += cost
-            if force:
-                break
-        retained_positions = {entry.position for group in retained for entry in group}
+        retained_positions = self._retained_conversation_positions(
+            conversation,
+            force=force,
+        )
         older = [entry for entry in conversation if entry.position not in retained_positions]
         if not older:
             return None
@@ -1967,6 +1999,32 @@ class AgentRunner:
                 continue
             groups.append([entry])
         return groups
+
+    def _retained_conversation_positions(
+        self,
+        conversation: list[PositionedMessage],
+        *,
+        force: bool,
+    ) -> set[int]:
+        groups = self._conversation_groups(conversation)
+        retained: list[list[PositionedMessage]] = []
+        retained_tokens = 0
+        retained_user_turns = 0
+        retain_limit = self.config.context.recent_conversation_tokens
+        minimum_user_turns = self.config.context.compaction_min_recent_user_turns
+        for group in reversed(groups):
+            cost = sum(self._token_estimator.message(entry.message) for entry in group)
+            group_user_turns = sum(entry.message.role == Role.USER for entry in group)
+            must_keep_for_turns = retained_user_turns < minimum_user_turns
+            if retained and not must_keep_for_turns:
+                if force or retained_tokens + cost > retain_limit:
+                    break
+            retained.append(group)
+            retained_tokens += cost
+            retained_user_turns += group_user_turns
+            if force and retained_user_turns >= minimum_user_turns:
+                break
+        return {entry.position for group in retained for entry in group}
 
     def _externalize_message(
         self,

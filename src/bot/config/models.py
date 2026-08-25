@@ -138,7 +138,7 @@ class ContextConfig(StrictModel):
     protocol_reserve_tokens: int = Field(default=2_048, ge=0)
     safety_margin_tokens: int = Field(default=2_048, ge=0)
     snapshot_max_tokens: int = Field(default=12_000, gt=0)
-    recent_conversation_tokens: int = Field(default=48_000, gt=0)
+    recent_conversation_tokens: int = Field(default=20_000, gt=0)
     memory_tokens: int = Field(default=8_000, gt=0)
     active_skill_tokens: int = Field(default=16_000, gt=0)
     tool_schema_tokens: int = Field(default=16_000, gt=0)
@@ -146,13 +146,27 @@ class ContextConfig(StrictModel):
     tool_result_head_chars: int = Field(default=6_000, gt=0)
     tool_result_tail_chars: int = Field(default=2_000, ge=0)
     compaction_model: str | None = None
-    compaction_summary_tokens: int = Field(default=8_000, ge=512)
+    compaction_summary_target_tokens: int | None = Field(default=None, ge=512)
+    compaction_summary_tokens: int = Field(default=4_000, ge=512)
     compaction_max_output_tokens: int = Field(default=8_192, ge=512)
     compaction_max_input_tokens: int = Field(default=60_000, ge=2_048)
     compaction_input_target_ratio: float = Field(default=0.8, gt=0, le=1)
     compaction_repair_attempts: int = Field(default=1, ge=0, le=3)
+    compaction_condense_attempts: int = Field(default=1, ge=0, le=3)
+    compaction_empty_retries: int = Field(default=1, ge=0, le=3)
+    compaction_transport_retries: int = Field(default=1, ge=0, le=3)
+    compaction_transport_retry_backoff_seconds: float = Field(default=1, ge=0, le=30)
     compaction_range_attempts: int = Field(default=2, ge=1, le=5)
     compaction_failure_backoff_seconds: float = Field(default=300, ge=0, le=86_400)
+    compaction_request_timeout_seconds: float = Field(default=90, gt=0, le=3_600)
+    compaction_command_max_requests: int = Field(default=8, ge=1, le=100)
+    compaction_command_max_seconds: float = Field(default=600, gt=0, le=86_400)
+    compaction_command_max_cost_usd: float | None = Field(default=0.25, gt=0)
+    compaction_min_recent_user_turns: int = Field(default=3, ge=1, le=100)
+    compaction_source_refs: Literal["range", "item"] = "range"
+    compaction_thinking: Literal[
+        "auto", "provider_default", "enabled", "disabled"
+    ] = "auto"
     compaction_max_message_chars: int = Field(default=12_000, ge=500)
     compaction_rebuild_every: int = Field(default=5, ge=1, le=100)
 
@@ -224,6 +238,15 @@ class AppConfig(StrictModel):
             raise ValueError(
                 "context 的 compaction output/protocol/safety reserve 总和必须小于 "
                 "model.context_window_tokens"
+            )
+        if (
+            self.context.compaction_summary_target_tokens is not None
+            and self.context.compaction_summary_target_tokens
+            > self.context.compaction_summary_tokens
+        ):
+            raise ValueError(
+                "context.compaction_summary_target_tokens 不能大于 "
+                "compaction_summary_tokens"
             )
         if self.subagents.max_concurrent > self.subagents.max_queued:
             raise ValueError("subagents.max_concurrent 不能大于 max_queued")
