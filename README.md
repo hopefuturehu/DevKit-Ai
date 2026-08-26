@@ -17,7 +17,7 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 - x86 或缺少工具时生成鲲鹏 ARM 手动执行命令并接受后续自由文本结果；
 - 运行中 steering、`/cancel`、五级上下文管理、可恢复单摘要压缩、显式/自动 Markdown
   长期记忆和 Token/费用记录；
-- 压缩事务发布、完整 Transcript 保留、消息级来源引用、失败不推进、摘要回滚与原文重建；
+- 压缩事务发布、完整 Transcript 保留、覆盖范围与来源哈希校验、失败不推进、摘要回滚与原文重建；
 - 持久化后台子 Agent Worker Pool：`explorer`/`reviewer` 只读并行调查，`coder`
   在独立 Git worktree 中修改；支持状态查询、等待、取消、崩溃后 fail-closed 恢复和
   required 结果自动汇合。
@@ -91,6 +91,12 @@ safety_margin_tokens = 2048
 # 可选；留空时冻结启动时的主模型，后续 /model 不影响压缩
 # compaction_model = "<summary-model-id>"
 recent_conversation_tokens = 20000
+memory_tokens = 8000
+active_skill_tokens = 16000
+tool_schema_tokens = 16000
+tool_result_inline_tokens = 4000
+tool_result_head_chars = 6000
+tool_result_tail_chars = 2000
 compaction_summary_target_tokens = 3000
 compaction_summary_tokens = 4000
 compaction_max_output_tokens = 8192
@@ -111,6 +117,7 @@ compaction_min_recent_user_turns = 3
 compaction_source_refs = "range"
 # auto 仅对 DeepSeek 官方端点关闭思考；也可设为 provider_default/enabled/disabled
 compaction_thinking = "auto"
+compaction_max_message_chars = 12000
 compaction_rebuild_every = 5
 
 [memory]

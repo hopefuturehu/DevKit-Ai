@@ -2,7 +2,7 @@
 
 > 状态：本地源码静态分析快照
 >
-> 日期：2026-08-25
+> 日期：2026-08-25；`bot` 文档核对：2026-08-26
 >
 > `bot` 代码基线：`62f36392a945`
 
@@ -12,7 +12,7 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 作为演进参照，不与当前 Nanobot 重复展开。
 
 本文只描述上述 commit 的实现，不把项目宣传文案或未来计划当成已实现行为。当前 `bot` 的
-运行数据和卡游标案例见[上下文压缩现状](context-compaction-current-state.md)与
+修复前运行数据和卡游标案例见[上下文压缩历史快照](context-compaction-current-state.md)与
 [长会话上下文压缩问题](context-compaction-failure-analysis.md)；本项目自身的请求层顺序见
 [模型上下文分块与组装顺序](context-assembly.md)。
 
@@ -74,7 +74,7 @@ Tool/turn 边界、模型切换时如何转换，以及压缩后是否还需要�
 
 | 实现 | Canonical history | 请求组装核心 | 压缩后的主模型视图 | 原文恢复能力 |
 |---|---|---|---|---|
-| `bot` | SQLite 原始消息 + 独立 compaction 版本链 | typed `ContextItem` 按 retention、priority、atomic group 打包 | 单活动摘要 + cursor 后的原始消息 | 强：原文不删，摘要保存范围、位置、哈希和父版本 |
+| `bot` | SQLite 原始消息 + 独立 compaction 版本链 | typed `ContextItem` 按 retention、priority、atomic group 打包 | 单活动摘要 + cursor 后的原始消息 | 强：原文不删，摘要保存连续范围、哈希、目标锚点和父版本；逐条引用为可选兼容模式 |
 | Codex | append-only rollout + replacement history | `base_instructions`、结构化 `ResponseItem`、tools 分离；请求前规范化 | 本地为近期用户原文 + summary；远端为原生 compaction item/过滤后的消息 | 强：rollout 保留 compaction 事件和 replacement history |
 | OpenCode | session message/part 日志 | system 环境/指令/Skill/MCP + `filterCompacted()` 投影 + tools | 最新 compaction summary + `tail_start_id` 起的原始尾部 | 中强：旧消息仍在 session 存储，活动投影视图省略它们 |
 | Pi | append-only JSONL session tree | 当前 leaf path + 最新 compaction + Provider compatibility transform | compaction entry + `firstKeptEntryId` 起的连续条目 | 强：树节点不因 compaction 删除，可分支和重建 active path |
@@ -188,7 +188,7 @@ Skill、Tool schema 分别设预算，但必须额外证明被丢弃 item 不会
 
 | 实现 | 摘要输入 | 摘要输出约束 | 发布与溯源 |
 |---|---|---|---|
-| `bot` | `previous_summary + new_messages`，周期性可从 raw rebuild；消息含 role/content/Tool 信息，不含 reasoning | Goal、Constraints、Progress、Key Decisions、Relevant Files、Failures、Next Steps、Critical Context 八段；默认目标 3K、正文硬限 4K，支持格式修复和候选凝练 | `building -> ready -> superseded/failed`；记录覆盖范围、精确 positions、SHA-256、父版本；SHA 覆盖含 reasoning 的完整持久消息，但校验通过才推进 cursor |
+| `bot` | `previous_summary + new_messages`，周期性可从 raw rebuild；消息含 role/content/Tool 信息，不含 reasoning | Goal、Constraints、Progress、Key Decisions、Relevant Files、Failures、Next Steps、Critical Context 八段；默认目标 3K、正文硬限 4K，支持格式修复和候选凝练 | `building -> ready -> superseded/failed`；记录连续覆盖范围、SHA-256、目标锚点和父版本，默认 `source_refs` 可为空；SHA 覆盖含 reasoning 的完整持久消息，但校验通过才推进 cursor |
 | Codex | 本地 compaction 在现有结构化 prompt 上追加压缩指令；远端调用原生 compact endpoint | 本地提示重在简洁 handoff，没有逐项来源/固定标题 parser；远端结果可为 opaque compaction checkpoint | append-only rollout 记录 compaction 与 replacement history；本地还重放最多约 20K user 原文作为目标锚点 |
 | OpenCode | 旧 summary + 被选 head；reasoning 显式标记，Tool output 每项约 2K 字符 | Objective、Important Details、Work State、Next Move、Relevant Files 等固定 Markdown；没有当前 `bot` 的逐段/来源严格门禁 | compaction user marker + summary assistant message + `tail_start_id`；旧 session parts 仍可读取 |
 | Pi | 旧 summary + 待摘要条目；thinking 显式标记，Tool result 每项约 2K 字符；超大 turn prefix 可第二次摘要 | Goal、Constraints & Preferences、Progress、Key Decisions、Next Steps、Critical Context；输出上限约为 `min(0.8 × reserve, model max)` | append compaction entry，保存 `firstKeptEntryId`、tokens、文件读写 sidecar；session tree 保留原条目 |

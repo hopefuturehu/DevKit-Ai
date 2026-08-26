@@ -430,7 +430,10 @@ Runtime Note。Tool schema 不混入消息，而是作为独立请求字段按�
 看到的顺序；预算保留仍由 retention、priority 和 Tool 原子组单独决定。完整表格、角色、
 来源和请求修复流程见 [模型上下文分块与组装顺序](context-assembly.md)。
 
-上下文装配必须输出可检查的 manifest，用户可通过 `/status` 或调试命令看到“加载了什么、来自哪里、占用多少 Token”。
+`/status` 输出可检查的上下文状态：`context_manifest` 列出基础 Core/AGENTS/Skill Catalog 的来源
+和字符数，`context` 列出 hard/target、活动摘要、cursor 后的消息数与估算 Token、活动 Tool，
+以及最近一次 pack 的逐层 Token 和卸载项。首次 pack 前 `last_pack` 为空，因此当前实现还不是
+任意时刻完整重算的逐层实时 manifest。
 
 ### 7.2 压缩策略
 
@@ -446,7 +449,8 @@ Runtime Note。Tool schema 不混入消息，而是作为独立请求字段按�
    Catalog、Skill 正文和资源分别管理。
 4. **单摘要级**：旧消息前缀只在 Tool Call/Result 原子组边界切分。LLM 用上一份活动摘要
    和新增原文生成一份替代摘要；摘要必须包含目标、约束、进度、决定、文件、失败和下一步，
-   并用消息位置引用来源。
+   结构化记录连续覆盖范围与来源 SHA-256；默认不要求摘要正文逐条引用，`item` 兼容模式才
+   校验 `[m:N]`。
 5. **恢复级**：新摘要先以 `building` 写入，通过来源、结构和预算校验后，才与旧活动版本在
    同一事务中切换。恢复时重新发现 Core/Project/Environment，只加载一个 `ready` 摘要和
    游标后的原始消息；摘要损坏时沿父版本自动降级。
@@ -455,6 +459,13 @@ Runtime Note。Tool schema 不混入消息，而是作为独立请求字段按�
 到已验证的历史版本。原始消息、Tool Run 和事件始终是事实来源，不因压缩而删除。旧
 `ContextSnapshot` 仅为 API 兼容保留，不进入默认运行上下文。详细状态机和不变量见
 [可恢复的单摘要上下文压缩](recoverable-context-compaction.md)。
+
+自动压缩失败时旧摘要和 cursor 保持不变，但 Agent 不一定立即停止：Planner 仍可卸载非
+pinned 的 Skill、Memory 或历史原子组。只有 pinned 内容与已选 Tool schema 仍超过 hard 时，
+Run 才以 `limit_reached/context_limit` 终止且不再调用主模型；若本地 pack 能放下但 Provider
+仍报告上下文超限，整个 Run 只执行一次“强制压缩，失败则激进外置”的恢复重试，第二次拒绝
+以 `failed/provider_error` 结束。完整动作表见
+[模型上下文分块与组装顺序](context-assembly.md#达到触发线或硬上限时的实际动作)。
 
 ### 7.3 长期记忆
 
@@ -721,11 +732,16 @@ auto_compact_threshold = 0.80
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
+# 留空时冻结启动时的 model.name，后续 /model 不影响压缩
+# compaction_model = "low-cost-summary-model"
 recent_conversation_tokens = 20000
 compaction_min_recent_user_turns = 3
 memory_tokens = 8000
+active_skill_tokens = 16000
 tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
+tool_result_head_chars = 6000
+tool_result_tail_chars = 2000
 compaction_max_input_tokens = 60000
 compaction_input_target_ratio = 0.8
 compaction_summary_target_tokens = 3000
@@ -745,6 +761,8 @@ compaction_command_max_cost_usd = 0.25
 compaction_source_refs = "range"
 # DeepSeek 官方端点自动关闭摘要请求的思考模式；其他端点不注入该参数
 compaction_thinking = "auto"
+compaction_max_message_chars = 12000
+compaction_rebuild_every = 5
 
 [memory]
 enabled = true

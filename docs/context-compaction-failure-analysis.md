@@ -1,11 +1,17 @@
 # 长会话上下文压缩问题：原因、案例、方案与取舍
 
-> 状态：分析与候选方案；推荐方案已于 2026-08-25 实施并通过推广门禁，见第 16 节
+> 状态：第 1–15 节为修复前分析与候选方案；推荐方案已于 2026-08-25 实施并通过推广门禁，
+> 当前行为与测试结果见第 16 节
 >
 > 日期：2026-08-18；缓存命中率补充：2026-08-19；落地验证补充：2026-08-25
 >
 > 代码基线：`f78d911 fix(context): bound and recover compaction backlog`
 > 关联设计：[recoverable-context-compaction.md](recoverable-context-compaction.md)
+
+除第 16 节外，文中的“当前机制”“当前配置”和“待决策”都指 `f78d911` 历史基线，不是当前
+仓库默认值。当前请求组装与硬上限动作见
+[模型上下文分块与组装顺序](context-assembly.md)，当前压缩状态机见
+[可恢复的单摘要上下文压缩](recoverable-context-compaction.md)。
 
 ## 1. 摘要
 
@@ -847,7 +853,7 @@ CLI 可展示：
 | 压缩模型 | `compaction_model` 显式值；为空时冻结进程启动时的 `model.name`，不跟随 `/model` |
 | 近期原文 | 20K token，并至少保留最近 3 个用户轮次及完整 Tool 原子组 |
 | 摘要预算 | 3K 软目标、4K 可见正文硬限制、8,192 wire 输出上限 |
-| 溯源 | 默认范围、原始 positions 和 SHA-256；不再要求正文逐条 `[m:N]` |
+| 溯源 | 默认连续覆盖范围、SHA-256 和初始目标 anchor position；不再要求正文逐条 `[m:N]`，`source_refs_json` 默认可为空 |
 | 输出恢复 | `length` 只凝练候选；`format` 只修复候选，不重发完整原文 |
 | Provider 恢复 | 429/5xx/timeout/transport 同范围有限重试；仅 Context overflow 缩小范围 |
 | Fail closed | authentication/payment/configuration/persistence 立即停止，cursor 不推进 |
