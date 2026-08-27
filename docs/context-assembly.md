@@ -2,7 +2,7 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-08-26
+> 核对日期：2026-08-27
 
 本文描述主 Agent 每次调用模型时的实际请求视图。SQLite Transcript、压缩记录、Markdown
 记忆和 Skill 文件是事实源；组装过程只生成本次 `ModelRequest`，不会为了排序或修复协议而改写
@@ -120,6 +120,32 @@ target = floor(hard * context.auto_compact_threshold)
 择优装箱，不保证一定是连续的最近后缀；被跳过的组写入 `dropped_items` 和
 `context.packed` 事件，但当前不会在模型消息中插入 gap 标记。
 
+Planner 的精确计数和二次卸载是能力接口，不等于当前 Provider 已经提供精确计数。基类
+`ModelProvider.count_tokens()` 默认返回 `None`，当前 `OpenAICompatibleProvider` 没有覆盖它，
+所以普通生产路径仍以 `TokenEstimator` 的启发式估算为主；若估算漏判，依靠 Provider 的首次
+上下文长度错误进入一次恢复路径。
+
+## 不调用 LLM 时，当前 `bot` 如何减载
+
+自动摘要不是当前 `bot` 唯一的上下文控制手段。应区分两件事：LLM 压缩负责把旧历史做
+**语义整合**；下列确定性机制负责让每次请求的**实际输入视图**变小。它们都不会删除 SQLite
+中的原始 Transcript。
+
+| 机制 | 触发或预算 | 对请求视图的处理 | 原文恢复 |
+|---|---|---|---|
+| 大消息外置 | 普通消息默认超过约 5K token；Tool Result 摘录预算默认 4K | 完整正文写入内容寻址 blob，只内联 head/tail 和 `context_ref` | `load_context_reference` 分块读取 |
+| Tool schema 渐进披露 | 全部 schema 超过 `tool_schema_tokens=16K` | 只保留内部恢复 Tool 和已激活业务 Tool，其余降为短目录 | `activate_tools` 按名称重新加载 |
+| Skill 正文限额 | 活动 Skill 正文累计超过 `active_skill_tokens=16K` | 保留 header；放不下的正文不注入 | `activate_skill` / `load_skill_resource` 重载 |
+| Memory 限额和短索引 | 显式与自动记忆共享 `memory_tokens=8K`；自动索引最多 2K | 省略较旧显式记忆，只注入自动记忆索引 | `search_memory` / `load_memory_evidence` 回读 |
+| 分层预算装箱 | 任意主请求组装时都执行 | `PINNED` 必留；其余按 priority、recency 和 atomic group 选择，放不下的组不进入本次请求 | Transcript 保留；`search_session_history` 可检索 |
+| Reasoning 作用域收窄 | Assistant reasoning 不属于仍需回放的 Tool Call 消息 | 普通请求不重放该 reasoning；压缩输入也不携带 reasoning 正文 | SQLite 仍持久化，来源哈希仍覆盖 |
+| 协议清理 | 组装后的请求副本存在孤儿 Tool 或缺失结果时 | 修复 Call/Result 配对，丢弃孤儿结果；不把历史伪 `system` 恢复为特权消息 | 不改写持久 Transcript |
+| Provider 溢出应急外置 | Provider 首次报 context-length error，且强制压缩没有推进 | 将本次内存视图中超过 2,000 字符的正文缩成约 1,500 字符前缀和引用，再重试一次 | blob 中保留完整正文 |
+
+其中“预算装箱”是有损的请求投影，但不是持久删除。它目前可能跳过中间原子组后保留更早的
+小组，形成没有 gap 标记的非连续视图；这与“连续最近窗口”不是同一种策略。大消息外置、按需
+Tool/Skill/Memory 加载则属于可恢复的渐进披露，优先级应高于不可恢复裁剪。
+
 ## 大消息和 reasoning 如何计入
 
 每个 Tool Result 都先把完整 `model_content()` 写入内容寻址 blob，再把带 `context_ref` 的请求
@@ -177,6 +203,68 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 自动压力路径每个 step 最多推进一个压缩分块；backlog 仍很大时，下一 step 再继续推进。显式
 `/compact` 则在空闲会话中循环处理分块，直到目标位置、无进展或请求数/时间/费用预算之一
 到达上限。
+
+## 本地开源实现中的非 LLM 减载策略
+
+以下结论来自 `/Users/huyang/codespace` 的本地源码快照，只统计不依赖生成式模型产出摘要的
+路径。对比基线为 Codex `41ece455b7fa`、OpenCode `da4730e4a41d`、Pi
+`a4453b79bb8d`、Hermes Agent `eac1e25127a7`、DeepSeek Harness `47f943859bef`、
+Nanobot `c78421cf1651` 和 LightRAG `441a3e4872c2`。更完整的端到端压缩与 reasoning 对比见
+[本地开源 Agent 框架上下文管理对比](context-framework-comparison.md)。
+
+| 实现 | 不调用 LLM 的减载方式 | 关键边界或特点 |
+|---|---|---|
+| Codex | 写入历史时按模型策略确定性截断 Function/Custom Tool output；请求前移除孤儿输出和目标模型不支持的图片/音频；把可延迟工具放入索引，由 `tool_search` 用 BM25 只取匹配 schema | Tool Call/Result 成对处理；延迟 Tool 让大规模 MCP/App schema 不必每轮全量发送 |
+| OpenCode | 启用 `compaction.prune` 时，从后向前保护近期约 40K Tool output，旧完成结果只发送固定占位并移除附件；预计回收不足 20K 时不提交 | 至少跨过两个用户轮次，遇到旧摘要或已剪枝边界停止；原 output 仍在 session part 中 |
+| Pi | 默认发送路径会移除 error/aborted Assistant turn、跨模型不可移植的 opaque thinking 和不支持的图片；`context` extension hook 可在每次 LLM 调用前非破坏性过滤消息 | 默认没有通用的旧 Tool result prune；2K Tool result 截断只用于摘要输入，不能算普通请求减载 |
+| Hermes Agent | 对大 Tool result 做内容哈希去重，只保留最新完整副本；把旧结果改成按 Tool 类型生成的确定性单行说明；截断超大 Tool 参数且保持 JSON 合法；移除旧截图/多模态主体 | 可独立于完整压缩提前触发，并按最小回收量和 re-arm 阈值防抖；压力过大时可进入受保护 tail，但尽量保留最新 Tool 结果 |
+| DeepSeek Harness | 可选 pruner 将超大文本 Tool result 改成 head + 明确 marker + tail，并以带来源的 surface replacement 持久化；若已回到安全阈值则跳过摘要；Code Mode 只向模型暴露一个 `run_code` transport schema；Skill 只注入目录、正文按需加载 | 剪枝记录 `shadowedSeqs` 和来源事件；glob/grep 等有界结果还可把完整列表写入 spill store 后返回定位符 |
+| Nanobot | 超大 Tool result 落盘并返回稳定路径/预览；活动 Tool 链溢出时把可重放结果降为明确占位；每次请求按 `window - output - 1024` 从尾部选择连续合法后缀；近期 Memory History 另受 50 条/8K token 双限制 | 后缀重新锚定到 user，并再次修复孤儿 Tool；策略优先保证请求可继续，但被滑出窗口的语义只能靠外部记忆找回 |
+| LightRAG | 对候选片段去重、向量 top-k、可选 rerank 与最低分过滤，再分别按实体、关系和文本块 token 预算截断；先扣除 system/query/KG/引用安全开销，再分配 chunk 预算 | 它不是会话 Agent，但展示了“先检索相关证据、再组装”而不是“把全部历史塞入窗口”的路线 |
+
+关键源码定位如下：
+
+| 实现 | 本地源码 |
+|---|---|
+| Codex | `codex-rs/core/src/context_manager/history.rs`；`codex-rs/core/src/tools/handlers/tool_search.rs` |
+| OpenCode | `packages/opencode/src/session/compaction.ts`；`packages/opencode/src/session/message-v2.ts` |
+| Pi | `packages/ai/src/api/transform-messages.ts`；`packages/coding-agent/docs/extensions.md` |
+| Hermes Agent | `agent/context_compressor.py` |
+| DeepSeek Harness | `packages/compaction/compaction-tool-result-pruner/src/index.ts`；`docs/tool-catalog.md` |
+| Nanobot | `nanobot/agent/context_governance.py`；`nanobot/utils/helpers.py` |
+| LightRAG | `lightrag/utils.py::process_chunks_unified()`；`lightrag/operate.py::_build_context_str()` |
+
+这些实现可以归纳为六类、且都早于“最后再调用 LLM 做摘要”：
+
+1. **从源头限制增长**：Tool 自身分页、采样或设置输出上限，完整结果写 spill/blob，只返回引用；
+2. **确定性瘦身**：head/tail 截断、旧结果占位、重复结果去重、Tool-aware 单行降级和超大参数裁剪；
+3. **渐进披露**：Tool schema、Skill 正文和大文件默认不进窗口，通过搜索或显式激活按需加载；
+4. **有界重放**：只保留满足 Tool 协议的连续近期后缀，并为系统提示、输出和安全余量预留预算；
+5. **检索式组装**：按当前任务检索历史、记忆和项目证据，执行去重、top-k、相关性过滤和分层 token 配额；
+6. **Provider-aware 清理**：不回放已失效 reasoning、opaque metadata、错误/中断 turn 和不支持的模态。
+
+Prompt cache、稳定前缀和 cache boundary 能降低重复计算成本与延迟，但不会减少送入模型的逻辑
+上下文长度，因此不计入本节的“减载方式”。同样，停止 Tool runaway 或限制每轮 Tool 数主要是
+防止上下文继续增长，而不是缩减已经存在的历史。
+
+### 对当前 `bot` 的直接启示
+
+当前 `bot` 已覆盖“blob 外置、固定预算、渐进披露、Provider-aware reasoning 作用域和按需回读”。
+与本地实现相比，仍有四项非 LLM 增强值得优先评估：
+
+1. 在进入 LLM 压缩前增加 Hermes/DeepSeek Harness 风格的**旧 Tool result 确定性降级**：先去重，
+   再把旧摘录降为 Tool-aware 单行说明，同时保留 `context_ref`、来源位置和明确剪枝 marker；
+2. 把当前按名称激活 Tool 升级为 Codex 风格的**查询相关 Tool schema 检索**，目录只保存 namespace
+   和短描述，按任务一次加载少量匹配 schema；
+3. 为压缩失败后的请求视图提供 Nanobot 风格的**连续、Tool-safe 后缀**，或至少为 Planner 的
+   非连续丢组插入 gap marker，避免模型不知道中间证据已经缺失；
+4. 在 `search_session_history` 和 Markdown Memory 之上增加 LightRAG 风格的**自动相关性选择**：
+   去重、top-k、分数门槛和独立 token 配额，只把与当前用户请求有关的历史证据注入。
+
+这些增强中，第 1 项通常收益最高：Agent 长任务的上下文膨胀主要来自重复文件读取、搜索、命令
+和网页结果；它们比用户目标和关键决定更适合用确定性规则压缩，而且失败模式比生成式摘要更
+容易验证和回滚。第 3 项解决正确性，第 2、4 项解决 Tool/知识规模增长；三者不应被 prompt
+cache 指标替代。
 
 `/status` 的 `context_manifest` 只列基础 Core/AGENTS/Skill Catalog 的来源和字符数；
 `context` 字段另外给出 hard/target、活动摘要、cursor 后消息数和估算 token、活动 Tool，以及
