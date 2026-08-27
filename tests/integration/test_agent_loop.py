@@ -309,6 +309,97 @@ async def test_agent_externalizes_single_oversized_user_message(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
+async def test_context_reference_delivery_is_visible_once_without_nested_blob(
+    tmp_path: Path,
+) -> None:
+    provider = ScriptedProvider([])
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        tools=[ReadFileTool()],
+        context_config={"tool_result_inline_tokens": 100},
+    )
+    session_id = store.create_session(tmp_path)
+    payload = "BEGIN-" + ("evidence" * 1_000) + "-END"
+    reference = store.put_context_blob(
+        session_id=session_id,
+        run_id="seed",
+        content=payload,
+    )
+    provider.turns = [
+        tool_turn(
+            "load-once",
+            "load_context_reference",
+            json.dumps({"reference": reference}),
+        ),
+        tool_turn(
+            "activate-after-load",
+            "activate_tools",
+            json.dumps({"names": ["read_file"]}),
+        ),
+        [
+            ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+        ],
+    ]
+
+    result = await runner.run(RunRequest(prompt="读取证据", session_id=session_id))
+
+    assert result.status == "completed"
+    second_load_result = next(
+        message for message in provider.requests[1].messages if message.tool_call_id == "load-once"
+    )
+    third_load_result = next(
+        message for message in provider.requests[2].messages if message.tool_call_id == "load-once"
+    )
+    assert payload in (second_load_result.content or "")
+    assert payload not in (third_load_result.content or "")
+    assert "disposable_context_delivery" in (third_load_result.content or "")
+    assert reference in (third_load_result.content or "")
+
+    stored_load_result = next(
+        message
+        for message in store.load_messages(session_id)
+        if message.tool_call_id == "load-once"
+    )
+    assert payload not in (stored_load_result.content or "")
+    assert "disposable_context_delivery" in (stored_load_result.content or "")
+    assert (stored_load_result.content or "").count(reference) == 1
+    store.close()
+
+
+def test_agent_searches_context_reference_without_loading_whole_blob(tmp_path: Path) -> None:
+    runner, store = make_test_runner(tmp_path, ScriptedProvider([]))
+    session_id = store.create_session(tmp_path)
+    reference = store.put_context_blob(
+        session_id=session_id,
+        run_id="seed",
+        content=("x" * 10_000) + "TARGET evidence" + ("y" * 10_000),
+    )
+
+    result = runner._load_context_reference(  # noqa: SLF001
+        ToolCall(
+            id="search-ref",
+            name="load_context_reference",
+            arguments={
+                "reference": reference,
+                "query": "target",
+                "context_chars": 20,
+            },
+        ),
+        session_id,
+    )
+
+    assert result.success
+    payload = json.loads(result.output)
+    assert len(payload["matches"]) == 1
+    assert "TARGET evidence" in payload["matches"][0]["preview"]
+    assert len(result.output) < 1_000
+    assert result.metadata["context_delivery"]["operation"] == "search"
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_agent_retries_provider_context_error_once(tmp_path: Path) -> None:
     provider = ContextRetryProvider()
     runner, store = make_test_runner(tmp_path, provider)

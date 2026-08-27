@@ -332,6 +332,42 @@ def test_store_supersedes_snapshots_and_reads_blob_chunks(tmp_path: Path) -> Non
     store.close()
 
 
+def test_store_searches_context_blob_with_bounded_previews(tmp_path: Path) -> None:
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    session_id = store.create_session(tmp_path)
+    content = "前言\nAlpha first\n间隔\nalpha second\n结尾"
+    reference = store.put_context_blob(
+        session_id=session_id,
+        run_id="r1",
+        content=content,
+    )
+
+    result = store.search_context_blob(
+        session_id,
+        reference,
+        query="ALPHA",
+        max_matches=1,
+        context_chars=4,
+    )
+
+    assert result is not None
+    assert result["truncated"] is True
+    assert len(result["matches"]) == 1
+    match = result["matches"][0]
+    assert match["line"] == 2
+    assert match["byte_offset"] == len("前言\n".encode())
+    assert "Alpha" in match["preview"]
+    chunk = store.read_context_blob(
+        session_id,
+        reference,
+        offset=match["load_offset"],
+        limit=match["load_limit"],
+    )
+    assert chunk is not None
+    assert chunk["content"] == match["preview"]
+    store.close()
+
+
 def test_blob_access_is_session_scoped_and_follows_forked_messages(tmp_path: Path) -> None:
     store = SQLiteSessionStore(tmp_path / "state.db")
     source = store.create_session(tmp_path)

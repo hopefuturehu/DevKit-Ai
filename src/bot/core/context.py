@@ -114,6 +114,8 @@ class PositionedMessage:
     position: int
     message: ChatMessage
     run_id: str | None = None
+    retention_override: ContextRetention | None = None
+    priority_override: int | None = None
 
 
 @dataclass(frozen=True)

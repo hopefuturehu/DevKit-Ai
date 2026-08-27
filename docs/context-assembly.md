@@ -133,7 +133,8 @@ Planner 的精确计数和二次卸载是能力接口，不等于当前 Provider
 
 | 机制 | 触发或预算 | 对请求视图的处理 | 原文恢复 |
 |---|---|---|---|
-| 大消息外置 | 普通消息默认超过约 5K token；Tool Result 摘录预算默认 4K | 完整正文写入内容寻址 blob，只内联 head/tail 和 `context_ref` | `load_context_reference` 分块读取 |
+| 大消息外置 | 普通消息默认超过约 5K token；Tool Result 摘录预算默认 4K | 完整正文写入内容寻址 blob，只内联 head/tail 和 `context_ref` | `load_context_reference` 先按 `query` 检索，或按 `offset/limit` 分块读取 |
+| 引用结果一次性交付 | 成功检索或读取外置内容 | 原始命中片段只进入紧随其后的单次模型请求，之后换回短回执，不创建嵌套 blob | 原始 `context_ref` 保持可再次检索/读取 |
 | Tool schema 渐进披露 | 全部 schema 超过 `tool_schema_tokens=16K` | 只保留内部恢复 Tool 和已激活业务 Tool，其余降为短目录 | `activate_tools` 按名称重新加载 |
 | Skill 正文限额 | 活动 Skill 正文累计超过 `active_skill_tokens=16K` | 保留 header；放不下的正文不注入 | `activate_skill` / `load_skill_resource` 重载 |
 | Memory 限额和短索引 | 显式与自动记忆共享 `memory_tokens=8K`；自动索引最多 2K | 省略较旧显式记忆，只注入自动记忆索引 | `search_memory` / `load_memory_evidence` 回读 |
@@ -148,8 +149,24 @@ Tool/Skill/Memory 加载则属于可恢复的渐进披露，优先级应高于�
 
 ## 大消息和 reasoning 如何计入
 
-每个 Tool Result 都先把完整 `model_content()` 写入内容寻址 blob，再把带 `context_ref` 的请求
+普通 Tool Result 都先把完整 `model_content()` 写入内容寻址 blob，再把带 `context_ref` 的请求
 视图写入 SQLite；短结果保留全文，长结果只保留受 `tool_result_inline_tokens` 限制的 head/tail。
+`load_context_reference` 的成功结果是例外：它已经有原始 blob，不再把读取结果写成第二层 blob。
+SQLite 只保存包含原始 `context_ref`、操作和范围的短回执；内存请求视图临时保存正文，并以
+`DISPOSABLE`、priority 800 参与装箱。只在该原子 Tool Call/Result 组实际进入模型请求且 Provider
+完成响应后，内存视图才降回短回执；如果 Planner 本次没有选中该组，则不会提前过期。
+
+同一个 `load_context_reference` Tool 提供两种模式，避免为了“先搜索再加载”永久增加一个内部
+Tool schema：传 `query` 时在 blob 存储侧做大小写可选的字面量检索，默认最多返回 8 个命中和
+每处前后 240 个字符，并附可直接用于后续范围读取的 `load_offset/load_limit`；不传 `query` 时
+沿用 `offset/limit` 字节范围读取。命中片段已经足够回答时只需一次 Tool 调用，只有确实需要更大
+邻域时才继续按返回范围读取。
+
+这项机制优化的是**跨轮重复回放 token**，不是保证 Tool 调用数永远更少。如果模型立即需要完整
+大结果，先外置再读取会多一次往返；如果证据还要跨多个后续模型步骤反复使用，一次性交付也可能
+导致再次检索。合理默认是让源 Tool 优先返回有信息量的有界结果，未知位置时用 `query` 一次定位，
+只有需要连续全文时才分页读取；不能把外置本身当成无成本压缩。
+
 其他角色的消息从 SQLite 加载或新写入会话时，只要正文估算超过
 `max(tool_result_inline_tokens, recent_conversation_tokens / 4)`，也会把完整正文写入 blob，并只
 在内存请求视图中保留 head/tail 和 `context_ref`，不改写 SQLite 原消息。默认通用触发线为

@@ -343,7 +343,12 @@ async def test_child_session_receives_only_objective_and_explicit_blob_grants(
             for message in store.load_messages(child_session_id)
             if message.role == Role.TOOL
         ]
-        assert "AUTHORIZED_EVIDENCE" in (tool_messages[0].content or "")
+        delivered_tool_messages = [
+            message for message in provider.requests[1].messages if message.role == Role.TOOL
+        ]
+        assert "AUTHORIZED_EVIDENCE" in (delivered_tool_messages[0].content or "")
+        assert "AUTHORIZED_EVIDENCE" not in (tool_messages[0].content or "")
+        assert "disposable_context_delivery" in (tool_messages[0].content or "")
         assert "上下文引用不存在" in (tool_messages[1].content or "")
         assert "FOREIGN_SECRET" not in (tool_messages[1].content or "")
     finally:

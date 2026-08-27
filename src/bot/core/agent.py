@@ -485,6 +485,7 @@ class AgentRunner:
         input_tokens = 0
         output_tokens = 0
         tool_output_bytes = 0
+        disposable_tool_results: dict[int, ChatMessage] = {}
         cost_usd: float | None = None
         context_retry_used = False
         consecutive_empty_responses = 0
@@ -644,6 +645,12 @@ class AgentRunner:
                 temperature=self.config.model.temperature,
                 max_output_tokens=self.config.model.max_output_tokens,
             )
+            dropped_ids = {str(item.get("id")) for item in context_pack.dropped_items}
+            disposable_positions_sent = {
+                position
+                for position in disposable_tool_results
+                if f"message:{position}" not in dropped_ids
+            }
             text_parts: list[str] = []
             reasoning_parts: list[str] = []
             call_buffers: dict[int, _ToolCallBuffer] = {}
@@ -790,6 +797,11 @@ class AgentRunner:
                 session_id=session_id,
                 run_id=run_id,
                 payload=response_summary,
+            )
+            conversation = self._expire_disposable_tool_results(
+                conversation,
+                disposable_tool_results,
+                positions=disposable_positions_sent,
             )
 
             if not assistant_text.strip() and not tool_calls:
@@ -1105,17 +1117,29 @@ class AgentRunner:
                     result = await self._execute_tool(tool_call, session_id, run_id)
 
                 raw_model_content = result.model_content()
-                reference = self.store.put_context_blob(
-                    session_id=session_id,
-                    run_id=run_id,
-                    content=raw_model_content,
-                    media_type="application/vnd.bot.tool-result+json",
+                delivery = result.metadata.get("context_delivery")
+                is_disposable_delivery = (
+                    tool_call.name == "load_context_reference"
+                    and result.success
+                    and isinstance(delivery, dict)
                 )
-                result_message = ChatMessage(
+                if is_disposable_delivery:
+                    persisted_content = self._context_delivery_receipt(delivery)
+                    model_content = raw_model_content
+                else:
+                    reference = self.store.put_context_blob(
+                        session_id=session_id,
+                        run_id=run_id,
+                        content=raw_model_content,
+                        media_type="application/vnd.bot.tool-result+json",
+                    )
+                    persisted_content = self._inline_reference(raw_model_content, reference)
+                    model_content = persisted_content
+                persisted_message = ChatMessage(
                     role=Role.TOOL,
                     name=tool_call.name,
                     tool_call_id=tool_call.id,
-                    content=self._inline_reference(raw_model_content, reference),
+                    content=persisted_content,
                 )
                 reported_task_ids = result.metadata.get("reported_task_ids")
                 if isinstance(reported_task_ids, list) and all(
@@ -1124,16 +1148,28 @@ class AgentRunner:
                     result_position = self.store.append_message_and_mark_agent_tasks_reported(
                         session_id=session_id,
                         run_id=run_id,
-                        message=result_message,
+                        message=persisted_message,
                         task_ids=reported_task_ids,
                     )
                 else:
                     result_position = self.store.append_message(
                         session_id,
                         run_id,
-                        result_message,
+                        persisted_message,
                     )
-                conversation.append(PositionedMessage(result_position, result_message))
+                model_message = persisted_message.model_copy(update={"content": model_content})
+                conversation.append(
+                    PositionedMessage(
+                        result_position,
+                        model_message,
+                        retention_override=(
+                            ContextRetention.DISPOSABLE if is_disposable_delivery else None
+                        ),
+                        priority_override=(800 if is_disposable_delivery else None),
+                    )
+                )
+                if is_disposable_delivery:
+                    disposable_tool_results[result_position] = persisted_message
                 tool_output_bytes += len(raw_model_content.encode("utf-8"))
                 total_output_limit = self.config.agent.max_total_tool_output_bytes
                 if total_output_limit is not None and tool_output_bytes > total_output_limit:
@@ -1850,11 +1886,18 @@ class AgentRunner:
                         ContextTrust.USER if message.role == Role.USER else ContextTrust.UNTRUSTED
                     ),
                     retention=(
-                        ContextRetention.PINNED
-                        if entry.position == latest_user_position
-                        else ContextRetention.CHECKPOINTED
+                        entry.retention_override
+                        or (
+                            ContextRetention.PINNED
+                            if entry.position == latest_user_position
+                            else ContextRetention.CHECKPOINTED
+                        )
                     ),
-                    priority=700 if message.role == Role.USER else 600,
+                    priority=(
+                        entry.priority_override
+                        if entry.priority_override is not None
+                        else (700 if message.role == Role.USER else 600)
+                    ),
                     atomic_group=group or f"message:{entry.position}",
                     position=entry.position,
                 )
@@ -2087,6 +2130,46 @@ class AgentRunner:
             "可调用 load_context_reference 分块读取]"
         )
 
+    @staticmethod
+    def _context_delivery_receipt(delivery: dict[str, Any]) -> str:
+        return json.dumps(
+            {
+                "status": "disposable_context_delivery",
+                **delivery,
+                "note": (
+                    "检索或读取正文仅提供给紧随其后的单次模型调用，"
+                    "不会在后续窗口重复回放；需要时请再次检索或按更小范围读取。"
+                ),
+            },
+            ensure_ascii=False,
+        )
+
+    @staticmethod
+    def _expire_disposable_tool_results(
+        conversation: list[PositionedMessage],
+        replacements: dict[int, ChatMessage],
+        *,
+        positions: set[int],
+    ) -> list[PositionedMessage]:
+        if not positions:
+            return conversation
+        expired: list[PositionedMessage] = []
+        for entry in conversation:
+            replacement = replacements.get(entry.position)
+            if entry.position not in positions or replacement is None:
+                expired.append(entry)
+                continue
+            expired.append(
+                PositionedMessage(
+                    position=entry.position,
+                    message=replacement,
+                    run_id=entry.run_id,
+                )
+            )
+        for position in positions:
+            replacements.pop(position, None)
+        return expired
+
     def _select_tool_definitions(
         self,
         session_id: str,
@@ -2179,7 +2262,11 @@ class AgentRunner:
     def _load_reference_definition() -> ToolDefinition:
         return ToolDefinition(
             name="load_context_reference",
-            description="分块读取已外置的用户消息、模型消息或 Tool 完整输出。",
+            description=(
+                "检索或按字节范围读取已外置的用户消息、模型消息或 Tool 完整输出。"
+                "不知道位置时传 query，只返回匹配附近片段；否则使用 offset/limit。"
+                "结果只在下一次模型调用中可见，避免后续窗口重复回放。"
+            ),
             input_schema={
                 "type": "object",
                 "properties": {
@@ -2191,6 +2278,20 @@ class AgentRunner:
                         "maximum": 64000,
                         "default": 16000,
                     },
+                    "query": {"type": "string", "minLength": 1, "maxLength": 2000},
+                    "max_matches": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 20,
+                        "default": 8,
+                    },
+                    "context_chars": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000,
+                        "default": 240,
+                    },
+                    "case_sensitive": {"type": "boolean", "default": False},
                 },
                 "required": ["reference"],
                 "additionalProperties": False,
@@ -2302,12 +2403,32 @@ class AgentRunner:
 
     def _load_context_reference(self, tool_call: ToolCall, session_id: str) -> ToolResult:
         reference = tool_call.arguments.get("reference")
+        if "query" in tool_call.arguments:
+            if "offset" in tool_call.arguments or "limit" in tool_call.arguments:
+                return ToolResult(
+                    success=False,
+                    error="load_context_reference 的 query 不能与 offset/limit 同时使用",
+                )
+            return self._search_context_reference(tool_call, session_id)
+        if any(
+            key in tool_call.arguments
+            for key in ("max_matches", "context_chars", "case_sensitive")
+        ):
+            return ToolResult(
+                success=False,
+                error="max_matches/context_chars/case_sensitive 只能与 query 一起使用",
+            )
         offset = tool_call.arguments.get("offset", 0)
         limit = tool_call.arguments.get("limit", 16_000)
         if (
             not isinstance(reference, str)
             or not isinstance(offset, int)
+            or isinstance(offset, bool)
             or not isinstance(limit, int)
+            or isinstance(limit, bool)
+            or offset < 0
+            or limit < 1
+            or limit > 64_000
         ):
             return ToolResult(
                 success=False,
@@ -2324,13 +2445,82 @@ class AgentRunner:
         return ToolResult(
             success=True,
             output=json.dumps(loaded, ensure_ascii=False),
-            metadata={"reference": reference},
+            metadata={
+                "reference": reference,
+                "context_delivery": {
+                    "operation": "load",
+                    "context_ref": reference,
+                    "offset": int(loaded["offset"]),
+                    "next_offset": int(loaded["next_offset"]),
+                    "eof": bool(loaded["eof"]),
+                },
+            },
             progress=ProgressSignal(
                 kind=ProgressKind.WEAK,
                 summary="读取了外置上下文证据",
                 evidence_key=(
                     f"context-ref:{reference}:{offset}:{limit}:"
                     f"{hashlib.sha256(repr(loaded).encode()).hexdigest()}"
+                ),
+            ),
+        )
+
+    def _search_context_reference(
+        self,
+        tool_call: ToolCall,
+        session_id: str,
+    ) -> ToolResult:
+        reference = tool_call.arguments.get("reference")
+        query = tool_call.arguments.get("query")
+        max_matches = tool_call.arguments.get("max_matches", 8)
+        context_chars = tool_call.arguments.get("context_chars", 240)
+        case_sensitive = tool_call.arguments.get("case_sensitive", False)
+        if (
+            not isinstance(reference, str)
+            or not isinstance(query, str)
+            or not query
+            or len(query) > 2_000
+            or not isinstance(max_matches, int)
+            or isinstance(max_matches, bool)
+            or not 1 <= max_matches <= 20
+            or not isinstance(context_chars, int)
+            or isinstance(context_chars, bool)
+            or not 0 <= context_chars <= 1_000
+            or not isinstance(case_sensitive, bool)
+        ):
+            return ToolResult(
+                success=False,
+                error="load_context_reference 的检索参数类型无效",
+            )
+        matches = self.store.search_context_blob(
+            session_id,
+            reference,
+            query=query,
+            max_matches=max_matches,
+            context_chars=context_chars,
+            case_sensitive=case_sensitive,
+        )
+        if matches is None:
+            return ToolResult(success=False, error=f"上下文引用不存在: {reference}")
+        output = json.dumps(matches, ensure_ascii=False)
+        return ToolResult(
+            success=True,
+            output=output,
+            metadata={
+                "reference": reference,
+                "context_delivery": {
+                    "operation": "search",
+                    "context_ref": reference,
+                    "query": query,
+                    "returned_matches": len(matches["matches"]),
+                    "truncated": bool(matches["truncated"]),
+                },
+            },
+            progress=ProgressSignal(
+                kind=ProgressKind.WEAK,
+                summary=f"在外置上下文中找到 {len(matches['matches'])} 处证据",
+                evidence_key=(
+                    f"context-ref-search:{reference}:{hashlib.sha256(output.encode()).hexdigest()}"
                 ),
             ),
         )

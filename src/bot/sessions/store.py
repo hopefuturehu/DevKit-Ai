@@ -1492,6 +1492,71 @@ class SQLiteSessionStore(EventSink):
         offset: int = 0,
         limit: int = 16_000,
     ) -> dict[str, Any] | None:
+        record = self._context_blob_record(session_id, reference)
+        if record is None:
+            return None
+        content = record.pop("content")
+        start = max(0, offset)
+        chunk = content[start : start + max(1, limit)]
+        return {
+            "reference": reference,
+            **record,
+            "offset": start,
+            "next_offset": start + len(chunk),
+            "content": chunk.decode("utf-8", errors="replace"),
+            "eof": start + len(chunk) >= len(content),
+        }
+
+    def search_context_blob(
+        self,
+        session_id: str,
+        reference: str,
+        *,
+        query: str,
+        max_matches: int = 8,
+        context_chars: int = 240,
+        case_sensitive: bool = False,
+    ) -> dict[str, Any] | None:
+        record = self._context_blob_record(session_id, reference)
+        if record is None:
+            return None
+        content = record.pop("content")
+        text = content.decode("utf-8", errors="replace")
+        flags = 0 if case_sensitive else re.IGNORECASE
+        matches: list[dict[str, Any]] = []
+        truncated = False
+        for match in re.finditer(re.escape(query), text, flags):
+            if len(matches) >= max(1, max_matches):
+                truncated = True
+                break
+            preview_start = max(0, match.start() - max(0, context_chars))
+            preview_end = min(len(text), match.end() + max(0, context_chars))
+            prefix = text[: match.start()].encode("utf-8", errors="replace")
+            preview_prefix = text[:preview_start].encode("utf-8", errors="replace")
+            preview = text[preview_start:preview_end]
+            matches.append(
+                {
+                    "line": text.count("\n", 0, match.start()) + 1,
+                    "byte_offset": len(prefix),
+                    "load_offset": len(preview_prefix),
+                    "load_limit": len(preview.encode("utf-8", errors="replace")),
+                    "preview": preview,
+                }
+            )
+        return {
+            "reference": reference,
+            **record,
+            "query": query,
+            "case_sensitive": case_sensitive,
+            "matches": matches,
+            "truncated": truncated,
+        }
+
+    def _context_blob_record(
+        self,
+        session_id: str,
+        reference: str,
+    ) -> dict[str, Any] | None:
         with self._lock:
             row = self._connection.execute(
                 """
@@ -1504,17 +1569,11 @@ class SQLiteSessionStore(EventSink):
             ).fetchone()
         if row is None:
             return None
-        content = bytes(row["content"])
-        chunk = content[max(0, offset) : max(0, offset) + max(1, limit)]
         return {
-            "reference": reference,
             "media_type": row["media_type"],
             "byte_count": int(row["byte_count"]),
             "sha256": row["sha256"],
-            "offset": max(0, offset),
-            "next_offset": max(0, offset) + len(chunk),
-            "content": chunk.decode("utf-8", errors="replace"),
-            "eof": max(0, offset) + len(chunk) >= len(content),
+            "content": bytes(row["content"]),
         }
 
     def grant_context_blob_access(
