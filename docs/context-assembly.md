@@ -305,3 +305,51 @@ OpenCode `da4730e`、Codex `41ece455b7` 和 Pi `a4453b79b`：
 和不改写 Transcript 的协议修复。因此采用“稳定前缀 → 因果历史 → 易变尾部”的三段式，
 并把显式记忆和自动记忆拆层。对应的受控缓存结果见
 [长任务上下文缓存评测](context-cache-benchmark.md#组装顺序优化实验2026-08-23)。
+
+## 压缩和大结果外置的综合验收
+
+`context-efficiency` case 用同一个 12 轮确定性任务贯穿真实 `AgentRunner`、组装器、SQLite
+Transcript、压缩器、大 Tool Result 外置、`load_context_reference` 和后续继续执行。每轮 Tool
+返回约 32K 字符；其中 3 轮必须读取正文深处的事实，另外 9 轮禁止无意义回读。第 5、9 轮固定
+触发压缩，使不同版本的门禁不会依赖偶然越过 token 阈值。
+
+```bash
+.venv/bin/python scripts/run_context_efficiency_benchmark.py \
+  --output .bot/benchmarks/context-efficiency
+```
+
+一次执行比较五种变体。`raw` 是不压缩、不外置的全量基线；`compact-inline` 单独测压缩；
+`query-persistent` 模拟已回读正文继续留在当前 Run 后续请求中的旧行为；`range-one-shot` 使用
+4KB 盲分页和一次性交付；`current` 启用压缩、外置、`query` 和一次性交付。任务目标、fixture
+输出和 seed 完全相同，只有待测的上下文策略不同，`workload.sha256` 因而必须一致。
+
+离线门禁同时统计 Agent 与压缩请求，不能只看主模型最后一个请求：
+
+| 比较 | 门禁 | 说明 |
+|---|---:|---|
+| `compact-inline` / `raw` | 累计输入 token ≤ 75% | 证明摘要请求自身成本计入后，压缩仍有净收益 |
+| `current` / `raw` | 累计输入 token ≤ 50% | 证明完整生产组合降低总输入，而不只是降低峰值 |
+| `current` / `range-one-shot` | 引用调用至少减少 3 倍，Agent 请求更少 | 证明已知 key 时检索优于从头盲分页 |
+| `current` / `query-persistent` | 重复交付 token 为 0，累计输入更少 | 证明读取正文只在紧随其后的一次请求中出现 |
+
+所有变体还必须完成任务、精确找回并校验 3 个事实、在最终轮保留全部事实、不产生虚构事实、
+保持 Transcript 不可变、保持 Tool 协议平衡、只保留一个活动摘要，并且不出现上下文超限或
+压缩失败。`comparison.json` 明确报告 `current` 相对 `raw` 新增的引用 Tool 调用；外置优化的
+收益是减少重复 token，不应被描述成相对全量内联也能无条件减少调用。调用次数下降的结论只来自
+`query` 与盲分页的受控比较。
+
+每个变体写出 `summary.json`、`requests.jsonl` 和 `turns.csv`，根目录写出
+`comparison.json` 与 `aggregate.json`。`turns.csv` 可定位累计输入 token 的 break-even 轮次；
+默认要求不晚于第 4 轮。
+
+真实 Provider 复验沿用同一 case 和确定性事实评分，要求至少重复 3 次并配置模型价格：
+
+```bash
+RUN_CONTEXT_EFFICIENCY_LIVE=1 \
+  .venv/bin/python scripts/run_context_efficiency_benchmark.py \
+  --provider live --variants raw current --repeat 3 --max-cost-usd 0.50 \
+  --output .bot/benchmarks/context-efficiency-live
+```
+
+Live 模式要求每次请求都有 Provider usage，比较 `current` 与 `raw` 的累计输入 token 中位数；
+固定的 50% 比例只作为离线可控工作负载门禁，不用于约束存在采样波动的真实模型。
