@@ -48,3 +48,58 @@ def test_live_context_efficiency_validates_comparison_shape_before_network(
 
     with pytest.raises(SystemExit, match=expected):
         run_context_efficiency_benchmark.main()
+
+
+def test_live_aggregate_reports_cost_and_latency_effects() -> None:
+    def summary(input_tokens: int, cost: float, latency: float) -> dict:
+        return {
+            "metrics": {
+                "input_tokens": input_tokens,
+                "cost_usd": cost,
+                "model_latency_seconds": latency,
+                "model_request_latency_p95_seconds": latency / 2,
+            },
+            "quality": {"passed": True},
+        }
+
+    attempts = [
+        {
+            "comparison": {"acceptance": {"passed": True}},
+            "variants": {
+                "raw": summary(1_000, 0.10, 10.0),
+                "current": summary(600, 0.06, 8.0),
+            },
+        },
+        {
+            "comparison": {"acceptance": {"passed": True}},
+            "variants": {
+                "raw": summary(1_100, 0.11, 12.0),
+                "current": summary(650, 0.065, 9.0),
+            },
+        },
+        {
+            "comparison": {"acceptance": {"passed": True}},
+            "variants": {
+                "raw": summary(900, 0.09, 11.0),
+                "current": summary(550, 0.055, 7.0),
+            },
+        },
+    ]
+
+    aggregate = run_context_efficiency_benchmark._aggregate(
+        "live",
+        ("raw", "current"),
+        attempts,
+        total_cost=0.48,
+        expected_attempts=3,
+    )
+
+    assert aggregate["acceptance"]["passed"] is True
+    assert aggregate["median_cost_usd"] == {"raw": 0.10, "current": 0.06}
+    assert aggregate["median_model_latency_seconds"] == {"raw": 11.0, "current": 8.0}
+    assert aggregate["observed_effects"]["current_input_tokens_saved_vs_raw"] == 400
+    assert aggregate["observed_effects"]["current_cost_usd_saved_vs_raw"] == pytest.approx(0.04)
+    assert (
+        aggregate["observed_effects"]["current_model_latency_delta_vs_raw_seconds"]
+        == -3.0
+    )

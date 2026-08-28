@@ -102,6 +102,9 @@ async def _run(args: argparse.Namespace) -> dict:
                         "model_requests": result.summary["metrics"]["model_requests"],
                         "reference_tool_calls": result.summary["metrics"]["reference_tool_calls"],
                         "cost_usd": result.summary["metrics"]["cost_usd"],
+                        "model_latency_seconds": result.summary["metrics"][
+                            "model_latency_seconds"
+                        ],
                         "artifacts": str(attempt_dir / variant / "artifacts"),
                     },
                     ensure_ascii=False,
@@ -137,14 +140,33 @@ def _aggregate(
     expected_attempts: int,
 ) -> dict:
     variant_inputs: dict[str, list[float]] = {variant: [] for variant in variants}
+    variant_costs: dict[str, list[float]] = {variant: [] for variant in variants}
+    variant_model_latencies: dict[str, list[float]] = {variant: [] for variant in variants}
+    variant_p95_latencies: dict[str, list[float]] = {variant: [] for variant in variants}
     all_quality = True
     all_offline_acceptance = True
     for attempt in attempts:
         all_offline_acceptance &= bool(attempt["comparison"]["acceptance"]["passed"])
         for variant, summary in attempt["variants"].items():
             variant_inputs[variant].append(float(summary["metrics"]["input_tokens"]))
+            variant_costs[variant].append(float(summary["metrics"]["cost_usd"]))
+            variant_model_latencies[variant].append(
+                float(summary["metrics"]["model_latency_seconds"])
+            )
+            variant_p95_latencies[variant].append(
+                float(summary["metrics"]["model_request_latency_p95_seconds"])
+            )
             all_quality &= bool(summary["quality"]["passed"])
     medians = {variant: median(values) for variant, values in variant_inputs.items() if values}
+    median_costs = {
+        variant: median(values) for variant, values in variant_costs.items() if values
+    }
+    median_model_latencies = {
+        variant: median(values) for variant, values in variant_model_latencies.items() if values
+    }
+    median_p95_latencies = {
+        variant: median(values) for variant, values in variant_p95_latencies.items() if values
+    }
     live_token_savings = (
         medians.get("current", float("inf")) < medians.get("raw", float("-inf"))
         if {"raw", "current"} <= medians.keys()
@@ -166,6 +188,26 @@ def _aggregate(
         "attempts": len(attempts),
         "variants": list(variants),
         "median_input_tokens": medians,
+        "median_cost_usd": median_costs,
+        "median_model_latency_seconds": median_model_latencies,
+        "median_model_request_p95_seconds": median_p95_latencies,
+        "observed_effects": {
+            "current_input_tokens_saved_vs_raw": (
+                medians["raw"] - medians["current"]
+                if {"raw", "current"} <= medians.keys()
+                else None
+            ),
+            "current_cost_usd_saved_vs_raw": (
+                median_costs["raw"] - median_costs["current"]
+                if {"raw", "current"} <= median_costs.keys()
+                else None
+            ),
+            "current_model_latency_delta_vs_raw_seconds": (
+                median_model_latencies["current"] - median_model_latencies["raw"]
+                if {"raw", "current"} <= median_model_latencies.keys()
+                else None
+            ),
+        },
         "total_cost_usd": total_cost,
         "acceptance": {**acceptance, "passed": all(required)},
     }

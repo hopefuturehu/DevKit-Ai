@@ -56,6 +56,7 @@ async def test_composite_case_measures_context_savings_and_call_tradeoffs(
         ]
         assert summary["variant"] == variant
         assert requests
+        assert all("model_latency_seconds" in request for request in requests)
         assert (artifacts / "turns.csv").is_file()
     assert json.loads((tmp_path / "comparison.json").read_text(encoding="utf-8")) == comparison
 

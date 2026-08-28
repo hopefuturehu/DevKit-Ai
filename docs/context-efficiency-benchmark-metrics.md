@@ -2,13 +2,14 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-08-27
+> 核对日期：2026-08-28
 >
 > 依据：`src/bot/evals/context_efficiency.py`、`scripts/run_context_efficiency_benchmark.py`
 
 本文解释 `context-efficiency` benchmark（提交 `12d2df0` 引入）产出的全部指标**如何计算**，
 以及 `comparison.json` 中门禁和 effects 的推导公式。配套的评测目标、变体设计和验收规则见
-[context-assembly.md](context-assembly.md#压缩和大结果外置的综合验收)。
+[context-assembly.md](context-assembly.md#压缩和大结果外置的综合验收)。规模、检索行为和全栈
+长任务的补充 case 见[上下文整体测试矩阵](context-evaluation-matrix.md)。
 
 ## 1. 产物与数据流
 
@@ -22,6 +23,7 @@ Scripted/Live Provider ──> RecordingContextEfficiencyProvider ──> 逐请
                               ├── phase  / logical_turn / prompt_tokens
                               ├── output_tokens / requested_tool_names
                               ├── reference_delivery_tokens / replayed_reference_tokens
+                              ├── model_latency_seconds
                               └── request_sha256
 ```
 
@@ -69,6 +71,12 @@ output_tokens = provider 报告 output_tokens（缺省 0）
 ### requested_tool_names
 
 从流式事件中收集 `TOOL_CALL_DELTA` 的工具名，去重后保存。
+
+### model_latency_seconds
+
+Live 模式从进入被包装 Provider 的 `stream()` 开始，到流正常结束或异常退出为止，使用
+`time.perf_counter()` 测量。它包含网络、服务端排队和流式生成时间，不包含本地 Tool 执行时间。
+scripted 模式固定记录为 0，避免墙钟噪声破坏相同 seed 的可重复性断言。
 
 ### reference_delivery_tokens / replayed_reference_tokens
 
@@ -122,6 +130,10 @@ for msg in request.messages:
 | `externalized_source_results` | 持久化大结果中 "chars externalized" 消息数 | |
 | `persisted_reference_receipts` | 持久化的引用回执消息数 | |
 | `cost_usd` | 各 `RunRequest` 的 `cost_usd` 之和（scripted 恒为 0） | |
+| `model_latency_seconds` | `Σ trace.model_latency_seconds` | 全部模型请求的观测总延迟 |
+| `model_request_latency_p50_seconds` | 单请求延迟中位数 | |
+| `model_request_latency_p95_seconds` | 最近秩法取得的单请求 p95 | 样本量是本变体的模型请求数 |
+| `model_request_latency_max_seconds` | 单请求延迟最大值 | |
 
 ## 4. workload_sha256
 
@@ -196,11 +208,16 @@ break_even_turn = 第一个使 current.cumulative < raw.cumulative 的逻辑轮
 ## 9. aggregate.json（多 attempt 聚合）
 
 - `median_input_tokens`：每个变体在所有 attempt 中 `input_tokens` 的**中位数**；
+- `median_cost_usd`：每个变体总费用的中位数；
+- `median_model_latency_seconds`：每个变体模型请求总延迟的中位数；
+- `median_model_request_p95_seconds`：每个 attempt 内请求 p95 再跨 attempt 取中位数；
+- `observed_effects`：`current` 相对 `raw` 的输入 token 节省、费用节省和模型延迟差；
 - `live_current_uses_fewer_input_tokens`：`median(current) < median(raw)`（仅 live）；
 - `acceptance`：`all_attempts_completed`、`quality`（所有 attempt 质量通过）、
   `scripted_comparison`（scripted 时离线门禁通过）、`passed = 全部非 None 项为真`。
 
-Live 模式不做固定比例断言（真实模型存在采样波动），只比较中位数大小关系。
+Live 模式不做固定比例断言（真实模型存在采样波动），只对输入 token 比较中位数大小关系。
+费用取决于配置价格和供应商缓存计费，延迟受网络与排队影响，两者只报告、不作为硬门禁。
 
 ## 10. 边界与注意事项
 

@@ -3,7 +3,10 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 import re
+import statistics
+import time
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -102,6 +105,7 @@ class ContextEfficiencyRequestTrace:
     visible_fact_count: int
     reference_delivery_tokens: int
     replayed_reference_tokens: int
+    model_latency_seconds: float
     request_sha256: str
 
 
@@ -407,8 +411,9 @@ class ScriptedContextEfficiencyProvider(ModelProvider):
 class RecordingContextEfficiencyProvider(ModelProvider):
     """Records comparable request metrics around either scripted or live providers."""
 
-    def __init__(self, provider: ModelProvider) -> None:
+    def __init__(self, provider: ModelProvider, *, measure_latency: bool) -> None:
         self.provider = provider
+        self.measure_latency = measure_latency
         self.estimator = TokenEstimator()
         self.traces: list[ContextEfficiencyRequestTrace] = []
         self.logical_turn_hint: int | None = None
@@ -424,6 +429,7 @@ class RecordingContextEfficiencyProvider(ModelProvider):
         return self.estimator.request(request.messages, request.tools)
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
+        started = time.perf_counter()
         reported_input: int | None = None
         reported_output: int | None = None
         requested_tools: list[str] = []
@@ -475,6 +481,9 @@ class RecordingContextEfficiencyProvider(ModelProvider):
                     visible_fact_count=len(_facts_in_messages(request.messages)),
                     reference_delivery_tokens=delivery_tokens,
                     replayed_reference_tokens=replayed_tokens,
+                    model_latency_seconds=(
+                        time.perf_counter() - started if self.measure_latency else 0.0
+                    ),
                     request_sha256=hashlib.sha256(digest_payload.encode()).hexdigest(),
                 )
             )
@@ -538,7 +547,10 @@ async def run_context_efficiency_benchmark(
         profile=profile,
         variant=variant,
     )
-    recording_provider = RecordingContextEfficiencyProvider(underlying)
+    recording_provider = RecordingContextEfficiencyProvider(
+        underlying,
+        measure_latency=provider is not None,
+    )
     store = SQLiteSessionStore(workspace / "state.db")
     events = MemoryEventSink()
     event_bus = EventBus([store, events])
@@ -1012,6 +1024,7 @@ def _benchmark_summary(
     compaction = [trace for trace in traces if trace.phase != "agent"]
     prompt_tokens = sum(trace.prompt_tokens for trace in traces)
     output_tokens = sum(trace.output_tokens for trace in traces)
+    model_latencies = [trace.model_latency_seconds for trace in traces]
     return {
         "schema_version": 1,
         "suite": profile.name,
@@ -1042,6 +1055,12 @@ def _benchmark_summary(
             "externalized_source_results": externalized_source_results,
             "persisted_reference_receipts": persisted_reference_messages,
             "cost_usd": total_cost,
+            "model_latency_seconds": sum(model_latencies),
+            "model_request_latency_p50_seconds": (
+                statistics.median(model_latencies) if model_latencies else 0.0
+            ),
+            "model_request_latency_p95_seconds": _percentile(model_latencies, 0.95),
+            "model_request_latency_max_seconds": max(model_latencies, default=0.0),
         },
         "compaction": {
             "completed": compactions,
@@ -1056,6 +1075,14 @@ def _benchmark_summary(
         },
         "turns": turns,
     }
+
+
+def _percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, math.ceil(len(ordered) * percentile) - 1))
+    return ordered[index]
 
 
 def _request_phase(request: ModelRequest) -> str:
