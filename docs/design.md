@@ -481,7 +481,8 @@ Run 才以 `limit_reached/context_limit` 终止且不再调用主模型；若本
   不静默覆盖已有活动记忆；
 - `/forget` 对自动记忆同时写入 `FORGET.md`，避免后续重新学习；
 - Router 将真实用户轮次分为 `NONE/SUGGEST_SEARCH/REQUIRE_SEARCH/REQUIRE_EVIDENCE`；
-  后两类用命名 `tool_choice` 强制执行；
+  后两类在 Provider 支持时使用命名 `tool_choice`，否则由 Agent 在执行和持久化前 fail-closed
+  校验指定 Tool；
 - `search_memory` 检索当前文件记忆，`load_memory_evidence` 只按记忆内绑定的引用回读
   同工作区 SQLite 消息，两者正文都只对下一次模型请求可见。
 

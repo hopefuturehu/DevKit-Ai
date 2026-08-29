@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "benchmark": "memory-routing-behavior-live-comparison",
+  "date": "2026-08-29",
+  "provider": "openai_compatible",
+  "endpoint": "https://api.deepseek.com/v1",
+  "model": "deepseek-v4-flash",
+  "temperature": 0,
+  "attempts": 3,
+  "semantic_fixtures_per_bucket": 1,
+  "total_cases": 24,
+  "total_cost_usd": 0.127851,
+  "acceptance": {
+    "all_attempts_completed": true,
+    "router_quality_passed": true,
+    "hypotheses_reproduced_in_every_attempt": true,
+    "passed": true
+  },
+  "hypothesis_pass_rates": {
+    "irrelevant_avoids_memory_replay": 1.0,
+    "implicit_relevant_recalled": 1.0,
+    "explicit_history_forces_search": 1.0,
+    "attribution_uses_original_evidence": 1.0
+  },
+  "buckets": {
+    "irrelevant": {
+      "case_pass_rates": {
+        "eager": 1.0,
+        "on_demand": 1.0
+      },
+      "median_metrics": {
+        "eager": {
+          "model_requests": 1.0,
+          "input_tokens": 1676.0,
+          "cost_usd": 0.002134,
+          "end_to_end_seconds": 3.4802421250205953,
+          "search_tool_calls": 0.0,
+          "evidence_tool_calls": 0.0,
+          "automatic_memory_chars_replayed": 1318.0
+        },
+        "on_demand": {
+          "model_requests": 1.0,
+          "input_tokens": 1321.0,
+          "cost_usd": 0.001495,
+          "end_to_end_seconds": 2.216871082986472,
+          "search_tool_calls": 0.0,
+          "evidence_tool_calls": 0.0,
+          "automatic_memory_chars_replayed": 0.0
+        }
+      },
+      "median_paired_delta_on_demand_minus_eager": {
+        "model_requests": 0.0,
+        "input_tokens": -355.0,
+        "cost_usd": -0.000647,
+        "end_to_end_seconds": -1.263371042034123
+      }
+    },
+    "implicit_relevant": {
+      "case_pass_rates": {
+        "eager": 1.0,
+        "on_demand": 1.0
+      },
+      "median_metrics": {
+        "eager": {
+          "model_requests": 2.0,
+          "input_tokens": 4532.0,
+          "cost_usd": 0.005314,
+          "end_to_end_seconds": 5.999437041988131,
+          "search_tool_calls": 1.0,
+          "evidence_tool_calls": 0.0,
+          "automatic_memory_chars_replayed": 2678.0
+        },
+        "on_demand": {
+          "model_requests": 3.0,
+          "input_tokens": 6238.0,
+          "cost_usd": 0.007204,
+          "end_to_end_seconds": 8.401573541981634,
+          "search_tool_calls": 2.0,
+          "evidence_tool_calls": 1.0,
+          "automatic_memory_chars_replayed": 0.0
+        }
+      },
+      "median_paired_delta_on_demand_minus_eager": {
+        "model_requests": 1.0,
+        "input_tokens": 1834.0,
+        "cost_usd": 0.001693,
+        "end_to_end_seconds": 2.3227485840034205
+      }
+    },
+    "explicit_history": {
+      "case_pass_rates": {
+        "eager": 1.0,
+        "on_demand": 1.0
+      },
+      "median_metrics": {
+        "eager": {
+          "model_requests": 2.0,
+          "input_tokens": 4548.0,
+          "cost_usd": 0.00554,
+          "end_to_end_seconds": 6.568431833002251,
+          "search_tool_calls": 1.0,
+          "evidence_tool_calls": 1.0,
+          "automatic_memory_chars_replayed": 2672.0
+        },
+        "on_demand": {
+          "model_requests": 3.0,
+          "input_tokens": 6076.0,
+          "cost_usd": 0.007006,
+          "end_to_end_seconds": 7.574650708993431,
+          "search_tool_calls": 2.0,
+          "evidence_tool_calls": 1.0,
+          "automatic_memory_chars_replayed": 0.0
+        }
+      },
+      "median_paired_delta_on_demand_minus_eager": {
+        "model_requests": 1.0,
+        "input_tokens": 1374.0,
+        "cost_usd": 0.001094,
+        "end_to_end_seconds": 0.8939158739813138
+      }
+    },
+    "attribution_conflict": {
+      "case_pass_rates": {
+        "eager": 1.0,
+        "on_demand": 1.0
+      },
+      "median_metrics": {
+        "eager": {
+          "model_requests": 2.0,
+          "input_tokens": 4488.0,
+          "cost_usd": 0.006048,
+          "end_to_end_seconds": 7.8754247080069035,
+          "search_tool_calls": 1.0,
+          "evidence_tool_calls": 1.0,
+          "automatic_memory_chars_replayed": 2568.0
+        },
+        "on_demand": {
+          "model_requests": 3.0,
+          "input_tokens": 6186.0,
+          "cost_usd": 0.007496,
+          "end_to_end_seconds": 8.214234540995676,
+          "search_tool_calls": 2.0,
+          "evidence_tool_calls": 1.0,
+          "automatic_memory_chars_replayed": 0.0
+        }
+      },
+      "median_paired_delta_on_demand_minus_eager": {
+        "model_requests": 1.0,
+        "input_tokens": 1698.0,
+        "cost_usd": 0.001448,
+        "end_to_end_seconds": 0.5014914589992259
+      }
+    }
+  },
+  "diagnostics": {
+    "on_demand_minimal_tool_path_rates": {
+      "irrelevant": 1.0,
+      "implicit_relevant": 0.0,
+      "explicit_history": 0.0,
+      "attribution_conflict": 0.0
+    },
+    "interpretation": "Fixed-fixture canary only; not a population error-rate estimate."
+  }
+}

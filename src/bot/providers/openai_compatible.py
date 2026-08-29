@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -54,6 +55,7 @@ class OpenAICompatibleProvider(ModelProvider):
             text_generation=True,
             streaming=True,
             structured_tool_calling=True,
+            named_tool_choice=not self._is_official_deepseek_endpoint(),
             usage_reporting=False,
         )
 
@@ -84,9 +86,38 @@ class OpenAICompatibleProvider(ModelProvider):
             payload["tool_choice"] = request.tool_choice or "auto"
         if request.max_output_tokens is not None:
             payload["max_tokens"] = request.max_output_tokens
-        if request.thinking is not None:
+        requires_non_thinking = self._requires_non_thinking_tool_chain(request)
+        if requires_non_thinking and request.thinking == "enabled":
+            raise ProviderError(
+                "DeepSeek thinking mode 与命名 tool_choice 或缺少 reasoning_content "
+                "的 Tool 链不兼容",
+                kind=ProviderErrorKind.CONFIGURATION,
+            )
+        if requires_non_thinking:
+            # The official DeepSeek endpoint rejects a named function choice in
+            # thinking mode.  A function call created with thinking disabled also
+            # has no reasoning_content, so the rest of that Tool chain must stay
+            # non-thinking when it is replayed.
+            payload["thinking"] = {"type": "disabled"}
+        elif request.thinking is not None:
             payload["thinking"] = {"type": request.thinking}
         return payload
+
+    def _requires_non_thinking_tool_chain(
+        self,
+        request: ModelRequest,
+    ) -> bool:
+        if not self._is_official_deepseek_endpoint():
+            return False
+        if isinstance(request.tool_choice, dict):
+            return True
+        return any(
+            message.tool_calls and not message.reasoning_content for message in request.messages
+        )
+
+    def _is_official_deepseek_endpoint(self) -> bool:
+        hostname = (urlsplit(self.base_url).hostname or "").lower()
+        return hostname == "api.deepseek.com" or hostname.endswith(".deepseek.com")
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
         owned_client = self._client is None

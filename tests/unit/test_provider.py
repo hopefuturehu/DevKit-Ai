@@ -140,6 +140,100 @@ def test_provider_preserves_named_tool_choice() -> None:
     )
 
     assert payload["tool_choice"] == choice
+    assert "thinking" not in payload
+
+
+def test_provider_disables_deepseek_thinking_for_named_tool_choice() -> None:
+    provider = OpenAICompatibleProvider(
+        base_url="https://api.deepseek.com/v1",
+        api_key="secret",
+    )
+    choice = {"type": "function", "function": {"name": "search_memory"}}
+
+    payload = provider._payload(
+        ModelRequest(
+            model="deepseek-test",
+            messages=[ChatMessage(role=Role.USER, content="按上次的方案继续")],
+            tools=[
+                ToolDefinition(
+                    name="search_memory",
+                    description="search",
+                    input_schema={"type": "object"},
+                )
+            ],
+            tool_choice=choice,
+        )
+    )
+
+    assert payload["tool_choice"] == choice
+    assert payload["thinking"] == {"type": "disabled"}
+    assert provider.capabilities("deepseek-test").named_tool_choice is False
+
+
+def test_provider_keeps_deepseek_non_thinking_for_followup_tool_chain() -> None:
+    provider = OpenAICompatibleProvider(
+        base_url="https://api.deepseek.com/v1",
+        api_key="secret",
+    )
+
+    payload = provider._payload(
+        ModelRequest(
+            model="deepseek-test",
+            messages=[
+                ChatMessage(role=Role.USER, content="按上次的方案继续"),
+                ChatMessage(
+                    role=Role.ASSISTANT,
+                    tool_calls=[
+                        ToolCall(
+                            id="search-1",
+                            name="search_memory",
+                            arguments={"query": "上次方案"},
+                        )
+                    ],
+                ),
+                ChatMessage(
+                    role=Role.TOOL,
+                    name="search_memory",
+                    tool_call_id="search-1",
+                    content="result",
+                ),
+            ],
+            tools=[
+                ToolDefinition(
+                    name="search_memory",
+                    description="search",
+                    input_schema={"type": "object"},
+                )
+            ],
+        )
+    )
+
+    assert payload["tool_choice"] == "auto"
+    assert payload["thinking"] == {"type": "disabled"}
+
+
+def test_provider_rejects_deepseek_thinking_with_named_tool_choice() -> None:
+    provider = OpenAICompatibleProvider(
+        base_url="https://api.deepseek.com/v1",
+        api_key="secret",
+    )
+
+    with pytest.raises(ProviderError, match="thinking mode 与命名 tool_choice"):
+        provider._payload(
+            ModelRequest(
+                model="deepseek-test",
+                messages=[ChatMessage(role=Role.USER, content="x")],
+                tools=[
+                    ToolDefinition(
+                        name="search_memory",
+                        description="search",
+                        input_schema={"type": "object"},
+                    )
+                ],
+                tool_choice={"type": "function", "function": {"name": "search_memory"}},
+                thinking="enabled",
+            )
+        )
 
 
 @pytest.mark.asyncio

@@ -48,6 +48,11 @@ class ScriptedProvider(ModelProvider):
             yield event
 
 
+class NoNamedToolChoiceProvider(ScriptedProvider):
+    def capabilities(self, model: str) -> ModelCapabilities:
+        return ModelCapabilities(named_tool_choice=False)
+
+
 class SteerableProvider(ModelProvider):
     def __init__(self) -> None:
         self.started = asyncio.Event()
@@ -588,6 +593,52 @@ async def test_required_memory_tool_gate_discards_unsupported_final_text(
         message.content or "" for message in store.load_messages(result.session_id)
     )
     assert "unsupported attribution" not in persisted_text
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_required_memory_gate_rejects_wrong_tool_without_named_tool_choice(
+    tmp_path: Path,
+) -> None:
+    memory = MarkdownMemoryStore(tmp_path / "memory")
+    memory.consolidate(
+        [automatic_memory_candidate("测试命令是 pytest tests/unit。")],
+        session_id="source-session",
+        run_id="source-run",
+    )
+    provider = NoNamedToolChoiceProvider(
+        [
+            tool_turn(
+                "wrong-evidence",
+                "load_memory_evidence",
+                json.dumps({"memory": "procedure.testing.primary-command"}),
+            ),
+            tool_turn(
+                "memory-search",
+                "search_memory",
+                json.dumps({"query": "上次方案"}),
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider, memory_store=memory)
+
+    result = await runner.run(RunRequest(prompt="按上次的方案继续"))
+
+    assert result.status == "completed"
+    assert all(request.tool_choice is None for request in provider.requests)
+    messages = store.load_messages(result.session_id)
+    assert not any(
+        call.name == "load_memory_evidence"
+        for message in messages
+        for call in message.tool_calls
+    )
+    assert any(
+        call.name == "search_memory" for message in messages for call in message.tool_calls
+    )
     store.close()
 
 

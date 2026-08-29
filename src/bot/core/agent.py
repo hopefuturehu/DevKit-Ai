@@ -185,6 +185,7 @@ class AgentRunner:
             if conflicts:
                 raise ValueError(f"子 Agent 控制 Tool 名称冲突: {', '.join(sorted(conflicts))}")
         capabilities = provider.capabilities(config.model.name)
+        self._model_capabilities = capabilities
         if not capabilities.streaming or not capabilities.structured_tool_calling:
             raise ValueError("执行型 Agent 模型必须支持流式输出和结构化 Tool Calling")
         self._session_approvals: set[tuple[str, str]] = set()
@@ -705,7 +706,7 @@ class AgentRunner:
                     run_id=run_id,
                     payload=context_pack.overflow_report(),
                 )
-            forced_memory_tool = (
+            required_memory_tool = (
                 memory_routing.required_tool()
                 if memory_routing is not None and self.config.memory.router_enforce_required
                 else None
@@ -717,9 +718,10 @@ class AgentRunner:
                 tool_choice=(
                     {
                         "type": "function",
-                        "function": {"name": forced_memory_tool},
+                        "function": {"name": required_memory_tool},
                     }
-                    if forced_memory_tool is not None
+                    if required_memory_tool is not None
+                    and self._model_capabilities.named_tool_choice
                     else None
                 ),
                 temperature=self.config.model.temperature,
@@ -741,7 +743,7 @@ class AgentRunner:
                 async for event in self.provider.stream(model_request):
                     if event.kind == ModelEventKind.TEXT_DELTA and event.text:
                         text_parts.append(event.text)
-                        if forced_memory_tool is None:
+                        if required_memory_tool is None:
                             await self.event_bus.emit(
                                 EventType.ASSISTANT_DELTA,
                                 session_id=session_id,
@@ -873,7 +875,11 @@ class AgentRunner:
                 "turn_usage": turn_usage,
                 "provider_metadata": finish_metadata,
             }
-            if forced_memory_tool is not None and tool_calls and assistant_text:
+            if (
+                required_memory_tool is not None
+                and any(call.name == required_memory_tool for call in tool_calls)
+                and assistant_text
+            ):
                 await self.event_bus.emit(
                     EventType.ASSISTANT_DELTA,
                     session_id=session_id,
@@ -886,20 +892,17 @@ class AgentRunner:
                 run_id=run_id,
                 payload=response_summary,
             )
-            if (
-                not tool_calls
-                and memory_routing is not None
-                and not memory_routing.requirements_met
-                and self.config.memory.router_enforce_required
+            if required_memory_tool is not None and not any(
+                call.name == required_memory_tool for call in tool_calls
             ):
-                required_tool = memory_routing.required_tool()
+                assert memory_routing is not None
                 await self.event_bus.emit(
                     EventType.MEMORY_ROUTING_BLOCKED,
                     session_id=session_id,
                     run_id=run_id,
                     payload={
                         "decision": memory_routing.result.decision.value,
-                        "required_tool": required_tool,
+                        "required_tool": required_memory_tool,
                         "gate_retry": memory_routing.gate_retries,
                         "step": step,
                     },
@@ -910,7 +913,7 @@ class AgentRunner:
                         runtime_notes,
                         note_id="memory-routing",
                         content=(
-                            f"Memory Router 门禁：上一响应未调用必需的 {required_tool}，"
+                            f"Memory Router 门禁：上一响应未调用必需的 {required_memory_tool}，"
                             "其正文已丢弃且不会写入 Transcript。现在必须发起该结构化 Tool Call；"
                             "不要先给最终答案。"
                         ),
@@ -920,7 +923,7 @@ class AgentRunner:
                 raise _RunTermination(
                     status="failed",
                     reason_code="memory_retrieval_required",
-                    message=f"模型未执行 Memory Router 要求的 {required_tool}",
+                    message=f"模型未执行 Memory Router 要求的 {required_memory_tool}",
                     steps=step,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
@@ -928,7 +931,7 @@ class AgentRunner:
                     model_finalizer=False,
                     metadata={
                         "memory_routing_decision": memory_routing.result.decision.value,
-                        "required_tool": required_tool,
+                        "required_tool": required_memory_tool,
                     },
                 )
             conversation = self._expire_disposable_tool_results(

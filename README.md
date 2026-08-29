@@ -241,6 +241,8 @@ Pi、Hermes Agent、DeepSeek Harness、Nanobot 的架构差异见
 审核，但默认不再 eager 注入：Memory Router 只在当前真实用户轮次需要历史时建议或强制
 `search_memory`，涉及用户历史归因时继续强制 `load_memory_evidence`。检索正文按一次性 Tool
 Result 交付，冲突不会静默覆盖。详见 [Markdown 长期记忆](docs/markdown-memory.md)。
+Router 的可证伪门禁、真实 DeepSeek 成对 A/B 结果和适用边界见
+[Memory Router 设计与验收](docs/memory-routing.md)。
 
 Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`
 可取消当前运行。

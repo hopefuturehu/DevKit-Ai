@@ -86,8 +86,9 @@
 
 Router 的四种结果是 `NONE`、`SUGGEST_SEARCH`、`REQUIRE_SEARCH` 和
 `REQUIRE_EVIDENCE`。明确引用“上次/之前的约定”时必须检索；询问“我是否说过/贴过/授权过”
-时先检索，命中带证据的自动记忆后还必须读取原始证据。`REQUIRE_*` 不只靠提示：请求使用命名
-`tool_choice` 强制对应 Tool；Provider 不遵守时丢弃该响应并有界重试，仍不遵守则结束 Run。
+时先检索，命中带证据的自动记忆后还必须读取原始证据。`REQUIRE_*` 不只靠提示：Provider 支持时
+请求使用命名 `tool_choice`；不支持时 Agent 在执行和持久化前校验指定 Tool。提前回答或错误 Tool
+响应会被丢弃并有界重试，仍不遵守则结束 Run。
 
 `search_memory` 和 `load_memory_evidence` 的完整正文都以 `role=tool` 只交付给紧随其后的一次
 模型请求，SQLite Transcript 从一开始只保存不含正文的收据；下一请求后，内存中的正文也替换为

@@ -128,6 +128,7 @@ class ModelCapabilities(BaseModel):
     text_generation: bool = True
     streaming: bool = True
     structured_tool_calling: bool = True
+    named_tool_choice: bool = True
     usage_reporting: bool = False
 
 

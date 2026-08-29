@@ -12,7 +12,7 @@
 | `context-blob-scale` | 只有单 blob 正确性，没有数量/体积曲线 | content-addressed 去重、query、range、并发访问、越权隔离、fork 授权、DB 增长、p50/p95/max、query 峰值 Python 分配 | 模型是否会作出正确检索决策；跨进程吞吐；尚不存在的 GC/保留策略 |
 | `context-retrieval-behavior` | 综合 case 在 prompt 中直接指定了 query 策略 | 不该查、预览命中、中段命中、空结果恢复、多匹配、多 blob 选址；query/range 与调用次数 | 大量 blob 的存储复杂度；scripted 模式不能替代真实模型能力 |
 | `context-full-stack-soak` | 各层和生命周期以前分别测试，缺少组合压力 | AGENTS、memory、active skill、Tool schema 卸载、压缩、Tool Result 外置、runtime resume、session fork、child blob grant | 真实 Provider 波动；真正的 subagent worker 调度和多进程竞争 |
-| `memory-routing` 聚焦测试 | 自动记忆误认以前只在综合运行中观察，无法定位是位置、路由、证据还是回放问题 | 默认请求形状、四级 Router、命名 Tool 门禁、归因证据、一次性交付、错误候选拒绝、中文命中解释 | 真实模型误归因率和隐式召回率；需按 [真实模型 trade-off 实验](memory-routing.md#真实模型-trade-off-实验) 单独执行 |
+| `memory-routing` 聚焦测试 | 自动记忆误认以前只在综合运行中观察，无法定位是位置、路由、证据还是回放问题 | 默认请求形状、四级 Router、capability-aware Tool 门禁、归因证据、一次性交付、错误候选拒绝、中文命中解释，以及 3 次真实 Provider canary | canary 只有每桶一个 fixture；总体误归因率和隐式召回率仍需 [多样本统计实验](memory-routing.md#多样本统计实验门槛) |
 
 原有 `context-efficiency` 仍是压缩、外置、query 与一次性交付的主要受控 A/B。新增 case 是补充其
 外部有效性、规模行为、自主决策和生命周期交互，不改变原 case 的比较口径。
@@ -134,6 +134,24 @@ RUN_CONTEXT_FULL_STACK_SOAK=1 \
 subagent 使用的 session/blob 授权边界，不会冒充已经运行了完整 subagent worker 调度；worker
 并发、取消和结果合并继续由独立 subagent integration tests 负责。
 
+## 5. Memory Router 成对 A/B
+
+```bash
+RUN_MEMORY_ROUTING_LIVE=1 \
+  .venv/bin/python scripts/run_memory_routing_behavior.py \
+  --provider live --repeat 3 --max-cost-usd 0.50 \
+  --output .bot/benchmarks/memory-routing-live
+```
+
+四个预注册场景只改变历史依赖类型：完全无关、隐式相关、显式历史依赖、自动记忆与原始用户消息
+冲突。每轮同时执行 eager 和 on-demand，并交错 variant/scenario 顺序。评测直接记录生产
+`ModelRequest`、Router 事件、Tool 事件、Provider usage、费用和延迟；语义正确与严格输出格式分开，
+必要工具门禁与最短工具路径也分开，避免把格式波动或额外验证误算为检索失败。
+
+2026-08-29 的真实 DeepSeek canary 完成 3 轮、24 个 case，质量 gate 为 24/24；完整命令、局限、
+成对差值和脱敏 JSON 见 [Memory Router 设计与验收](memory-routing.md#2026-08-29-真实-canary-结果)。
+这证明固定 fixture 的生产协议和 trade-off 方向，不替代每桶至少 30 个语义样本的总体错误率实验。
+
 ## 指标如何拿到
 
 | 指标方向 | 原始来源 | 典型指标 |
@@ -153,7 +171,8 @@ subagent 使用的 session/blob 授权边界，不会冒充已经运行了完整
 - 普通 CI：scripted `context-efficiency`、缩小参数的 blob-scale、完整 retrieval behavior、full-stack
   fast，以及各 CLI opt-in 门禁；
 - 定时/手动：blob-scale soak、full-stack soak；
-- 有密钥且配置价格的受控环境：两个 live case，至少重复 3 次。
+- 有密钥且配置价格的受控环境：context efficiency、retrieval behavior 和 memory routing 三个 live
+  case，至少重复 3 次。
 
 这次补全后仍没有统一跨模型基线仓库、真实 Provider 的长期定时趋势面板、blob retention/GC、
 数据库内流式或索引检索、多进程 blob 压测，以及把真实 subagent worker 调度并入 120 轮 soak。
