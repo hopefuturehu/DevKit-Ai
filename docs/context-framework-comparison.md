@@ -140,7 +140,7 @@ Chat Completions 通常使用 `system`、`developer`、`user`、`assistant`、`t
 
 | 实现 | 高权限/稳定提示 | `user` 中的真实与合成内容 | `assistant` | Tool 在 wire 上 | 典型请求顺序或例外 |
 |---|---|---|---|---|---|
-| `bot` | Core、`AGENTS.md`、环境、Skill 目录/正文和 runtime note 均为 `system` | 真实用户；显式记忆、自动记忆、压缩摘要、旧 snapshot 均为 synthetic `user`；旧版历史 `system` 会降为 `user(name=historical_context)` | 原始 Assistant 回复和 Tool Call | `role=tool`；schema 在顶层 `tools` | `system* -> explicit-memory(user) -> compaction(user) -> transcript -> automatic-memory(user) -> runtime(system)`；自动记忆可位于最新真人输入之后 |
+| `bot` | Core、`AGENTS.md`、环境、Skill 目录/正文、Memory Router 和 runtime note 均为 `system` | 真实用户；显式记忆、压缩摘要、旧 snapshot 为带边界的 synthetic `user`；`automatic_memory(user)` 仅在 `eager` 兼容模式出现；旧版历史 `system` 会降为带边界的 `user(name=historical_context)` | 原始 Assistant 回复和 Tool Call | `role=tool`；schema 在顶层 `tools`；记忆检索/证据正文为一次性 Tool Result | 默认 `system* -> explicit-memory(user) -> compaction(user) -> transcript -> router(system) -> assistant(memory Tool Call) -> memory(tool)`；`REQUIRE_*` 使用命名 `tool_choice` |
 | Codex | 常规 Responses 请求的模型基础提示位于顶层 `instructions`；开发者指令、Memory 摘要、Skill、协作/权限/模型状态等为 `developer` item；Responses Lite 把基础提示也转成 `developer` item | 真实用户；`AGENTS.md`、环境和部分 App/插件提示为 contextual `user`；本地压缩保留的用户锚点与最终 summary 都是 `user` | 模型消息为 `assistant` item | Function/custom tool call/output、reasoning、native compaction 是专用 `ResponseItem`，不是 `role=tool` | 初始上下文通常按 `developer* -> contextual-user` 进入 history，再接会话；远端压缩可返回无普通 role 的原生 compaction item |
 | OpenCode | Agent/provider prompt、环境、项目指令、MCP、Skill 和 per-user system 合成 system 数组；一般变成前置 `system`，OpenAI OAuth 路径改用 `instructions` | 真实用户；压缩 marker 会渲染为 synthetic user “What did we do so far?”；媒体兼容提示和自动继续提示也可生成 `user` | 真实回复；压缩摘要保存为 `assistant(summary=true)` | AI SDK 从 assistant Tool part 生成 Tool Call/Result；Provider adapter 再落到目标协议 | 正常为 `system* -> projected history`；压缩投影明确重排为 `compaction-user -> summary-assistant -> retained tail -> continue-user` |
 | Pi | Core、Tool 指南、项目 context files、Skill、CWD 合成一个 `systemPrompt`；Chat Completions 上按模型能力发 `system` 或 `developer`，标准 Responses 发 `system/developer` message，Codex Responses 路径使用顶层 `instructions` | 真实用户；bash/custom extension 消息、branch summary、compaction summary 均转换为 synthetic `user` | 真实回复；thinking 与 Tool Call 是 assistant content block | 内部是独立 `toolResult` 角色；Chat Completions 转成 `tool`，Responses 转成 function/custom tool output item | `systemPrompt + active session-tree path`；最新 compaction 先作为 `user`，再接 `firstKeptEntryId` 起的连续尾部 |
@@ -155,9 +155,8 @@ Chat Completions 通常使用 `system`、`developer`、`user`、`assistant`、`t
 - **显式拆出 developer/user 的代表是 Codex**。Memory summary 与 Skill 是 `developer`，而
   `AGENTS.md` 和环境是 contextual `user`；其基础提示在常规 Responses 请求中甚至不属于
   `input[]`，而是顶层 `instructions`。
-- **大量使用 synthetic user 的代表是当前 `bot`、Pi 和 DeepSeek Harness**，但用途不同：当前
-  `bot` 用它承载 Memory/Compaction，Pi 用它承载自定义事件和摘要，DeepSeek Harness 用它承载
-  runtime snapshot 和 checkpoint。
+- **大量使用 synthetic user 的代表是 Pi 和 DeepSeek Harness**；`bot` 仍用它承载显式记忆和
+  Compaction，但默认自动记忆已经改成按需 Tool Result，避免把派生索引追加在真人输入之后。
 - **Hermes 说明压缩摘要的 role 不能只按语义决定**。它会根据严格模板看到的前后角色选择
   `user` 或 `assistant`，必要时把摘要并入 tail；同时用明确的 reference-only 前缀避免旧任务被
   当成新请求。
@@ -166,8 +165,9 @@ Role 也不等于来源或信任级别。当前 `bot` 的 `ContextTrust`、Codex
 provenance、OpenCode/Pi 的 synthetic/summary 标记主要在框架内部携带来源或形态信息，并供审计、
 投影或 UI 使用；最终序列化时 Provider 未必能看到这些元数据。模型真正能稳定利用的是 wire
 role、相对位置、文本边界和
-目标 API 保留下来的专用字段。因此，把不可信自动记忆标成内部 `UNTRUSTED`，并不会自动降低一条
-`role=user` 消息在模型眼中的权限。
+目标 API 保留下来的专用字段。因此，只把不可信自动记忆标成内部 `UNTRUSTED` 并不足够；`bot`
+现在同时改变默认注入时机、相对位置、文本边界和 Tool wire role，并对高风险归因使用命名
+`tool_choice` 与原始证据门禁。
 
 ## 6. Reasoning 的保存、回传与压缩作用域
 

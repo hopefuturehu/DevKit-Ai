@@ -19,7 +19,7 @@ Core / Project / Skills / USER.md
                   +
         cursor 之后的原始消息
                   +
-       自动记忆短索引 / Runtime Note
+       Memory Router / Runtime Note；按需自动记忆作为 Tool Result
 ```
 
 旧的 `ContextSnapshot` 数据仍可读取，但不参与默认运行时上下文装配。已有数据库中曾由

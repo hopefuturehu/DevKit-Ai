@@ -58,7 +58,10 @@
 - `procedure`
 - `pitfall`
 
-程序随后验证置信度、长度、证据位置、用户偏好的 User 证据和敏感信息。模型只能建议
+程序随后验证置信度、长度、证据位置、用户偏好的 User 证据和敏感信息。`user_preference`
+只保留真实 `role=user` 的证据位置；“用户曾说过/贴出/发送/否认/同意/授权”一类会话事件
+无论模型给出什么 kind 都被确定性拒绝，因为它们应从原始 Transcript 查询，而不是固化成长期
+记忆。这条规则直接阻止 Assistant 的错误归因借用一条 User 否认消息成为“证据”。模型只能建议
 稳定 key，不能决定信任级别、目标路径或覆盖旧内容。
 
 ## 巩固规则
@@ -76,24 +79,28 @@
 
 ## 读取路径与信任
 
-每次 Run 开始时，在 `context.memory_tokens` 总预算内按顺序加载：
+每次 Run 开始时，默认只在 `context.memory_tokens` 预算内加载：
 
 1. `USER.md` 中的显式条目，`ContextTrust.USER`，优先级 500；
-2. `MEMORY.md` 自动索引，最多 `memory.index_tokens`，`ContextTrust.UNTRUSTED`，
-   优先级 400。
+2. 不加载 `MEMORY.md` 自动索引；它由确定性 Memory Router 按当前真实用户轮次决定是否检索。
 
-这两个 `ContextTrust` 值不会发送给模型。进入当前 OpenAI-compatible 请求时，两者都序列化成
-`role=user`，在 role 层面相同，仅以 `name=explicit_memory`/`name=automatic_memory` 及正文边界
-区分；显式记忆位于会话前的稳定层，自动记忆则位于完整近期会话之后。若本轮还有 runtime
-note，请求尾部的典型顺序是
-`最新真人 user -> automatic_memory(user) -> runtime note(system)`。因此自动记忆虽然在内部是
-`UNTRUSTED`，模型并不会从 wire role 得到一个更低的权限层，也不能依赖“最后一条 user”判断
-用户当前意图。完整顺序及与本地开源框架的差异见
+Router 的四种结果是 `NONE`、`SUGGEST_SEARCH`、`REQUIRE_SEARCH` 和
+`REQUIRE_EVIDENCE`。明确引用“上次/之前的约定”时必须检索；询问“我是否说过/贴过/授权过”
+时先检索，命中带证据的自动记忆后还必须读取原始证据。`REQUIRE_*` 不只靠提示：请求使用命名
+`tool_choice` 强制对应 Tool；Provider 不遵守时丢弃该响应并有界重试，仍不遵守则结束 Run。
+
+`search_memory` 和 `load_memory_evidence` 的完整正文都以 `role=tool` 只交付给紧随其后的一次
+模型请求，SQLite Transcript 从一开始只保存不含正文的收据；下一请求后，内存中的正文也替换为
+同一收据。检索结果显式标注为历史参考，只有证据结果中原始 `role=user` 消息能支撑用户归因。
+
+`memory.context_mode="eager"` 只保留作回滚和 A/B：此时自动索引仍为
+`role=user(name=automatic_memory)`/`ContextTrust.UNTRUSTED`，但带“不是用户消息”边界并置于
+Transcript 前，不再追加到最新真人用户消息之后。完整顺序及与本地开源框架的差异见
 [Role 分配与最终消息位置](context-framework-comparison.md#53-role-分配与最终消息位置)。
 
 模型还可调用：
 
-- `search_memory(query, limit)`：检索显式与自动记忆；
+- `search_memory(query, limit)`：检索显式与自动记忆，并返回分数、命中词和覆盖率；
 - `load_memory_evidence(memory)`：按记忆绑定的 session/run/position 回读同工作区 SQLite
   原文，不能任意跨工作区浏览历史。
 
@@ -123,6 +130,7 @@ note，请求尾部的典型顺序是
 enabled = true
 path = "./.bot/memory"
 auto_extract = true
+context_mode = "on_demand" # eager 仅用于回滚或对照实验
 # model = "low-cost-memory-model"
 max_runs_per_cycle = 3
 max_attempts = 3
@@ -133,4 +141,13 @@ max_output_tokens = 2048
 min_confidence = 0.75
 index_tokens = 2000
 search_limit = 8
+router_enabled = true
+router_min_score = 2
+router_min_term_coverage = 0.25
+router_max_candidates = 3
+router_enforce_required = true
+router_max_gate_retries = 1
 ```
+
+聚焦验收用例和每条猜想可由什么测试证伪，见
+[Memory Router 设计与验收](memory-routing.md)。

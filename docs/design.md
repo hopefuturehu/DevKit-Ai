@@ -422,11 +422,12 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 
 按稳定程度、因果顺序和更新频率确定性装配。模型消息的实际顺序是：Core Policy、根到当前
 目录的 `AGENTS.md`、Environment、Skill Catalog、预算卸载后的 Tool Catalog、Active
-Skills、显式记忆、单活动压缩摘要、兼容 Snapshot、近期会话/Tool Result、自动记忆索引、
-Runtime Note。Tool schema 不混入消息，而是作为独立请求字段按名称排序。
+Skills、显式记忆、`eager` 兼容模式的自动记忆索引、单活动压缩摘要、兼容 Snapshot、近期
+会话/Tool Result、Runtime Note。默认自动记忆不进入这条静态序列，而由 Router 通过 Tool
+按需检索。Tool schema 不混入消息，而是作为独立请求字段按名称排序。
 
 这个顺序形成“稳定前缀 → 因果历史 → 易变尾部”：显式记忆通常稳定，放在会话前参与缓存；
-异步自动记忆和运行提示可能高频变化，放在会话后，避免击穿整段历史。layer 排序只决定模型
+Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 Tool Result 出现。layer 排序只决定模型
 看到的顺序；预算保留仍由 retention、priority 和 Tool 原子组单独决定。完整表格、角色、
 来源和请求修复流程见 [模型上下文分块与组装顺序](context-assembly.md)。
 
@@ -474,12 +475,15 @@ Run 才以 `limit_reached/context_limit` 终止且不再调用主模型；若本
 - `runs/messages/tool_runs` 和证据位置继续保存在 SQLite；
 - `/remember <text>` 写入受保护的 `USER.md`，以 User 信任域注入；
 - 已完成 Root Run 在后续运行开始时异步提取，正文直接巩固到 `topics/*.md`；
-- `MEMORY.md` 是由活动主题文件生成的短索引，只以 Untrusted 信任域注入；
+- `MEMORY.md` 是由活动主题文件生成的短索引，默认只供 Router/Tool 检索；`eager` 兼容模式才以
+  Untrusted 信任域注入；
 - 不使用审核 Inbox。完全重复的观察合并证据，同 key 不同内容进入 `CONFLICTS.md`，
   不静默覆盖已有活动记忆；
 - `/forget` 对自动记忆同时写入 `FORGET.md`，避免后续重新学习；
+- Router 将真实用户轮次分为 `NONE/SUGGEST_SEARCH/REQUIRE_SEARCH/REQUIRE_EVIDENCE`；
+  后两类用命名 `tool_choice` 强制执行；
 - `search_memory` 检索当前文件记忆，`load_memory_evidence` 只按记忆内绑定的引用回读
-  同工作区 SQLite 消息。
+  同工作区 SQLite 消息，两者正文都只对下一次模型请求可见。
 
 文件路径决定信任级别，Markdown 内的标签不能提升权限。普通 Agent 文件和 Shell Tool
 无法访问记忆根目录；自动提取器也不能写 `USER.md`。旧 SQLite `memories` 行在运行时
@@ -768,6 +772,7 @@ compaction_rebuild_every = 5
 enabled = true
 path = "./.bot/memory"
 auto_extract = true
+context_mode = "on_demand"
 # model = "low-cost-memory-model"
 max_runs_per_cycle = 3
 max_attempts = 3
@@ -775,6 +780,8 @@ max_candidates_per_run = 5
 max_source_tokens = 24000
 min_confidence = 0.75
 index_tokens = 2000
+router_enabled = true
+router_enforce_required = true
 
 [skills]
 path = "./skills"

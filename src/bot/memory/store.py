@@ -7,6 +7,7 @@ import re
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
@@ -46,6 +47,15 @@ _FORGET_HEADER = """# Suppressed automatic memory keys
 
 > `/forget` 写入的 key 不会被自动提取器重新创建。
 """
+
+
+@dataclass(frozen=True)
+class MemorySearchHit:
+    record: MemoryRecord
+    score: float
+    matched_terms: tuple[str, ...]
+    term_coverage: float
+    exact_query_match: bool
 
 
 class MarkdownMemoryStore:
@@ -392,22 +402,51 @@ class MarkdownMemoryStore:
             self._rebuild_projections_unlocked()
             return True
 
-    def search(self, query: str, *, limit: int) -> list[MemoryRecord]:
+    @staticmethod
+    def _search_terms(query: str) -> tuple[str, ...]:
+        terms: list[str] = []
+        for token in re.findall(r"[a-z0-9][a-z0-9_./:@-]*|[\u3400-\u9fff]+", query):
+            if re.fullmatch(r"[\u3400-\u9fff]+", token):
+                if len(token) <= 2:
+                    terms.append(token)
+                else:
+                    terms.extend(token[index : index + 2] for index in range(len(token) - 1))
+            elif len(token) >= 2:
+                terms.append(token)
+        return tuple(dict.fromkeys(terms[:24]))
+
+    def search_scored(self, query: str, *, limit: int) -> list[MemorySearchHit]:
         normalized = self._one_line(query).casefold()
         if not normalized:
             return []
-        terms = [term for term in re.findall(r"[\w./:@-]+", normalized) if term]
-        scored: list[tuple[int, MemoryRecord]] = []
+        terms = self._search_terms(normalized)
+        scored: list[MemorySearchHit] = []
         for record in self.list_memories():
             haystack = " ".join(
                 [record.key, record.kind.value, record.status.value, record.content]
             ).casefold()
-            score = 10 if normalized in haystack else 0
-            score += sum(2 for term in terms[:12] if term in haystack)
+            exact = normalized in haystack
+            matched = tuple(term for term in terms if term in haystack)
+            score = (10 if exact else 0) + (12 if normalized == record.key.casefold() else 0)
+            score += 2 * len(matched)
             if score:
-                scored.append((score, record))
-        scored.sort(key=lambda item: (item[0], item[1].updated_at), reverse=True)
-        return [record for _, record in scored[: max(1, min(limit, 50))]]
+                scored.append(
+                    MemorySearchHit(
+                        record=record,
+                        score=float(score),
+                        matched_terms=matched,
+                        term_coverage=(len(matched) / len(terms) if terms else 0),
+                        exact_query_match=exact,
+                    )
+                )
+        scored.sort(
+            key=lambda hit: (hit.score, hit.term_coverage, hit.record.updated_at),
+            reverse=True,
+        )
+        return scored[: max(1, min(limit, 50))]
+
+    def search(self, query: str, *, limit: int) -> list[MemoryRecord]:
+        return [hit.record for hit in self.search_scored(query, limit=limit)]
 
     def get(self, identifier: str) -> MemoryRecord | None:
         matches = [

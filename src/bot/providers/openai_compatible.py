@@ -81,7 +81,7 @@ class OpenAICompatibleProvider(ModelProvider):
         }
         if request.tools:
             payload["tools"] = [tool.to_openai() for tool in request.tools]
-            payload["tool_choice"] = "auto"
+            payload["tool_choice"] = request.tool_choice or "auto"
         if request.max_output_tokens is not None:
             payload["max_tokens"] = request.max_output_tokens
         if request.thinking is not None:

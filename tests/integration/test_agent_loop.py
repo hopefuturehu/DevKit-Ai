@@ -25,6 +25,7 @@ from bot.core.models import (
     ToolCall,
 )
 from bot.execution import LocalExecutionTarget, ProcessSpec
+from bot.memory import ExtractedMemoryCandidate, MarkdownMemoryStore, MemoryKind
 from bot.policy import DefaultPolicyEngine
 from bot.providers import ModelProvider, ProviderError
 from bot.sessions import SQLiteSessionStore
@@ -203,6 +204,21 @@ def tool_turn(call_id: str, name: str, arguments: str) -> list[ModelEvent]:
     ]
 
 
+def automatic_memory_candidate(
+    content: str,
+    *,
+    positions: list[int] | None = None,
+) -> ExtractedMemoryCandidate:
+    return ExtractedMemoryCandidate(
+        kind=MemoryKind.PROCEDURE,
+        scope="workspace",
+        memory_key="testing.primary-command",
+        content=content,
+        confidence=0.92,
+        evidence_positions=positions or [1, 2],
+    )
+
+
 def make_test_runner(
     tmp_path: Path,
     provider: ModelProvider,
@@ -211,6 +227,8 @@ def make_test_runner(
     model_config: dict | None = None,
     tools: list | None = None,
     context_config: dict | None = None,
+    memory_config: dict | None = None,
+    memory_store: MarkdownMemoryStore | None = None,
 ):
     model = {"base_url": "https://unused", "name": "mock"}
     model.update(model_config or {})
@@ -219,6 +237,7 @@ def make_test_runner(
             "model": model,
             "agent": agent_config or {},
             "context": context_config or {},
+            "memory": memory_config or {},
             "storage": {"state_path": str(tmp_path / "state.db")},
             "skills": {"path": str(tmp_path / "skills")},
         }
@@ -240,6 +259,7 @@ def make_test_runner(
         context=ContextAssembler(workspace=tmp_path, skill_catalog=catalog),
         store=store,
         event_bus=EventBus([store]),
+        memory_store=memory_store,
     )
     return runner, store
 
@@ -365,6 +385,209 @@ async def test_context_reference_delivery_is_visible_once_without_nested_blob(
     assert payload not in (stored_load_result.content or "")
     assert "disposable_context_delivery" in (stored_load_result.content or "")
     assert (stored_load_result.content or "").count(reference) == 1
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_on_demand_memory_does_not_append_automatic_memory_to_plain_prompt(
+    tmp_path: Path,
+) -> None:
+    memory = MarkdownMemoryStore(tmp_path / "memory")
+    memory.consolidate(
+        [automatic_memory_candidate("测试命令是 pytest。")],
+        session_id="source-session",
+        run_id="source-run",
+    )
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="plain answer"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider, memory_store=memory)
+
+    result = await runner.run(RunRequest(prompt="解释这个独立问题"))
+
+    assert result.status == "completed"
+    request = provider.requests[0]
+    assert not any(message.name == "automatic_memory" for message in request.messages)
+    assert [
+        (message.name, message.content) for message in request.messages if message.role == Role.USER
+    ] == [(None, "解释这个独立问题")]
+    assert request.tool_choice is None
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_required_memory_search_is_forced_and_delivered_once(tmp_path: Path) -> None:
+    memory = MarkdownMemoryStore(tmp_path / "memory")
+    memory.consolidate(
+        [automatic_memory_candidate("测试命令是 pytest tests/unit。")],
+        session_id="source-session",
+        run_id="source-run",
+    )
+    provider = ScriptedProvider(
+        [
+            tool_turn(
+                "memory-search",
+                "search_memory",
+                json.dumps({"query": "上次约定的测试命令"}),
+            ),
+            tool_turn(
+                "activate-read",
+                "activate_tools",
+                json.dumps({"names": ["read_file"]}),
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        tools=[ReadFileTool()],
+        memory_store=memory,
+    )
+
+    result = await runner.run(RunRequest(prompt="按上次约定的测试命令继续"))
+
+    assert result.status == "completed"
+    assert provider.requests[0].tool_choice == {
+        "type": "function",
+        "function": {"name": "search_memory"},
+    }
+    delivered = next(
+        message
+        for message in provider.requests[1].messages
+        if message.tool_call_id == "memory-search"
+    )
+    expired = next(
+        message
+        for message in provider.requests[2].messages
+        if message.tool_call_id == "memory-search"
+    )
+    assert "historical_memory_reference" in (delivered.content or "")
+    assert "pytest tests/unit" in (delivered.content or "")
+    assert "pytest tests/unit" not in (expired.content or "")
+    assert "disposable_context_delivery" in (expired.content or "")
+    stored = next(
+        message
+        for message in store.load_messages(result.session_id)
+        if message.tool_call_id == "memory-search"
+    )
+    assert "pytest tests/unit" not in (stored.content or "")
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_historical_attribution_forces_search_then_original_evidence(
+    tmp_path: Path,
+) -> None:
+    memory = MarkdownMemoryStore(tmp_path / "memory")
+    provider = ScriptedProvider(
+        [
+            tool_turn(
+                "memory-search",
+                "search_memory",
+                json.dumps({"query": "MEMORY.md 全文"}),
+            ),
+            tool_turn(
+                "memory-evidence",
+                "load_memory_evidence",
+                json.dumps({"memory": "procedure.testing.primary-command"}),
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="证据显示用户是否认。"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider, memory_store=memory)
+    source_session = store.create_session(tmp_path, session_id="source-session")
+    store.start_run(source_session, "source-run")
+    user_position = store.append_message(
+        source_session,
+        "source-run",
+        ChatMessage(role=Role.USER, content="我没有贴出 MEMORY.md 全文。"),
+    )
+    assistant_position = store.append_message(
+        source_session,
+        "source-run",
+        ChatMessage(role=Role.ASSISTANT, content="用户贴出了 MEMORY.md 全文。"),
+    )
+    store.finish_run("source-run", "completed")
+    memory.consolidate(
+        [
+            automatic_memory_candidate(
+                "用户贴出了 MEMORY.md 全文。",
+                positions=[user_position, assistant_position],
+            )
+        ],
+        session_id=source_session,
+        run_id="source-run",
+    )
+
+    result = await runner.run(RunRequest(prompt="我之前是否说过自己贴出了 MEMORY.md 全文？"))
+
+    assert result.status == "completed"
+    assert provider.requests[0].tool_choice == {
+        "type": "function",
+        "function": {"name": "search_memory"},
+    }
+    assert provider.requests[1].tool_choice == {
+        "type": "function",
+        "function": {"name": "load_memory_evidence"},
+    }
+    evidence = next(
+        message
+        for message in provider.requests[2].messages
+        if message.tool_call_id == "memory-evidence"
+    )
+    assert "original_transcript_evidence" in (evidence.content or "")
+    assert '"role": "user"' in (evidence.content or "")
+    assert "我没有贴出 MEMORY.md 全文" in (evidence.content or "")
+    assert "用户贴出了 MEMORY.md 全文" in (evidence.content or "")
+    assert "disposable_context_delivery" in "\n".join(
+        message.content or "" for message in provider.requests[2].messages
+    )
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_required_memory_tool_gate_discards_unsupported_final_text(
+    tmp_path: Path,
+) -> None:
+    memory = MarkdownMemoryStore(tmp_path / "memory")
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="unsupported attribution"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="unsupported attribution"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider, memory_store=memory)
+
+    result = await runner.run(RunRequest(prompt="按上次的方案继续"))
+
+    assert result.status == "failed"
+    assert len(provider.requests) == 2
+    assert all(
+        request.tool_choice == {"type": "function", "function": {"name": "search_memory"}}
+        for request in provider.requests
+    )
+    persisted_text = "\n".join(
+        message.content or "" for message in store.load_messages(result.session_id)
+    )
+    assert "unsupported attribution" not in persisted_text
     store.close()
 
 

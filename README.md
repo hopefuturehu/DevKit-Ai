@@ -124,12 +124,15 @@ compaction_rebuild_every = 5
 enabled = true
 path = "./.bot/memory"
 auto_extract = true
+context_mode = "on_demand"
 # 可选；留空时复用主模型
 # model = "<memory-extraction-model-id>"
 max_runs_per_cycle = 3
 max_candidates_per_run = 5
 min_confidence = 0.75
 index_tokens = 2000
+router_enabled = true
+router_enforce_required = true
 
 [skills]
 path = "./skills"
@@ -235,8 +238,9 @@ Pi、Hermes Agent、DeepSeek Harness、Nanobot 的架构差异见
 
 会话和证据继续保存在 SQLite；显式记忆写入受保护的 `USER.md` 并以 `USER` 信任加载，
 已完成 Root Run 会在后续运行开始时异步提取为 Markdown 自动记忆。自动记忆不需要逐条
-审核，但始终以 `UNTRUSTED` 加载，冲突不会静默覆盖，且可通过 `load_memory_evidence`
-回查 SQLite 原文。详见 [Markdown 长期记忆](docs/markdown-memory.md)。
+审核，但默认不再 eager 注入：Memory Router 只在当前真实用户轮次需要历史时建议或强制
+`search_memory`，涉及用户历史归因时继续强制 `load_memory_evidence`。检索正文按一次性 Tool
+Result 交付，冲突不会静默覆盖。详见 [Markdown 长期记忆](docs/markdown-memory.md)。
 
 Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`
 可取消当前运行。

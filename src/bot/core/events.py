@@ -44,6 +44,8 @@ class EventType(StrEnum):
     MEMORY_EXTRACTION_STARTED = "memory.extraction.started"
     MEMORY_EXTRACTION_COMPLETED = "memory.extraction.completed"
     MEMORY_EXTRACTION_FAILED = "memory.extraction.failed"
+    MEMORY_ROUTING_DECIDED = "memory.routing.decided"
+    MEMORY_ROUTING_BLOCKED = "memory.routing.blocked"
     RUN_STEERED = "run.steered"
     RUN_PROGRESS = "run.progress"
     RUN_PROGRESS_RESTORED = "run.progress_restored"

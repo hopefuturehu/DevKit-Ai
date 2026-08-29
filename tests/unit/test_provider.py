@@ -120,6 +120,28 @@ def test_provider_round_trips_reasoning_for_tool_calls_and_rejects_empty_assista
         provider._payload(ModelRequest(model="test", messages=[ChatMessage(role=Role.ASSISTANT)]))
 
 
+def test_provider_preserves_named_tool_choice() -> None:
+    provider = OpenAICompatibleProvider(base_url="https://example.test/v1", api_key="secret")
+    choice = {"type": "function", "function": {"name": "search_memory"}}
+
+    payload = provider._payload(
+        ModelRequest(
+            model="test",
+            messages=[ChatMessage(role=Role.USER, content="按上次的方案继续")],
+            tools=[
+                ToolDefinition(
+                    name="search_memory",
+                    description="search",
+                    input_schema={"type": "object"},
+                )
+            ],
+            tool_choice=choice,
+        )
+    )
+
+    assert payload["tool_choice"] == choice
+
+
 @pytest.mark.asyncio
 async def test_provider_surfaces_http_error_without_authorization_value() -> None:
     def handler(request: httpx.Request) -> httpx.Response:

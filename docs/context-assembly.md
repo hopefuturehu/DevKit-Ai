@@ -55,11 +55,11 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 | 4 | `TOOL_CATALOG` | `system` | Tool schema 超预算时的未加载工具目录 | 仅超预算时出现；稳定后进入前缀 |
 | 5 | `ACTIVE_SKILL` | `system` | 已激活 Skill 的 header 和正文 | 激活后通常稳定；正文可卸载重载 |
 | 6 | `MEMORY` | `user` | 用户显式确认的 `USER.md`/兼容 SQLite 记忆 | 放在会话前，参与稳定前缀复用 |
-| 7 | `COMPACTION` | `user` | 唯一活动的 `context_compaction` 摘要 | `PINNED`；必须在它覆盖后的原始 tail 前 |
+| 7 | `AUTOMATIC_MEMORY` | `user` | 仅 `memory.context_mode="eager"` 兼容模式下的自动索引 | 默认不出现；兼容模式也放在 Transcript 前并带 reference-only 边界 |
+| 8 | `COMPACTION` | `user` | 唯一活动的 `context_compaction` 摘要 | `PINNED`；必须在它覆盖后的原始 tail 前 |
 | 8 | `SNAPSHOT` | `user` | 旧 checkpoint 兼容层 | 默认主路径不注入 |
 | 9 | `RECENT_CONVERSATION` / `TOOL_RESULT` | 原始角色 | 压缩游标之后的 SQLite 消息 | 按 `position` 恢复时间顺序 |
-| 10 | `AUTOMATIC_MEMORY` | `user` | 异步提取生成的 Markdown 记忆索引 | 易在 Run 间变化，放在历史之后 |
-| 11 | `RUNTIME_NOTE` | `system` | 后台进程、停滞恢复、终止及临时约束 | 最易变化，放在动态尾部 |
+| 11 | `RUNTIME_NOTE` | `system` | Memory Router、后台进程、停滞恢复、终止及临时约束 | 最易变化，放在动态尾部 |
 
 同一层内先按持久化 `position`，再按稳定 `id` 排序。Assistant 的 Tool Call 与其全部 Tool
 Result 使用同一个 `atomic_group`，预算不足时整组保留或整组丢弃，不能拆开。
@@ -68,14 +68,17 @@ Result 使用同一个 `atomic_group`，预算不足时整组保留或整组丢�
 `ContextTrust.TRUSTED/USER/UNTRUSTED` 当前只是 `ContextItem` 的内部来源/审计元数据，Planner 不按
 它改变权限或排序，序列化器也不会把它发进 Provider 请求；
 `name=explicit_memory/automatic_memory/context_compaction` 可以帮助兼容 Provider 区分消息，
-但也不会把 synthetic `user` 降成更低权限角色。因此当前请求并非“全部用 user 注入”，却确实把
-两类长期记忆和压缩摘要都作为 `user` 发送。尤其自动记忆排在原始会话之后，模型可能看到：
+但也不会把 synthetic `user` 降成更低权限角色。因此默认路径不再 eager 注入自动记忆：模型先
+收到真实 Transcript；Router 只注入不含记忆正文的 `system` runtime note，需要时强制或建议模型
+调用 Tool。检索正文作为紧邻 Assistant Tool Call 的 `role=tool` 一次性交付：
 
 ```text
-... -> 最新真人 user -> automatic_memory(user) -> runtime note(system)
+... -> 最新真人 user -> memory-router(system)
+assistant(tool_call=search_memory) -> search_memory(tool, disposable)
 ```
 
-所以“数组最后一条 user 就是当前真人请求”在本实现中并不成立。可直接运行的
+显式记忆和压缩摘要仍是带强边界的 synthetic `user`，所以不能把所有 `role=user` 都解释为
+当前真人输入；但导致本次误认的“最新真人 user 后追加整份自动记忆”默认路径已经移除。可直接运行的
 `client.chat.completions.create` 请求样例见
 [`artifacts/memory-diagnostics/client-chat-completions-create-example.py`](../artifacts/memory-diagnostics/client-chat-completions-create-example.py)；
 其他本地框架逐项把哪些内容放入哪些 role，见
@@ -83,11 +86,11 @@ Result 使用同一个 `atomic_group`，预算不足时整组保留或整组丢�
 
 几个容易混淆的点：
 
-- 显式记忆和自动记忆故意不是同一层。显式记忆由用户控制，通常长期不变；自动索引可能在
-  后台提取完成后改变。如果把自动索引放在历史前，它的一次更新会让整段长会话前缀失效。
+- 显式记忆由用户控制，仍在 Run 开始时加载。自动记忆默认只检索；`eager` 只用于回滚和 A/B，
+  并把自动索引放在会话前，避免形成“最新真人 user 后又出现 synthetic user”的归因歧义。
 - 压缩摘要不能移到近期会话之后。摘要代表被替换的旧时间段，必须先于游标后的原始消息，
   否则模型看到的因果顺序会反转。
-- 动态尾部本身通常不能跨请求获得最大复用，这是为了保护前面的长会话不受高频变化影响。
+- Router note 是动态尾部；检索正文只在下一次请求可见，随后替换成不含正文的收据。
 - 历史中由旧版本写入的 `system` 消息会降级成名为 `historical_context` 的 `user` 消息，
   不会重新获得当前系统策略权限。
 
@@ -114,7 +117,7 @@ target = floor(hard * context.auto_compact_threshold)
 
 | 配置 | 默认值 | 性质 |
 |---|---:|---|
-| `memory_tokens` | 8K | 显式与自动记忆共享的总预算；自动索引另外最多使用 `memory.index_tokens=2K` |
+| `memory_tokens` | 8K | 显式记忆预算；`eager` 兼容模式下与自动索引共享 |
 | `active_skill_tokens` | 16K | 活动 Skill 正文累计预算 |
 | `tool_schema_tokens` | 16K | 业务 Tool schema 的选择预算；内部恢复 Tool 始终先保留 |
 | `tool_result_inline_tokens` | 4K | 外置内容在请求中的摘录预算 |
@@ -154,7 +157,7 @@ Planner 的精确计数和二次卸载是能力接口，不等于当前 Provider
 | 引用结果一次性交付 | 成功检索或读取外置内容 | 原始命中片段只进入紧随其后的单次模型请求，之后换回短回执，不创建嵌套 blob | 原始 `context_ref` 保持可再次检索/读取 |
 | Tool schema 渐进披露 | 全部 schema 超过 `tool_schema_tokens=16K` | 只保留内部恢复 Tool 和已激活业务 Tool，其余降为短目录 | `activate_tools` 按名称重新加载 |
 | Skill 正文限额 | 活动 Skill 正文累计超过 `active_skill_tokens=16K` | 保留 header；放不下的正文不注入 | `activate_skill` / `load_skill_resource` 重载 |
-| Memory 限额和短索引 | 显式与自动记忆共享 `memory_tokens=8K`；自动索引最多 2K | 省略较旧显式记忆，只注入自动记忆索引 | `search_memory` / `load_memory_evidence` 回读 |
+| Memory 限额和按需检索 | 显式记忆使用 `memory_tokens=8K`；`eager` 兼容索引最多 2K | 默认不注入自动索引；Router 按需检索 | `search_memory` / `load_memory_evidence` 一次性交付 |
 | 分层预算装箱 | 任意主请求组装时都执行 | `PINNED` 必留；其余按 priority、recency 和 atomic group 选择，放不下的组不进入本次请求 | Transcript 保留；`search_session_history` 可检索 |
 | Reasoning 作用域收窄 | Assistant reasoning 不属于仍需回放的 Tool Call 消息 | 普通请求不重放该 reasoning；压缩输入也不携带 reasoning 正文 | SQLite 仍持久化，来源哈希仍覆盖 |
 | 协议清理 | 组装后的请求副本存在孤儿 Tool 或缺失结果时 | 修复 Call/Result 配对，丢弃孤儿结果；不把历史伪 `system` 恢复为特权消息 | 不改写持久 Transcript |

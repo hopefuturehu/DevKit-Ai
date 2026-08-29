@@ -12,6 +12,7 @@
 | `context-blob-scale` | 只有单 blob 正确性，没有数量/体积曲线 | content-addressed 去重、query、range、并发访问、越权隔离、fork 授权、DB 增长、p50/p95/max、query 峰值 Python 分配 | 模型是否会作出正确检索决策；跨进程吞吐；尚不存在的 GC/保留策略 |
 | `context-retrieval-behavior` | 综合 case 在 prompt 中直接指定了 query 策略 | 不该查、预览命中、中段命中、空结果恢复、多匹配、多 blob 选址；query/range 与调用次数 | 大量 blob 的存储复杂度；scripted 模式不能替代真实模型能力 |
 | `context-full-stack-soak` | 各层和生命周期以前分别测试，缺少组合压力 | AGENTS、memory、active skill、Tool schema 卸载、压缩、Tool Result 外置、runtime resume、session fork、child blob grant | 真实 Provider 波动；真正的 subagent worker 调度和多进程竞争 |
+| `memory-routing` 聚焦测试 | 自动记忆误认以前只在综合运行中观察，无法定位是位置、路由、证据还是回放问题 | 默认请求形状、四级 Router、命名 Tool 门禁、归因证据、一次性交付、错误候选拒绝、中文命中解释 | 真实模型误归因率和隐式召回率；需按 [真实模型 trade-off 实验](memory-routing.md#真实模型-trade-off-实验) 单独执行 |
 
 原有 `context-efficiency` 仍是压缩、外置、query 与一次性交付的主要受控 A/B。新增 case 是补充其
 外部有效性、规模行为、自主决策和生命周期交互，不改变原 case 的比较口径。

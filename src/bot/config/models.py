@@ -175,6 +175,7 @@ class MemoryConfig(StrictModel):
     enabled: bool = True
     path: str = "./.bot/memory"
     auto_extract: bool = True
+    context_mode: Literal["on_demand", "eager"] = "on_demand"
     model: str | None = None
     max_runs_per_cycle: int = Field(default=3, ge=1, le=100)
     max_attempts: int = Field(default=3, ge=1, le=20)
@@ -185,6 +186,12 @@ class MemoryConfig(StrictModel):
     min_confidence: float = Field(default=0.75, ge=0, le=1)
     index_tokens: int = Field(default=2_000, ge=256)
     search_limit: int = Field(default=8, ge=1, le=50)
+    router_enabled: bool = True
+    router_min_score: float = Field(default=2, ge=0)
+    router_min_term_coverage: float = Field(default=0.25, ge=0, le=1)
+    router_max_candidates: int = Field(default=3, ge=1, le=20)
+    router_enforce_required: bool = True
+    router_max_gate_retries: int = Field(default=1, ge=0, le=3)
 
 
 class SkillsConfig(StrictModel):
