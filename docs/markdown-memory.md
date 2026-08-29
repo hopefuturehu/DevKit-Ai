@@ -82,6 +82,15 @@
 2. `MEMORY.md` 自动索引，最多 `memory.index_tokens`，`ContextTrust.UNTRUSTED`，
    优先级 400。
 
+这两个 `ContextTrust` 值不会发送给模型。进入当前 OpenAI-compatible 请求时，两者都序列化成
+`role=user`，在 role 层面相同，仅以 `name=explicit_memory`/`name=automatic_memory` 及正文边界
+区分；显式记忆位于会话前的稳定层，自动记忆则位于完整近期会话之后。若本轮还有 runtime
+note，请求尾部的典型顺序是
+`最新真人 user -> automatic_memory(user) -> runtime note(system)`。因此自动记忆虽然在内部是
+`UNTRUSTED`，模型并不会从 wire role 得到一个更低的权限层，也不能依赖“最后一条 user”判断
+用户当前意图。完整顺序及与本地开源框架的差异见
+[Role 分配与最终消息位置](context-framework-comparison.md#53-role-分配与最终消息位置)。
+
 模型还可调用：
 
 - `search_memory(query, limit)`：检索显式与自动记忆；

@@ -2,7 +2,7 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-08-27
+> 核对日期：2026-08-29
 
 本文描述主 Agent 每次调用模型时的实际请求视图。SQLite Transcript、压缩记录、Markdown
 记忆和 Skill 文件是事实源；组装过程只生成本次 `ModelRequest`，不会为了排序或修复协议而改写
@@ -63,6 +63,23 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 
 同一层内先按持久化 `position`，再按稳定 `id` 排序。Assistant 的 Tool Call 与其全部 Tool
 Result 使用同一个 `atomic_group`，预算不足时整组保留或整组丢弃，不能拆开。
+
+这里的“典型角色”就是送入 `ChatMessage.to_openai()` 的 wire role，不是 `ContextTrust` 的别名。
+`ContextTrust.TRUSTED/USER/UNTRUSTED` 当前只是 `ContextItem` 的内部来源/审计元数据，Planner 不按
+它改变权限或排序，序列化器也不会把它发进 Provider 请求；
+`name=explicit_memory/automatic_memory/context_compaction` 可以帮助兼容 Provider 区分消息，
+但也不会把 synthetic `user` 降成更低权限角色。因此当前请求并非“全部用 user 注入”，却确实把
+两类长期记忆和压缩摘要都作为 `user` 发送。尤其自动记忆排在原始会话之后，模型可能看到：
+
+```text
+... -> 最新真人 user -> automatic_memory(user) -> runtime note(system)
+```
+
+所以“数组最后一条 user 就是当前真人请求”在本实现中并不成立。可直接运行的
+`client.chat.completions.create` 请求样例见
+[`artifacts/memory-diagnostics/client-chat-completions-create-example.py`](../artifacts/memory-diagnostics/client-chat-completions-create-example.py)；
+其他本地框架逐项把哪些内容放入哪些 role，见
+[Role 分配与最终消息位置](context-framework-comparison.md#53-role-分配与最终消息位置)。
 
 几个容易混淆的点：
 

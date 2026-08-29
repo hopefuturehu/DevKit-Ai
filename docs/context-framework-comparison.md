@@ -2,9 +2,9 @@
 
 > 状态：本地源码静态分析快照
 >
-> 日期：2026-08-25；`bot` 文档核对：2026-08-26
+> 日期：2026-08-29；`bot` 文档核对：2026-08-29
 >
-> `bot` 代码基线：`62f36392a945`
+> `bot` 代码基线：`db347644c1c7`
 
 本文比较当前 `bot` 与本地 checkout 中的 Codex、OpenCode、Pi、Hermes Agent、DeepSeek
 Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如何保存与回传、长对话如何
@@ -61,7 +61,7 @@ Tool/turn 边界、模型切换时如何转换，以及压缩后是否还需要�
 
 | 实现 | 本地 commit | 定位 |
 |---|---|---|
-| `bot` | `62f36392a945` | 当前项目；分层请求 Planner + 可恢复单摘要 |
+| `bot` | `db347644c1c7` | 当前项目；分层请求 Planner + 可恢复单摘要 |
 | `openai/codex` | `41ece455b7fa` | 结构化 Responses item + 本地/远端 compaction |
 | `anomalyco/opencode` | `da4730e4a41d` | 消息 part + compaction summary/tail |
 | `badlogic/pi-mono` | `a4453b79bb8d` | Provider-neutral thinking + append-only session tree |
@@ -129,6 +129,45 @@ SQLite/文件事实源
 与当前 `bot` 相比，Codex/Pi/DeepSeek Harness 更倾向“先得到唯一活动历史投影，再整体发送”；
 `bot` 则先把所有来源变成可竞争的 item。前者更容易保证会话连续性，后者更容易给 Memory、
 Skill、Tool schema 分别设预算，但必须额外证明被丢弃 item 不会造成因果缺口。
+
+### 5.3 Role 分配与最终消息位置
+
+这里必须区分两层：**框架内部的逻辑消息类型**与**Provider 最终收到的 wire role/item**。
+Chat Completions 通常使用 `system`、`developer`、`user`、`assistant`、`tool`；Responses API 还把
+`instructions`、reasoning、function call/output、compaction 等放在独立顶层字段或专用 item 中，
+不能把它们都等价描述成一串 Chat Completions messages。Tool schema 在这些实现中通常也位于
+请求顶层，而不是一条对话消息。
+
+| 实现 | 高权限/稳定提示 | `user` 中的真实与合成内容 | `assistant` | Tool 在 wire 上 | 典型请求顺序或例外 |
+|---|---|---|---|---|---|
+| `bot` | Core、`AGENTS.md`、环境、Skill 目录/正文和 runtime note 均为 `system` | 真实用户；显式记忆、自动记忆、压缩摘要、旧 snapshot 均为 synthetic `user`；旧版历史 `system` 会降为 `user(name=historical_context)` | 原始 Assistant 回复和 Tool Call | `role=tool`；schema 在顶层 `tools` | `system* -> explicit-memory(user) -> compaction(user) -> transcript -> automatic-memory(user) -> runtime(system)`；自动记忆可位于最新真人输入之后 |
+| Codex | 常规 Responses 请求的模型基础提示位于顶层 `instructions`；开发者指令、Memory 摘要、Skill、协作/权限/模型状态等为 `developer` item；Responses Lite 把基础提示也转成 `developer` item | 真实用户；`AGENTS.md`、环境和部分 App/插件提示为 contextual `user`；本地压缩保留的用户锚点与最终 summary 都是 `user` | 模型消息为 `assistant` item | Function/custom tool call/output、reasoning、native compaction 是专用 `ResponseItem`，不是 `role=tool` | 初始上下文通常按 `developer* -> contextual-user` 进入 history，再接会话；远端压缩可返回无普通 role 的原生 compaction item |
+| OpenCode | Agent/provider prompt、环境、项目指令、MCP、Skill 和 per-user system 合成 system 数组；一般变成前置 `system`，OpenAI OAuth 路径改用 `instructions` | 真实用户；压缩 marker 会渲染为 synthetic user “What did we do so far?”；媒体兼容提示和自动继续提示也可生成 `user` | 真实回复；压缩摘要保存为 `assistant(summary=true)` | AI SDK 从 assistant Tool part 生成 Tool Call/Result；Provider adapter 再落到目标协议 | 正常为 `system* -> projected history`；压缩投影明确重排为 `compaction-user -> summary-assistant -> retained tail -> continue-user` |
+| Pi | Core、Tool 指南、项目 context files、Skill、CWD 合成一个 `systemPrompt`；Chat Completions 上按模型能力发 `system` 或 `developer`，标准 Responses 发 `system/developer` message，Codex Responses 路径使用顶层 `instructions` | 真实用户；bash/custom extension 消息、branch summary、compaction summary 均转换为 synthetic `user` | 真实回复；thinking 与 Tool Call 是 assistant content block | 内部是独立 `toolResult` 角色；Chat Completions 转成 `tool`，Responses 转成 function/custom tool output item | `systemPrompt + active session-tree path`；最新 compaction 先作为 `user`，再接 `firstKeptEntryId` 起的连续尾部 |
+| Hermes | Core、workspace/context files、Skill、内置 Memory/`USER.md`、外部 memory 的系统块、日期和 ephemeral system 合成一个前置 `system` | 真实用户；外部 recall、插件 user context、gateway turn note 和 MoA context 直接拼入当前 user 的 API 副本；另有少量恢复 nudge | 真实回复；压缩摘要也可能取 `assistant` | Chat Completions 上为 `role=tool`；发送边界按 Provider 修复配对和 reasoning 字段 | `system -> history/current-user-with-injections`；压缩摘要不是固定 role：在 `user`/`assistant` 间选以满足相邻角色，仍冲突时合并进 tail 消息 |
+| DeepSeek Harness | 有序 system-prompt section 渲染到 `GenerateOptions.system`，DeepSeek adapter 将其作为首条 `system` | 真实用户；动态 runtime context 是追加在本步 claimed input 后的可持久化 `user` snapshot；压缩 checkpoint 也是 `user` | 模型输出为 `assistant` | 内部 Tool Result 是含 `tool-result` block 的 `user` message；DeepSeek wire 展开成 `role=tool` | `system -> session surface -> claimed input -> changed runtime-context user`；首步 claimed input 通常是真人 user，后续也可含 Tool 追加 context；surface replace 用 checkpoint-user 替换旧 span |
+| Nanobot | Identity、`AGENTS.md`/`SOUL.md`/`USER.md`、Tool contract、`MEMORY.md`、Skill、recent memory history 和 archived summary 全部拼进单个 `system` | 真实用户；当前时间/channel/sender/goal 等 runtime metadata 拼在当前 user 尾部；注入、恢复和重试提示也是 `user` | 真实回复和 Tool Call | `role=tool` | `system -> bounded legal history suffix -> current user + runtime metadata`；若尾部已经是同角色则合并内容 |
+
+逐框架看，结论并不是“上下文全部用 user 名义注入”：
+
+- **全放 system 的代表是 Nanobot 的长期记忆路径**。`MEMORY.md`、recent memory history 和 archived
+  session summary 都取得与核心提示相同的 wire role，隔离主要依赖文本边界而不是 role。
+- **显式拆出 developer/user 的代表是 Codex**。Memory summary 与 Skill 是 `developer`，而
+  `AGENTS.md` 和环境是 contextual `user`；其基础提示在常规 Responses 请求中甚至不属于
+  `input[]`，而是顶层 `instructions`。
+- **大量使用 synthetic user 的代表是当前 `bot`、Pi 和 DeepSeek Harness**，但用途不同：当前
+  `bot` 用它承载 Memory/Compaction，Pi 用它承载自定义事件和摘要，DeepSeek Harness 用它承载
+  runtime snapshot 和 checkpoint。
+- **Hermes 说明压缩摘要的 role 不能只按语义决定**。它会根据严格模板看到的前后角色选择
+  `user` 或 `assistant`，必要时把摘要并入 tail；同时用明确的 reference-only 前缀避免旧任务被
+  当成新请求。
+
+Role 也不等于来源或信任级别。当前 `bot` 的 `ContextTrust`、Codex/DeepSeek Harness 的 source
+provenance、OpenCode/Pi 的 synthetic/summary 标记主要在框架内部携带来源或形态信息，并供审计、
+投影或 UI 使用；最终序列化时 Provider 未必能看到这些元数据。模型真正能稳定利用的是 wire
+role、相对位置、文本边界和
+目标 API 保留下来的专用字段。因此，把不可信自动记忆标成内部 `UNTRUSTED`，并不会自动降低一条
+`role=user` 消息在模型眼中的权限。
 
 ## 6. Reasoning 的保存、回传与压缩作用域
 
@@ -267,11 +306,11 @@ Provider 发送边界、Pi/OpenCode 的 tail 与超大 turn 切分、DeepSeek Ha
 
 | 实现 | 关键路径 |
 |---|---|
-| Codex | `codex-rs/protocol/src/models.rs`；`codex-rs/core/src/client.rs`；`codex-rs/core/src/context_manager/history.rs`；`codex-rs/core/src/compact.rs`；`codex-rs/core/src/compact_remote.rs` |
-| OpenCode | `packages/opencode/src/session/message-v2.ts`；`packages/opencode/src/session/compaction.ts`；`packages/opencode/src/session/overflow.ts`；`packages/opencode/src/session/prompt.ts`；`packages/core/src/session/compaction.ts` |
-| Pi | `packages/ai/src/types.ts`；`packages/ai/src/api/transform-messages.ts`；`packages/coding-agent/src/core/compaction/{compaction,utils}.ts`；`packages/coding-agent/src/core/session-manager.ts`；`packages/coding-agent/src/core/agent-session.ts` |
-| Hermes | `agent/chat_completion_helpers.py`；`agent/message_sanitization.py`；`agent/context_compressor.py`；`agent/turn_context.py`；`agent/conversation_loop.py` |
-| DeepSeek Harness | `packages/core/system-prompt/src/index.ts`；`packages/compaction/compaction-basic/{README.zh.md,src/index.ts,src/region.ts,src/summarizer.ts}`；`packages/compaction/compaction/src/types.ts`；`packages/llm/llm-deepseek/src/serialize.ts` |
+| Codex | `codex-rs/core/src/{client.rs,compact.rs,compact_remote.rs}`；`codex-rs/core/src/context_manager/{history.rs,updates.rs}`；`codex-rs/core/src/context/{user_instructions.rs,world_state/}`；`codex-rs/ext/{memories,skills}/src/extension.rs` |
+| OpenCode | `packages/opencode/src/session/{prompt.ts,message-v2.ts,compaction.ts,instruction.ts}`；`packages/opencode/src/session/llm/request.ts`；`packages/opencode/src/provider/transform.ts` |
+| Pi | `packages/ai/src/{types.ts,api/transform-messages.ts,api/openai-completions.ts,api/openai-responses-shared.ts,api/openai-codex-responses.ts}`；`packages/coding-agent/src/core/{messages.ts,system-prompt.ts,session-manager.ts,agent-session.ts}`；`packages/coding-agent/src/core/compaction/{compaction,utils}.ts` |
+| Hermes | `agent/{system_prompt.py,turn_context.py,conversation_loop.py,context_compressor.py,chat_completion_helpers.py,message_sanitization.py}` |
+| DeepSeek Harness | `packages/core/system-prompt/src/index.ts`；`packages/core/agent-loop/src/{agent.ts,runtime-context.ts,tool-calls.ts}`；`packages/compaction/compaction-basic/{README.zh.md,src/region.ts,src/summarizer.ts}`；`packages/llm/llm/src/message.ts`；`packages/llm/llm-deepseek/src/serialize.ts` |
 | Nanobot | `nanobot/agent/context.py`；`nanobot/session/manager.py`；`nanobot/agent/context_governance.py`；`nanobot/agent/memory.py`；`nanobot/agent/loop.py` |
 
 ## 11. KAT 演进参照
