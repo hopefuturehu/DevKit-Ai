@@ -4,7 +4,7 @@
 >
 > 日期：2026-08-30；`bot` 文档核对：2026-08-30
 >
-> `bot` 代码基线：`af8f4e1b640c`
+> `bot` 代码基线：`f5e922d1d31d`
 
 本文比较当前 `bot` 与本地 checkout 中的 Codex、OpenCode、Pi、Hermes Agent、DeepSeek
 Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如何保存与回传、长对话如何
@@ -50,6 +50,13 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 9. 当前 `bot` 选择“宁可漏召回，也不让派生文本单独证明用户说过什么”。它的证据和冲突边界最
    保守，代价是显式历史任务多一次模型往返、隐式语义召回较弱，并且尚未实现基于实际使用的排序、
    自动衰减、Git 版本恢复和跨 Run 全局综合。
+10. `/compact` 不是各框架之间统一的协议。Hermes 支持 focus、用户指定边界和 dry-run，Pi 支持
+    自定义摘要指令；Codex、OpenCode 和 DeepSeek Harness 只接受无参数命令；Nanobot 当前没有
+    `/compact`，其 `/dream` 是长期记忆整理而不是会话上下文压缩。
+11. 当前 `bot` 的手动压缩在可恢复性上最完整：既能从不可变原文重建，也能切换回已验证的历史
+    摘要版本。它的代价是没有 focus/preview/用户指定边界，追赶可能受请求数、墙钟或费用门禁影响而
+    部分完成；空闲检查也尚未像 DeepSeek Harness 那样与后续 Run 接纳组成一个原子 maintenance
+    reservation。
 
 ## 2. 比较口径
 
@@ -369,6 +376,36 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
 
 ## 7. 长对话的触发、切分和失败退路
 
+自动压力压缩和用户输入 `/compact` 是两个接口：前者发生在 Agent Loop 内，可能需要压缩后立即
+重试或继续；后者是空闲会话上的控制操作，应该明确命令是否进入 Transcript、能否接受参数、如何
+与新提示词竞争，以及何时才向用户报告成功。以下先比较真实命令面，再比较共用的压缩后端。
+
+### 7.1 `/compact` 命令面的真实语义
+
+| 实现 | 用户入口 | 接纳与执行 | 一次调用实际做什么 | 失败与恢复 |
+|---|---|---|---|---|
+| `bot` | `/compact`；另有 `/compact rebuild`、`/compact rollback <id>` | Slash 文本不进 Transcript；活动 Run 存在时拒绝，CLI/Web 等待 `compact_session()` 返回 | 固定本次目标位置，保留默认 20K 且至少 3 个 user turn，循环压缩多个最老安全分块；默认最多 8 个 Provider 请求、600 秒、请求间费用阈值 $0.25，不自动续写任务 | 每个分块 fail-closed；命令可能“已压缩但未追到 target”，同时返回 stop reason；可从 raw rebuild 或回滚到已验证的 `ready/superseded` 版本 |
+| Codex | `/compact`，不接受 inline args | 活动 task 中禁用；启动独立、不可 steer 的 `CompactTask`，命令本身不是 user turn；执行 pre/post compact hooks | 依 Feature/Provider 选择三条路：Token Budget 模式直接开启新 context window；支持时调用远端 Responses compaction v1/v2；否则本地 LLM 生成 handoff。本地视图保留最近最多约 20K 的真实 user 消息和 summary | 中断传播；其他错误由压缩任务发出但不会替换成功前的活动 history。没有面向用户的 rebuild 或 compaction-version rollback |
+| OpenCode | `/compact`，TUI 别名 `/summarize` | 需要已选模型和非空会话；创建 `auto=false` 的 synthetic compaction user marker，再由 Session Prompt Loop 串行处理 | 选择旧 head，保留 usable input 约 25%、且限制为 2K–15K 的近期 tail；超大 turn 可从内部 assistant 边界切开。摘要保存为 `assistant(summary=true)`；手动模式不追加 auto-continue user 消息 | 摘要请求仍 overflow 时写 `ContextOverflowError` 并停止；旧 message/part 仍在存储，但没有 rebuild/rollback 命令 |
+| Pi | `/compact [custom instructions]`；RPC 同样接受 `customInstructions` | 先 `abort()` 当前 Agent 操作，再触发 manual compaction；Interactive UI 会暂存压缩期间的新输入；extension 可取消或直接提供压缩结果 | 基于 active session-tree path 保留默认约 20K tail；可把用户指令加入摘要 prompt。若切点落在超大 turn 内，可分别摘要旧 history 与该 turn prefix，再合成一个 compaction entry；完成后不自动续写 | 过小会话报 `Nothing to compact`，连续执行报 `Already compacted`；取消/Provider 失败不追加 entry。原 JSONL tree 不删，但没有摘要版本选择命令 |
+| Hermes | `/compress`，`/compact` 是全端一致别名；支持 `<focus>`、`here [N]`/`--keep N`、`up to here`、`--preview`/`--dry-run` | 少于 4 条消息拒绝；即使关闭自动压缩仍可手动执行，`force=True` 绕过自动 cooldown；有压缩锁和 host commit fence；`--aggressive` 明确不支持 | 全量模式使用现有 head/summary/tail 压缩器，focus 调整摘要预算；partial 模式只压 head，再把最近 N 个 user exchange 原样接回；preview 只估算不写入。Codex app-server 会委托原生 thread compact | 默认可原地 soft-archive，也支持旧式 child-session rotation；摘要失败按配置保持原文或发布显式低保真 fallback。没有按 compaction ID 选择历史摘要的命令 |
+| DeepSeek Harness | `/compact`，严格无参数 | 只在 idle agent 接纳；命令本身不排队，也不进模型历史。先原子预留 maintenance admission；压缩期间已接纳的新 prompt 保留 FIFO 身份，等持久化 checkpoint 后启动 | 即使未到压力线，也选择“除最近一个合法平衡单元外”的最老 head；写 `compaction/start {turn:null}`，直接调用一次摘要 LLM，重验 selected span，提交 summary + replacement user checkpoint + end，并显式 flush | `busy/cancelled/changed/summary/commit/persistence` 有封闭错误分类；失败尝试仍在 event log，`changed/summary` 保证 surface 未替换，`commit` 明确提示可能部分变化。没有 rebuild/rollback 命令 |
+| Nanobot | **没有 `/compact`**；`/dream` 不是替代品 | Chat command palette 不暴露会话压缩；SDK 提供 `compact_session()` 和 `compact_idle_session()`，后者供 idle AutoCompact 使用 | `compact_session()` 只在 replay/token 压力成立时推进；idle API 默认硬保留最近 8 条合法 suffix，把更老消息归档到 `history.jsonl`。`/dream` 消费这些归档并更新长期记忆文件 | 归档 LLM 失败时写有界 `[RAW]` breadcrumb，仍推进 cursor/删除 live prefix；优先生存性，没有会话摘要 rebuild/rollback。Dream 的 Git restore 只恢复记忆文件，不恢复会话压缩视图 |
+
+命令能力不能从“都有 summary”推出。可由用户控制的维度如下：
+
+| 实现 | 摘要 focus | 用户指定保留边界 | Dry-run | 单次命令追赶多分块 | 原文重建 | 摘要版本回滚 |
+|---|---:|---:|---:|---:|---:|---:|
+| `bot` | 否 | 否 | 否 | 是 | 是 | 是 |
+| Codex | 否 | 否 | 否 | 否 | 否 | 否 |
+| OpenCode | 否 | 否 | 否 | 否 | 否 | 否 |
+| Pi | 是，自定义摘要指令 | 否 | 否 | 否 | 否 | 否 |
+| Hermes | 是 | 是 | 是 | 否 | 否 | 否 |
+| DeepSeek Harness | 否 | 命令不支持；编程接口可指定 region | 否 | 否 | 否 | 否 |
+| Nanobot | 无命令 | 无命令 | 无命令 | 无命令 | 否 | 否 |
+
+### 7.2 自动触发与压缩后端
+
 | 实现 | 触发与默认预算 | 近期原文 | 边界和单轮超大输入 | 非 LLM 剪枝 | 摘要失败/仍超限 |
 |---|---|---|---|---|---|
 | `bot` | hard input 由窗口减输出/协议/安全预留后再与 120K 取小；默认 80% 触发 | 20K token，且至少 3 个 user turn | 不拆 Tool 原子组；user turn 下限可令 tail 超过 20K | 大消息外置、Tool schema 卸载、Planner 可丢可选组 | compaction fail closed、游标不动；最终 Planner 仍可能非连续丢组 |
@@ -386,6 +423,64 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
   再推进边界，优先避免压缩重试循环。
 - **隐式请求裁剪**：当前 `bot` 的 Planner 会记录 dropped item，但模型请求中没有同等醒目的
   gap marker。若被裁掉的是尚未进入摘要的中间 Tool 组，模型无法知道缺口存在。
+
+### 7.3 当前 `bot` 手动压缩的 trade-off
+
+与其他实现相比，当前命令不是“最灵活”或“并发控制最强”，而是把主要复杂度投入到恢复：
+
+1. **恢复能力最强**：`rebuild` 会重新读取连续原始范围，`rollback` 激活前先重验来源 SHA-256
+   和摘要结构。Codex/Pi/DeepSeek Harness 也保留原始事件，但没有把“重建/选择旧摘要”直接做成
+   `/compact` 子命令；Hermes 和 Nanobot 的恢复目标则分别偏向 archived transcript 与记忆文件。
+2. **长 backlog 追赶更可控**：其他手动命令通常只产生一次 checkpoint；`bot` 会按最老安全
+   前缀循环多个有界分块，并同时受请求、时间、费用三类门禁。代价是 `compacted=true` 只表示至少
+   发布了一个分块，不保证 `cursor_position == target_position`，调用方必须读取 `reason`。
+3. **用户控制弱于 Hermes/Pi**：没有 focus、preview 或显式 keep-last 参数。固定策略减少命令
+   分支和不可测组合，但用户无法在压缩前确认范围，也无法告诉摘要器“优先保留某个主题”。
+4. **接纳仍有竞态窗口**：`compact_session()` 先检查 `_steering_queues`，随后才进入包含多个
+   `await` 的压缩循环；它没有在同一临界区预留会话 maintenance 状态。因此 Web 上新 Run 可在
+   检查后开始。固定 target 和事务 parent 校验能避免把新消息误纳入旧摘要，但不能提供 DeepSeek
+   Harness 那种“checkpoint flush 前新 prompt 不启动”的强顺序保证。这是源码可见风险，不是本文
+   已复现的生产故障。
+5. **高保真发布换来更多状态**：`building/ready/superseded/failed`、parent、cursor、source hash
+   和 budget stop reason 让失败可诊断；相较 Codex/OpenCode/Pi 的单次 append entry，状态机、恢复
+   测试和运维观测成本更高。
+
+手动压缩还没有改变前文的 role 风险：成功后 `bot` 仍把摘要作为
+`role=user, name=context_compaction` 的 synthetic user 注入，只是正文带有“历史参考、不是当前用户
+消息”的强边界，并要求历史归因通过 `load_compaction_source` 回读原文。DeepSeek Harness 和
+Codex 本地路径也使用 user checkpoint，Pi 将 compaction summary 转成 synthetic user；OpenCode
+使用 compaction-user + summary-assistant；Hermes 根据相邻 role 选择 user/assistant 或合并进 tail；
+Nanobot 把 archive summary 放入 system。由此可见，运行 `/compact` 本身不会自动解决“派生摘要被
+误认成当前指令”，还必须同时验证 role、相对位置、边界文本和是否存在更新的真实 user 消息。
+
+### 7.4 为什么 Codex 通常看起来比 `bot` 压得更彻底
+
+Codex 不是单一压缩路径：Feature 打开时可直接开启新的 Token Budget context window；Provider
+支持时使用 Responses 原生 compaction v1/v2；否则走本地文本摘要。与 `bot` 最容易逐行比较的是
+本地路径：
+
+| 维度 | `bot` | Codex 本地 compaction | 对压缩率的影响 |
+|---|---|---|---|
+| 压缩后会话尾部 | 活动 summary + 摘要 cursor 后的**完整**近期消息，至少 3 个 user turn；Assistant Tool Call 与 Tool Result 整组保留 | 从整个旧 history 只重新收集真实 user message，倒序取最多硬上限 20K，再追加一份 summary；旧 assistant、Tool 和 reasoning 不进入 replacement history | Tool output 通常是最大头，Codex 直接去掉它们，因此降幅往往远大于 `bot` |
+| 20K 的性质 | `recent_conversation_tokens=20K` 是软目标；3 个 user turn 或单个 Tool 原子组可使 tail 超限 | `COMPACT_USER_MESSAGE_MAX_TOKENS=20K` 是 user 文本硬预算，最后一条过长消息还会截断 | `bot` 为完整性允许越界，Codex 为上限牺牲原文完整度 |
+| 摘要输入过大 | 只压连续、已验证、Tool-safe 的最老分块；分块放不下会降级消息视图，仍不安全则不推进 cursor | 本地摘要请求 overflow 时不断移除最旧的规范化 history item，直到请求能发出 | Codex 更容易一次“完成”，但被移除的最旧内容没有进入本次摘要；`bot` 会把它表现为 backlog/部分完成 |
+| 摘要发布门槛 | 八段结构、长度、来源范围/引用模式、parent 和 SHA-256 都通过后才事务发布 | 取压缩模型最后一条 assistant 文本，加 summary prefix 后直接构造 replacement history | `bot` 拒绝不合格候选；Codex 接受更自由、更可能遗漏细节的 handoff |
+| 原始目标 | 把最早 user anchor 从 SQLite 原文逐字放进 compaction message | 把最近 user messages 作为独立原文重放，受总计 20K 硬限 | 两者都保锚点；`bot` 偏向最初目标，Codex 偏向最近用户输入 |
+| 一次命令的范围 | backlog 可拆为多次增量摘要；最多 8 个请求并受时间/费用停止 | 通常一个 standalone compact task 替换当前活动 history | Codex 交互上更像一次清空；`bot` 更明确暴露尚未覆盖的范围 |
+| 可恢复合同 | 原 Transcript、每版覆盖范围、hash、parent 和状态均可重建/回滚 | append-only rollout 仍保留事件，但命令面没有按摘要版本重建/回滚 | Codex 的激进 replacement 不等于原始日志被物理删除，但恢复不是 `/compact` 的一等用户操作 |
+
+因此，“Codex 能压得更彻底”本质上是四个选择叠加，而不是同一保真约束下免费得到更高压缩率：
+
+1. 它保留的是 **user-only anchor**，不是最近几个完整 turn；
+2. 20K 是硬上限，而 `bot` 的 20K 会让位给 user-turn 下限和 Tool 原子性；
+3. 本地摘要输入溢出时 Codex 可以从最旧 item 开始丢素材，`bot` 不会把整个未进入 payload 的
+   消息组标成已覆盖；两者仍都可能截断超长单条消息的摘要视图；
+4. 原生 Responses compaction 还可以把历史变成 Provider 理解的 opaque checkpoint，`bot` 当前基于
+   OpenAI-compatible Chat Completions，只能用可见文本 summary + 原文 tail 保持跨 Provider 可移植性。
+
+这个取舍也由 Codex 自己的运行时 warning 明示：长 thread 和多次 compaction 会降低准确性，建议
+尽量开启新 thread。若只比较“压缩后 token 数”，Codex 更占优；若同时要求 Tool 因果链完整、来源
+范围完整性可验证、失败不推进以及用户可选择历史摘要版本，`bot` 用更低压缩率换取了更强恢复合同。
 
 ## 8. 摘要机制
 
@@ -464,6 +559,8 @@ Provider 发送边界、Pi/OpenCode 的 tail 与超大 turn 切分、DeepSeek Ha
 - [`src/bot/providers/openai_compatible.py`](../src/bot/providers/openai_compatible.py)：流式 reasoning
   捕获与 OpenAI-compatible 请求；
 - [`src/bot/compaction/service.py`](../src/bot/compaction/service.py)：摘要输入、验证、发布与恢复；
+- [`src/bot/cli/app.py`](../src/bot/cli/app.py) 与
+  [`src/bot/web/server.py`](../src/bot/web/server.py)：`/compact` 命令和 Web 控制入口；
 - [`src/bot/sessions/store.py`](../src/bot/sessions/store.py)：原始消息、压缩版本和记忆提取 job
   持久化；
 - [`src/bot/memory/service.py`](../src/bot/memory/service.py)：自动候选生成与确定性验证；
@@ -474,12 +571,12 @@ Provider 发送边界、Pi/OpenCode 的 tail 与超大 turn 切分、DeepSeek Ha
 
 | 实现 | 关键路径 |
 |---|---|
-| Codex | `codex-rs/core/src/{client.rs,compact.rs,compact_remote.rs}`；`codex-rs/core/src/context_manager/{history.rs,updates.rs}`；`codex-rs/core/src/context/{user_instructions.rs,world_state/}`；`codex-rs/memories/{README.md,write/src/phase1.rs,write/src/phase2.rs,write/templates/memories/}`；`codex-rs/ext/{memories,skills}/` |
-| OpenCode | `packages/opencode/src/session/{prompt.ts,message-v2.ts,compaction.ts,instruction.ts}`；`packages/opencode/src/session/llm/request.ts`；`packages/opencode/src/provider/transform.ts` |
-| Pi | `packages/ai/src/{types.ts,api/transform-messages.ts,api/openai-completions.ts,api/openai-responses-shared.ts,api/openai-codex-responses.ts}`；`packages/coding-agent/src/core/{messages.ts,system-prompt.ts,session-manager.ts,agent-session.ts}`；`packages/coding-agent/src/core/compaction/{compaction,utils}.ts` |
-| Hermes | `agent/{system_prompt.py,turn_context.py,conversation_loop.py,context_compressor.py,chat_completion_helpers.py,message_sanitization.py,memory_manager.py,memory_provider.py,background_review.py}`；`tools/memory_tool.py`；`plugins/memory/` |
-| DeepSeek Harness | `packages/core/system-prompt/src/index.ts`；`packages/core/agent-loop/src/{agent.ts,runtime-context.ts,tool-calls.ts}`；`packages/compaction/compaction-basic/{README.zh.md,src/region.ts,src/summarizer.ts}`；`packages/llm/llm/src/message.ts`；`packages/llm/llm-deepseek/src/serialize.ts` |
-| Nanobot | `nanobot/agent/context.py`；`nanobot/session/manager.py`；`nanobot/agent/context_governance.py`；`nanobot/agent/memory.py`；`nanobot/agent/loop.py`；`nanobot/templates/agent/dream.md`；`nanobot/skills/memory/SKILL.md` |
+| Codex | `codex-rs/tui/src/{slash_command.rs,chatwidget/slash_dispatch.rs}`；`codex-rs/core/src/tasks/compact.rs`；`codex-rs/core/src/{client.rs,compact.rs,compact_remote.rs,compact_remote_v2.rs,compact_token_budget.rs}`；`codex-rs/core/src/context_manager/{history.rs,updates.rs}`；`codex-rs/core/src/context/{user_instructions.rs,world_state/}`；`codex-rs/memories/{README.md,write/src/phase1.rs,write/src/phase2.rs,write/templates/memories/}`；`codex-rs/ext/{memories,skills}/` |
+| OpenCode | `packages/tui/src/routes/session/index.tsx`；`packages/app/src/pages/session/use-session-commands.tsx`；`packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts`；`packages/opencode/src/session/{prompt.ts,message-v2.ts,compaction.ts,instruction.ts}`；`packages/opencode/src/session/llm/request.ts`；`packages/opencode/src/provider/transform.ts` |
+| Pi | `packages/ai/src/{types.ts,api/transform-messages.ts,api/openai-completions.ts,api/openai-responses-shared.ts,api/openai-codex-responses.ts}`；`packages/coding-agent/src/modes/interactive/interactive-mode.ts`；`packages/coding-agent/src/core/{messages.ts,system-prompt.ts,session-manager.ts,agent-session.ts}`；`packages/coding-agent/src/core/compaction/{compaction,utils}.ts` |
+| Hermes | `hermes_cli/partial_compress.py`；`cli.py`；`gateway/slash_commands.py`；`agent/{conversation_compression.py,system_prompt.py,turn_context.py,conversation_loop.py,context_compressor.py,chat_completion_helpers.py,message_sanitization.py,memory_manager.py,memory_provider.py,background_review.py}`；`tools/memory_tool.py`；`plugins/memory/` |
+| DeepSeek Harness | `packages/core/system-prompt/src/index.ts`；`packages/core/agent-loop/src/{agent.ts,runtime-context.ts,tool-calls.ts}`；`packages/compaction/command-compact/{README.zh.md,src/index.ts}`；`packages/compaction/compaction-basic/{README.zh.md,src/index.ts,src/region.ts,src/summarizer.ts}`；`packages/llm/llm/src/message.ts`；`packages/llm/llm-deepseek/src/serialize.ts` |
+| Nanobot | `nanobot/command/builtin.py`；`nanobot/sdk/clients.py`；`nanobot/agent/{autocompact.py,context.py,context_governance.py,memory.py,loop.py}`；`nanobot/session/manager.py`；`nanobot/templates/agent/dream.md`；`nanobot/skills/memory/SKILL.md` |
 
 ## 11. KAT 演进参照
 
