@@ -2,14 +2,14 @@
 
 > 状态：本地源码静态分析快照
 >
-> 日期：2026-08-29；`bot` 文档核对：2026-08-29
+> 日期：2026-08-30；`bot` 文档核对：2026-08-30
 >
-> `bot` 代码基线：`db347644c1c7`
+> `bot` 代码基线：`af8f4e1b640c`
 
 本文比较当前 `bot` 与本地 checkout 中的 Codex、OpenCode、Pi、Hermes Agent、DeepSeek
 Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如何保存与回传、长对话如何
-选择压缩边界，以及摘要如何生成、发布和失败恢复。KAT 是较早的 Nanobot 派生实现，放在文末
-作为演进参照，不与当前 Nanobot 重复展开。
+选择压缩边界、摘要如何生成、发布和失败恢复，以及跨会话自动长期记忆如何提取、管理、检索和
+注入。KAT 是较早的 Nanobot 派生实现，放在文末作为演进参照，不与当前 Nanobot 重复展开。
 
 本文只描述上述 commit 的实现，不把项目宣传文案或未来计划当成已实现行为。当前 `bot` 的
 修复前运行数据和卡游标案例见[上下文压缩历史快照](context-compaction-current-state.md)与
@@ -40,6 +40,16 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 6. 当前 `bot` 的优势是分层预算、Tool 原子组、不可变 Transcript、版本化摘要、来源哈希和
    fail-closed 发布；主要缺口是 reasoning 缺少 Provider/模型来源、近期轮次下限可以突破 token
    目标、活动长 Tool 链难以形成压缩边界，以及最终打包可能非连续地漏掉未摘要消息。
+7. 真正具有可比自动长期记忆流水线的是当前 `bot`、Codex、Hermes 和 Nanobot。OpenCode、Pi 和
+   DeepSeek Harness 当前快照中的 summary/checkpoint 主要服务当前会话恢复，不能等同于跨会话
+   事实记忆。
+8. 四种长期记忆路线的核心差异是信任与召回位置：`bot` 把自动记忆作为低信任的一次性 Tool
+   Result；Codex 总是把短索引放入 `developer` 上下文再渐进搜索；Hermes 把内置记忆放进
+   `system`、把外部 recall 拼入当前 user 的 API 副本；Nanobot 把 `SOUL.md`、`USER.md`、
+   `MEMORY.md` 和 recent memory history 一并放进单个 `system`。
+9. 当前 `bot` 选择“宁可漏召回，也不让派生文本单独证明用户说过什么”。它的证据和冲突边界最
+   保守，代价是显式历史任务多一次模型往返、隐式语义召回较弱，并且尚未实现基于实际使用的排序、
+   自动衰减、Git 版本恢复和跨 Run 全局综合。
 
 ## 2. 比较口径
 
@@ -61,8 +71,8 @@ Tool/turn 边界、模型切换时如何转换，以及压缩后是否还需要�
 
 | 实现 | 本地 commit | 定位 |
 |---|---|---|
-| `bot` | `db347644c1c7` | 当前项目；分层请求 Planner + 可恢复单摘要 |
-| `openai/codex` | `41ece455b7fa` | 结构化 Responses item + 本地/远端 compaction |
+| `bot` | `af8f4e1b640c` | 分层请求 Planner + 可恢复单摘要 + 原子证据型自动记忆 |
+| `openai/codex` | `41ece455b7fa` | 结构化 Responses item + 两阶段全局 memory consolidation |
 | `anomalyco/opencode` | `da4730e4a41d` | 消息 part + compaction summary/tail |
 | `badlogic/pi-mono` | `a4453b79bb8d` | Provider-neutral thinking + append-only session tree |
 | `NousResearch/hermes-agent` | `eac1e25127a7` | Provider 策略层 + 多级压缩降级 |
@@ -168,6 +178,160 @@ role、相对位置、文本边界和
 目标 API 保留下来的专用字段。因此，只把不可信自动记忆标成内部 `UNTRUSTED` 并不足够；`bot`
 现在同时改变默认注入时机、相对位置、文本边界和 Tool wire role，并对高风险归因使用
 capability-aware Tool 门禁与原始证据门禁。
+
+### 5.4 自动长期记忆：生成、管理、召回与取舍
+
+#### 5.4.1 比较边界
+
+长期记忆与上下文压缩不是同一个状态：压缩 summary/checkpoint 的首要目标是让当前会话继续；自动
+长期记忆的目标是从已经结束或已经归档的会话中提取可跨会话复用的信息，并在未来任务中召回。按此
+口径，当前 checkout 中真正可直接比较的是 `bot`、Codex、Hermes 和 Nanobot：
+
+| 实现 | 自动生成入口 | 持久化形态 | 默认读取路径 | 主要定位 |
+|---|---|---|---|---|
+| `bot` | 新 Root Run 启动时异步处理此前已完成的 Root Run；也可手动 `/memory extract` | SQLite 保留原始 Transcript/提取状态；`topics/<kind>/*.md` 保存带精确证据位置的原子记忆 | 确定性 Router；自动正文只作为一次性 `role=tool` 交付 | 保守的证据型事实库 |
+| Codex | Root session 启动时，Phase 1 领取已 idle 的近期 rollout；Phase 2 全局巩固 | DB 中每 rollout 的 `raw_memory`/summary + Git 管理的 `MEMORY.md`、`memory_summary.md`、skills 和 rollout summaries | `memory_summary.md` 进入 `developer`；模型按 prompt 做 quick pass，再搜索具体文件 | 渐进披露的全局知识手册 |
+| Hermes | 内置后台 Review 默认按轮次周期触发；外部 Provider 可在每轮结束后异步同步 | 有字符上限的内置 `MEMORY.md`/`USER.md`，或 Honcho/Hindsight/Mem0 等外部后端 | 内置冻结快照进入 `system`；外部 prefetch 拼入当前 user 的 API 副本 | 可插拔 Memory Bus |
+| Nanobot | 上下文压力先把旧消息归档到 `history.jsonl`；定时或手动 Dream 处理未消费 history | Git 管理的 `SOUL.md`、`USER.md`、`memory/MEMORY.md`、skills 和 cursor | 长期记忆、recent history 与归档 summary 一起进入单个 `system` | 自编辑人格与知识库 |
+
+OpenCode、Pi 和 DeepSeek Harness 在当前快照中没有同等级的自动跨会话事实提取流水线。它们的
+compaction summary、session tree entry 或 checkpoint 主要是当前会话投影，不应仅因名称含
+“summary”就算作长期记忆。
+
+#### 5.4.2 当前 `bot` 的硬边界
+
+`bot` 把自动提取分成模型建议和程序裁决两部分：
+
+```text
+SQLite 已完成 Root Run
+  -> LLM 最多建议 5 条 kind/key/content/confidence/evidence_positions
+  -> 程序验证置信度、长度、敏感信息、证据位置和 User preference 来源
+  -> 确定性拒绝“用户曾说过/贴出/否认/同意/授权”一类会话事件
+  -> 同 key 同正文合并；同 key 不同正文进入 conflicts/；FORGET.md key 被抑制
+  -> 默认不注入 MEMORY.md，由 Router 决定 NONE/SUGGEST/REQUIRE/EVIDENCE
+  -> search_memory / load_memory_evidence 以一次性 Tool Result 交付
+```
+
+每条自动记忆保留 `session_id/run_id/message positions`，用户历史归因只能由
+`load_memory_evidence` 返回的原始 `role=user` 支撑。Provider 支持 named `tool_choice` 时直接指定
+必需 Tool；不支持时 Agent 在持久化 Assistant 正文和执行 Tool 前 fail-closed 校验，提前回答或错误
+Tool 都会被丢弃。完整 Tool 正文只对下一次模型请求可见，SQLite 和后续窗口只留 receipt。
+
+这使 `bot` 的优势集中在：
+
+- 自动内容不默认取得 `system`/`developer`/`user` 的话语权，无关请求也不回放自动索引；
+- 事实可追溯到原始消息位置，高风险用户归因有结构化证据门禁；
+- 冲突不会被另一个 LLM 静默覆盖，用户 `/forget` 后同 key 也不会被重新学习；
+- 原子 key、固定状态转换和一次性交付可以通过确定性测试逐项证伪。
+
+对应代价是：
+
+- 词法 Router 不是语义检索器，关键词不同的隐式相关请求可能漏召回；
+- 显式历史任务至少多一次模型往返，模型还可能做非最短的重复搜索；
+- 提取器按 Run 顺序处理，没有 Codex 的并发 job lease，也不会跨多个 Run 做全局语义综合；
+- `STALE`/`SUPERSEDED` 虽已进入数据模型，但当前没有按时间或实际使用自动迁移状态；
+- 自动提取只生成事实、偏好、决策、流程和坑点，不会自动生成 Skill。
+
+#### 5.4.3 与 Codex 两阶段知识手册的差异
+
+Codex Phase 1 在 Root session 启动时领取符合来源、年龄和 idle 条件的 rollout，使用 DB lease、并发
+上限和失败 backoff 生成 `raw_memory`、`rollout_summary` 和可选 slug。当前默认每次启动最多处理
+2 个、rollout 最大年龄 10 天、至少 idle 6 小时。Phase 2 取得全局锁，从最多 256 个 Stage 1 输出中
+优先选择使用次数多、最近使用或生成时间新的记录；默认超过 30 天未使用的不再进入选择，然后让一个
+无网络、无审批、不可递归委派的内部 Agent 维护 Git 工作区中的 `MEMORY.md`、
+`memory_summary.md`、rollout summaries 和可选 Skill。
+
+| 维度 | `bot` | Codex | 直接结果 |
+|---|---|---|---|
+| 记忆粒度 | 一个稳定 key 对应一条原子事实 | 每 rollout 原始记忆，再聚合成 task-group handbook | Codex 更擅长跨任务综合；`bot` 更容易去重、审计和定点遗忘 |
+| 证据粒度 | 每条事实绑定具体消息 position | thread/rollout path/summary file 级来源 | `bot` 更适合严格归因；Codex 更适合导航和复用完整工作流 |
+| 巩固方式 | 程序确定性合并和冲突隔离 | 第二阶段 Agent 根据 diff 全局改写 | Codex 能主动重组、删旧和生成 Skill；也增加一次 LLM 失真面 |
+| 过期策略 | 用户 forget；尚无自动 decay | usage count、last usage/generated time、选择窗口 | Codex 能自然淘汰低价值旧记忆；`bot` 可能长期积累未使用条目 |
+| 请求常驻内容 | 自动记忆为零，除非 Tool 检索 | `memory_summary.md` 总在 `developer` prompt | `bot` 无关轮次便宜且权限低；Codex 隐式召回入口更强 |
+| 检索决策 | 确定性规则 + 可解释词法候选 | developer prompt 指导模型“除明显自包含外默认 quick pass” | `bot` 行为可预测但可能漏召回；Codex 更灵活但搜索步数和判断更依赖模型 |
+| 读取审计 | Router/Tool event、证据位置 | memory citation、rollout ID、usage telemetry | Codex 能形成“实际使用→排序”的闭环；`bot` 尚无读取反馈排名 |
+| 人工更新 | `/remember` 与 `/forget` 直接、物理信任隔离 | 读路径只允许用户明确要求时写 ad-hoc note | 两者都限制普通自动过程提升权限；Codex 的更新再经过下一轮全局 consolidation |
+
+Codex 的主要优势是规模化生命周期：并发领取、跨进程 lease、使用反馈、自动衰减、Git diff、渐进披露
+和 Skill 生成。主要风险是自动内容经过 Phase 1 和 Phase 2 两次模型变换，且短索引最终进入
+`developer`；它虽然保留 rollout 指针和读取 citation，但没有 `bot` 当前这种“用户归因必须读取原始
+`role=user` position”的协议门禁。
+
+#### 5.4.4 与 Hermes Memory Bus 的差异
+
+Hermes 的内置记忆与外部 Provider 必须分开看：
+
+- 内置 `MEMORY.md`/`USER.md` 是字符有界的条目表。启动时做 threat-pattern 扫描并冻结为 System
+  Prompt snapshot；中途 Tool 写入只更新磁盘/live state，下一次 prompt 重建才进入 snapshot。
+- 默认每 10 个用户轮次可在回复交付后启动后台 Review Agent，仅开放 memory/skill 管理 Tool。它
+  直接判断是否把用户偏好写入内置文件，不产生 `bot` 风格的候选 key、confidence 和消息位置。
+- 外部 Provider 每轮可异步同步 user/assistant/Tool 消息；下一轮对非 trivial prompt 执行带超时的
+  prefetch。召回结果带 `<memory-context>` fence，但仍拼入当前 `role=user` 的 API 副本并保存同字节
+  sidecar 以复用 Prompt Cache。
+
+Hermes 的优势是后端可插拔、可使用语义/图谱检索，并用超时、单写线程、shutdown drain 和 Provider
+失败隔离避免记忆服务拖死主 Turn。内置 Tool 还具备字符预算、文件锁、原子写、外部漂移检测和注入
+扫描。代价是不同 Provider 的提取、冲突和证据合同不统一；内置自动 Review 可以把推断直接写进随后
+以 `system` 加载的 `USER.md`，外部 recall 又使用 wire `user`，二者的来源/权限隔离都弱于 `bot` 的
+一次性 `role=tool` 与原始证据门禁。
+
+#### 5.4.5 与 Nanobot Dream 的差异
+
+Nanobot 先用 Consolidator 在 token 压力或 replay window 溢出时，把旧消息的 LLM 摘要追加到
+`history.jsonl`；LLM 失败则写最多约 16K 字符的 `[RAW]` breadcrumb，并继续推进游标。Dream 再由
+受保护定时任务或 `/dream` 启动，每批读取最多 20 条未处理 history、每条截到 500 字符，使用受限
+文件 Tool 修改：
+
+- `SOUL.md`：Agent 行为和 Tool 策略；
+- `USER.md`：用户画像和偏好；
+- `memory/MEMORY.md`：项目与战略上下文；
+- `skills/<name>/SKILL.md`：可复用操作流程。
+
+Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、按年龄删除过时事实。修改由 Git
+记录，可通过 `/dream-log` 审计并用 `/dream-restore` 恢复。
+
+这条路线的优势是学习范围最广，能主动整理、删旧、更新人格和生成 Skill；Git diff/restore 也比
+`bot` 的当前 Markdown 投影更直观。代价是 Dream 多数读取已压缩的 history，而不是带精确角色和位置
+的原始证据；冲突按 Prompt 直接覆盖，自动过程还能修改随后以 `system` 注入的 `SOUL.md` 和
+`USER.md`。`MEMORY.md`、recent history 和 archived summary 又默认每轮进入同一个 `system`，即时
+召回高，但 token、Prompt Cache 失效和错误记忆权限都更高。Git restore 能撤销一次错误，却没有
+`FORGET.md` 这种防止下次 Dream 再次学回同一内容的抑制机制。
+
+#### 5.4.6 可观察的 trade-off 与可借鉴部分
+
+`bot` 已对 `eager` 与默认 `on_demand` 做过一次固定 fixture 的真实 Provider canary：4 个场景、
+两种变体、3 次交错重复，共 24 case，全部通过。on-demand 相对 eager 的成对中位变化为：
+
+| 场景 | 模型请求 | 输入 token | 费用 | 端到端延迟 |
+|---|---:|---:|---:|---:|
+| 无关请求 | 0 | -355 | -$0.000647 | -1.263 s |
+| 隐式相关 | +1 | +1,834 | +$0.001693 | +2.323 s |
+| 显式历史 | +1 | +1,374 | +$0.001094 | +0.894 s |
+| 用户归因冲突 | +1 | +1,698 | +$0.001448 | +0.501 s |
+
+它证明当前固定样本上的协议可以跑通，并量出了“无关轮次省输入，相关轮次付一次往返”的方向；每桶
+只有一个语义 fixture，不能外推总体误归因率或漏召回率。完整边界、测试设计和脱敏结果见
+[Memory Router 设计与验收](memory-routing.md)与
+[真实 canary JSON](memory-routing-live-canary-2026-08-29.json)。
+
+几种路线可概括为：
+
+| 实现 | 最强项 | 最大代价 |
+|---|---|---|
+| `bot` | 精确证据、冲突隔离、低权限和低误归因 | 语义漏召回、相关轮次额外往返、缺少自动衰减和全局综合 |
+| Codex | 两阶段全局知识手册、usage 排名、渐进披露 | 多次 LLM 变换；自动摘要常驻高权限 `developer` 上下文 |
+| Hermes | 多后端语义召回、异步和故障隔离 | 合同随 Provider 变化；内置/外部记忆分别使用 `system`/`user` |
+| Nanobot | 自主维护人格、知识与 Skill，Git 可恢复 | 自动内容权限最高，证据与角色边界最弱，常驻上下文最大 |
+
+对当前 `bot`，值得吸收但不应破坏现有证据边界的部分是：
+
+1. 从 Codex 引入 extraction job lease/并发、memory citation、usage count/last-used aging 和 Git
+   baseline diff；
+2. 从 Nanobot 引入用户可见的 `/memory log` 与 `/memory restore`，但不允许自动过程写入 Core、
+   `AGENTS.md` 或 `USER.md` 信任域；
+3. 从 Hermes 引入可超时、可隔离的语义检索 Provider 接口，但把返回值统一降为一次性 Tool Result；
+4. 保留 `bot` 自身的自动记忆不进入高权限 role、同 key 冲突物理隔离、用户归因必须回读原始
+   `role=user` 证据三项不变量。
 
 ## 6. Reasoning 的保存、回传与压缩作用域
 
@@ -300,18 +464,22 @@ Provider 发送边界、Pi/OpenCode 的 tail 与超大 turn 切分、DeepSeek Ha
 - [`src/bot/providers/openai_compatible.py`](../src/bot/providers/openai_compatible.py)：流式 reasoning
   捕获与 OpenAI-compatible 请求；
 - [`src/bot/compaction/service.py`](../src/bot/compaction/service.py)：摘要输入、验证、发布与恢复；
-- [`src/bot/sessions/store.py`](../src/bot/sessions/store.py)：原始消息和压缩版本持久化。
+- [`src/bot/sessions/store.py`](../src/bot/sessions/store.py)：原始消息、压缩版本和记忆提取 job
+  持久化；
+- [`src/bot/memory/service.py`](../src/bot/memory/service.py)：自动候选生成与确定性验证；
+- [`src/bot/memory/store.py`](../src/bot/memory/store.py)：Markdown 记忆、证据、冲突和忘记规则；
+- [`src/bot/memory/routing.py`](../src/bot/memory/routing.py)：四级确定性 Memory Router。
 
 ### 本地开源仓库
 
 | 实现 | 关键路径 |
 |---|---|
-| Codex | `codex-rs/core/src/{client.rs,compact.rs,compact_remote.rs}`；`codex-rs/core/src/context_manager/{history.rs,updates.rs}`；`codex-rs/core/src/context/{user_instructions.rs,world_state/}`；`codex-rs/ext/{memories,skills}/src/extension.rs` |
+| Codex | `codex-rs/core/src/{client.rs,compact.rs,compact_remote.rs}`；`codex-rs/core/src/context_manager/{history.rs,updates.rs}`；`codex-rs/core/src/context/{user_instructions.rs,world_state/}`；`codex-rs/memories/{README.md,write/src/phase1.rs,write/src/phase2.rs,write/templates/memories/}`；`codex-rs/ext/{memories,skills}/` |
 | OpenCode | `packages/opencode/src/session/{prompt.ts,message-v2.ts,compaction.ts,instruction.ts}`；`packages/opencode/src/session/llm/request.ts`；`packages/opencode/src/provider/transform.ts` |
 | Pi | `packages/ai/src/{types.ts,api/transform-messages.ts,api/openai-completions.ts,api/openai-responses-shared.ts,api/openai-codex-responses.ts}`；`packages/coding-agent/src/core/{messages.ts,system-prompt.ts,session-manager.ts,agent-session.ts}`；`packages/coding-agent/src/core/compaction/{compaction,utils}.ts` |
-| Hermes | `agent/{system_prompt.py,turn_context.py,conversation_loop.py,context_compressor.py,chat_completion_helpers.py,message_sanitization.py}` |
+| Hermes | `agent/{system_prompt.py,turn_context.py,conversation_loop.py,context_compressor.py,chat_completion_helpers.py,message_sanitization.py,memory_manager.py,memory_provider.py,background_review.py}`；`tools/memory_tool.py`；`plugins/memory/` |
 | DeepSeek Harness | `packages/core/system-prompt/src/index.ts`；`packages/core/agent-loop/src/{agent.ts,runtime-context.ts,tool-calls.ts}`；`packages/compaction/compaction-basic/{README.zh.md,src/region.ts,src/summarizer.ts}`；`packages/llm/llm/src/message.ts`；`packages/llm/llm-deepseek/src/serialize.ts` |
-| Nanobot | `nanobot/agent/context.py`；`nanobot/session/manager.py`；`nanobot/agent/context_governance.py`；`nanobot/agent/memory.py`；`nanobot/agent/loop.py` |
+| Nanobot | `nanobot/agent/context.py`；`nanobot/session/manager.py`；`nanobot/agent/context_governance.py`；`nanobot/agent/memory.py`；`nanobot/agent/loop.py`；`nanobot/templates/agent/dream.md`；`nanobot/skills/memory/SKILL.md` |
 
 ## 11. KAT 演进参照
 
