@@ -98,6 +98,40 @@ class _MemoryRoutingState:
         return self.required_tool() is None
 
 
+@dataclass
+class _ModelTurnResult:
+    assistant_text: str
+    reasoning_text: str
+    call_buffers: dict[int, _ToolCallBuffer]
+    finish_reason: str | None
+    finish_metadata: dict[str, Any]
+    turn_usage: dict[str, Any]
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float | None
+    retry_count: int
+
+
+class _ModelRequestFailure(Exception):
+    def __init__(
+        self,
+        error: ProviderError,
+        *,
+        partial_text: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: float | None,
+        retry_count: int,
+    ) -> None:
+        super().__init__(str(error))
+        self.error = error
+        self.partial_text = partial_text
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.cost_usd = cost_usd
+        self.retry_count = retry_count
+
+
 class _RunTermination(Exception):
     def __init__(
         self,
@@ -358,6 +392,10 @@ class AgentRunner:
                         self.config.agent.max_consecutive_failures
                     ),
                     "max_cost_usd": self.config.agent.max_cost_usd,
+                    "model_request_retries": self.config.agent.model_request_retries,
+                    "model_request_retry_backoff_seconds": (
+                        self.config.agent.model_request_retry_backoff_seconds
+                    ),
                     "process_hard_timeout_seconds": (
                         self.config.agent.process_hard_timeout_seconds
                     ),
@@ -733,69 +771,21 @@ class AgentRunner:
                 for position in disposable_tool_results
                 if f"message:{position}" not in dropped_ids
             }
-            text_parts: list[str] = []
-            reasoning_parts: list[str] = []
-            call_buffers: dict[int, _ToolCallBuffer] = {}
-            finish_reason: str | None = None
-            finish_metadata: dict[str, Any] = {}
-            turn_usage: dict[str, Any] = {}
             try:
-                async for event in self.provider.stream(model_request):
-                    if event.kind == ModelEventKind.TEXT_DELTA and event.text:
-                        text_parts.append(event.text)
-                        if required_memory_tool is None:
-                            await self.event_bus.emit(
-                                EventType.ASSISTANT_DELTA,
-                                session_id=session_id,
-                                run_id=run_id,
-                                payload={"step": step, "text": event.text},
-                            )
-                    elif event.kind == ModelEventKind.REASONING_DELTA and event.text:
-                        reasoning_parts.append(event.text)
-                        await self.event_bus.emit(
-                            EventType.ASSISTANT_REASONING_DELTA,
-                            session_id=session_id,
-                            run_id=run_id,
-                            payload={
-                                "step": step,
-                                "text": event.text,
-                                "provider_metadata": event.provider_metadata,
-                            },
-                        )
-                    elif event.kind == ModelEventKind.TOOL_CALL_DELTA:
-                        index = event.tool_index or 0
-                        buffer = call_buffers.setdefault(index, _ToolCallBuffer(index=index))
-                        if event.tool_call_id:
-                            buffer.id = event.tool_call_id
-                        if event.tool_name:
-                            buffer.name += event.tool_name
-                        if event.arguments_delta:
-                            buffer.arguments += event.arguments_delta
-                    elif event.kind == ModelEventKind.USAGE:
-                        input_tokens += event.input_tokens or 0
-                        output_tokens += event.output_tokens or 0
-                        turn_usage = event.provider_metadata.get("raw_usage") or {
-                            "prompt_tokens": event.input_tokens,
-                            "completion_tokens": event.output_tokens,
-                        }
-                        cost_usd = self._calculate_cost(input_tokens, output_tokens)
-                        await self.event_bus.emit(
-                            EventType.MODEL_USAGE,
-                            session_id=session_id,
-                            run_id=run_id,
-                            payload={
-                                "input_tokens": input_tokens,
-                                "output_tokens": output_tokens,
-                                "cost_usd": cost_usd,
-                                "step": step,
-                                "turn_usage": turn_usage,
-                                "provider_metadata": event.provider_metadata,
-                            },
-                        )
-                    elif event.kind == ModelEventKind.FINISH:
-                        finish_reason = event.finish_reason
-                        finish_metadata = event.provider_metadata
-            except ProviderError as exc:
+                model_turn = await self._request_model_with_retries(
+                    model_request,
+                    session_id=session_id,
+                    run_id=run_id,
+                    step=step,
+                    required_memory_tool=required_memory_tool,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
+            except _ModelRequestFailure as failure:
+                exc = failure.error
+                input_tokens = failure.input_tokens
+                output_tokens = failure.output_tokens
+                cost_usd = failure.cost_usd
                 if not context_retry_used and self._is_context_length_error(exc):
                     context_retry_used = True
                     consolidation = await self._consolidate_conversation(
@@ -850,20 +840,30 @@ class AgentRunner:
                     status="failed",
                     reason_code="provider_error",
                     message=str(exc),
-                    partial_text="".join(text_parts),
+                    partial_text=failure.partial_text,
                     steps=step,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
+                    metadata={
+                        "provider_retry_count": failure.retry_count,
+                        "provider_error_kind": exc.kind.value,
+                    },
                 ) from exc
 
-            assistant_text = "".join(text_parts)
-            reasoning_text = "".join(reasoning_parts)
+            assistant_text = model_turn.assistant_text
+            reasoning_text = model_turn.reasoning_text
+            input_tokens = model_turn.input_tokens
+            output_tokens = model_turn.output_tokens
+            cost_usd = model_turn.cost_usd
+            finish_reason = model_turn.finish_reason
+            finish_metadata = model_turn.finish_metadata
+            turn_usage = model_turn.turn_usage
             tool_calls = [
                 ToolCall.model_validate(
                     self.redactor.redact(self._parse_tool_call(buffer).model_dump(mode="python"))
                 )
-                for buffer in call_buffers.values()
+                for buffer in model_turn.call_buffers.values()
             ]
             response_summary = {
                 "step": step,
@@ -874,6 +874,7 @@ class AgentRunner:
                 "empty": not assistant_text.strip() and not tool_calls,
                 "turn_usage": turn_usage,
                 "provider_metadata": finish_metadata,
+                "provider_retry_count": model_turn.retry_count,
             }
             if (
                 required_memory_tool is not None
@@ -2073,6 +2074,156 @@ class AgentRunner:
             # Tokenizer availability must not become a new runtime dependency;
             # the Unicode-aware conservative estimate remains the safe fallback.
             return None
+
+    async def _request_model_with_retries(
+        self,
+        request: ModelRequest,
+        *,
+        session_id: str,
+        run_id: str,
+        step: int,
+        required_memory_tool: str | None,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> _ModelTurnResult:
+        retry_count = 0
+        max_retries = self.config.agent.model_request_retries
+        while True:
+            text_parts: list[str] = []
+            reasoning_parts: list[str] = []
+            call_buffers: dict[int, _ToolCallBuffer] = {}
+            finish_reason: str | None = None
+            finish_metadata: dict[str, Any] = {}
+            turn_usage: dict[str, Any] = {}
+            try:
+                async for event in self.provider.stream(request):
+                    if event.kind == ModelEventKind.TEXT_DELTA and event.text:
+                        text_parts.append(event.text)
+                        if required_memory_tool is None:
+                            await self.event_bus.emit(
+                                EventType.ASSISTANT_DELTA,
+                                session_id=session_id,
+                                run_id=run_id,
+                                payload={"step": step, "text": event.text},
+                            )
+                    elif event.kind == ModelEventKind.REASONING_DELTA and event.text:
+                        reasoning_parts.append(event.text)
+                        await self.event_bus.emit(
+                            EventType.ASSISTANT_REASONING_DELTA,
+                            session_id=session_id,
+                            run_id=run_id,
+                            payload={
+                                "step": step,
+                                "text": event.text,
+                                "provider_metadata": event.provider_metadata,
+                            },
+                        )
+                    elif event.kind == ModelEventKind.TOOL_CALL_DELTA:
+                        index = event.tool_index or 0
+                        buffer = call_buffers.setdefault(index, _ToolCallBuffer(index=index))
+                        if event.tool_call_id:
+                            buffer.id = event.tool_call_id
+                        if event.tool_name:
+                            buffer.name += event.tool_name
+                        if event.arguments_delta:
+                            buffer.arguments += event.arguments_delta
+                    elif event.kind == ModelEventKind.USAGE:
+                        input_tokens += event.input_tokens or 0
+                        output_tokens += event.output_tokens or 0
+                        turn_usage = event.provider_metadata.get("raw_usage") or {
+                            "prompt_tokens": event.input_tokens,
+                            "completion_tokens": event.output_tokens,
+                        }
+                        cost_usd = self._calculate_cost(input_tokens, output_tokens)
+                        await self.event_bus.emit(
+                            EventType.MODEL_USAGE,
+                            session_id=session_id,
+                            run_id=run_id,
+                            payload={
+                                "input_tokens": input_tokens,
+                                "output_tokens": output_tokens,
+                                "cost_usd": cost_usd,
+                                "step": step,
+                                "turn_usage": turn_usage,
+                                "provider_metadata": event.provider_metadata,
+                            },
+                        )
+                    elif event.kind == ModelEventKind.FINISH:
+                        finish_reason = event.finish_reason
+                        finish_metadata = event.provider_metadata
+            except ProviderError as exc:
+                cost_usd = self._calculate_cost(input_tokens, output_tokens)
+                can_retry = (
+                    exc.retryable
+                    and not self._is_context_length_error(exc)
+                    and retry_count < max_retries
+                )
+                if can_retry:
+                    cost_limit = self.config.agent.max_cost_usd
+                    if cost_limit is not None and cost_usd is not None and cost_usd >= cost_limit:
+                        raise _RunTermination(
+                            status="limit_reached",
+                            reason_code="max_cost_usd",
+                            message=f"模型费用达到运行上限 ${cost_limit:g}",
+                            steps=step,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cost_usd=cost_usd,
+                            model_finalizer=False,
+                            metadata={
+                                "provider_retry_count": retry_count,
+                                "provider_error_kind": exc.kind.value,
+                            },
+                        ) from exc
+                    retry_count += 1
+                    delay = min(
+                        30.0,
+                        self.config.agent.model_request_retry_backoff_seconds
+                        * (2 ** (retry_count - 1)),
+                    )
+                    await self.event_bus.emit(
+                        EventType.MODEL_REQUEST_RETRY,
+                        session_id=session_id,
+                        run_id=run_id,
+                        payload={
+                            "step": step,
+                            "failed_attempt": retry_count,
+                            "next_attempt": retry_count + 1,
+                            "retry_count": retry_count,
+                            "max_retries": max_retries,
+                            "delay_seconds": delay,
+                            "error": str(exc),
+                            "error_kind": exc.kind.value,
+                            "status_code": exc.status_code,
+                            "discarded_content_chars": len("".join(text_parts)),
+                            "discarded_reasoning_chars": len("".join(reasoning_parts)),
+                            "discarded_tool_call_buffers": len(call_buffers),
+                        },
+                    )
+                    if delay > 0:
+                        await asyncio.sleep(delay)
+                    continue
+                raise _ModelRequestFailure(
+                    exc,
+                    partial_text="".join(text_parts),
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    retry_count=retry_count,
+                ) from exc
+
+            return _ModelTurnResult(
+                assistant_text="".join(text_parts),
+                reasoning_text="".join(reasoning_parts),
+                call_buffers=call_buffers,
+                finish_reason=finish_reason,
+                finish_metadata=finish_metadata,
+                turn_usage=turn_usage,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=self._calculate_cost(input_tokens, output_tokens),
+                retry_count=retry_count,
+            )
 
     async def _prepare_model_messages(
         self,

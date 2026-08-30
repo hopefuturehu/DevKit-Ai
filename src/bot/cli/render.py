@@ -40,6 +40,17 @@ class RichEventSink:
         if event.type == EventType.ASSISTANT_DELTA:
             self.console.print(str(payload.get("text", "")), end="", markup=False, highlight=False)
             self._streaming = True
+        elif event.type == EventType.MODEL_REQUEST_RETRY:
+            self._finish_stream()
+            self.console.print(
+                Text(
+                    "模型请求中断，正在重试"
+                    f"（{payload.get('retry_count')}/{payload.get('max_retries')}）；"
+                    "此前未完成的输出已丢弃。",
+                    style="yellow",
+                ),
+                highlight=False,
+            )
         elif event.type == EventType.ASSISTANT_MESSAGE:
             if self._streaming:
                 self.console.print()

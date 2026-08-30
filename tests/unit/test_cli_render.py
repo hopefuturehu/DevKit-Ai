@@ -59,6 +59,25 @@ async def test_assistant_markdown_is_preserved_for_the_output_consumer() -> None
 
 
 @pytest.mark.asyncio
+async def test_model_retry_marks_partial_stream_as_discarded() -> None:
+    stream = StringIO()
+    sink = RichEventSink(create_cli_console(file=stream, width=500))
+
+    await sink.publish(_event(EventType.ASSISTANT_DELTA, {"text": "partial"}))
+    await sink.publish(
+        _event(
+            EventType.MODEL_REQUEST_RETRY,
+            {"retry_count": 1, "max_retries": 2},
+        )
+    )
+
+    output = stream.getvalue()
+    assert "partial\n" in output
+    assert "正在重试（1/2）" in output
+    assert "未完成的输出已丢弃" in output
+
+
+@pytest.mark.asyncio
 async def test_progress_recovery_and_blocked_events_are_visible() -> None:
     stream = StringIO()
     sink = RichEventSink(create_cli_console(file=stream, width=500))

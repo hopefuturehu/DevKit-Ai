@@ -103,6 +103,8 @@ class AgentConfig(StrictModel):
     max_total_tool_output_bytes: int | None = Field(default=None, gt=0)
     max_consecutive_failures: int | None = Field(default=None, ge=1)
     max_cost_usd: float | None = Field(default=None, gt=0)
+    model_request_retries: int = Field(default=2, ge=0, le=5)
+    model_request_retry_backoff_seconds: float = Field(default=1, ge=0, le=30)
     process_wait_seconds: float = Field(default=10, ge=0, le=60)
     process_hard_timeout_seconds: float | None = Field(default=None, gt=0)
     max_managed_processes: int = Field(default=16, ge=1, le=256)

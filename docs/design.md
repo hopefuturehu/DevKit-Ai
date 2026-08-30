@@ -191,6 +191,7 @@ assistant.delta
 assistant.reasoning.delta
 assistant.message
 model.response
+model.request.retry
 model.empty_response
 tool.requested
 approval.requested
@@ -313,6 +314,12 @@ ModelProvider
 `reasoning_content` 必须独立持久化；含 Tool Call 的 assistant 消息必须在后续请求中
 原样回传 reasoning。只有 reasoning、没有正文或 Tool Call 的响应不得写入消息历史，
 应记录每轮协议诊断并有限重试。
+
+普通 Agent 请求对 Provider 明确标记为 retryable 的限流、服务端、超时和传输错误执行有界
+指数退避；上下文超限仍进入独立的压缩恢复路径，认证、付费、配置和协议错误不重试。一次流式
+请求未完整结束时，其正文、reasoning 和 Tool Call buffer 均不写入 Transcript，也不执行残缺
+Tool Call；已经返回的 usage 仍计入预算。每次重试发出 `model.request.retry`，让流式消费者明确
+标记此前可见的 partial delta 已被丢弃。
 
 MVP 实现 OpenAI API 协议兼容的 Provider，不绑定具体模型厂商。配置至少包含 `base_url`、`api_key` 引用、模型名称和超时；开发阶段用 DeepSeek V4 Flash 或 Pro 验证。不同兼容服务对流式 Tool Call、结束原因和 usage 字段的实现可能不同，因此 Provider 必须做能力探测和兼容性归一化，不能仅凭“OpenAI-compatible”字符串假设语义完整。
 
@@ -702,6 +709,8 @@ context_window_tokens = 131072
 
 [agent]
 max_cost_usd = 2.0
+model_request_retries = 2
+model_request_retry_backoff_seconds = 1
 process_wait_seconds = 10
 max_managed_processes = 16
 # max_steps = 100                 # 可选硬策略

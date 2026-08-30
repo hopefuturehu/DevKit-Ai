@@ -792,6 +792,10 @@ max_candidates_per_run = 5
 min_confidence = 0.75
 index_tokens = 2000
 
+[agent]
+model_request_retries = 2
+model_request_retry_backoff_seconds = 1
+
 [subagents]
 enabled = true
 max_concurrent = 3

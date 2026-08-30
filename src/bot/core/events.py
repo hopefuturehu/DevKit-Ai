@@ -18,6 +18,7 @@ class EventType(StrEnum):
     ASSISTANT_MESSAGE = "assistant.message"
     MODEL_USAGE = "model.usage"
     MODEL_RESPONSE = "model.response"
+    MODEL_REQUEST_RETRY = "model.request.retry"
     MODEL_EMPTY_RESPONSE = "model.empty_response"
     TOOL_REQUESTED = "tool.requested"
     APPROVAL_REQUESTED = "approval.requested"

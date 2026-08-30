@@ -48,6 +48,8 @@ output_cost_per_million = 0.0
 
 [agent]
 max_tool_output_bytes = 1000000
+model_request_retries = 2
+model_request_retry_backoff_seconds = 1
 process_wait_seconds = 10
 max_managed_processes = 16
 # max_cost_usd = 2.0
@@ -141,6 +143,10 @@ path = "./skills"
 # 相对路径以工作区为基准
 state_path = "./.bot/state.db"
 ```
+
+`model_request_retries` 只覆盖 Provider 标记为可重试的限流、服务端、超时和传输错误；默认最多
+重试两次，退避等待最多 30 秒。认证、付费、配置、协议和上下文超限不会走这条路径。未完成的
+流式正文和 Tool Call 会被丢弃，但 Provider 已报告的 token/费用仍累计。
 
 正常任务默认不受固定步骤数或总运行时长限制。Tool 通过结构化 `progress` 信号报告强/弱进展
 或外部等待；运行器识别重复失败和短周期循环，进展状态会写入 SQLite 并在 `resume` 时恢复。

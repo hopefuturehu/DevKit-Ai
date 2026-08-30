@@ -27,7 +27,7 @@ from bot.core.models import (
 from bot.execution import LocalExecutionTarget, ProcessSpec
 from bot.memory import ExtractedMemoryCandidate, MarkdownMemoryStore, MemoryKind
 from bot.policy import DefaultPolicyEngine
-from bot.providers import ModelProvider, ProviderError
+from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
 from bot.tools import Tool, ToolAnnotations, ToolRegistry, ToolResult
@@ -131,6 +131,47 @@ class ContextRetryProvider(ModelProvider):
         if len(self.requests) == 1:
             raise ProviderError("maximum context length exceeded")
         yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="recovered")
+        yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+
+class TransientProvider(ModelProvider):
+    def __init__(
+        self,
+        *,
+        failures: int,
+        emit_partial: bool = False,
+        emit_usage: bool = False,
+    ) -> None:
+        self.failures = failures
+        self.emit_partial = emit_partial
+        self.emit_usage = emit_usage
+        self.requests: list[ModelRequest] = []
+
+    def capabilities(self, model: str) -> ModelCapabilities:
+        return ModelCapabilities()
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
+        self.requests.append(request)
+        if len(self.requests) <= self.failures:
+            if self.emit_partial:
+                yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="discarded partial")
+                yield ModelEvent(kind=ModelEventKind.REASONING_DELTA, text="discarded reasoning")
+                yield ModelEvent(
+                    kind=ModelEventKind.TOOL_CALL_DELTA,
+                    tool_index=0,
+                    tool_call_id="discarded-call",
+                    tool_name="read_file",
+                    arguments_delta='{"path":"never-read.txt"}',
+                )
+            if self.emit_usage:
+                yield ModelEvent(kind=ModelEventKind.USAGE, input_tokens=12, output_tokens=3)
+            raise ProviderError(
+                "Server disconnected without sending a response.",
+                kind=ProviderErrorKind.TRANSPORT,
+            )
+        yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="recovered")
+        if self.emit_usage:
+            yield ModelEvent(kind=ModelEventKind.USAGE, input_tokens=5, output_tokens=2)
         yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
 
 
@@ -683,6 +724,10 @@ async def test_agent_retries_provider_context_error_once(tmp_path: Path) -> None
     assert result.status == "completed"
     assert result.final_text == "recovered"
     assert len(provider.requests) == 2
+    assert not any(
+        event["type"] == EventType.MODEL_REQUEST_RETRY.value
+        for event in store.list_events(result.session_id)
+    )
     store.close()
 
 
@@ -967,6 +1012,114 @@ async def test_provider_error_preserves_step_and_usage_for_finalization(tmp_path
     assert result.output_tokens == 3
     assert result.final_text == "provider failure summary"
     assert provider.requests[-1].tools == []
+    assert not any(
+        event["type"] == EventType.MODEL_REQUEST_RETRY.value
+        for event in store.list_events(result.session_id)
+    )
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_retries_transient_provider_error_and_discards_partial_turn(
+    tmp_path: Path,
+) -> None:
+    provider = TransientProvider(failures=1, emit_partial=True, emit_usage=True)
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={
+            "model_request_retries": 2,
+            "model_request_retry_backoff_seconds": 0,
+        },
+        tools=[ReadFileTool()],
+    )
+
+    result = await runner.run(RunRequest(prompt="recover from disconnect"))
+
+    assert result.status == "completed"
+    assert result.final_text == "recovered"
+    assert result.steps == 1
+    assert result.input_tokens == 17
+    assert result.output_tokens == 5
+    assert len(provider.requests) == 2
+    events = store.list_events(result.session_id)
+    retry = next(event for event in events if event["type"] == EventType.MODEL_REQUEST_RETRY.value)
+    assert retry["payload"] == {
+        "step": 1,
+        "failed_attempt": 1,
+        "next_attempt": 2,
+        "retry_count": 1,
+        "max_retries": 2,
+        "delay_seconds": 0.0,
+        "error": "Server disconnected without sending a response.",
+        "error_kind": "transport",
+        "status_code": None,
+        "discarded_content_chars": len("discarded partial"),
+        "discarded_reasoning_chars": len("discarded reasoning"),
+        "discarded_tool_call_buffers": 1,
+    }
+    assert not any(event["type"] == EventType.TOOL_REQUESTED.value for event in events)
+    persisted = store.load_messages(result.session_id)
+    assert not any(
+        "discarded" in (message.content or "")
+        or "discarded" in (message.reasoning_content or "")
+        or any(call.id == "discarded-call" for call in message.tool_calls)
+        for message in persisted
+    )
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_stops_after_transient_provider_retry_limit(tmp_path: Path) -> None:
+    provider = TransientProvider(failures=4)
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={
+            "model_request_retries": 2,
+            "model_request_retry_backoff_seconds": 0,
+            "finalization": {"enabled": False},
+        },
+    )
+
+    result = await runner.run(RunRequest(prompt="keep disconnecting"))
+
+    assert result.status == "failed"
+    assert result.termination_reason == "provider_error"
+    assert len(provider.requests) == 3
+    events = store.list_events(result.session_id)
+    assert sum(event["type"] == EventType.MODEL_REQUEST_RETRY.value for event in events) == 2
+    terminal = next(event for event in events if event["type"] == EventType.RUN_FAILED.value)
+    assert terminal["payload"]["provider_retry_count"] == 2
+    assert terminal["payload"]["provider_error_kind"] == "transport"
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_does_not_retry_provider_error_after_cost_limit(tmp_path: Path) -> None:
+    provider = TransientProvider(failures=1, emit_usage=True)
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={
+            "max_cost_usd": 0.01,
+            "model_request_retries": 2,
+            "model_request_retry_backoff_seconds": 0,
+            "finalization": {"enabled": False},
+        },
+        model_config={"input_cost_per_million": 1_000, "output_cost_per_million": 1_000},
+    )
+
+    result = await runner.run(RunRequest(prompt="do not exceed budget"))
+
+    assert result.status == "limit_reached"
+    assert result.termination_reason == "max_cost_usd"
+    assert result.cost_usd == 0.015
+    assert len(provider.requests) == 1
+    assert not any(
+        event["type"] == EventType.MODEL_REQUEST_RETRY.value
+        for event in store.list_events(result.session_id)
+    )
     store.close()
 
 

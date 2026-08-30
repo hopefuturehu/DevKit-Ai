@@ -156,6 +156,8 @@ def test_execution_has_no_fixed_global_limit_by_default() -> None:
     assert config.agent.max_wall_time_seconds is None
     assert config.agent.max_total_tool_output_bytes is None
     assert config.agent.max_consecutive_failures is None
+    assert config.agent.model_request_retries == 2
+    assert config.agent.model_request_retry_backoff_seconds == 1
     assert config.agent.process_hard_timeout_seconds is None
     assert config.subagents.max_steps is None
     assert config.subagents.max_wall_time_seconds is None

@@ -18,6 +18,9 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     assert 'api_key_ref = "auto:BOT_MODEL_API_KEY"' in (
         tmp_path / ".bot" / "config.toml"
     ).read_text(encoding="utf-8")
+    assert "model_request_retries = 2" in (tmp_path / ".bot" / "config.toml").read_text(
+        encoding="utf-8"
+    )
     if os.name == "posix":
         assert (tmp_path / ".bot" / "config.toml").stat().st_mode & 0o077 == 0
     assert (tmp_path / "skills" / "kunpeng-performance-analysis" / "SKILL.md").is_file()
