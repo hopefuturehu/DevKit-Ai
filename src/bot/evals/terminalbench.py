@@ -22,7 +22,7 @@ TERMINALBENCH_DATASET = "terminal-bench/terminal-bench-2-1"
 HARBOR_AGENT_IMPORT_PATH = "bot.evals.harbor_agent:KunpengBot"
 DEFAULT_TERMINALBENCH_MAX_STEPS = 60
 DEFAULT_TERMINALBENCH_MAX_WALL_TIME_SECONDS = 1800.0
-DEFAULT_TERMINALBENCH_MAX_COST_USD = 1.0
+DEFAULT_TERMINALBENCH_MAX_COST_USD: float | None = None
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class TerminalBenchSuite:
     tasks: tuple[str, ...]
     max_steps: int
     max_wall_time_seconds: float
-    max_cost_usd: float
+    max_cost_usd: float | None
 
 
 CONTEXT_MEDIUM_SIX = TerminalBenchSuite(
@@ -47,7 +47,7 @@ CONTEXT_MEDIUM_SIX = TerminalBenchSuite(
     # old 60-step / 30-minute smoke-test defaults first.
     max_steps=240,
     max_wall_time_seconds=7_200.0,
-    max_cost_usd=3.0,
+    max_cost_usd=None,
 )
 TERMINALBENCH_SUITES = {"context-medium-six": CONTEXT_MEDIUM_SIX}
 
@@ -94,7 +94,7 @@ def build_harbor_command(
     n_attempts: int,
     max_steps: int,
     max_wall_time_seconds: float,
-    max_cost_usd: float,
+    max_cost_usd: float | None,
     subagents_enabled: bool,
     extra_args: list[str] | None = None,
 ) -> list[str]:
@@ -104,8 +104,10 @@ def build_harbor_command(
         raise ValueError("--task 与 --all 不能同时使用")
     if n_concurrent < 1 or n_attempts < 1:
         raise ValueError("并发数和重复次数必须大于 0")
-    if max_steps < 1 or max_wall_time_seconds <= 0 or max_cost_usd <= 0:
-        raise ValueError("Agent 步数、时间和费用预算必须大于 0")
+    if max_steps < 1 or max_wall_time_seconds <= 0:
+        raise ValueError("Agent 步数和时间限制必须大于 0")
+    if max_cost_usd is not None and max_cost_usd <= 0:
+        raise ValueError("Agent 费用预算必须大于 0")
 
     command = [
         str(uvx),
@@ -129,8 +131,7 @@ def build_harbor_command(
         f"max_steps={max_steps}",
         "--agent-kwarg",
         f"max_wall_time_seconds={max_wall_time_seconds:g}",
-        "--agent-kwarg",
-        f"max_cost_usd={max_cost_usd:g}",
+        *(["--agent-kwarg", f"max_cost_usd={max_cost_usd:g}"] if max_cost_usd is not None else []),
         "--agent-kwarg",
         f"subagents_enabled={str(subagents_enabled).lower()}",
         "--agent-env",

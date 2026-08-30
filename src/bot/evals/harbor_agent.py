@@ -32,7 +32,7 @@ class KunpengBot(BaseInstalledAgent):
         config_path: str,
         max_steps: int = 60,
         max_wall_time_seconds: float = 1800,
-        max_cost_usd: float = 1.0,
+        max_cost_usd: float | None = None,
         subagents_enabled: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -42,11 +42,13 @@ class KunpengBot(BaseInstalledAgent):
             raise ValueError(f"kunpeng bot wheel 不存在或格式无效: {self.package_path}")
         if not self.config_path.is_file():
             raise ValueError(f"kunpeng bot 配置不存在: {self.config_path}")
-        if max_steps < 1 or max_wall_time_seconds <= 0 or max_cost_usd <= 0:
-            raise ValueError("Terminal-Bench Agent 预算必须大于 0")
+        if max_steps < 1 or max_wall_time_seconds <= 0:
+            raise ValueError("Terminal-Bench Agent 步数和时间限制必须大于 0")
+        if max_cost_usd is not None and max_cost_usd <= 0:
+            raise ValueError("Terminal-Bench Agent 费用预算必须大于 0")
         self.max_steps = int(max_steps)
         self.max_wall_time_seconds = float(max_wall_time_seconds)
-        self.max_cost_usd = float(max_cost_usd)
+        self.max_cost_usd = float(max_cost_usd) if max_cost_usd is not None else None
         self.subagents_enabled = bool(subagents_enabled)
         super().__init__(logs_dir, **kwargs)
 
@@ -138,10 +140,10 @@ class KunpengBot(BaseInstalledAgent):
             str(self.max_steps),
             "--max-wall-time-seconds",
             f"{self.max_wall_time_seconds:g}",
-            "--max-cost-usd",
-            f"{self.max_cost_usd:g}",
             ("--subagents-enabled" if self.subagents_enabled else "--no-subagents-enabled"),
         ]
+        if self.max_cost_usd is not None:
+            argv.extend(["--max-cost-usd", f"{self.max_cost_usd:g}"])
         await self.exec_as_agent(
             environment,
             command=f"{shlex.join(argv)} 2>&1 | tee /logs/agent/worker.log",

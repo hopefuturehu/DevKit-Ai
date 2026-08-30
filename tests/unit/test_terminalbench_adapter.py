@@ -11,6 +11,7 @@ from bot.evals.terminalbench import (
     HARBOR_VERSION,
     TERMINALBENCH_DATASET,
     _harbor_subprocess_env,
+    _parser,
     _run_harbor,
     api_key_env_name,
     build_harbor_command,
@@ -68,7 +69,35 @@ def test_context_medium_suite_uses_non_smoke_internal_ceilings() -> None:
     )
     assert CONTEXT_MEDIUM_SIX.max_steps > 60
     assert CONTEXT_MEDIUM_SIX.max_wall_time_seconds > 1800
-    assert CONTEXT_MEDIUM_SIX.max_cost_usd > 1
+    assert CONTEXT_MEDIUM_SIX.max_cost_usd is None
+
+
+def test_build_harbor_command_omits_cost_limit_by_default(tmp_path: Path) -> None:
+    command = build_harbor_command(
+        uvx=Path("/usr/bin/uvx"),
+        wheel_path=tmp_path / "agent.whl",
+        config_path=tmp_path / "config.toml",
+        model_name="model",
+        api_key_variable="API_KEY",
+        model_host="api.example.com",
+        jobs_dir=tmp_path / "jobs",
+        tasks=["mailman"],
+        run_all=False,
+        n_concurrent=1,
+        n_attempts=1,
+        max_steps=60,
+        max_wall_time_seconds=1800,
+        max_cost_usd=None,
+        subagents_enabled=False,
+    )
+
+    assert not any(value.startswith("max_cost_usd=") for value in command)
+
+
+def test_terminalbench_cli_has_no_default_cost_limit() -> None:
+    args = _parser().parse_args(["--task", "mailman"])
+
+    assert args.max_cost_usd is None
 
 
 def test_build_harbor_command_requires_explicit_task_scope(tmp_path: Path) -> None:
@@ -180,6 +209,21 @@ def test_terminalbench_worker_uses_disposable_container_policy(tmp_path: Path) -
         "path": "/installed-agent/no-skills",
         "auto_activate": False,
         "max_auto_activated": 0,
+    }
+
+
+def test_terminalbench_worker_omits_cost_override_by_default(tmp_path: Path) -> None:
+    overrides = _worker_config_overrides(
+        state_path=tmp_path / "state.db",
+        max_steps=60,
+        max_wall_time_seconds=1800,
+        max_cost_usd=None,
+        subagents_enabled=False,
+    )
+
+    assert overrides["agent"] == {
+        "max_steps": 60,
+        "max_wall_time_seconds": 1800,
     }
 
 

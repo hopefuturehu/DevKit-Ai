@@ -21,8 +21,11 @@
   子 Agent；
 - 容器内启用自动审批、网络 Tool 和工作区外路径，因为 Terminal-Bench 任务可能需要安装
   软件、修改 `/etc` 或操作系统服务；实际网络仍受任务和 Harbor 的容器策略约束；
-- Agent 达到内部步数、费用或时间限制时，worker 仍以成功进程状态交还 Harbor，让 verifier
+- Agent 达到内部步数、显式费用预算或时间限制时，worker 仍以成功进程状态交还 Harbor，让 verifier
   对容器中的部分结果评分。
+- 测试默认不设置美元费用预算，避免长任务因本地 harness 的任意金额提前终止；步数、墙钟时间
+  和 Terminal-Bench 发布的 task timeout 仍然生效。只有显式传入 `--max-cost-usd` 时才启用
+  费用门禁。
 
 Harbor 固定为 `0.20.0`，避免自定义 Agent API 漂移影响重复实验。升级 Harbor 时应重新运行
 适配器单测和 smoke task。
@@ -48,8 +51,7 @@ Python 3.12+ 时还会下载托管 Python。
   --task openssl-selfsigned-cert \
   --n-concurrent 1 \
   --max-steps 60 \
-  --max-wall-time-seconds 1800 \
-  --max-cost-usd 1.0
+  --max-wall-time-seconds 1800
 ```
 
 可以重复 `--task` 选择多个任务：
@@ -81,10 +83,11 @@ Python 3.12+ 时还会下载托管 Python。
   --n-attempts 1
 ```
 
-这个 suite 不复用 smoke test 的 60 步、1800 秒和 `$1` 内部上限，而使用 240 步、7200 秒和
-`$3` 作为防失控上限。Harbor 仍按 Terminal-Bench 2.1 每个任务发布的 agent timeout 判定；因此
-这组更高的内部上限不会延长官方任务时间，只避免 Bot 自己先按统一 30 分钟截断。命令行显式
-传入 `--max-steps`、`--max-wall-time-seconds` 或 `--max-cost-usd` 时仍会覆盖 suite 默认值。
+这个 suite 不复用 smoke test 的 60 步和 1800 秒内部上限，而使用 240 步和 7200 秒。和其他
+Terminal-Bench 运行一样，它默认不设置美元费用预算。Harbor 仍按 Terminal-Bench 2.1 每个
+任务发布的 agent timeout 判定；因此这组更高的内部上限不会延长官方任务时间，只避免 Bot
+自己先按统一 30 分钟截断。命令行显式传入 `--max-steps` 或 `--max-wall-time-seconds` 时仍会
+覆盖 suite 默认值；显式传入 `--max-cost-usd` 可为单次实验恢复费用门禁。
 
 首次六任务实测的逐项结果、上下文 token、压缩覆盖率和失败归因见
 [Terminal-Bench 上下文中等任务集结果](terminalbench-context-medium-six-results.md)。
@@ -113,8 +116,7 @@ Python 3.12+ 时还会下载托管 Python。
 .venv/bin/python scripts/run_terminalbench.py \
   --all \
   --n-concurrent 4 \
-  --n-attempts 1 \
-  --max-cost-usd 2.0
+  --n-attempts 1
 ```
 
 正式对比时应固定以下条件并记录在实验说明中：
@@ -123,7 +125,7 @@ Python 3.12+ 时还会下载托管 Python。
 - Harbor 版本；
 - 数据集版本；
 - 模型、端点和推理参数；
-- Agent 步数、时间、费用与子 Agent 开关；
+- Agent 步数、时间、是否显式设置费用预算，以及子 Agent 开关；
 - Docker 镜像与宿主 CPU 架构；
 - task 重复次数和并发数。
 

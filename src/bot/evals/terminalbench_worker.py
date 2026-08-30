@@ -17,21 +17,23 @@ def _worker_config_overrides(
     state_path: Path,
     max_steps: int,
     max_wall_time_seconds: float,
-    max_cost_usd: float,
+    max_cost_usd: float | None,
     subagents_enabled: bool,
 ) -> dict[str, object]:
     if max_steps < 1:
         raise ValueError("Terminal-Bench max_steps 必须大于 0")
     if max_wall_time_seconds <= 0:
         raise ValueError("Terminal-Bench max_wall_time_seconds 必须大于 0")
-    if max_cost_usd <= 0:
+    if max_cost_usd is not None and max_cost_usd <= 0:
         raise ValueError("Terminal-Bench max_cost_usd 必须大于 0")
+    agent_overrides: dict[str, object] = {
+        "max_steps": max_steps,
+        "max_wall_time_seconds": max_wall_time_seconds,
+    }
+    if max_cost_usd is not None:
+        agent_overrides["max_cost_usd"] = max_cost_usd
     return {
-        "agent": {
-            "max_steps": max_steps,
-            "max_wall_time_seconds": max_wall_time_seconds,
-            "max_cost_usd": max_cost_usd,
-        },
+        "agent": agent_overrides,
         "permissions": {
             "mode": "full-access",
             "workspace_only": False,
@@ -70,7 +72,7 @@ async def run_worker(
     trace_path: Path,
     max_steps: int,
     max_wall_time_seconds: float,
-    max_cost_usd: float,
+    max_cost_usd: float | None,
     subagents_enabled: bool,
 ) -> int:
     if os.environ.get("HARBOR_CONTAINER") != "1" or not Path("/.dockerenv").exists():
@@ -163,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--max-steps", type=int, default=60)
     parser.add_argument("--max-wall-time-seconds", type=float, default=1800)
-    parser.add_argument("--max-cost-usd", type=float, default=1.0)
+    parser.add_argument("--max-cost-usd", type=float)
     parser.add_argument(
         "--subagents-enabled",
         action=argparse.BooleanOptionalAction,
