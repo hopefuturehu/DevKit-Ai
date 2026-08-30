@@ -132,6 +132,53 @@ Agent 已找到 bucket 2 的多组可行参数，准备验证 bucket 1 时，pro
 排除首次镜像拉取 EOF 后，重试在 48 步、62 次 Tool Call 内通过 verifier。它是本组唯一成功
 样本，也证明六任务 runner、容器内 Agent、事件回收和 verifier 链路可工作。
 
+## DeepSeek V4 Pro 定向复测
+
+2026-08-30 在提交 `4ec4e7f` 上把模型切换为 `deepseek-v4-pro`，定向重跑首次实验中主要归因于
+模型实现正确性或执行策略的三个任务。保持 Terminal-Bench 数据集、子 Agent 关闭、240 steps、
+7200 秒和每任务 `$3` 不变；单次运行、并发 2。Job 位于
+`artifacts/terminalbench/jobs/2026-08-30__19-09-17`，三个 Trial 均无 Harbor exception。
+
+| Task | Reward（Flash → Pro） | Agent 状态（Flash → Pro） | Steps | Input / output tokens | 费用 | 最大 prompt |
+|---|---:|---|---:|---:|---:|---:|
+| `filter-js-from-html` | `0 → 0` | `completed → completed` | `15 → 20` | `172,816 / 25,137 → 409,950 / 29,429` | `$0.223090 → $0.468808` | `24,952 → 41,555` |
+| `path-tracing-reverse` | `0 → 0` | `limit_reached → limit_reached` | `17 → 47` | `453,199 / 19,593 → 2,933,501 / 64,844` | `$0.492385 → $3.063189` | `48,238 → 139,093` |
+| `mailman` | `0 → 1` | `limit_reached → limit_reached` | `76 → 65` | `2,990,184 / 29,661 → 3,004,152 / 20,444` | `$3.049506 → $3.045040` | `64,871 → 72,689` |
+
+同一三个任务合计，Pro 相对 Flash：input tokens 从 `3,616,199` 增至 `6,347,603`
+（`1.755x`），output tokens 从 `74,391` 增至 `114,717`（`1.542x`），记录费用从
+`$3.764981` 增至 `$6.577037`（`1.747x`）。子集完成率从 `0/3` 提升为 `1/3`。这只是每个
+配置一次尝试的小样本，能证明本次运行发生了翻盘，不能估计模型切换的稳定因果增益。
+
+### 逐任务结论
+
+- `filter-js-from-html`：危险内容测试通过，但干净 HTML 错误改写仍使 reward 为 0；错误样本从
+  Flash 的 `5/12` 降至 Pro 的 `3/12`。Pro 理解并尝试保留 attribute order 和 void tag，最终
+  仍选择 BeautifulSoup 全量解析后重新序列化，没有实现“未发现危险内容则保留原始 bytes”的
+  快速路径。verifier 日志同时显示 Selenium 无法取得 Chrome driver，因此“439 个 XSS 向量
+  全通过”本身不宜作为强证据；干净输入的 byte comparison 不依赖浏览器，失败结论有效。
+- `path-tracing-reverse`：Flash 在生成候选前因模型输出长度限制结束，三个 verifier 全失败；Pro
+  避免了该截断，在第 45 step 才写出可压缩到 2K 内并能编译的 `mystery.c`，因此三个子项通过
+  两个。但生成图像的 cosine similarity 只有 `0.879029`，低于 `0.995`，最终仍为 reward 0。
+  Pro 把“无产物”改善为“可运行近似实现”，代价是约 `6.2x` 费用，并因过晚落盘没有足够预算
+  迭代图像精度。
+- `mailman`：Pro 在达到费用上限前自行验证了 join、confirmation、announcement、leave 和
+  leave confirmation 完整流程；虽然 Agent 最终仍为 `limit_reached/max_cost_usd`，官方
+  verifier 三项全部通过，reward 为 1。这是本轮唯一明确的能力提升落到最终任务完成率的样本，
+  也再次证明不能把 Agent 终态直接当成 benchmark reward。
+
+### 额外观察与边界
+
+- 三个 Pro Trial 的 `model.request.retry`、压缩完成和压缩失败事件均为 0；因此本轮不验证刚
+  增加的 Provider 重试收益，代码版本差异也没有实际触发重试路径。
+- `path-tracing-reverse` 的 Provider-reported 最大 prompt 为 `139,093`，超过本地配置的
+  `120,000` 最大输入和 `96,000` 自动压缩线，却没有压缩事件。这说明本地 token 估算与
+  Provider 计数存在需要单独复现的偏差；本轮没有发生 context-length error，不能据此评价
+  压缩后的任务完成率。
+- 模型切换没有普遍解决策略失败。结果更支持两个 Agent 设计方向：约束“先产出最小候选再
+  迭代”的 checkpoint，以及把 verifier 可直接判定的不变量（例如干净输入 byte-identical）
+  转成显式自测门禁。它们是通用功能优化，不应实现成识别具体 benchmark 名称的特化规则。
+
 ## 这轮数据能支持什么
 
 本次可以支持以下结论：
