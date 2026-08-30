@@ -60,6 +60,35 @@ Python 3.12+ 时还会下载托管 Python。
   --task cancel-async-tasks
 ```
 
+## 上下文中等任务集
+
+项目固定提供 `context-medium-six`，用于观察真实工具任务中的上下文组装、Tool Result
+外置和自动压缩。任务集固定为：
+
+- `custom-memory-heap-crash`
+- `filter-js-from-html`
+- `llm-inference-batching-scheduler`
+- `mailman`
+- `path-tracing-reverse`
+- `large-scale-text-editing`
+
+运行命令：
+
+```bash
+.venv/bin/python scripts/run_terminalbench.py \
+  --suite context-medium-six \
+  --n-concurrent 2 \
+  --n-attempts 1
+```
+
+这个 suite 不复用 smoke test 的 60 步、1800 秒和 `$1` 内部上限，而使用 240 步、7200 秒和
+`$3` 作为防失控上限。Harbor 仍按 Terminal-Bench 2.1 每个任务发布的 agent timeout 判定；因此
+这组更高的内部上限不会延长官方任务时间，只避免 Bot 自己先按统一 30 分钟截断。命令行显式
+传入 `--max-steps`、`--max-wall-time-seconds` 或 `--max-cost-usd` 时仍会覆盖 suite 默认值。
+
+首次六任务实测的逐项结果、上下文 token、压缩覆盖率和失败归因见
+[Terminal-Bench 上下文中等任务集结果](terminalbench-context-medium-six-results.md)。
+
 只做预检、构建 wheel 并查看最终 Harbor 命令：
 
 ```bash
@@ -124,7 +153,10 @@ artifacts/terminalbench/
 ```
 
 `agent/trace/transcript.md` 展示完整对话、推理和 Tool 调用；`events.jsonl` 可用于程序化分析；
-Harbor 的 `result.json` 和 verifier 日志给出任务 reward。
+Harbor 的 `result.json` 和 verifier 日志给出任务 reward。归档报告还会从事件流统计每个 Trial
+的压缩完成/失败次数、压缩请求 token/费用、最大单轮 prompt，以及最后一次压缩后继续执行的
+Agent step 数。报告分别给出全任务完成率与“确实发生过压缩的 Trial”完成率；后者为空时不能
+把总体通过率解释为压缩机制的效果。
 
 ## 本地链路验证
 

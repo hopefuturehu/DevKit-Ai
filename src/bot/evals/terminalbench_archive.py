@@ -169,6 +169,91 @@ def _duration_seconds(start: Any, finish: Any) -> float | None:
         return None
 
 
+def _event_metrics(trial_dir: Path) -> dict[str, Any]:
+    candidates = (
+        trial_dir / "agent" / "events.jsonl",
+        trial_dir / "agent" / "trace" / "events.jsonl",
+    )
+    events_path = next((path for path in candidates if path.is_file()), None)
+    metrics: dict[str, Any] = {
+        "events_available": events_path is not None,
+        "completed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "blocked": 0,
+        "requests_started": 0,
+        "requests_completed": 0,
+        "requests_failed": 0,
+        "request_input_tokens": 0,
+        "request_output_tokens": 0,
+        "request_cost_usd": 0.0,
+        "model_steps": 0,
+        "tool_completed": 0,
+        "max_agent_prompt_tokens": None,
+        "post_last_compaction_steps": None,
+    }
+    if events_path is None:
+        return metrics
+
+    event_names = {
+        "context.compaction.completed": "completed",
+        "context.compaction.failed": "failed",
+        "context.compaction.skipped": "skipped",
+        "context.compaction.blocked": "blocked",
+        "context.compaction.request.started": "requests_started",
+        "context.compaction.request.completed": "requests_completed",
+        "context.compaction.request.failed": "requests_failed",
+    }
+    last_compaction_sequence: int | None = None
+    model_steps: list[tuple[int, int]] = []
+    max_prompt_tokens = 0
+    try:
+        with events_path.open(encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                event_type = event.get("type")
+                payload = event.get("payload")
+                payload = payload if isinstance(payload, dict) else {}
+                sequence = int(event.get("sequence") or 0)
+                metric = event_names.get(event_type)
+                if metric is not None:
+                    metrics[metric] += 1
+                if event_type == "context.compaction.completed":
+                    last_compaction_sequence = sequence
+                elif event_type == "context.compaction.request.completed":
+                    metrics["request_input_tokens"] += int(payload.get("input_tokens") or 0)
+                    metrics["request_output_tokens"] += int(payload.get("output_tokens") or 0)
+                    metrics["request_cost_usd"] += float(payload.get("cost_usd") or 0)
+                elif event_type == "model.response":
+                    step = payload.get("step")
+                    if isinstance(step, int):
+                        model_steps.append((sequence, step))
+                elif event_type == "tool.completed":
+                    metrics["tool_completed"] += 1
+                elif event_type == "model.usage":
+                    usage = payload.get("turn_usage")
+                    usage = usage if isinstance(usage, dict) else {}
+                    prompt_tokens = int(usage.get("prompt_tokens") or 0)
+                    max_prompt_tokens = max(max_prompt_tokens, prompt_tokens)
+    except OSError:
+        metrics["events_available"] = False
+        return metrics
+
+    metrics["request_cost_usd"] = round(metrics["request_cost_usd"], 12)
+    metrics["model_steps"] = len({step for _, step in model_steps})
+    metrics["max_agent_prompt_tokens"] = max_prompt_tokens or None
+    if last_compaction_sequence is not None:
+        metrics["post_last_compaction_steps"] = len(
+            {step for sequence, step in model_steps if sequence > last_compaction_sequence}
+        )
+    return metrics
+
+
 def _trial_summary(trial_dir: Path) -> dict[str, Any]:
     result = _load_json(trial_dir / "result.json")
     agent_result = result.get("agent_result")
@@ -199,6 +284,13 @@ def _trial_summary(trial_dir: Path) -> dict[str, Any]:
 
     trace_path = trial_dir / "agent" / "trace" / "manifest.json"
     trace = _load_json(trace_path) if trace_path.is_file() else {}
+    context_metrics = _event_metrics(trial_dir)
+    steps = agent_metadata.get("steps")
+    if steps is None and context_metrics["events_available"]:
+        steps = context_metrics["model_steps"] or None
+    tool_count = trace.get("tool_count")
+    if tool_count is None and context_metrics["events_available"]:
+        tool_count = context_metrics["tool_completed"]
     timing: dict[str, float | None] = {}
     for key in ("environment_setup", "agent_setup", "agent_execution", "verifier"):
         record = result.get(key)
@@ -212,7 +304,7 @@ def _trial_summary(trial_dir: Path) -> dict[str, Any]:
         "reward": reward,
         "agent_status": agent_status,
         "agent_error": agent_metadata.get("error"),
-        "steps": agent_metadata.get("steps"),
+        "steps": steps,
         "input_tokens": agent_result.get("n_input_tokens"),
         "output_tokens": agent_result.get("n_output_tokens"),
         "cost_usd": agent_result.get("cost_usd"),
@@ -220,9 +312,10 @@ def _trial_summary(trial_dir: Path) -> dict[str, Any]:
         "exception_message": exception.get("exception_message") if exception else None,
         "timing_seconds": timing,
         "event_count": trace.get("event_count"),
-        "tool_count": trace.get("tool_count"),
+        "tool_count": tool_count,
         "reasoning_count": trace.get("reasoning_count"),
         "trace_available": bool(trace),
+        "context": context_metrics,
         "result_path": f"snapshot/{trial_dir.name}/result.json",
         "transcript_path": (
             f"snapshot/{trial_dir.name}/agent/trace/transcript.md"
@@ -265,6 +358,9 @@ def _markdown(summary: dict[str, Any]) -> str:
     job = summary["job"]
     security = summary["security"]
     mean_reward = aggregate["mean_reward"] if aggregate["mean_reward"] is not None else "-"
+    compacted_pass_rate = (
+        aggregate["compacted_pass_rate"] if aggregate["compacted_pass_rate"] is not None else "-"
+    )
     lines = [
         "# Terminal-Bench 结果归档",
         "",
@@ -280,13 +376,19 @@ def _markdown(summary: dict[str, Any]) -> str:
         f"- Exception：{aggregate['exception']}",
         f"- Unscored：{aggregate['unscored']}",
         f"- 平均 Reward：{mean_reward}",
+        f"- 任务完成率：{aggregate['pass_rate'] if aggregate['pass_rate'] is not None else '-'}",
+        f"- 发生压缩的 Trial：{aggregate['compacted_trials']}；其中通过："
+        f"{aggregate['compacted_passed']}；完成率："
+        f"{compacted_pass_rate}",
+        f"- 压缩完成/失败：{aggregate['compactions_completed']}/{aggregate['compactions_failed']}",
         f"- 总费用：{aggregate['cost_usd'] if aggregate['cost_usd'] is not None else '-'}",
         f"- 敏感值明文命中：{security['secret_hit_count']}",
         "",
         "## Trials",
         "",
-        "| Task | 分类 | Reward | Steps | Tools | Tokens in/out | Cost | Trace |",
-        "|---|---:|---:|---:|---:|---:|---:|---|",
+        "| Task | 分类 | Reward | Steps | Tools | 压缩完成/失败 | Max prompt | "
+        "Tokens in/out | Cost | Trace |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for trial in summary["trials"]:
         task = str(trial.get("task_name") or trial["trial_name"]).replace("|", "\\|")
@@ -300,6 +402,8 @@ def _markdown(summary: dict[str, Any]) -> str:
                     str(trial["reward"] if trial["reward"] is not None else "-"),
                     str(trial["steps"] if trial["steps"] is not None else "-"),
                     str(trial["tool_count"] if trial["tool_count"] is not None else "-"),
+                    f"{trial['context']['completed']}/{trial['context']['failed']}",
+                    str(trial["context"]["max_agent_prompt_tokens"] or "-"),
                     f"{trial['input_tokens'] or 0}/{trial['output_tokens'] or 0}",
                     str(trial["cost_usd"] if trial["cost_usd"] is not None else "-"),
                     trace,
@@ -408,6 +512,8 @@ def archive_job(
         )
         trials = [_trial_summary(path) for path in trial_dirs]
         classifications = Counter(trial["classification"] for trial in trials)
+        compacted_trials = [trial for trial in trials if trial["context"]["completed"] > 0]
+        compacted_passed = sum(trial["classification"] == "passed" for trial in compacted_trials)
         rewards = [
             float(trial["reward"]) for trial in trials if isinstance(trial["reward"], (int, float))
         ]
@@ -449,6 +555,26 @@ def archive_job(
                 "failed_verifier": classifications["failed_verifier"],
                 "exception": classifications["exception"],
                 "unscored": classifications["unscored"],
+                "pass_rate": classifications["passed"] / len(trials) if trials else None,
+                "compacted_trials": len(compacted_trials),
+                "compacted_passed": compacted_passed,
+                "compacted_pass_rate": (
+                    compacted_passed / len(compacted_trials) if compacted_trials else None
+                ),
+                "compactions_completed": sum(trial["context"]["completed"] for trial in trials),
+                "compactions_failed": sum(trial["context"]["failed"] for trial in trials),
+                "compaction_requests": sum(
+                    trial["context"]["requests_started"] for trial in trials
+                ),
+                "compaction_input_tokens": sum(
+                    trial["context"]["request_input_tokens"] for trial in trials
+                ),
+                "compaction_output_tokens": sum(
+                    trial["context"]["request_output_tokens"] for trial in trials
+                ),
+                "compaction_cost_usd": sum(
+                    trial["context"]["request_cost_usd"] for trial in trials
+                ),
                 "mean_reward": sum(rewards) / len(rewards) if rewards else None,
                 "input_tokens": sum(int(trial["input_tokens"] or 0) for trial in trials),
                 "output_tokens": sum(int(trial["output_tokens"] or 0) for trial in trials),

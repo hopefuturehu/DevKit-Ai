@@ -79,7 +79,35 @@ def _make_job(tmp_path: Path, *, secret_value: str | None = None) -> Path:
         "# trace\n",
         encoding="utf-8",
     )
-    (trial / "agent" / "events.jsonl").write_text("{}\n", encoding="utf-8")
+    events = [
+        {
+            "type": "model.usage",
+            "sequence": 1,
+            "payload": {"turn_usage": {"prompt_tokens": 120}},
+        },
+        {
+            "type": "context.compaction.request.started",
+            "sequence": 2,
+            "payload": {},
+        },
+        {
+            "type": "context.compaction.request.completed",
+            "sequence": 3,
+            "payload": {"input_tokens": 80, "output_tokens": 10, "cost_usd": 0.01},
+        },
+        {
+            "type": "context.compaction.completed",
+            "sequence": 4,
+            "payload": {},
+        },
+        {"type": "model.response", "sequence": 5, "payload": {"step": 2}},
+        {"type": "tool.completed", "sequence": 6, "payload": {}},
+        {"type": "model.response", "sequence": 7, "payload": {"step": 3}},
+    ]
+    (trial / "agent" / "events.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events),
+        encoding="utf-8",
+    )
     (trial / "verifier").mkdir()
     (trial / "verifier" / "test-stdout.txt").write_text("ok\n", encoding="utf-8")
     (trial / "artifacts").mkdir()
@@ -111,6 +139,16 @@ def test_archive_job_creates_timestamped_diagnostic_bundle(
         "failed_verifier": 0,
         "exception": 0,
         "unscored": 0,
+        "pass_rate": 1.0,
+        "compacted_trials": 1,
+        "compacted_passed": 1,
+        "compacted_pass_rate": 1.0,
+        "compactions_completed": 1,
+        "compactions_failed": 0,
+        "compaction_requests": 1,
+        "compaction_input_tokens": 80,
+        "compaction_output_tokens": 10,
+        "compaction_cost_usd": 0.01,
         "mean_reward": 1.0,
         "input_tokens": 100,
         "output_tokens": 20,
@@ -118,6 +156,10 @@ def test_archive_job_creates_timestamped_diagnostic_bundle(
         "archive_bytes": summary["aggregate"]["archive_bytes"],
     }
     assert summary["trials"][0]["tool_count"] == 2
+    assert summary["trials"][0]["context"]["max_agent_prompt_tokens"] == 120
+    assert summary["trials"][0]["context"]["model_steps"] == 2
+    assert summary["trials"][0]["context"]["tool_completed"] == 1
+    assert summary["trials"][0]["context"]["post_last_compaction_steps"] == 2
     assert summary["job"]["completed"] == 1
     assert summary["security"]["secret_hit_count"] == 0
     assert (destination / "SUMMARY.md").is_file()
@@ -175,6 +217,37 @@ def test_archive_job_distinguishes_agent_failure_from_verifier_failure(
     assert summary["aggregate"]["failed_verifier"] == 0
     assert summary["trials"][0]["agent_error"] == "UnicodeEncodeError"
     assert "Agent 内部失败" in (destination / "SUMMARY.md").read_text(encoding="utf-8")
+
+
+def test_archive_job_recovers_steps_and_tools_from_events_after_agent_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TEST_MODEL_API_KEY", "super-secret-value")
+    job = _make_job(tmp_path)
+    trial = job / "example__abc"
+    result_path = trial / "result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["agent_result"] = None
+    result["verifier_result"]["rewards"]["reward"] = 0.0
+    result["exception_info"] = {
+        "exception_type": "AgentTimeoutError",
+        "exception_message": "Agent execution timed out after 1200.0 seconds",
+    }
+    _write_json(result_path, result)
+    (trial / "agent" / "trace" / "manifest.json").unlink()
+
+    destination = archive_job(
+        job,
+        output_root=tmp_path / "reports",
+        now=datetime(2026, 7, 30, 12, 34, 56, tzinfo=UTC),
+    )
+
+    summary = json.loads((destination / "summary.json").read_text(encoding="utf-8"))
+    archived_trial = summary["trials"][0]
+    assert archived_trial["classification"] == "exception"
+    assert archived_trial["steps"] == 2
+    assert archived_trial["tool_count"] == 1
+    assert archived_trial["trace_available"] is False
 
 
 def test_archive_job_refuses_secret_embedded_in_harbor_config(tmp_path: Path) -> None:

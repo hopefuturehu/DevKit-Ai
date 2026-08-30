@@ -6,6 +6,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -22,6 +23,33 @@ HARBOR_AGENT_IMPORT_PATH = "bot.evals.harbor_agent:KunpengBot"
 DEFAULT_TERMINALBENCH_MAX_STEPS = 60
 DEFAULT_TERMINALBENCH_MAX_WALL_TIME_SECONDS = 1800.0
 DEFAULT_TERMINALBENCH_MAX_COST_USD = 1.0
+
+
+@dataclass(frozen=True)
+class TerminalBenchSuite:
+    tasks: tuple[str, ...]
+    max_steps: int
+    max_wall_time_seconds: float
+    max_cost_usd: float
+
+
+CONTEXT_MEDIUM_SIX = TerminalBenchSuite(
+    tasks=(
+        "custom-memory-heap-crash",
+        "filter-js-from-html",
+        "llm-inference-batching-scheduler",
+        "mailman",
+        "path-tracing-reverse",
+        "large-scale-text-editing",
+    ),
+    # Harbor still enforces every task's published timeout.  These internal
+    # ceilings are deliberately higher so this suite is not truncated by the
+    # old 60-step / 30-minute smoke-test defaults first.
+    max_steps=240,
+    max_wall_time_seconds=7_200.0,
+    max_cost_usd=3.0,
+)
+TERMINALBENCH_SUITES = {"context-medium-six": CONTEXT_MEDIUM_SIX}
 
 
 def api_key_env_name(reference: str) -> str:
@@ -209,6 +237,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Terminal-Bench task 名称；可重复。示例: openssl-selfsigned-cert",
     )
     selection.add_argument(
+        "--suite",
+        choices=sorted(TERMINALBENCH_SUITES),
+        help="运行项目固定的可重复任务集",
+    )
+    selection.add_argument(
         "--all",
         action="store_true",
         help="运行全部 89 个任务；会消耗大量时间、算力和模型费用",
@@ -227,16 +260,14 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--n-concurrent", type=int, default=1)
     parser.add_argument("--n-attempts", type=int, default=1)
-    parser.add_argument("--max-steps", type=int, default=DEFAULT_TERMINALBENCH_MAX_STEPS)
+    parser.add_argument("--max-steps", type=int)
     parser.add_argument(
         "--max-wall-time-seconds",
         type=float,
-        default=DEFAULT_TERMINALBENCH_MAX_WALL_TIME_SECONDS,
     )
     parser.add_argument(
         "--max-cost-usd",
         type=float,
-        default=DEFAULT_TERMINALBENCH_MAX_COST_USD,
     )
     parser.add_argument(
         "--subagents",
@@ -293,6 +324,28 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"API Key 引用 {config.model.api_key_ref} 的值无效: {exc}") from exc
     host = model_hostname(config.model.base_url)
 
+    suite = TERMINALBENCH_SUITES.get(args.suite) if args.suite else None
+    tasks = list(suite.tasks) if suite is not None else list(args.task or [])
+    max_steps = (
+        args.max_steps
+        if args.max_steps is not None
+        else (suite.max_steps if suite is not None else DEFAULT_TERMINALBENCH_MAX_STEPS)
+    )
+    max_wall_time_seconds = (
+        args.max_wall_time_seconds
+        if args.max_wall_time_seconds is not None
+        else (
+            suite.max_wall_time_seconds
+            if suite is not None
+            else DEFAULT_TERMINALBENCH_MAX_WALL_TIME_SECONDS
+        )
+    )
+    max_cost_usd = (
+        args.max_cost_usd
+        if args.max_cost_usd is not None
+        else (suite.max_cost_usd if suite is not None else DEFAULT_TERMINALBENCH_MAX_COST_USD)
+    )
+
     if args.wheel is None:
         wheel_path = build_project_wheel(
             project_root,
@@ -314,13 +367,13 @@ def main(argv: list[str] | None = None) -> int:
         api_key_variable=key_variable,
         model_host=host,
         jobs_dir=jobs_dir,
-        tasks=args.task or [],
+        tasks=tasks,
         run_all=args.all,
         n_concurrent=args.n_concurrent,
         n_attempts=args.n_attempts,
-        max_steps=args.max_steps,
-        max_wall_time_seconds=args.max_wall_time_seconds,
-        max_cost_usd=args.max_cost_usd,
+        max_steps=max_steps,
+        max_wall_time_seconds=max_wall_time_seconds,
+        max_cost_usd=max_cost_usd,
         subagents_enabled=args.subagents,
         extra_args=extra_args,
     )

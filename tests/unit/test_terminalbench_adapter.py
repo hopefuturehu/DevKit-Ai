@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from bot.evals.terminalbench import (
+    CONTEXT_MEDIUM_SIX,
     HARBOR_AGENT_IMPORT_PATH,
     HARBOR_VERSION,
     TERMINALBENCH_DATASET,
@@ -54,6 +55,20 @@ def test_build_harbor_command_uses_dataset_adapter_and_secret_template(
     assert "BOT_MODEL_API_KEY_REF=env:BOT_MODEL_API_KEY" in command
     assert "terminal-bench/openssl-selfsigned-cert" in command
     assert "package_path=" + str(wheel) in command
+
+
+def test_context_medium_suite_uses_non_smoke_internal_ceilings() -> None:
+    assert CONTEXT_MEDIUM_SIX.tasks == (
+        "custom-memory-heap-crash",
+        "filter-js-from-html",
+        "llm-inference-batching-scheduler",
+        "mailman",
+        "path-tracing-reverse",
+        "large-scale-text-editing",
+    )
+    assert CONTEXT_MEDIUM_SIX.max_steps > 60
+    assert CONTEXT_MEDIUM_SIX.max_wall_time_seconds > 1800
+    assert CONTEXT_MEDIUM_SIX.max_cost_usd > 1
 
 
 def test_build_harbor_command_requires_explicit_task_scope(tmp_path: Path) -> None:
