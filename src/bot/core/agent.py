@@ -264,6 +264,10 @@ class AgentRunner:
         )
         older = [entry for entry in conversation if entry.position not in retained_positions]
         target = max((entry.position for entry in older), default=previous_cursor)
+        latest_user_position = max(
+            (entry.position for entry in conversation if entry.message.role == Role.USER),
+            default=None,
+        )
         total_input_tokens = 0
         total_output_tokens = 0
         total_requests = 0
@@ -281,6 +285,9 @@ class AgentRunner:
                         trigger="explicit_compaction",
                         through_position=target,
                         active_run_ids=(),
+                        anchor_positions=(
+                            [latest_user_position] if latest_user_position is not None else None
+                        ),
                         request_limit=max_requests - total_requests,
                     )
                     total_input_tokens += result.input_tokens
@@ -522,12 +529,16 @@ class AgentRunner:
                     session_id=session_id,
                     run_id=run_id,
                 ),
+                run_id=entry.run_id,
             )
             for entry in history
         ]
         runtime_notes: list[ContextItem] = []
         memory_items = self._memory_context_items()
-        compaction_item = self._compaction_context_item(compaction_projection)
+        compaction_items = self._compaction_context_items(
+            compaction_projection,
+            run_id=run_id,
+        )
 
         for skill in self.skills.catalog.skills.values():
             await self.event_bus.emit(
@@ -565,6 +576,7 @@ class AgentRunner:
                     session_id=session_id,
                     run_id=run_id,
                 ),
+                run_id=run_id,
             )
         )
         memory_routing = await self._start_memory_routing(
@@ -650,7 +662,7 @@ class AgentRunner:
                 base_items=base_items,
                 memory_items=memory_items,
                 active_skill_items=active_skill_items,
-                compaction_item=compaction_item,
+                compaction_items=compaction_items,
                 conversation=conversation,
                 runtime_notes=runtime_notes,
             )
@@ -684,12 +696,15 @@ class AgentRunner:
                     compaction_projection = consolidation.projection
                     conversation = consolidation.conversation
                     compacted = consolidation.details
-                    compaction_item = self._compaction_context_item(compaction_projection)
+                    compaction_items = self._compaction_context_items(
+                        compaction_projection,
+                        run_id=run_id,
+                    )
                     context_items = self._build_context_items(
                         base_items=base_items,
                         memory_items=memory_items,
                         active_skill_items=active_skill_items,
-                        compaction_item=compaction_item,
+                        compaction_items=compaction_items,
                         conversation=conversation,
                         runtime_notes=runtime_notes,
                     )
@@ -815,7 +830,10 @@ class AgentRunner:
                         compaction_projection = consolidation.projection
                         conversation = consolidation.conversation
                         retry_details = consolidation.details
-                        compaction_item = self._compaction_context_item(compaction_projection)
+                        compaction_items = self._compaction_context_items(
+                            compaction_projection,
+                            run_id=run_id,
+                        )
                     else:
                         conversation = self._aggressively_externalize(
                             conversation,
@@ -1071,6 +1089,7 @@ class AgentRunner:
                         session_id=session_id,
                         run_id=run_id,
                     ),
+                    run_id=run_id,
                 )
             )
 
@@ -1192,8 +1211,8 @@ class AgentRunner:
                         )
                         conversation.extend(
                             [
-                                PositionedMessage(bridge_position, bridge),
-                                PositionedMessage(follow_up_position, follow_up),
+                                PositionedMessage(bridge_position, bridge, run_id=run_id),
+                                PositionedMessage(follow_up_position, follow_up, run_id=run_id),
                             ]
                         )
                         continue
@@ -1335,6 +1354,7 @@ class AgentRunner:
                     PositionedMessage(
                         result_position,
                         model_message,
+                        run_id=run_id,
                         retention_override=(
                             ContextRetention.DISPOSABLE if is_disposable_delivery else None
                         ),
@@ -1709,6 +1729,7 @@ class AgentRunner:
                     session_id=session_id,
                     run_id=run_id,
                 ),
+                run_id=entry.run_id,
             )
             for entry in self.store.load_positioned_messages(
                 session_id,
@@ -1732,7 +1753,7 @@ class AgentRunner:
             base_items=base_items,
             memory_items=self._memory_context_items(),
             active_skill_items=self._active_skill_items(),
-            compaction_item=self._compaction_context_item(projection),
+            compaction_items=self._compaction_context_items(projection, run_id=run_id),
             conversation=conversation,
             runtime_notes=runtime_notes,
         )
@@ -2026,33 +2047,67 @@ class AgentRunner:
             used_tokens += cost
         return "\n".join(lines).strip()
 
-    def _compaction_context_item(
+    def _compaction_context_items(
         self,
         compaction_projection: dict[str, Any],
-    ) -> ContextItem | None:
+        *,
+        run_id: str,
+    ) -> list[ContextItem]:
         compaction = compaction_projection.get("compaction")
         if self.context_compactor is not None and isinstance(compaction, dict):
             cursor = int(compaction["covered_end_position"])
-            message = self.context_compactor.context_message(
+            messages = self.context_compactor.context_messages(
                 str(compaction["session_id"]),
                 compaction,
             )
-            return ContextItem(
-                id=f"context-compaction:{compaction['id']}",
-                layer=ContextLayer.COMPACTION,
-                message=message,
-                source="sqlite:context_compactions",
-                trust=ContextTrust.UNTRUSTED,
-                retention=ContextRetention.PINNED,
-                priority=750,
-                token_estimate=self._token_estimator.message(message),
-                position=cursor,
-                metadata={
-                    "compaction_id": str(compaction["id"]),
-                    "source_sha256": str(compaction["source_sha256"]),
-                },
+            anchor_positions = [
+                int(position) for position in compaction.get("anchor_positions") or []
+            ]
+            items: list[ContextItem] = []
+            for position, message in zip(anchor_positions, messages[:-1], strict=True):
+                bounded = self._externalize_message(
+                    message,
+                    session_id=str(compaction["session_id"]),
+                    run_id=run_id,
+                )
+                items.append(
+                    ContextItem(
+                        id=f"context-compaction-anchor:{compaction['id']}:{position}",
+                        layer=ContextLayer.COMPACTION,
+                        message=bounded,
+                        source=f"sqlite:messages:{position}",
+                        trust=ContextTrust.USER,
+                        retention=ContextRetention.PINNED,
+                        priority=775,
+                        token_estimate=self._token_estimator.message(bounded),
+                        position=position,
+                        metadata={
+                            "compaction_id": str(compaction["id"]),
+                            "original_position": position,
+                            "source_sha256": str(compaction["source_sha256"]),
+                        },
+                    )
+                )
+            summary = messages[-1]
+            items.append(
+                ContextItem(
+                    id=f"context-compaction-summary:{compaction['id']}",
+                    layer=ContextLayer.COMPACTION,
+                    message=summary,
+                    source="sqlite:context_compactions",
+                    trust=ContextTrust.UNTRUSTED,
+                    retention=ContextRetention.PINNED,
+                    priority=750,
+                    token_estimate=self._token_estimator.message(summary),
+                    position=cursor + 1,
+                    metadata={
+                        "compaction_id": str(compaction["id"]),
+                        "source_sha256": str(compaction["source_sha256"]),
+                    },
+                )
             )
-        return None
+            return items
+        return []
 
     def _exact_context_tokens(
         self,
@@ -2250,13 +2305,12 @@ class AgentRunner:
         base_items: list[ContextItem],
         memory_items: list[ContextItem],
         active_skill_items: list[ContextItem],
-        compaction_item: ContextItem | None,
+        compaction_items: list[ContextItem],
         conversation: list[PositionedMessage],
         runtime_notes: list[ContextItem],
     ) -> list[ContextItem]:
         items = [*base_items, *memory_items, *active_skill_items, *runtime_notes]
-        if compaction_item is not None:
-            items.append(compaction_item)
+        items.extend(compaction_items)
         tool_groups: dict[str, str] = {}
         latest_user_position = max(
             (entry.position for entry in conversation if entry.message.role == Role.USER),
@@ -2344,11 +2398,17 @@ class AgentRunner:
         older = [entry for entry in conversation if entry.position not in retained_positions]
         if not older:
             return None
+        anchor_positions = self._active_user_anchor_positions(
+            session_id=session_id,
+            active_run_id=active_run_id,
+            conversation=conversation,
+        )
         result = await self.context_compactor.compact(
             session_id,
             through_position=max(entry.position for entry in older),
             trigger="context_pressure_forced" if force else "context_pressure",
             active_run_ids={active_run_id},
+            anchor_positions=anchor_positions or None,
         )
         if not result.compacted:
             return _ConsolidationOutcome(
@@ -2371,6 +2431,12 @@ class AgentRunner:
                 conversation=conversation,
                 details={"compaction_id": result.compaction_id, "compaction_reason": "no_progress"},
             )
+        active_compaction = projection.get("compaction")
+        projected_anchors = (
+            [int(position) for position in active_compaction.get("anchor_positions") or []]
+            if isinstance(active_compaction, dict)
+            else []
+        )
         return _ConsolidationOutcome(
             result=result,
             projection=projection,
@@ -2380,6 +2446,16 @@ class AgentRunner:
                 "cursor_position": cursor,
                 "messages_consolidated": len(conversation) - len(remaining),
                 "messages_retained": len(remaining),
+                "retained_tail_tokens": sum(
+                    self._token_estimator.message(entry.message) for entry in remaining
+                ),
+                "raw_user_turns_retained": sum(
+                    entry.message.role == Role.USER for entry in remaining
+                ),
+                "rehydrated_user_anchors": len(projected_anchors),
+                "assistant_split_used": bool(
+                    remaining and remaining[0].message.role == Role.ASSISTANT and projected_anchors
+                ),
                 "summary_chars": result.summary_chars,
                 "compression_ratio": result.summary_chars / max(1, result.source_chars),
                 "rebuilt_from_raw": result.rebuilt_from_raw,
@@ -2463,6 +2539,40 @@ class AgentRunner:
             groups.append([entry])
         return groups
 
+    def _active_user_anchor_positions(
+        self,
+        *,
+        session_id: str,
+        active_run_id: str,
+        conversation: list[PositionedMessage],
+    ) -> list[int]:
+        anchors = {
+            entry.position
+            for entry in conversation
+            if entry.message.role == Role.USER and entry.run_id == active_run_id
+        }
+        if self.context_compactor is not None:
+            active = self.context_compactor.projection(session_id).get("compaction")
+            existing = (
+                {int(position) for position in active.get("anchor_positions") or []}
+                if isinstance(active, dict)
+                else set()
+            )
+            if existing:
+                anchors.update(
+                    entry.position
+                    for entry in self.store.load_positioned_messages(session_id)
+                    if entry.position in existing and entry.run_id == active_run_id
+                )
+        if not anchors:
+            latest = max(
+                (entry.position for entry in conversation if entry.message.role == Role.USER),
+                default=None,
+            )
+            if latest is not None:
+                anchors.add(latest)
+        return sorted(anchors)
+
     def _retained_conversation_positions(
         self,
         conversation: list[PositionedMessage],
@@ -2474,18 +2584,16 @@ class AgentRunner:
         retained_tokens = 0
         retained_user_turns = 0
         retain_limit = self.config.context.recent_conversation_tokens
-        minimum_user_turns = self.config.context.compaction_min_recent_user_turns
+        preferred_user_turns = self.config.context.compaction_min_recent_user_turns
         for group in reversed(groups):
             cost = sum(self._token_estimator.message(entry.message) for entry in group)
             group_user_turns = sum(entry.message.role == Role.USER for entry in group)
-            must_keep_for_turns = retained_user_turns < minimum_user_turns
-            if retained and not must_keep_for_turns:
-                if force or retained_tokens + cost > retain_limit:
-                    break
+            if retained and retained_tokens + cost > retain_limit:
+                break
             retained.append(group)
             retained_tokens += cost
             retained_user_turns += group_user_turns
-            if force and retained_user_turns >= minimum_user_turns:
+            if force and retained_user_turns >= preferred_user_turns:
                 break
         return {entry.position for group in retained for entry in group}
 
@@ -3234,6 +3342,9 @@ class AgentRunner:
                 PositionedMessage(
                     entry.position,
                     message.model_copy(update={"content": excerpt}),
+                    run_id=entry.run_id,
+                    retention_override=entry.retention_override,
+                    priority_override=entry.priority_override,
                 )
             )
         return compacted
@@ -3507,6 +3618,7 @@ class AgentRunner:
                         session_id=session_id,
                         run_id=run_id,
                     ),
+                    run_id=run_id,
                 )
             )
             await self.event_bus.emit(

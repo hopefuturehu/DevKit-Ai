@@ -2,7 +2,7 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-08-29
+> 核对日期：2026-08-31
 
 本文描述主 Agent 每次调用模型时的实际请求视图。SQLite Transcript、压缩记录、Markdown
 记忆和 Skill 文件是事实源；组装过程只生成本次 `ModelRequest`，不会为了排序或修复协议而改写
@@ -56,7 +56,7 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 | 5 | `ACTIVE_SKILL` | `system` | 已激活 Skill 的 header 和正文 | 激活后通常稳定；正文可卸载重载 |
 | 6 | `MEMORY` | `user` | 用户显式确认的 `USER.md`/兼容 SQLite 记忆 | 放在会话前，参与稳定前缀复用 |
 | 7 | `AUTOMATIC_MEMORY` | `user` | 仅 `memory.context_mode="eager"` 兼容模式下的自动索引 | 默认不出现；兼容模式也放在 Transcript 前并带 reference-only 边界 |
-| 8 | `COMPACTION` | `user` | 唯一活动的 `context_compaction` 摘要 | `PINNED`；必须在它覆盖后的原始 tail 前 |
+| 8 | `COMPACTION` | 原始 `user` + 派生 `assistant` | 活动 Run 的真实用户锚点，随后是唯一活动的 `context_compaction` 摘要 | 均为 `PINNED`；锚点按原位置排序，摘要位于它们和 cursor 后 raw tail 之间 |
 | 8 | `SNAPSHOT` | `user` | 旧 checkpoint 兼容层 | 默认主路径不注入 |
 | 9 | `RECENT_CONVERSATION` / `TOOL_RESULT` | 原始角色 | 压缩游标之后的 SQLite 消息 | 按 `position` 恢复时间顺序 |
 | 11 | `RUNTIME_NOTE` | `system` | Memory Router、后台进程、停滞恢复、终止及临时约束 | 最易变化，放在动态尾部 |
@@ -68,7 +68,7 @@ Result 使用同一个 `atomic_group`，预算不足时整组保留或整组丢�
 `ContextTrust.TRUSTED/USER/UNTRUSTED` 当前只是 `ContextItem` 的内部来源/审计元数据，Planner 不按
 它改变权限或排序，序列化器也不会把它发进 Provider 请求；
 `name=explicit_memory/automatic_memory/context_compaction` 可以帮助兼容 Provider 区分消息，
-但也不会把 synthetic `user` 降成更低权限角色。因此默认路径不再 eager 注入自动记忆：模型先
+但不会改变 wire role 的权限含义。因此默认路径不再 eager 注入自动记忆：模型先
 收到真实 Transcript；Router 只注入不含记忆正文的 `system` runtime note，需要时强制或建议模型
 调用 Tool。检索正文作为紧邻 Assistant Tool Call 的 `role=tool` 一次性交付：
 
@@ -77,8 +77,9 @@ Result 使用同一个 `atomic_group`，预算不足时整组保留或整组丢�
 assistant(tool_call=search_memory) -> search_memory(tool, disposable)
 ```
 
-显式记忆和压缩摘要仍是带强边界的 synthetic `user`，所以不能把所有 `role=user` 都解释为
-当前真人输入；但导致本次误认的“最新真人 user 后追加整份自动记忆”默认路径已经移除。可直接运行的
+显式记忆仍是带强边界的 synthetic `user`，所以不能把所有 `role=user` 都解释为当前真人输入；
+压缩投影则把真实用户锚点按原始 `user` 回放，并把派生摘要改为 `assistant`，不再用同一个 user
+消息混装两类来源。导致本次误认的“最新真人 user 后追加整份自动记忆”默认路径也已经移除。可直接运行的
 `client.chat.completions.create` 请求样例见
 [`artifacts/memory-diagnostics/client-chat-completions-create-example.py`](../artifacts/memory-diagnostics/client-chat-completions-create-example.py)；
 其他本地框架逐项把哪些内容放入哪些 role，见
@@ -88,8 +89,8 @@ assistant(tool_call=search_memory) -> search_memory(tool, disposable)
 
 - 显式记忆由用户控制，仍在 Run 开始时加载。自动记忆默认只检索；`eager` 只用于回滚和 A/B，
   并把自动索引放在会话前，避免形成“最新真人 user 后又出现 synthetic user”的归因歧义。
-- 压缩摘要不能移到近期会话之后。摘要代表被替换的旧时间段，必须先于游标后的原始消息，
-  否则模型看到的因果顺序会反转。
+- 压缩摘要不能移到近期会话之后。当前顺序是“被覆盖的原始 user 锚点 → Assistant 派生摘要 →
+  游标后的原始消息”；摘要若落到 raw tail 后面会反转继续执行的因果顺序。
 - Router note 是动态尾部；检索正文只在下一次请求可见，随后替换成不含正文的收据。
 - 历史中由旧版本写入的 `system` 消息会降级成名为 `historical_context` 的 `user` 消息，
   不会重新获得当前系统策略权限。
@@ -121,8 +122,8 @@ target = floor(hard * context.auto_compact_threshold)
 | `active_skill_tokens` | 16K | 活动 Skill 正文累计预算 |
 | `tool_schema_tokens` | 16K | 业务 Tool schema 的选择预算；内部恢复 Tool 始终先保留 |
 | `tool_result_inline_tokens` | 4K | 外置内容在请求中的摘录预算 |
-| `recent_conversation_tokens` | 20K | 自动压缩时近期原文的软目标，不是硬上限 |
-| `compaction_min_recent_user_turns` | 3 | 近期原文的用户轮次下限，可使 tail 超过 20K |
+| `recent_conversation_tokens` | 20K | 连续近期原文的有界目标；仅单个不可拆 Tool 原子组可突破 |
+| `compaction_min_recent_user_turns` | 3 | 强制压缩时的预算内偏好，不再覆盖 tail token 上限 |
 | `compaction_summary_target_tokens` | 3K | 摘要软目标；未显式配置时运行时取 `min(3000, compaction_summary_tokens)` |
 | `compaction_summary_tokens` | 4K | 摘要可见正文硬限制 |
 | `compaction_max_input_tokens` | 60K | 压缩请求输入硬上限；默认按 80% 即 48K 规划 |
@@ -230,11 +231,11 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 
 | 场景 | 当前动作 | 最终状态 |
 |---|---|---|
-| 未规划候选输入超过 `target` | 同步尝试压缩一个最旧、Tool-safe 的连续前缀；普通压力保留约 20K tail 且至少 3 个用户轮次 | 压缩成功则推进 cursor；失败则旧摘要/cursor 不变，继续交给 Planner |
+| 未规划候选输入超过 `target` | 同步尝试压缩一个最旧、Tool-safe 的连续前缀；普通压力保留约 20K 连续 tail，超大单轮可从 Assistant 边界切分并独立回放真实用户锚点 | 压缩成功则推进 cursor；失败则旧摘要/cursor 不变，继续交给 Planner |
 | 压缩失败或没有安全前缀 | 不删除原文；普通同增量失败默认退避 300 秒 | Planner 仍可丢弃非 pinned 组并发送，因此压缩失败不等于 Run 立即失败 |
 | Planner 估算超过 target | 丢弃放不下的非 pinned 原子组；Provider 有精确计数且超过 hard 时再从低优先级、较旧组开始卸载 | 能降到 hard 内则继续请求，可能形成非连续历史视图 |
 | pinned messages + 已选 Tool schema 仍超过 hard | 发出 `context.limit_reached`，不发送该次主模型请求 | Run 为 `limit_reached/context_limit`，并禁用模型收尾，使用确定性收尾文本 |
-| Provider 首次返回上下文长度错误 | 整个 Run 只允许一次恢复：强制压缩到仅保留至少 3 个用户轮次；压缩未推进则激进外置正文，然后重建并重试 | 成功则继续 Run |
+| Provider 首次返回上下文长度错误 | 整个 Run 只允许一次恢复：在 20K tail 预算内优先保留最多 3 个近期用户轮次；不足时允许 Assistant-safe 切分，压缩未推进则激进外置正文，然后重建并重试 | 成功则继续 Run |
 | Provider 再次返回上下文长度错误 | 不再循环压缩或重试 | Run 为 `failed/provider_error`；终止协调器会尝试无 Tool 模型收尾，失败则使用确定性收尾 |
 
 自动压力路径每个 step 最多推进一个压缩分块；backlog 仍很大时，下一 step 再继续推进。显式

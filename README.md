@@ -92,7 +92,9 @@ protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
 # 可选；留空时冻结启动时的主模型，后续 /model 不影响压缩
 # compaction_model = "<summary-model-id>"
+# 连续 raw tail 按 token 有界；三轮仅是强制压缩时的预算内偏好
 recent_conversation_tokens = 20000
+compaction_min_recent_user_turns = 3
 memory_tokens = 8000
 active_skill_tokens = 16000
 tool_schema_tokens = 16000
@@ -115,7 +117,6 @@ compaction_request_timeout_seconds = 90
 compaction_command_max_requests = 8
 compaction_command_max_seconds = 600
 compaction_command_max_cost_usd = 0.25
-compaction_min_recent_user_turns = 3
 compaction_source_refs = "range"
 # auto 仅对 DeepSeek 官方端点关闭思考；也可设为 provider_default/enabled/disabled
 compaction_thinking = "auto"

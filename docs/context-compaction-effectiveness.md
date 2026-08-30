@@ -1,5 +1,9 @@
 # 上下文压缩有效性评测
 
+> 2026-08-31 更新：生产选择器已把“三轮用户消息”从可无限突破 20K 的硬下限改为预算内偏好，
+> 并新增真实 user 锚点回放与 Assistant-safe 单轮切分。下文 2026-08-25 的 `hybrid-*` 真实运行
+> 数字保留为历史基线；当前离线门禁使用 `latest_user_anchor_visible`，不再要求 raw tail 自身含三轮 user。
+
 ## 目的
 
 该评测把压缩正确性和 Provider 表现分开验证。普通 pytest 使用确定性 Provider 覆盖错误分流、

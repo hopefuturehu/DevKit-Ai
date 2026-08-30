@@ -2,7 +2,7 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-08-26
+> 核对日期：2026-08-31
 
 ## 目标
 
@@ -15,7 +15,9 @@
 ```text
 Core / Project / Skills / USER.md
                   +
-        一个 Active Compaction
+   被压缩范围的原始 user 锚点
+                  +
+ 一个 Assistant Active Compaction
                   +
         cursor 之后的原始消息
                   +
@@ -32,7 +34,7 @@ Core / Project / Skills / USER.md
    `ready`。
 2. **原始记录不删除**：压缩只推进派生视图的 `cursor`，不删除或改写 `messages`、
    Tool Run 和事件。
-3. **来源可验证**：每个活动摘要保存连续覆盖范围、该范围消息的 SHA-256 和初始目标锚点。
+3. **来源可验证**：每个活动摘要保存连续覆盖范围、该范围消息的 SHA-256 和活动用户锚点。
    默认 `range` 模式下 `source_refs_json` 允许为空，不要求正文逐条引用；`item` 兼容模式才保存并
    校验摘要中的 `[m:N]` 引用。加载和恢复时按覆盖范围重新读取原文并计算哈希。
 4. **失败不推进**：超时、Provider 错误、缺章节、越界引用或摘要超预算都只会把
@@ -48,7 +50,8 @@ Core / Project / Skills / USER.md
 - `source_sha256`：覆盖范围内完整 SQLite 消息的来源证明，包含 `reasoning_content`；它校验
   消息内的 `context_ref`，不会展开后再重复哈希 blob 正文，blob 自身另以内容 SHA-256 寻址；
 - `source_refs_json`：只保存摘要正文实际出现的 `[m:N]` 引用，默认 `range` 模式通常为空；
-- `anchor_positions_json`：最早一条非空用户消息的位置，作为初始目标锚点；
+- `anchor_positions_json`：被压缩范围内需要重新回放的真实用户消息位置；自动压缩优先使用
+  当前活动任务的用户锚点，手动压缩和 rebuild 在没有活动 Run 提示时选择范围内最新用户消息；
 - `status`：`building → ready → superseded`，失败进入 `failed`。
 
 每个会话最多有一个 `ready` 和一个 `building` 记录，由 SQLite 部分唯一索引保证。发布时还
@@ -62,10 +65,19 @@ Core / Project / Skills / USER.md
 对应 Tool Result。长时间未成功压缩的 backlog 因此会按最老安全前缀逐步推进，而不会一次
 生成超过模型窗口的追赶请求。
 
-`recent_conversation_tokens=20000` 是软目标；系统会优先满足
-`compaction_min_recent_user_turns=3`，所以三个用户轮次或一个完整 Tool 原子组本身很大时，近期
-tail 可以超过 20K。普通压力每个 Agent step 只压缩一个分块；`/compact` 才会在空闲会话中循环
-追赶多个分块。
+`recent_conversation_tokens=20000` 现在是连续 tail 的有界目标：选择器从尾部按完整原子组回扫，
+下一个组放不下就停止。只有“最新的单个 Tool 原子组本身已超过 20K”时允许越界，避免拆开
+Assistant Tool Call 和对应 Tool Result。`compaction_min_recent_user_turns=3` 只在强制压缩且
+预算仍容纳时作为近期用户轮次偏好，不再为了凑够三轮无限突破 20K。若一个单用户长 Tool 轮次
+超过预算，允许 raw tail 从完整 Assistant 消息开始；被覆盖的真实用户消息按原始 `role=user`
+独立回放，早期执行过程进入派生摘要。普通压力每个 Agent step 只压缩一个分块；`/compact` 才会
+在空闲会话中循环追赶多个分块。
+
+投影时不再把“用户锚点 + 摘要”拼成 synthetic user。压缩范围内的锚点从不可变 Transcript
+读取并保持原始 `role=user`；派生摘要使用 `role=assistant, name=context_compaction`，排在锚点
+之后、cursor 后的原始 Assistant/Tool tail 之前。这样只有原始 Transcript 用户消息能够支撑
+“用户说过”的归因，同时仍保持“用户任务 → 早期执行摘要 → 最近执行原文”的继续顺序。超大
+锚点会通过现有 blob 机制外置正文，只在请求中保留有界预览和可恢复引用。
 
 摘要输入对每条消息正文先做 12,000 字符 head/tail 限制，Tool 参数在正常路径保持结构化原值；
 若最早的完整原子组仍放不进 48K 规划目标，再依次尝试 2,000 和 512 字符的降级视图。摘要输入
@@ -140,6 +152,7 @@ compaction_request_timeout_seconds = 90
 compaction_command_max_requests = 8
 compaction_command_max_seconds = 600
 compaction_command_max_cost_usd = 0.25
+# 强制压缩时的预算内偏好，不会突破 recent_conversation_tokens
 compaction_min_recent_user_turns = 3
 compaction_source_refs = "range"
 compaction_thinking = "auto"

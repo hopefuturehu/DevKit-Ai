@@ -8,6 +8,10 @@
 > 代码基线：`f78d911 fix(context): bound and recover compaction backlog`
 > 关联设计：[recoverable-context-compaction.md](recoverable-context-compaction.md)
 
+> 2026-08-31 后续：第 16 节中的“至少三轮 user”也是当时的历史方案。当前实现已把它改为
+> tail token 预算内偏好，并支持原始 user 锚点回放与 Assistant-safe 超大单轮切分；当前行为
+> 以关联设计文档为准。
+
 除第 16 节外，文中的“当前机制”“当前配置”和“待决策”都指 `f78d911` 历史基线，不是当前
 仓库默认值。当前请求组装与硬上限动作见
 [模型上下文分块与组装顺序](context-assembly.md)，当前压缩状态机见

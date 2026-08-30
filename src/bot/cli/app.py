@@ -757,7 +757,7 @@ auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
-# 近期原文尾部按 token 保留，并至少保留三个用户轮次
+# 近期原文尾部按 token 有界保留；三轮是强制压缩时的预算内偏好，不会突破 token 上限
 recent_conversation_tokens = 20000
 compaction_min_recent_user_turns = 3
 # 可选：单独指定上下文压缩模型；留空则冻结启动时的 model.name

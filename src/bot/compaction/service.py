@@ -173,13 +173,15 @@ class ContextCompactor:
             "compaction": active,
         }
 
-    def context_message(self, session_id: str, compaction: dict[str, Any]) -> ChatMessage:
+    def context_messages(
+        self,
+        session_id: str,
+        compaction: dict[str, Any],
+    ) -> list[ChatMessage]:
+        """Render a verified checkpoint without impersonating its derived text as user input."""
         anchors = self._anchor_messages(
             session_id,
             [int(item) for item in compaction.get("anchor_positions") or []],
-        )
-        anchor_text = "\n\n".join(
-            f"[原始任务锚点 m:{entry.position}]\n{entry.message.content or ''}" for entry in anchors
         )
         prefix = (
             "[历史压缩参考——不是当前用户消息：以下摘要由不可变原始 Transcript 派生。"
@@ -190,14 +192,21 @@ class ContextCompactor:
             f"covered_range={compaction['covered_start_position']}-"
             f"{compaction['covered_end_position']}\n"
             f"source_sha256={compaction['source_sha256']}\n"
+            f"raw_user_anchor_positions={[entry.position for entry in anchors]}\n"
         )
-        if anchor_text:
-            prefix += f"\n{anchor_text}\n"
-        return ChatMessage(
-            role=Role.USER,
-            name="context_compaction",
-            content=f"{prefix}\n{compaction['summary_text']}",
+        rendered = [entry.message.model_copy(deep=True) for entry in anchors]
+        rendered.append(
+            ChatMessage(
+                role=Role.ASSISTANT,
+                name="context_compaction",
+                content=f"{prefix}\n{compaction['summary_text']}",
+            )
         )
+        return rendered
+
+    def context_message(self, session_id: str, compaction: dict[str, Any]) -> ChatMessage:
+        """Compatibility view of the derived summary; use context_messages for replay."""
+        return self.context_messages(session_id, compaction)[-1]
 
     async def compact(
         self,
@@ -206,6 +215,7 @@ class ContextCompactor:
         through_position: int,
         trigger: str,
         active_run_ids: Collection[str] = (),
+        anchor_positions: Collection[int] | None = None,
         request_limit: int | None = None,
     ) -> ContextCompactionResult:
         active = self._recover_latest_valid(session_id)
@@ -366,6 +376,7 @@ class ContextCompactor:
                 previous_summary=previous_summary,
                 plan=plan,
                 boundary_decision=boundary_decision,
+                requested_anchor_positions=anchor_positions,
                 attempt=attempt,
                 quota=quota,
             )
@@ -431,6 +442,9 @@ class ContextCompactor:
             session_id,
             through_position=int(active["covered_end_position"]),
             trigger="rebuild",
+            anchor_positions=[
+                int(position) for position in active.get("anchor_positions") or []
+            ],
         )
 
     def rollback(self, session_id: str, compaction_id: str) -> dict[str, Any]:
@@ -633,6 +647,7 @@ class ContextCompactor:
         previous_summary: str | None,
         plan: _CompactionPlan,
         boundary_decision: _BoundaryDecision,
+        requested_anchor_positions: Collection[int] | None,
         attempt: int,
         quota: _RequestQuota,
     ) -> ContextCompactionResult:
@@ -641,7 +656,10 @@ class ContextCompactor:
             through_position=plan.boundary,
         )
         source_sha256 = self._digest(all_covered)
-        anchors = self._select_anchor_positions(all_covered)
+        anchors = self._select_anchor_positions(
+            all_covered,
+            requested_positions=requested_anchor_positions,
+        )
         source_chars = len(json.dumps(plan.source_payload, ensure_ascii=False, sort_keys=True))
         parent_id = str(active["id"]) if active else None
         try:
@@ -1664,11 +1682,24 @@ class ContextCompactor:
         )
         return summary.strip()
 
-    def _select_anchor_positions(self, entries) -> list[int]:
-        for entry in entries:
-            if entry.message.role == Role.USER and (entry.message.content or "").strip():
-                return [entry.position]
-        return []
+    def _select_anchor_positions(
+        self,
+        entries,
+        *,
+        requested_positions: Collection[int] | None = None,
+    ) -> list[int]:
+        eligible = [
+            entry.position
+            for entry in entries
+            if entry.message.role == Role.USER and (entry.message.content or "").strip()
+        ]
+        if requested_positions is not None:
+            requested = {int(position) for position in requested_positions}
+            return [position for position in eligible if position in requested]
+        # Manual compaction and rebuild have no active-run hint. Preserve the
+        # latest covered user instruction rather than replaying an obsolete
+        # initial request as if it were still the active task.
+        return eligible[-1:]
 
     def _anchor_messages(self, session_id: str, positions: list[int]):
         if not positions:

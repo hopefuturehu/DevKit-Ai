@@ -232,6 +232,163 @@ async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_sour
 
 
 @pytest.mark.asyncio
+async def test_single_large_turn_splits_at_assistant_boundary_with_raw_user_anchor(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "single-large-turn"
+    workspace.mkdir()
+    config = AppConfig.model_validate(
+        {
+            "model": {
+                "base_url": "https://unused",
+                "name": "benchmark-model",
+                "context_window_tokens": 32_000,
+            },
+            "context": {
+                "recent_conversation_tokens": 300,
+                "compaction_min_recent_user_turns": 3,
+                "compaction_summary_tokens": 4_000,
+                "compaction_max_output_tokens": 4_000,
+                "compaction_max_input_tokens": 20_000,
+            },
+            "storage": {"state_path": str(workspace / "state.db")},
+            "skills": {"path": str(workspace / "skills")},
+        }
+    )
+    provider = _AgentAndCompactionProvider()
+    store = SQLiteSessionStore(workspace / "state.db")
+    events = MemoryEventSink()
+    event_bus = EventBus([store, events])
+    session_id = store.create_session(workspace)
+    run_id = "single-large-run"
+    store.start_run(session_id, run_id)
+    user_position = store.append_message(
+        session_id,
+        run_id,
+        ChatMessage(role=Role.USER, content="修复 Provider 重试，并保留原始约束。"),
+    )
+    for index in range(3):
+        call_id = f"large-call-{index}"
+        store.append_message(
+            session_id,
+            run_id,
+            ChatMessage(
+                role=Role.ASSISTANT,
+                content=f"执行第 {index + 1} 个诊断步骤。",
+                tool_calls=[
+                    ToolCall(
+                        id=call_id,
+                        name="run_command",
+                        arguments={"argv": ["diagnose", str(index)]},
+                    )
+                ],
+            ),
+        )
+        store.append_message(
+            session_id,
+            run_id,
+            ChatMessage(
+                role=Role.TOOL,
+                name="run_command",
+                tool_call_id=call_id,
+                content=(f"step={index} success=true\n" + "diagnostic-data\n" * 600),
+            ),
+        )
+        if index == 0:
+            steering_position = store.append_message(
+                session_id,
+                run_id,
+                ChatMessage(
+                    role=Role.USER,
+                    content="补充约束：不要恢复费用门禁。",
+                ),
+            )
+
+    catalog = SkillCatalog(workspace / "skills")
+    catalog.scan()
+    compactor = ContextCompactor(
+        config=config,
+        provider=provider,
+        store=store,
+        event_bus=event_bus,
+    )
+    runner = AgentRunner(
+        config=config,
+        workspace=workspace,
+        provider=provider,
+        tool_registry=ToolRegistry(),
+        policy=DefaultPolicyEngine(config.permissions, workspace),
+        execution_target=LocalExecutionTarget(),
+        skills=SkillManager(catalog),
+        context=ContextAssembler(workspace=workspace, skill_catalog=catalog),
+        store=store,
+        event_bus=event_bus,
+        context_compactor=compactor,
+    )
+
+    outcome = await runner._consolidate_conversation(  # noqa: SLF001
+        session_id=session_id,
+        active_run_id=run_id,
+        conversation=store.load_positioned_messages(session_id),
+        force=False,
+    )
+
+    assert outcome is not None
+    assert outcome.projection is not None
+    assert outcome.details["assistant_split_used"] is True
+    assert outcome.details["raw_user_turns_retained"] == 0
+    assert outcome.details["rehydrated_user_anchors"] == 2
+    assert outcome.conversation[0].message.role == Role.ASSISTANT
+    raw_calls = {call.id for entry in outcome.conversation for call in entry.message.tool_calls}
+    raw_results = {
+        entry.message.tool_call_id
+        for entry in outcome.conversation
+        if entry.message.role == Role.TOOL and entry.message.tool_call_id
+    }
+    assert raw_calls == raw_results == {"large-call-2"}
+    active = outcome.projection["compaction"]
+    assert active["anchor_positions"] == [user_position, steering_position]
+    replay = compactor.context_messages(session_id, active)
+    assert [message.role for message in replay] == [Role.USER, Role.USER, Role.ASSISTANT]
+    assert replay[0].content == "修复 Provider 重试，并保留原始约束。"
+    assert replay[1].content == "补充约束：不要恢复费用门禁。"
+    assert replay[2].name == "context_compaction"
+    projected_items = runner._compaction_context_items(  # noqa: SLF001
+        outcome.projection,
+        run_id=run_id,
+    )
+    assert [item.message.role for item in projected_items] == [
+        Role.USER,
+        Role.USER,
+        Role.ASSISTANT,
+    ]
+    assert [item.position for item in projected_items] == [
+        user_position,
+        steering_position,
+        7,
+    ]
+    assembled_items = runner._build_context_items(  # noqa: SLF001
+        base_items=[],
+        memory_items=[],
+        active_skill_items=[],
+        compaction_items=projected_items,
+        conversation=outcome.conversation,
+        runtime_notes=[],
+    )
+    packed = runner._context_planner.pack(assembled_items, [])  # noqa: SLF001
+    assert [message.role for message in packed.messages] == [
+        Role.USER,
+        Role.USER,
+        Role.ASSISTANT,
+        Role.ASSISTANT,
+        Role.TOOL,
+    ]
+    assert packed.messages[2].name == "context_compaction"
+    assert packed.messages[3].tool_calls[0].id == "large-call-2"
+    store.close()
+
+
+@pytest.mark.asyncio
 async def test_compaction_usage_is_subject_to_run_cost_limit(tmp_path: Path) -> None:
     workspace = tmp_path / "compaction-cost-limit"
     workspace.mkdir()
@@ -294,7 +451,7 @@ async def test_compaction_usage_is_subject_to_run_cost_limit(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
-async def test_explicit_compaction_keeps_three_user_turns_and_stops_at_request_budget(
+async def test_explicit_compaction_bounds_tail_instead_of_forcing_three_user_turns(
     tmp_path: Path,
 ) -> None:
     workspace = tmp_path / "explicit-budget"
@@ -352,12 +509,12 @@ async def test_explicit_compaction_keeps_three_user_turns_and_stops_at_request_b
     assert result["reason"] == "compaction_command_max_requests"
     assert result["request_count"] == 1
     assert result["chunks"] == 1
-    assert result["cursor_position"] < result["target_position"] == 28
+    assert result["cursor_position"] < result["target_position"] == 39
     remaining = store.load_positioned_messages(
         session_id,
         after_position=int(result["target_position"]),
     )
-    assert sum(entry.message.role == Role.USER for entry in remaining) == 3
+    assert [entry.message.role for entry in remaining] == [Role.ASSISTANT]
     assert original_digest == _digest(store, session_id)
     store.close()
 

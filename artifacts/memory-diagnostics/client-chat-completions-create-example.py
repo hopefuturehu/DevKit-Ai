@@ -64,9 +64,14 @@ MESSAGES: list[dict[str, Any]] = [
         # {"role": "user", "name": "explicit_memory", ...}
         # 当前 USER.md 没有实际记忆条目，所以本样例不伪造该消息。
         #
-        # ContextLayer.COMPACTION。压缩摘要也是 user 角色，但它位于被压缩历史
-        # 对应的时间位置之前，不是本例最末尾 synthetic-user 问题的来源。
+        # ContextLayer.COMPACTION 的原始用户锚点。它从 SQLite Transcript
+        # 逐字回放，只有这种真实 role=user 才能证明用户实际说过什么。
         "role": "user",
+        "content": "检查长期记忆提取和上下文注入问题。",
+    },
+    {
+        # 同一 ContextLayer 中紧随锚点的派生摘要。它不再伪装成 user。
+        "role": "assistant",
         "name": "context_compaction",
         "content": (
             "[历史压缩参考——不是当前用户消息：以下摘要由不可变原始 Transcript 派生。"
@@ -75,7 +80,7 @@ MESSAGES: list[dict[str, Any]] = [
             "compaction_id=example-compaction-id\n"
             "covered_range=1-120\n"
             "source_sha256=<redacted>\n\n"
-            "用户此前正在检查长期记忆提取和上下文注入问题。"
+            "已经检查了记忆提取记录；下一步核验原始 Transcript 中的用户归因。"
         ),
     },
     {

@@ -341,7 +341,7 @@ def test_agent_loads_physical_memory_files_with_separate_trust(tmp_path: Path) -
         base_items=[],
         memory_items=[],
         active_skill_items=[],
-        compaction_item=None,
+        compaction_items=[],
         conversation=[
             PositionedMessage(
                 99,

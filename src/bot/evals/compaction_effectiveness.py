@@ -263,7 +263,6 @@ async def run_compaction_effectiveness(
         target = _target_before_recent_tail(
             store.load_positioned_messages(session_id),
             token_limit=config.context.recent_conversation_tokens,
-            minimum_user_turns=config.context.compaction_min_recent_user_turns,
         )
     else:
         target = latest
@@ -284,8 +283,10 @@ async def run_compaction_effectiveness(
     cursor = int(projection["cursor_position"])
     active = projection.get("compaction")
     assembled_parts: list[str] = []
+    checkpoint_messages: list[ChatMessage] = []
     if isinstance(active, dict):
-        assembled_parts.append(compactor.context_message(session_id, active).content or "")
+        checkpoint_messages = compactor.context_messages(session_id, active)
+        assembled_parts.extend(message.content or "" for message in checkpoint_messages)
     assembled_parts.extend(
         entry.message.content or ""
         for entry in store.load_positioned_messages(session_id, after_position=cursor)
@@ -336,12 +337,10 @@ async def run_compaction_effectiveness(
         <= 1,
         "bounded_input": result.planned_input_tokens <= result.input_limit,
         "tool_protocol_balanced": _tool_protocol_balanced(raw_tail),
-        "minimum_recent_user_turns": (
-            sum(entry.message.role == Role.USER for entry in raw_tail)
-            >= min(
-                config.context.compaction_min_recent_user_turns,
-                sum(entry.message.role == Role.USER for entry in materialized),
-            )
+        "latest_user_anchor_visible": (
+            any(entry.message.role == Role.USER for entry in raw_tail)
+            or any(message.role == Role.USER for message in checkpoint_messages)
+            or not any(entry.message.role == Role.USER for entry in materialized)
             if preserve_recent_tail
             else True
         ),
@@ -411,21 +410,17 @@ def _target_before_recent_tail(
     entries,
     *,
     token_limit: int,
-    minimum_user_turns: int,
 ) -> int:
     groups = ContextCompactor._atomic_groups(list(entries))
     estimator = TokenEstimator()
     retained_positions: set[int] = set()
     retained_tokens = 0
-    retained_user_turns = 0
     for group in reversed(groups):
         cost = sum(estimator.message(entry.message) for entry in group)
-        must_keep = retained_user_turns < minimum_user_turns
-        if retained_positions and not must_keep and retained_tokens + cost > token_limit:
+        if retained_positions and retained_tokens + cost > token_limit:
             break
         retained_positions.update(entry.position for entry in group)
         retained_tokens += cost
-        retained_user_turns += sum(entry.message.role == Role.USER for entry in group)
     older = [entry.position for entry in entries if entry.position not in retained_positions]
     return max(older, default=0)
 

@@ -21,7 +21,7 @@
 
 | 项目 | 本文历史基线 `f930a19` | 当前实现 `cff6338` 及之后 |
 |---|---|---|
-| 近期原文 | 约 48K | 20K 软目标，且至少 3 个用户轮次 |
+| 近期原文 | 约 48K | 20K 连续 Tool-safe tail；三轮是预算内偏好，超大单轮可从 Assistant 边界切分并回放原始 user 锚点 |
 | 摘要预算 | 8K 目标/硬限制，8,192 wire | 3K 软目标、4K 正文硬限制、8,192 wire |
 | 压缩模型 | 跟随会话内 `/model` | 启动时冻结；也可显式配置 `compaction_model` |
 | DeepSeek reasoning | 沿用 Provider 默认 | 官方端点仅对压缩请求自动关闭 thinking |

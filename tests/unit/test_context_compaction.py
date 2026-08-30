@@ -66,9 +66,7 @@ class CompactionProvider(ModelProvider):
 class SequenceCompactionProvider(ModelProvider):
     def __init__(
         self,
-        responses: list[
-            str | None | tuple[str | None, str] | ProviderError
-        ],
+        responses: list[str | None | tuple[str | None, str] | ProviderError],
     ) -> None:
         self.responses = responses
         self.requests: list[ModelRequest] = []
@@ -196,9 +194,12 @@ async def test_compaction_publishes_one_summary_without_deleting_source(
     assert store.latest_message_position(session_id) == 4
     assert len(store.load_positioned_messages(session_id)) == 4
 
-    context_message = compactor.context_message(session_id, active)
-    assert "初始目标：修复上下文压缩" in (context_message.content or "")
-    assert "load_compaction_source" in (context_message.content or "")
+    context_messages = compactor.context_messages(session_id, active)
+    assert [message.role for message in context_messages] == [Role.USER, Role.ASSISTANT]
+    assert "初始目标：修复上下文压缩" in (context_messages[0].content or "")
+    assert context_messages[1].name == "context_compaction"
+    assert "load_compaction_source" in (context_messages[1].content or "")
+    assert context_messages[1].role == Role.ASSISTANT
     source = compactor.read_source(
         session_id=session_id,
         compaction_id=active["id"],
@@ -215,6 +216,50 @@ async def test_compaction_publishes_one_summary_without_deleting_source(
     assert forked_projection["cursor_position"] == 4
     assert forked_projection["compaction"]["trigger"] == "fork"
     assert len(store.load_positioned_messages(forked)) == 4
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_manual_compaction_replays_latest_covered_user_as_raw_anchor(
+    tmp_path: Path,
+) -> None:
+    compactor, _provider, store, _events = make_compactor(tmp_path)
+    session_id = store.create_session(tmp_path)
+    first_user = store.append_message(
+        session_id,
+        "run-1",
+        ChatMessage(role=Role.USER, content="旧任务已经完成。"),
+    )
+    store.append_message(
+        session_id,
+        "run-1",
+        ChatMessage(role=Role.ASSISTANT, content="旧任务完成。"),
+    )
+    latest_user = store.append_message(
+        session_id,
+        "run-2",
+        ChatMessage(role=Role.USER, content="当前任务：只修复重试逻辑。"),
+    )
+    store.append_message(
+        session_id,
+        "run-2",
+        ChatMessage(role=Role.ASSISTANT, content="开始检查重试逻辑。"),
+    )
+
+    result = await compactor.compact(
+        session_id,
+        through_position=4,
+        trigger="explicit_compaction",
+    )
+
+    assert result.compacted is True
+    active = compactor.projection(session_id)["compaction"]
+    assert active["anchor_positions"] == [latest_user]
+    assert active["anchor_positions"] != [first_user]
+    replay = compactor.context_messages(session_id, active)
+    assert replay[0].role == Role.USER
+    assert replay[0].content == "当前任务：只修复重试逻辑。"
+    assert replay[1].role == Role.ASSISTANT
     store.close()
 
 
@@ -477,9 +522,7 @@ async def test_length_failure_condenses_candidate_without_resending_source(
             "storage": {"state_path": str(tmp_path / "state.db")},
         }
     )
-    provider = SequenceCompactionProvider(
-        [(CompactionProvider._summary(1, 1), "length"), None]
-    )
+    provider = SequenceCompactionProvider([(CompactionProvider._summary(1, 1), "length"), None])
     store = SQLiteSessionStore(tmp_path / "state.db")
     events = MemoryEventSink()
     compactor = ContextCompactor(
@@ -752,9 +795,7 @@ async def test_request_wall_timeout_fails_closed(tmp_path: Path) -> None:
     assert result.error_class == CompactionErrorClass.TIMEOUT
     assert result.request_count == 1
     assert compactor.projection(session_id)["cursor_position"] == 0
-    assert [item["status"] for item in store.list_context_compactions(session_id)] == [
-        "failed"
-    ]
+    assert [item["status"] for item in store.list_context_compactions(session_id)] == ["failed"]
     store.close()
 
 
@@ -1083,6 +1124,7 @@ async def test_rebuild_rollback_and_corruption_recovery_use_version_chain(
     assert rebuilt.compacted is True
     assert rebuilt.rebuilt_from_raw is True
     assert rebuilt.covered_end_position == 2
+    assert compactor.projection(session_id)["compaction"]["anchor_positions"] == [1]
     request_payload = json.loads(provider.requests[-1].messages[-1].content or "{}")
     assert request_payload["mode"] == "rebuild_from_raw"
     assert "raw_messages" in request_payload
