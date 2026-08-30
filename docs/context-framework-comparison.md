@@ -2,9 +2,9 @@
 
 > 状态：本地源码静态分析快照
 >
-> 日期：2026-08-30；`bot` 文档核对：2026-08-30
+> 日期：2026-08-31；`bot` 文档核对：2026-08-31
 >
-> `bot` 代码基线：`f5e922d1d31d`
+> `bot` 代码基线：`cb5416b529d0`
 
 本文比较当前 `bot` 与本地 checkout 中的 Codex、OpenCode、Pi、Hermes Agent、DeepSeek
 Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如何保存与回传、长对话如何
@@ -27,9 +27,10 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
    Codex 与 DeepSeek Harness 让 Provider adapter 决定结构化状态如何进入压缩请求，但压缩后的
    替换历史都不保留旧 reasoning 链。
 3. 主流长对话方案是“用一个 checkpoint/summary 替换旧历史，再保留有界的近期锚点或连续
-   原文尾部”，不是不断覆盖成最近 N 条消息。Codex 的本地路径保留近期 user 锚点；OpenCode、
-   Pi、DeepSeek Harness 和当前 `bot` 保留近期消息 tail；Hermes 采用 head/summary/tail 并增加
-   更强的降级和反抖逻辑。
+   原文尾部”，不是不断覆盖成最近 N 条消息。但“保留 user”有三种不同强度：Codex 只保留
+   user-only 原文锚点，OpenCode/Pi 以 turn 为首选切点但允许拆超大单轮，Hermes/Nanobot 才显式
+   把至少一个真实 user 作为尾部锚点；DeepSeek Harness 只保证 token 与 Tool 配对边界。不能把
+   这些策略统称为“保留最近若干完整用户轮次”。
 4. Nanobot 是最明确的滑动窗口实现：每次请求先按消息数、再按 token 从尾部选择连续合法
    后缀，同时异步把被移出的前缀归档成记忆。它优先保证请求能继续，但语义连续性和溯源弱于
    checkpoint 系列。
@@ -78,7 +79,7 @@ Tool/turn 边界、模型切换时如何转换，以及压缩后是否还需要�
 
 | 实现 | 本地 commit | 定位 |
 |---|---|---|
-| `bot` | `af8f4e1b640c` | 分层请求 Planner + 可恢复单摘要 + 原子证据型自动记忆 |
+| `bot` | `cb5416b529d0` | 分层请求 Planner + 可恢复单摘要 + 原子证据型自动记忆 |
 | `openai/codex` | `41ece455b7fa` | 结构化 Responses item + 两阶段全局 memory consolidation |
 | `anomalyco/opencode` | `da4730e4a41d` | 消息 part + compaction summary/tail |
 | `badlogic/pi-mono` | `a4453b79bb8d` | Provider-neutral thinking + append-only session tree |
@@ -390,7 +391,7 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
 | Pi | `/compact [custom instructions]`；RPC 同样接受 `customInstructions` | 先 `abort()` 当前 Agent 操作，再触发 manual compaction；Interactive UI 会暂存压缩期间的新输入；extension 可取消或直接提供压缩结果 | 基于 active session-tree path 保留默认约 20K tail；可把用户指令加入摘要 prompt。若切点落在超大 turn 内，可分别摘要旧 history 与该 turn prefix，再合成一个 compaction entry；完成后不自动续写 | 过小会话报 `Nothing to compact`，连续执行报 `Already compacted`；取消/Provider 失败不追加 entry。原 JSONL tree 不删，但没有摘要版本选择命令 |
 | Hermes | `/compress`，`/compact` 是全端一致别名；支持 `<focus>`、`here [N]`/`--keep N`、`up to here`、`--preview`/`--dry-run` | 少于 4 条消息拒绝；即使关闭自动压缩仍可手动执行，`force=True` 绕过自动 cooldown；有压缩锁和 host commit fence；`--aggressive` 明确不支持 | 全量模式使用现有 head/summary/tail 压缩器，focus 调整摘要预算；partial 模式只压 head，再把最近 N 个 user exchange 原样接回；preview 只估算不写入。Codex app-server 会委托原生 thread compact | 默认可原地 soft-archive，也支持旧式 child-session rotation；摘要失败按配置保持原文或发布显式低保真 fallback。没有按 compaction ID 选择历史摘要的命令 |
 | DeepSeek Harness | `/compact`，严格无参数 | 只在 idle agent 接纳；命令本身不排队，也不进模型历史。先原子预留 maintenance admission；压缩期间已接纳的新 prompt 保留 FIFO 身份，等持久化 checkpoint 后启动 | 即使未到压力线，也选择“除最近一个合法平衡单元外”的最老 head；写 `compaction/start {turn:null}`，直接调用一次摘要 LLM，重验 selected span，提交 summary + replacement user checkpoint + end，并显式 flush | `busy/cancelled/changed/summary/commit/persistence` 有封闭错误分类；失败尝试仍在 event log，`changed/summary` 保证 surface 未替换，`commit` 明确提示可能部分变化。没有 rebuild/rollback 命令 |
-| Nanobot | **没有 `/compact`**；`/dream` 不是替代品 | Chat command palette 不暴露会话压缩；SDK 提供 `compact_session()` 和 `compact_idle_session()`，后者供 idle AutoCompact 使用 | `compact_session()` 只在 replay/token 压力成立时推进；idle API 默认硬保留最近 8 条合法 suffix，把更老消息归档到 `history.jsonl`。`/dream` 消费这些归档并更新长期记忆文件 | 归档 LLM 失败时写有界 `[RAW]` breadcrumb，仍推进 cursor/删除 live prefix；优先生存性，没有会话摘要 rebuild/rollback。Dream 的 Git restore 只恢复记忆文件，不恢复会话压缩视图 |
+| Nanobot | **没有 `/compact`**；`/dream` 不是替代品 | Chat command palette 不暴露会话压缩；SDK 提供 `compact_session()` 和 `compact_idle_session()`，后者供 idle AutoCompact 使用 | `compact_session()` 只在 replay/token 压力成立时推进；idle API 以最近 8 条合法 suffix 为起点，必要时向前扩到最近 user，再把更老消息归档到 `history.jsonl`。`/dream` 消费这些归档并更新长期记忆文件 | 归档 LLM 失败时写有界 `[RAW]` breadcrumb，仍推进 cursor/删除 live prefix；优先生存性，没有会话摘要 rebuild/rollback。Dream 的 Git restore 只恢复记忆文件，不恢复会话压缩视图 |
 
 命令能力不能从“都有 summary”推出。可由用户控制的维度如下：
 
@@ -412,7 +413,7 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
 | Codex | 模型元数据和当前 context-window 状态触发 auto/native compaction | 本地 replacement 最多约 20K 原始 user message；远端由 checkpoint 结果决定 | Tool output 可截断；压缩请求自身溢出时逐个移除最旧输入 item | Tool output 定长截断 | 正常 sampling overflow 会返回错误并进入明确 compaction 路径，不使用无摘要滑窗 |
 | OpenCode | usage 达到 usable input；默认最多预留约 20K output/buffer | usable 的 25%，限制在 2K–15K | 可以在一个超大 turn 内从 assistant 消息边界保留 suffix | 保护近期约 40K 后清空更旧 Tool output，累计收益不足 20K 不提交 | compaction 仍返回 overflow 时写 `ContextOverflowError` 并停止 |
 | Pi | `contextTokens > contextWindow - 16,384` | 默认约 20K | 可对超大单 turn 的 prefix 单独摘要；不从 Tool Result 开始 tail | 摘要输入中的 Tool result 截至约 2K 字符 | overflow 最多 compact-and-retry 一次，失败后显式报错 |
-| Hermes | 默认在有效窗口约 50% 触发，可按模型覆盖或设 token cap | tail 预算默认约阈值的 20%，同时保护有限 head/tail 和最近 user | Tool-safe 切分；活动 turn reasoning 计费与旧 turn 区分 | 主动/溢出 Tool result prune、输入 head+tail bound | 可生成明确的确定性 fallback handoff 并丢中段；也可配置 abort；有 cooldown/anti-thrash |
+| Hermes | 配置默认在有效窗口约 50% 触发；小于 512K 的窗口会把比例提高到至少 75%，也可按模型覆盖或设 token cap | tail 预算默认约阈值的 20%，同时保护有限 head/tail 和最近 user | Tool-safe 切分；活动 turn reasoning 计费与旧 turn 区分 | 主动/溢出 Tool result prune、输入 head+tail bound | 可生成明确的确定性 fallback handoff 并丢中段；也可配置 abort；有 cooldown/anti-thrash |
 | DeepSeek Harness | 默认窗口 80% 触发，Provider overflow 也可强制恢复 | 默认窗口 16% | 选择最旧、完整、Tool 配对平衡的 surface 单元；未闭合尾部拒绝压缩 | 可选 Tool result pruner | 默认 1 次额外收敛重试和 1 次 overflow retry；失败保持最新 durable surface，不滑窗 |
 | Nanobot | 每次请求都受 `context - output - 1024` replay budget；达到预算时 consolidate 到约 50% | 按消息数和 token 从尾部取连续后缀 | 对齐最近 user 与合法 Tool 起点；不能安全切分时保留可见尾部 | in-flight Tool result compact + `snip_history()` | 摘要失败写有界 `[RAW]` breadcrumb 并推进 cursor；下次不重复攻击同一前缀 |
 
@@ -424,7 +425,51 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
 - **隐式请求裁剪**：当前 `bot` 的 Planner 会记录 dropped item，但模型请求中没有同等醒目的
   gap marker。若被裁掉的是尚未进入摘要的中间 Tool 组，模型无法知道缺口存在。
 
-### 7.3 当前 `bot` 手动压缩的 trade-off
+### 7.3 压缩时如何保留真实用户轮次
+
+“摘要记住了用户目标”和“原始 `role=user` 仍逐字留在压缩后请求里”不是同一件事。本节把
+`user turn` 进一步拆成三个可观测量：
+
+- **user-only anchor**：只保留原始用户消息，不要求与其 Assistant/Tool 后续一起保留；
+- **完整 turn**：从真实 user 开始，连续保留其 Assistant、Tool Call/Result，直到下一真实 user；
+- **摘要承载**：原始 user 已被替换，只能从 summary/checkpoint 恢复其语义。
+
+本地源码中的实际保留策略如下；“至少 N 轮”只在代码存在显式计数门槛时使用，不从 token
+预算或“通常能看到几轮”的样例反推：
+
+| 实现 | 选择单位与默认预算 | 原始 user 的硬保证 | 超大单轮与主要代价 |
+|---|---|---|---|
+| `bot` | 从尾部按完整 Tool 原子组回扫；20K token 是软目标 | 至少 3 个真实 user turn，且相关 Assistant Tool Call/Result 整组保留 | 三轮或一个 Tool 组可以无限突破 20K；只有一个 user、后接很长 Tool 链时可能整个会话都成为受保护 tail，压缩没有旧前缀可推进 |
+| Codex 本地 | 从所有真实 user message 中倒序选择，合计硬限 20K；然后追加 summary | 没有轮数下限，也不保留完整 turn；只保证预算内最近的 user-only anchor | 最老一条入选 user 可被截断；Assistant、Tool 和 reasoning 全部从 replacement history 消失，压缩率高但原始因果链只剩摘要 |
+| Codex 远端 V2 | 先筛选可保留的真实 user/Agent message，按最新优先限制为 64K，再追加原生 compaction item | 没有轮数下限；developer/system 由当前 canonical context 重新注入，不靠旧消息保留 | 超预算旧文本被截断或丢弃；opaque item 承载语义，无法用正文检查某个 user turn 是否逐字幸存 |
+| OpenCode | 把每个真实 user 到下一个真实 user 视为 turn；近期预算为 usable input 的 25%，限制在 2K–15K，可再用 `tail_turns` 限制候选轮数 | 优先保留若干个完整最近 turn，但没有最小轮数保证 | 下一个较老 turn 放不下时可从 turn 内的 Assistant 消息开始保留；若最新单轮本身超大，原始 user 可以只进入 summary，raw tail 从 Assistant 开始 |
+| Pi | 从尾部累计到默认约 20K；合法切点可以是 user、Assistant、branch summary，但不能从 Tool Result 开始 | 没有最小轮数；切在 user 时保留完整连续 tail | 切点落在超大单轮内部时，先单独摘要该轮前缀（包含 Original Request），只原样保留后缀；因此任务语义有专门 handoff，但原始 user 不一定仍在 tail |
+| Hermes | head + summary + token tail；tail 默认约为压缩阈值的 20%，并显式锚定最新 user、最新 Assistant；`min_tail_user_messages` 默认 1、可配置更大 | 通常至少 1 个真实、非合成、可执行 user；可配置最近 N 个 | user 锚点和 Tool-safe 对齐可令 tail 超预算；若 user 紧贴保护 head，强留会把可压中段耗尽，则把完整已完成 turn 一起摘要，避免把 user 留成悬空待办。首次还保护 3 条非 system 头部消息，后续该保护衰减为 0 |
+| DeepSeek Harness | 对 surface node 从尾部累计，默认保留窗口的 16%，然后向前移动到 Tool Call/Result 平衡边界 | 没有 user-aware 保证，也没有轮数概念；raw tail 可以只含 Assistant/Tool | 自动压缩优先满足统一 token meter 和 Tool 配对；手动 `/compact` 以 `retainTokens=0` 只保留最后一个可平衡单元。最近 user 可能完全进入 replacement checkpoint |
+| Nanobot | token consolidation 只在下一真实 user 处推进 cursor；普通 replay 先按消息数、再按 token 取连续后缀；idle compact 默认保留最近 8 条 | 有真实 user 时尽量让活动后缀从至少 1 个 user 开始；token 尾部若只剩 Assistant，会向前找最近 user，即使略超预算。没有 N 轮保证 | idle 的 8 条也是可扩展上限：最后 8 条没有 user 时会回退到更早 user；优先生存和合法连续后缀，超预算风险小于多轮下限，但更早任务只依赖 archive summary/`[RAW]` breadcrumb |
+| KAT（演进参照） | 较早 Nanobot 路线；token consolidation 在 user 边界切分，单块最多 60 条；idle 保留最近约 8 条 | 尾部切点向前扩到最近 user，没有固定 N 轮 | 比当前 Nanobot 缺少 token-tail 的二次 user 恢复和更完整失败治理；它证明“8 条”是消息窗口，不是 8 个用户轮次 |
+
+对应源码中的决定点分别是：Codex `compact.rs::build_compacted_history_with_limit()` 与
+`compact_remote_v2.rs::truncate_retained_messages_for_remote_compaction()`；OpenCode
+`compaction.ts::{turns,splitTurn,select}`；Pi `compaction.ts::{findCutPoint,prepareCompaction}`；
+Hermes `context_compressor.py::_find_tail_cut_by_tokens()`；DeepSeek Harness
+`compaction-basic/src/region.ts::selectCompactableRange()`；Nanobot
+`memory.py::pick_consolidation_boundary()`、`Session.get_history()` 和
+`Session.retain_recent_legal_suffix()`。
+
+这组实现给当前 `bot` 的直接结论不是“把 3 改成 1”或“照搬 20K”，而是拆开两类保护：
+
+1. **正确性硬保护**应是最新真实 user、尚未闭合的活动 Tool 链和合法 Tool 边界；Hermes 与
+   Nanobot 都把“至少一个 user 锚点”放在 token 选择之后补强。
+2. **交互质量软保护**才是更多历史 user turn；OpenCode/Pi 允许超大单轮切分，说明完整 N 轮
+   不应无条件压倒硬 token 上限。
+3. 应分别观测 `raw_user_turns_retained`、`complete_turns_retained`、`retained_tail_tokens` 和
+   `compaction_progress_messages`。只断言“摘要包含用户目标”无法证明原始轮次保留策略有效。
+4. 当前至少 3 轮的策略对多轮短对话保真较高，但单用户长 Tool 任务是结构性反例。更稳妥的
+   候选是“最新 user + 活动 Tool 链为硬保护；其余最多两轮受独立硬预算约束；超大已完成 turn
+   允许 Pi 式 prefix summary 或明确 gap/checkpoint”，并用两类负载分别验证。
+
+### 7.4 当前 `bot` 手动压缩的 trade-off
 
 与其他实现相比，当前命令不是“最灵活”或“并发控制最强”，而是把主要复杂度投入到恢复：
 
@@ -453,7 +498,7 @@ Codex 本地路径也使用 user checkpoint，Pi 将 compaction summary 转成 s
 Nanobot 把 archive summary 放入 system。由此可见，运行 `/compact` 本身不会自动解决“派生摘要被
 误认成当前指令”，还必须同时验证 role、相对位置、边界文本和是否存在更新的真实 user 消息。
 
-### 7.4 为什么 Codex 通常看起来比 `bot` 压得更彻底
+### 7.5 为什么 Codex 通常看起来比 `bot` 压得更彻底
 
 Codex 不是单一压缩路径：Feature 打开时可直接开启新的 Token Budget context window；Provider
 支持时使用 Responses 原生 compaction v1/v2；否则走本地文本摘要。与 `bot` 最容易逐行比较的是
