@@ -4,7 +4,7 @@
 >
 > 日期：2026-08-31；`bot` 文档核对：2026-08-31
 >
-> `bot` 代码基线：`1f4808c` 加本文记录的 2026-08-31 Assistant-safe tail 实现
+> `bot` 代码基线：`2035795`
 
 本文比较当前 `bot` 与本地 checkout 中的 Codex、OpenCode、Pi、Hermes Agent、DeepSeek
 Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如何保存与回传、长对话如何
@@ -39,8 +39,9 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
    handoff。当前 `bot` 的 Planner 虽会按优先级丢弃可选消息组，但结果未必是连续后缀，这比
    显式失败或显式降级更容易制造不可见的因果缺口。
 6. 当前 `bot` 的优势是分层预算、Tool 原子组、不可变 Transcript、版本化摘要、来源哈希和
-   fail-closed 发布；主要缺口是 reasoning 缺少 Provider/模型来源、近期轮次下限可以突破 token
-   目标、活动长 Tool 链难以形成压缩边界，以及最终打包可能非连续地漏掉未摘要消息。
+   fail-closed 发布；20K tail 已改为有界目标并支持 Assistant-safe 切分。剩余缺口是 reasoning
+   缺少 Provider/模型来源、最新单个原子组仍可突破 tail 目标、活动中未闭合 Tool 链难以形成
+   压缩边界，以及最终打包可能非连续地漏掉未摘要消息。
 7. 真正具有可比自动长期记忆流水线的是当前 `bot`、Codex、Hermes 和 Nanobot。OpenCode、Pi 和
    DeepSeek Harness 当前快照中的 summary/checkpoint 主要服务当前会话恢复，不能等同于跨会话
    事实记忆。
@@ -79,7 +80,7 @@ Tool/turn 边界、模型切换时如何转换，以及压缩后是否还需要�
 
 | 实现 | 本地 commit | 定位 |
 |---|---|---|
-| `bot` | `cb5416b529d0` | 分层请求 Planner + 可恢复单摘要 + 原子证据型自动记忆 |
+| `bot` | `2035795` | 分层请求 Planner + 可恢复单摘要 + 原子证据型自动记忆 + Assistant-safe 有界 tail |
 | `openai/codex` | `41ece455b7fa` | 结构化 Responses item + 两阶段全局 memory consolidation |
 | `anomalyco/opencode` | `da4730e4a41d` | 消息 part + compaction summary/tail |
 | `badlogic/pi-mono` | `a4453b79bb8d` | Provider-neutral thinking + append-only session tree |
@@ -92,7 +93,7 @@ Tool/turn 边界、模型切换时如何转换，以及压缩后是否还需要�
 
 | 实现 | Canonical history | 请求组装核心 | 压缩后的主模型视图 | 原文恢复能力 |
 |---|---|---|---|---|
-| `bot` | SQLite 原始消息 + 独立 compaction 版本链 | typed `ContextItem` 按 retention、priority、atomic group 打包 | 单活动摘要 + cursor 后的原始消息 | 强：原文不删，摘要保存连续范围、哈希、目标锚点和父版本；逐条引用为可选兼容模式 |
+| `bot` | SQLite 原始消息 + 独立 compaction 版本链 | typed `ContextItem` 按 retention、priority、atomic group 打包 | 原始 user 锚点 + 单个 Assistant 活动摘要 + cursor 后的原始消息 | 强：原文不删，摘要保存连续范围、哈希、活动用户锚点和父版本；逐条引用为可选兼容模式 |
 | Codex | append-only rollout + replacement history | `base_instructions`、结构化 `ResponseItem`、tools 分离；请求前规范化 | 本地为近期用户原文 + summary；远端为原生 compaction item/过滤后的消息 | 强：rollout 保留 compaction 事件和 replacement history |
 | OpenCode | session message/part 日志 | system 环境/指令/Skill/MCP + `filterCompacted()` 投影 + tools | 最新 compaction summary + `tail_start_id` 起的原始尾部 | 中强：旧消息仍在 session 存储，活动投影视图省略它们 |
 | Pi | append-only JSONL session tree | 当前 leaf path + 最新 compaction + Provider compatibility transform | compaction entry + `firstKeptEntryId` 起的连续条目 | 强：树节点不因 compaction 删除，可分支和重建 active path |
@@ -124,10 +125,11 @@ SQLite/文件事实源
   -> ModelRequest(messages, tools)
 ```
 
-最新用户消息和活动摘要是 `PINNED`；会话中用户消息 priority 为 700，assistant/Tool 为 600。
-这能在多个上下文来源争用窗口时做细粒度预算，但选择阶段是“按组择优装箱”，不是“从最新
-消息向前取连续后缀”。若一个较新的超大 Tool 组放不下，Planner 可以跳过它而保留更早的小组，
-最终时间顺序虽然正确，语义时间线中间却可能出现未标记空洞。
+最新用户消息、活动压缩的原始 user 锚点和 Assistant 摘要是 `PINNED`；会话中用户消息
+priority 为 700，assistant/Tool 为 600。这能在多个上下文来源争用窗口时做细粒度预算，但选择
+阶段是“按组择优装箱”，不是“从最新消息向前取连续后缀”。若一个较新的超大 Tool 组放不下，
+Planner 可以跳过它而保留更早的小组，最终时间顺序虽然正确，语义时间线中间却可能出现未标记
+空洞。
 
 实现入口为 [`AgentRuntime._build_context_items()`](../src/bot/core/agent.py)、
 [`ContextPlanner.pack()`](../src/bot/core/context.py) 和
@@ -386,7 +388,7 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
 
 | 实现 | 用户入口 | 接纳与执行 | 一次调用实际做什么 | 失败与恢复 |
 |---|---|---|---|---|
-| `bot` | `/compact`；另有 `/compact rebuild`、`/compact rollback <id>` | Slash 文本不进 Transcript；活动 Run 存在时拒绝，CLI/Web 等待 `compact_session()` 返回 | 固定本次目标位置，保留默认 20K 连续 Tool-safe tail；三轮 user 只是预算内偏好，超大单轮可从 Assistant 边界切分；循环压缩多个最老安全分块，默认最多 8 个 Provider 请求、600 秒、请求间费用阈值 $0.25，不自动续写任务 | 每个分块 fail-closed；命令可能“已压缩但未追到 target”，同时返回 stop reason；可从 raw rebuild 或回滚到已验证的 `ready/superseded` 版本 |
+| `bot` | `/compact`；另有 `/compact rebuild`、`/compact rollback <id>` | Slash 文本不进 Transcript；活动 Run 存在时拒绝，CLI/Web 等待 `compact_session()` 返回 | 固定本次目标位置，按默认 20K 连续 Tool-safe tail 尽量填满；三条 user 停止条件只用于 `force=True` 的 Agent 恢复路径，不用于手动命令；超大单轮可从 Assistant 边界切分；循环压缩多个最老安全分块，默认最多 8 个 Provider 请求、600 秒、请求间费用阈值 $0.25，不自动续写任务 | 每个分块 fail-closed；命令可能“已压缩但未追到 target”，同时返回 stop reason；可从 raw rebuild 或回滚到已验证的 `ready/superseded` 版本 |
 | Codex | `/compact`，不接受 inline args | 活动 task 中禁用；启动独立、不可 steer 的 `CompactTask`，命令本身不是 user turn；执行 pre/post compact hooks | 依 Feature/Provider 选择三条路：Token Budget 模式直接开启新 context window；支持时调用远端 Responses compaction v1/v2；否则本地 LLM 生成 handoff。本地视图保留最近最多约 20K 的真实 user 消息和 summary | 中断传播；其他错误由压缩任务发出但不会替换成功前的活动 history。没有面向用户的 rebuild 或 compaction-version rollback |
 | OpenCode | `/compact`，TUI 别名 `/summarize` | 需要已选模型和非空会话；创建 `auto=false` 的 synthetic compaction user marker，再由 Session Prompt Loop 串行处理 | 选择旧 head，保留 usable input 约 25%、且限制为 2K–15K 的近期 tail；超大 turn 可从内部 assistant 边界切开。摘要保存为 `assistant(summary=true)`；手动模式不追加 auto-continue user 消息 | 摘要请求仍 overflow 时写 `ContextOverflowError` 并停止；旧 message/part 仍在存储，但没有 rebuild/rollback 命令 |
 | Pi | `/compact [custom instructions]`；RPC 同样接受 `customInstructions` | 先 `abort()` 当前 Agent 操作，再触发 manual compaction；Interactive UI 会暂存压缩期间的新输入；extension 可取消或直接提供压缩结果 | 基于 active session-tree path 保留默认约 20K tail；可把用户指令加入摘要 prompt。若切点落在超大 turn 内，可分别摘要旧 history 与该 turn prefix，再合成一个 compaction entry；完成后不自动续写 | 过小会话报 `Nothing to compact`，连续执行报 `Already compacted`；取消/Provider 失败不追加 entry。原 JSONL tree 不删，但没有摘要版本选择命令 |
@@ -440,7 +442,7 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
 
 | 实现 | 选择单位与默认预算 | 原始 user 的硬保证 | 超大单轮与主要代价 |
 |---|---|---|---|
-| `bot` | 从尾部按完整 Tool 原子组回扫；20K token 是有界目标，三轮只作为强制压缩时的预算内偏好 | 最新活动 user 被压缩时按原始 `role=user` 独立回放；raw tail 本身不保证 N 个 user | 单个 Tool 组仍可为原子性越界；完整单轮过大时 raw tail 可从 Assistant 开始，早期执行进入摘要，因此游标仍能推进 |
+| `bot` | 从尾部按完整原子组回扫；20K token 是有界目标；强制路径收集到 3 条 user 即停，否则在下一组会超预算时停止 | 自动压缩回放活动 Run 中所有已覆盖 user（含 steering）；手动以最新 user 为候选，仍在 raw tail 时不重复；rebuild 继承已有锚点；raw tail 本身不保证 N 个 user | 仅最新单个原子组可为进展/原子性越界；完整单轮过大时 raw tail 可从 Assistant 开始，早期执行进入摘要，因此游标仍能推进 |
 | Codex 本地 | 从所有真实 user message 中倒序选择，合计硬限 20K；然后追加 summary | 没有轮数下限，也不保留完整 turn；只保证预算内最近的 user-only anchor | 最老一条入选 user 可被截断；Assistant、Tool 和 reasoning 全部从 replacement history 消失，压缩率高但原始因果链只剩摘要 |
 | Codex 远端 V2 | 先筛选可保留的真实 user/Agent message，按最新优先限制为 64K，再追加原生 compaction item | 没有轮数下限；developer/system 由当前 canonical context 重新注入，不靠旧消息保留 | 超预算旧文本被截断或丢弃；opaque item 承载语义，无法用正文检查某个 user turn 是否逐字幸存 |
 | OpenCode | 把每个真实 user 到下一个真实 user 视为 turn；近期预算为 usable input 的 25%，限制在 2K–15K，可再用 `tail_turns` 限制候选轮数 | 优先保留若干个完整最近 turn，但没有最小轮数保证 | 下一个较老 turn 放不下时可从 turn 内的 Assistant 消息开始保留；若最新单轮本身超大，原始 user 可以只进入 summary，raw tail 从 Assistant 开始 |
@@ -466,9 +468,9 @@ Hermes `context_compressor.py::_find_tail_cut_by_tokens()`；DeepSeek Harness
    不应无条件压倒硬 token 上限。
 3. 应分别观测 `raw_user_turns_retained`、`complete_turns_retained`、`retained_tail_tokens` 和
    `compaction_progress_messages`。只断言“摘要包含用户目标”无法证明原始轮次保留策略有效。
-4. `bot` 已把三轮下限改为预算内偏好，并实现“最新活动 user 原始锚点 + Assistant-safe raw
-   suffix”。当前实现仍使用一份累计摘要承载早期执行，还没有把 history checkpoint 与
-   active-turn-prefix 拆成两个独立持久化段；这是后续提高时间顺序精度的剩余工作。
+4. `bot` 已把三轮下限改为预算内停止条件，并实现“活动 Run 的原始 user/steering 锚点 +
+   Assistant-safe raw suffix”。当前实现仍使用一份累计摘要承载早期执行，还没有把 history
+   checkpoint 与 active-turn-prefix 拆成两个独立持久化段；这是后续提高时间顺序精度的剩余工作。
 
 ### 7.4 当前 `bot` 手动压缩的 trade-off
 
@@ -508,17 +510,18 @@ Codex 不是单一压缩路径：Feature 打开时可直接开启新的 Token Bu
 | 维度 | `bot` | Codex 本地 compaction | 对压缩率的影响 |
 |---|---|---|---|
 | 压缩后会话尾部 | 原始 user 锚点 + Assistant summary + cursor 后的连续近期消息；raw tail 可从 Assistant 开始，Tool Call/Result 整组保留 | 从整个旧 history 只重新收集真实 user message，倒序取最多硬上限 20K，再追加一份 summary；旧 assistant、Tool 和 reasoning 不进入 replacement history | `bot` 仍保留近期执行原文，Codex 直接去掉全部旧执行链，因此 Codex 降幅通常更大 |
-| 20K 的性质 | `recent_conversation_tokens=20K` 是连续 tail 的有界目标；只允许最新单个不可拆 Tool 原子组越界 | `COMPACT_USER_MESSAGE_MAX_TOKENS=20K` 是 user 文本硬预算，最后一条过长消息还会截断 | `bot` 为 Tool 协议原子性允许有限越界，Codex 为文本硬上限牺牲原文完整度 |
+| 20K 的性质 | `recent_conversation_tokens=20K` 是连续 tail 的有界目标；只允许最新单个不可拆原子组越界 | `COMPACT_USER_MESSAGE_MAX_TOKENS=20K` 是 user 文本硬预算，最后一条过长消息还会截断 | `bot` 为至少一个最新进展单元及 Tool 协议原子性允许有限越界，Codex 为文本硬上限牺牲原文完整度 |
 | 摘要输入过大 | 只压连续、已验证、Tool-safe 的最老分块；分块放不下会降级消息视图，仍不安全则不推进 cursor | 本地摘要请求 overflow 时不断移除最旧的规范化 history item，直到请求能发出 | Codex 更容易一次“完成”，但被移除的最旧内容没有进入本次摘要；`bot` 会把它表现为 backlog/部分完成 |
 | 摘要发布门槛 | 八段结构、长度、来源范围/引用模式、parent 和 SHA-256 都通过后才事务发布 | 取压缩模型最后一条 assistant 文本，加 summary prefix 后直接构造 replacement history | `bot` 拒绝不合格候选；Codex 接受更自由、更可能遗漏细节的 handoff |
-| 原始目标 | 把最早 user anchor 从 SQLite 原文逐字放进 compaction message | 把最近 user messages 作为独立原文重放，受总计 20K 硬限 | 两者都保锚点；`bot` 偏向最初目标，Codex 偏向最近用户输入 |
+| 原始目标 | 自动压缩回放活动 Run 中已覆盖的所有 user/steering；手动把最新 user 作为候选，仍在 raw tail 时不重复；超大正文可外置成预览 + `context_ref` | 把最近 user messages 作为独立原文重放，受总计 20K 硬限 | 两者都保锚点；`bot` 按当前 Run 身份和版本继承选锚点，Codex 按全历史新旧与硬预算选锚点 |
 | 一次命令的范围 | backlog 可拆为多次增量摘要；最多 8 个请求并受时间/费用停止 | 通常一个 standalone compact task 替换当前活动 history | Codex 交互上更像一次清空；`bot` 更明确暴露尚未覆盖的范围 |
 | 可恢复合同 | 原 Transcript、每版覆盖范围、hash、parent 和状态均可重建/回滚 | append-only rollout 仍保留事件，但命令面没有按摘要版本重建/回滚 | Codex 的激进 replacement 不等于原始日志被物理删除，但恢复不是 `/compact` 的一等用户操作 |
 
 因此，“Codex 能压得更彻底”本质上是四个选择叠加，而不是同一保真约束下免费得到更高压缩率：
 
 1. 它保留的是 **user-only anchor**，不是最近几个完整 turn；
-2. 20K 是硬上限，而 `bot` 的 20K 会让位给 user-turn 下限和 Tool 原子性；
+2. Codex 的 20K 是 user 文本硬上限；`bot` 的 tail 只让最新单个原子组例外，活动 user 锚点则
+   作为独立 pinned 投影，并对超大正文使用有界预览和可回读引用；
 3. 本地摘要输入溢出时 Codex 可以从最旧 item 开始丢素材，`bot` 不会把整个未进入 payload 的
    消息组标成已覆盖；两者仍都可能截断超长单条消息的摘要视图；
 4. 原生 Responses compaction 还可以把历史变成 Provider 理解的 opaque checkpoint，`bot` 当前基于
@@ -532,7 +535,7 @@ Codex 不是单一压缩路径：Feature 打开时可直接开启新的 Token Bu
 
 | 实现 | 摘要输入 | 摘要输出约束 | 发布与溯源 |
 |---|---|---|---|
-| `bot` | `previous_summary + new_messages`，周期性可从 raw rebuild；消息含 role/content/Tool 信息，不含 reasoning | Goal、Constraints、Progress、Key Decisions、Relevant Files、Failures、Next Steps、Critical Context 八段；默认目标 3K、正文硬限 4K，支持格式修复和候选凝练 | `building -> ready -> superseded/failed`；记录连续覆盖范围、SHA-256、目标锚点和父版本，默认 `source_refs` 可为空；SHA 覆盖含 reasoning 的完整持久消息，但校验通过才推进 cursor |
+| `bot` | `previous_summary + new_messages`，周期性可从 raw rebuild；消息含 role/content/Tool 信息，不含 reasoning | Goal、Constraints、Progress、Key Decisions、Relevant Files、Failures、Next Steps、Critical Context 八段；默认目标 3K、正文硬限 4K，支持格式修复和候选凝练 | `building -> ready -> superseded/failed`；记录连续覆盖范围、SHA-256、活动 user 锚点和父版本，默认 `source_refs` 可为空；SHA 覆盖含 reasoning 的完整持久消息，但校验通过才推进 cursor |
 | Codex | 本地 compaction 在现有结构化 prompt 上追加压缩指令；远端调用原生 compact endpoint | 本地提示重在简洁 handoff，没有逐项来源/固定标题 parser；远端结果可为 opaque compaction checkpoint | append-only rollout 记录 compaction 与 replacement history；本地还重放最多约 20K user 原文作为目标锚点 |
 | OpenCode | 旧 summary + 被选 head；reasoning 显式标记，Tool output 每项约 2K 字符 | Objective、Important Details、Work State、Next Move、Relevant Files 等固定 Markdown；没有当前 `bot` 的逐段/来源严格门禁 | compaction user marker + summary assistant message + `tail_start_id`；旧 session parts 仍可读取 |
 | Pi | 旧 summary + 待摘要条目；thinking 显式标记，Tool result 每项约 2K 字符；超大 turn prefix 可第二次摘要 | Goal、Constraints & Preferences、Progress、Key Decisions、Next Steps、Critical Context；输出上限约为 `min(0.8 × reserve, model max)` | append compaction entry，保存 `firstKeptEntryId`、tokens、文件读写 sidecar；session tree 保留原条目 |

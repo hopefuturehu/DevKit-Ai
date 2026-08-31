@@ -429,9 +429,10 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 
 按稳定程度、因果顺序和更新频率确定性装配。模型消息的实际顺序是：Core Policy、根到当前
 目录的 `AGENTS.md`、Environment、Skill Catalog、预算卸载后的 Tool Catalog、Active
-Skills、显式记忆、`eager` 兼容模式的自动记忆索引、单活动压缩摘要、兼容 Snapshot、近期
-会话/Tool Result、Runtime Note。默认自动记忆不进入这条静态序列，而由 Router 通过 Tool
-按需检索。Tool schema 不混入消息，而是作为独立请求字段按名称排序。
+Skills、显式记忆、`eager` 兼容模式的自动记忆索引、活动压缩的原始 user 锚点与单个
+Assistant 摘要、兼容 Snapshot、近期会话/Tool Result、Runtime Note。默认自动记忆不进入这条
+静态序列，而由 Router 通过 Tool 按需检索。Tool schema 不混入消息，而是作为独立请求字段按
+名称排序。
 
 这个顺序形成“稳定前缀 → 因果历史 → 易变尾部”：显式记忆通常稳定，放在会话前参与缓存；
 Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 Tool Result 出现。layer 排序只决定模型
@@ -460,8 +461,8 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
    结构化记录连续覆盖范围与来源 SHA-256；默认不要求摘要正文逐条引用，`item` 兼容模式才
    校验 `[m:N]`。
 5. **恢复级**：新摘要先以 `building` 写入，通过来源、结构和预算校验后，才与旧活动版本在
-   同一事务中切换。恢复时重新发现 Core/Project/Environment，只加载一个 `ready` 摘要和
-   游标后的原始消息；摘要损坏时沿父版本自动降级。
+   同一事务中切换。恢复时重新发现 Core/Project/Environment，加载活动版本保存的原始 user
+   锚点、一个 `ready` Assistant 摘要和游标后的原始消息；摘要损坏时沿父版本自动降级。
 
 `/compact` 发布新的恢复点，`/compact rebuild` 从原文重建，`/compact rollback <id>` 切换
 到已验证的历史版本。原始消息、Tool Run 和事件始终是事实来源，不因压缩而删除。旧
@@ -748,7 +749,7 @@ protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
 # 留空时冻结启动时的 model.name，后续 /model 不影响压缩
 # compaction_model = "low-cost-summary-model"
-# 连续 raw tail 按 token 有界；三轮仅是强制压缩时的预算内偏好
+# 连续 raw tail 按 token 有界；强制恢复收集到三条 user 即停，也不加入会使 tail 超预算的更旧组
 recent_conversation_tokens = 20000
 compaction_min_recent_user_turns = 3
 memory_tokens = 8000

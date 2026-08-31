@@ -6,9 +6,9 @@
 
 ## 目标
 
-运行时上下文压缩采用 Claude Code 风格的单摘要模型：任意时刻只向主模型注入一个活动
-摘要，摘要之后拼接未覆盖的原始消息尾部。与一次性压缩不同，本实现保留完整 Transcript，
-并为每个摘要记录来源范围、来源哈希、父版本和发布状态。
+运行时上下文压缩采用单摘要模型：任意时刻只向主模型注入一组原始 user 锚点和一个活动
+Assistant 摘要，摘要之后拼接未覆盖的原始消息尾部。与一次性压缩不同，本实现保留完整
+Transcript，并为每个摘要记录来源范围、来源哈希、锚点、父版本和发布状态。
 
 运行时视图为：
 
@@ -50,8 +50,10 @@ Core / Project / Skills / USER.md
 - `source_sha256`：覆盖范围内完整 SQLite 消息的来源证明，包含 `reasoning_content`；它校验
   消息内的 `context_ref`，不会展开后再重复哈希 blob 正文，blob 自身另以内容 SHA-256 寻址；
 - `source_refs_json`：只保存摘要正文实际出现的 `[m:N]` 引用，默认 `range` 模式通常为空；
-- `anchor_positions_json`：被压缩范围内需要重新回放的真实用户消息位置；自动压缩优先使用
-  当前活动任务的用户锚点，手动压缩和 rebuild 在没有活动 Run 提示时选择范围内最新用户消息；
+- `anchor_positions_json`：被压缩范围内需要重新回放的真实用户消息位置；自动压缩把当前
+  活动 Run 的 user 输入（包括 steering）作为候选并只记录已覆盖的交集；空闲手动压缩把最新
+  user 作为候选（仍在 raw tail 时不重复记录），rebuild 原样继承活动版本的锚点；未传候选的
+  底层调用回退到范围内最新 user；
 - `status`：`building → ready → superseded`，失败进入 `failed`。
 
 每个会话最多有一个 `ready` 和一个 `building` 记录，由 SQLite 部分唯一索引保证。发布时还
@@ -66,12 +68,13 @@ Core / Project / Skills / USER.md
 生成超过模型窗口的追赶请求。
 
 `recent_conversation_tokens=20000` 现在是连续 tail 的有界目标：选择器从尾部按完整原子组回扫，
-下一个组放不下就停止。只有“最新的单个 Tool 原子组本身已超过 20K”时允许越界，避免拆开
-Assistant Tool Call 和对应 Tool Result。`compaction_min_recent_user_turns=3` 只在强制压缩且
-预算仍容纳时作为近期用户轮次偏好，不再为了凑够三轮无限突破 20K。若一个单用户长 Tool 轮次
-超过预算，允许 raw tail 从完整 Assistant 消息开始；被覆盖的真实用户消息按原始 `role=user`
-独立回放，早期执行过程进入派生摘要。普通压力每个 Agent step 只压缩一个分块；`/compact` 才会
-在空闲会话中循环追赶多个分块。
+下一个组放不下就停止。为保证至少保留一个最新进展单元，只有“最新单个原子组本身已超过
+20K”时允许越界；该组既可能是普通 user/Assistant 消息，也可能是不可拆的 Assistant Tool Call
+及其 Tool Result。`compaction_min_recent_user_turns=3` 只用于强制压缩：从尾部回扫，收集到
+3 条 user 即停；否则在下一个更旧组会使 tail 超过 20K 时停止，不再为了凑够三轮突破预算。
+若一个活动 Tool 轮次超过预算，允许 raw tail 从完整 Assistant 消息开始；被覆盖的真实用户
+消息按原始 `role=user` 独立回放，早期执行过程进入派生摘要。普通压力每个 Agent step 只压缩
+一个分块；`/compact` 才会在空闲会话中循环追赶多个分块。
 
 投影时不再把“用户锚点 + 摘要”拼成 synthetic user。压缩范围内的锚点从不可变 Transcript
 读取并保持原始 `role=user`；派生摘要使用 `role=assistant, name=context_compaction`，排在锚点
@@ -106,8 +109,11 @@ Agent Run 另外受 `agent.max_cost_usd` 约束；费用门禁要求配置模型
 退避。
 
 恢复会话时只加载 `ready` 版本。若哈希或摘要结构校验失败，该版本转为 `failed`，系统沿
-`parent_id` 自动恢复最近的有效父版本。初始用户目标位置作为锚点保存，并以原文逐字放入
-活动压缩消息，避免目标只依赖派生摘要。
+`parent_id` 自动恢复最近的有效父版本。自动压缩把活动 Run 的用户目标与 steering 作为锚点
+候选；手动压缩使用最新 user 候选，二者都只记录实际进入覆盖范围的消息，仍在 raw tail 的
+user 不会重复回放；rebuild 保持当前锚点集合。锚点从 SQLite 原文恢复为独立 `role=user`；若
+正文超过通用消息阈值，请求视图会改用有界 head/tail 和可回读 `context_ref`，而 SQLite 事实
+源不变。
 
 模型还可按需调用：
 
@@ -125,9 +131,10 @@ Agent Run 另外受 `agent.max_cost_usd` 约束；费用门禁要求配置模型
 
 压缩失败只保证“不发布、不推进 cursor”，不保证当前 Run 一定停止。随后 Context Planner 会
 先卸载非 pinned 的 Skill、Memory、历史消息组等可选项；这些组按优先级和新旧程度装箱，可能
-形成非连续会话视图。只有 Core/Project/Environment、活动摘要、最新用户消息等 pinned 内容与
-已选 Tool schema 仍超过硬窗口时，Planner 才报告 `context_limit` 并停止主请求。此时可从原文
-重建更紧凑摘要、降低摘要预算、卸载可重载 Skill/Tool schema，或换用更大上下文模型。
+形成非连续会话视图。只有 Core/Project/Environment、活动压缩的 user 锚点与 Assistant 摘要、
+最新用户消息等 pinned 内容和已选 Tool schema 仍超过硬窗口时，Planner 才报告
+`context_limit` 并停止主请求。此时可从原文重建更紧凑摘要、降低摘要预算、卸载可重载
+Skill/Tool schema，或换用更大上下文模型。
 
 ## 配置
 
@@ -152,7 +159,7 @@ compaction_request_timeout_seconds = 90
 compaction_command_max_requests = 8
 compaction_command_max_seconds = 600
 compaction_command_max_cost_usd = 0.25
-# 强制压缩时的预算内偏好，不会突破 recent_conversation_tokens
+# 强制压缩收集到三条 user 即停，也不加入会使 tail 超过 recent_conversation_tokens 的更旧组
 compaction_min_recent_user_turns = 3
 compaction_source_refs = "range"
 compaction_thinking = "auto"
@@ -171,7 +178,8 @@ compaction_rebuild_every = 5
 请求超时、范围缩小、失败退避、回滚、模型隔离、范围来源和损坏自动降级。
 
 `tests/integration/test_context_compaction_benchmark.py` 以 10 阶段长任务验证运行时只注入一个
-摘要、保留近期原文、Tool 原子性、原始消息摘要不变和 snapshot-free。
+摘要、保留近期原文、Tool 原子性、活动 Run 多 user/steering 锚点、Assistant-safe 切分、原始
+消息摘要不变和 snapshot-free。
 
 `scripts/run_compaction_effectiveness.py` 使用确定性或显式开启的真实 Provider 回放 success、
 length、format、429、Context overflow 和 authentication 场景，产出请求级 JSONL 与质量门禁。

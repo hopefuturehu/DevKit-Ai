@@ -92,7 +92,7 @@ protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
 # 可选；留空时冻结启动时的主模型，后续 /model 不影响压缩
 # compaction_model = "<summary-model-id>"
-# 连续 raw tail 按 token 有界；三轮仅是强制压缩时的预算内偏好
+# 连续 raw tail 按 token 有界；强制恢复收集到三条 user 即停，也不加入会使 tail 超预算的更旧组
 recent_conversation_tokens = 20000
 compaction_min_recent_user_turns = 3
 memory_tokens = 8000

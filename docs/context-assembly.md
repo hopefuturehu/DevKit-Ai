@@ -56,7 +56,7 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 | 5 | `ACTIVE_SKILL` | `system` | 已激活 Skill 的 header 和正文 | 激活后通常稳定；正文可卸载重载 |
 | 6 | `MEMORY` | `user` | 用户显式确认的 `USER.md`/兼容 SQLite 记忆 | 放在会话前，参与稳定前缀复用 |
 | 7 | `AUTOMATIC_MEMORY` | `user` | 仅 `memory.context_mode="eager"` 兼容模式下的自动索引 | 默认不出现；兼容模式也放在 Transcript 前并带 reference-only 边界 |
-| 8 | `COMPACTION` | 原始 `user` + 派生 `assistant` | 活动 Run 的真实用户锚点，随后是唯一活动的 `context_compaction` 摘要 | 均为 `PINNED`；锚点按原位置排序，摘要位于它们和 cursor 后 raw tail 之间 |
+| 8 | `COMPACTION` | 原始 `user` + 派生 `assistant` | 自动压缩保存活动 Run 中已被覆盖的真实用户输入（包括 steering），随后是唯一活动的 `context_compaction` 摘要 | 均为 `PINNED`；锚点按原位置排序，摘要位于它们和 cursor 后 raw tail 之间 |
 | 8 | `SNAPSHOT` | `user` | 旧 checkpoint 兼容层 | 默认主路径不注入 |
 | 9 | `RECENT_CONVERSATION` / `TOOL_RESULT` | 原始角色 | 压缩游标之后的 SQLite 消息 | 按 `position` 恢复时间顺序 |
 | 11 | `RUNTIME_NOTE` | `system` | Memory Router、后台进程、停滞恢复、终止及临时约束 | 最易变化，放在动态尾部 |
@@ -91,6 +91,9 @@ assistant(tool_call=search_memory) -> search_memory(tool, disposable)
   并把自动索引放在会话前，避免形成“最新真人 user 后又出现 synthetic user”的归因歧义。
 - 压缩摘要不能移到近期会话之后。当前顺序是“被覆盖的原始 user 锚点 → Assistant 派生摘要 →
   游标后的原始消息”；摘要若落到 raw tail 后面会反转继续执行的因果顺序。
+- 自动压力压缩把当前活动 Run 的所有真实 user 输入（包括运行中的 steering）作为候选，并保存
+  本次实际覆盖的交集；空闲 `/compact` 把最新 user 作为候选，若它仍在 raw tail 就无需重复保存；
+  `/compact rebuild` 则继承当前活动压缩版本已有的锚点，不重新选择另一条历史指令。
 - Router note 是动态尾部；检索正文只在下一次请求可见，随后替换成不含正文的收据。
 - 历史中由旧版本写入的 `system` 消息会降级成名为 `historical_context` 的 `user` 消息，
   不会重新获得当前系统策略权限。
@@ -122,15 +125,16 @@ target = floor(hard * context.auto_compact_threshold)
 | `active_skill_tokens` | 16K | 活动 Skill 正文累计预算 |
 | `tool_schema_tokens` | 16K | 业务 Tool schema 的选择预算；内部恢复 Tool 始终先保留 |
 | `tool_result_inline_tokens` | 4K | 外置内容在请求中的摘录预算 |
-| `recent_conversation_tokens` | 20K | 连续近期原文的有界目标；仅单个不可拆 Tool 原子组可突破 |
-| `compaction_min_recent_user_turns` | 3 | 强制压缩时的预算内偏好，不再覆盖 tail token 上限 |
+| `recent_conversation_tokens` | 20K | 连续近期原文的有界目标；为保证至少保留一个进展单元，只有最新单个不可拆原子组可突破 |
+| `compaction_min_recent_user_turns` | 3 | 强制压缩的预算内停止条件：收集到 3 条 user 即停；否则在下一个更旧组会使 tail 超过 20K 时停止 |
 | `compaction_summary_target_tokens` | 3K | 摘要软目标；未显式配置时运行时取 `min(3000, compaction_summary_tokens)` |
 | `compaction_summary_tokens` | 4K | 摘要可见正文硬限制 |
 | `compaction_max_input_tokens` | 60K | 压缩请求输入硬上限；默认按 80% 即 48K 规划 |
 
 排序靠 layer；是否能进入请求则靠 retention、priority 和预算：
 
-1. `PINNED` 项无条件先选，包括核心策略、项目指令、环境、最新用户消息和活动压缩；
+1. `PINNED` 项无条件先选，包括核心策略、项目指令、环境、最新用户消息，以及活动压缩中的
+   原始 user 锚点和 Assistant 摘要；
 2. 其余项按 atomic group 聚合，优先级高者先选；同优先级保留更新的会话组；
 3. Tool schema 的 token 先从 target message budget 中扣除；
 4. Provider 能精确计数且仍超过 hard limit 时，从低优先级、较旧的非 pinned 组开始二次卸载；
@@ -216,7 +220,9 @@ Provider 序列化成顶层 `tools` 和 `tool_choice=auto`。所有可见 Tool �
 压缩成功后，会话历史层只包含：
 
 ```text
-一个活动摘要 + covered_end_position 之后的原始消息
+被覆盖范围中选定的原始 user 锚点
+  + 一个 Assistant 活动摘要
+  + covered_end_position 之后的原始消息
 ```
 
 新摘要替换旧摘要会开启新的 cache epoch；这是保持单摘要、有界上下文和正确时间线的必要
@@ -235,7 +241,7 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 | 压缩失败或没有安全前缀 | 不删除原文；普通同增量失败默认退避 300 秒 | Planner 仍可丢弃非 pinned 组并发送，因此压缩失败不等于 Run 立即失败 |
 | Planner 估算超过 target | 丢弃放不下的非 pinned 原子组；Provider 有精确计数且超过 hard 时再从低优先级、较旧组开始卸载 | 能降到 hard 内则继续请求，可能形成非连续历史视图 |
 | pinned messages + 已选 Tool schema 仍超过 hard | 发出 `context.limit_reached`，不发送该次主模型请求 | Run 为 `limit_reached/context_limit`，并禁用模型收尾，使用确定性收尾文本 |
-| Provider 首次返回上下文长度错误 | 整个 Run 只允许一次恢复：在 20K tail 预算内优先保留最多 3 个近期用户轮次；不足时允许 Assistant-safe 切分，压缩未推进则激进外置正文，然后重建并重试 | 成功则继续 Run |
+| Provider 首次返回上下文长度错误 | 整个 Run 只允许一次恢复：从尾部回扫，收集到 3 条 user 即停；否则在下一个更旧组会使 tail 超过 20K 时停止（最新单个原子组例外）；压缩未推进则激进外置正文，然后重建并重试 | 成功则继续 Run |
 | Provider 再次返回上下文长度错误 | 不再循环压缩或重试 | Run 为 `failed/provider_error`；终止协调器会尝试无 Tool 模型收尾，失败则使用确定性收尾 |
 
 自动压力路径每个 step 最多推进一个压缩分块；backlog 仍很大时，下一 step 再继续推进。显式
