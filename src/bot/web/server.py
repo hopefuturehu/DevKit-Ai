@@ -128,6 +128,7 @@ def create_app(
             "model": rt.config.model.name,
             "base_url": rt.config.model.base_url,
             "permission_mode": rt.config.permissions.mode,
+            "auto_approve": rt.config.permissions.auto_approve,
             "active_skills": list(rt.skills.active),
             "subagents_enabled": rt.config.subagents.enabled,
         }

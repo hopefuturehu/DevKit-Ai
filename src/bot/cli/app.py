@@ -314,6 +314,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     "model": runtime.config.model.name,
                     "base_url": runtime.config.model.base_url,
                     "permission_mode": runtime.config.permissions.mode,
+                    "auto_approve": runtime.config.permissions.auto_approve,
                     "active_skills": list(runtime.skills.active),
                     "context_manifest": runtime.context.manifest(),
                     "context": runtime.runner.context_status(session_id),
@@ -361,6 +362,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             console.print(
                 {
                     "mode": runtime.config.permissions.mode,
+                    "auto_approve": runtime.config.permissions.auto_approve,
                     "workspace_only": runtime.config.permissions.workspace_only,
                     "network": runtime.config.permissions.network,
                 }
@@ -802,6 +804,13 @@ max_concurrent = 3
 max_queued = 32
 max_tasks_per_session = 16
 allow_worktree_writes = true
+
+[permissions]
+mode = "safe"
+# 危险选项：自动批准所有 ASK；敏感路径、越界路径和非法策略绕过仍会拒绝
+auto_approve = false
+workspace_only = true
+network = "ask"
 
 [agent.progress]
 enabled = true

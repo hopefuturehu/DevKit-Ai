@@ -55,6 +55,7 @@ def _environment_overlay() -> dict[str, Any]:
         "BOT_STATE_PATH": ("storage", "state_path"),
         "BOT_MEMORY_PATH": ("memory", "path"),
         "BOT_PERMISSION_MODE": ("permissions", "mode"),
+        "BOT_AUTO_APPROVE": ("permissions", "auto_approve"),
     }
     result: dict[str, Any] = {}
     for variable, (section, key) in mapping.items():

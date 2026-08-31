@@ -129,6 +129,10 @@ class SubagentsConfig(StrictModel):
 
 class PermissionsConfig(StrictModel):
     mode: Literal["safe", "read-only", "full-access"] = "safe"
+    # Explicitly opt in to approving every policy ASK decision. Hard DENY
+    # decisions (for example sensitive paths and invalid policy bypasses) stay
+    # enforced.
+    auto_approve: bool = False
     workspace_only: bool = True
     network: Literal["allow", "ask", "deny"] = "ask"
 

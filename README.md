@@ -84,6 +84,13 @@ allow_worktree_writes = true
 # max_cost_usd_per_task = 0.5
 # max_total_cost_usd_per_session = 2.0
 
+[permissions]
+mode = "safe"
+# 危险选项：自动批准所有 ASK；敏感路径、越界路径和非法策略绕过仍会拒绝
+# auto_approve = false
+workspace_only = true
+network = "ask"
+
 [context]
 max_input_tokens = 120000
 auto_compact_threshold = 0.8
@@ -171,6 +178,18 @@ BOT_MODEL_API_KEY=your-api-key
 bot doctor
 bot
 ```
+
+如需在受控环境中完全跳过 Human Approval，可在配置中显式设置：
+
+```toml
+[permissions]
+mode = "full-access"
+auto_approve = true
+network = "allow"
+```
+
+也可以在启动时使用 `BOT_AUTO_APPROVE=true bot`。该选项会自动批准所有原本为 `ASK` 的
+Tool 请求，但仍保留敏感路径、工作区边界、非法参数和策略绕过等 `DENY` 规则。
 
 `auto:<VARIABLE>` 优先读取已有环境变量，未设置时回退到工作区根目录的 `.env`，且不会修改
 进程环境。需要固定来源时，可分别使用严格的 `env:<VARIABLE>` 或 `dotenv:<VARIABLE>`。

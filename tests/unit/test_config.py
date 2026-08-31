@@ -37,6 +37,14 @@ path = "domain-skills"
     assert config.skill_path(tmp_path) == (tmp_path / "domain-skills").resolve()
 
 
+def test_auto_approve_can_be_enabled_from_environment(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("BOT_AUTO_APPROVE", "true")
+
+    config = load_config(tmp_path)
+
+    assert config.permissions.auto_approve is True
+
+
 def test_config_rejects_unknown_fields(tmp_path: Path) -> None:
     config_path = tmp_path / "config.toml"
     config_path.write_text("[model]\nunknown = true\n", encoding="utf-8")
@@ -152,6 +160,7 @@ def test_execution_has_no_fixed_global_limit_by_default() -> None:
     config = AppConfig()
 
     assert config.model.api_key_ref == "auto:BOT_MODEL_API_KEY"
+    assert config.permissions.auto_approve is False
     assert config.agent.max_steps is None
     assert config.agent.max_wall_time_seconds is None
     assert config.agent.max_total_tool_output_bytes is None

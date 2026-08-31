@@ -16,7 +16,7 @@ from bot.execution import (
     ProcessStatus,
 )
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
-from bot.tools import ToolContext, ToolResultStatus
+from bot.tools import ToolAnnotations, ToolContext, ToolResultStatus
 from bot.tools.builtins import (
     ApplyPatchTool,
     ListProcessesTool,
@@ -569,6 +569,41 @@ def test_policy_requires_approval_for_unknown_command_and_denies_escape(tmp_path
         annotations=ReadFileTool.annotations,
     )
     assert policy.evaluate(sensitive).kind == PolicyDecisionKind.DENY
+
+
+def test_policy_auto_approves_all_ask_decisions_but_keeps_deny(tmp_path: Path) -> None:
+    policy = DefaultPolicyEngine(PermissionsConfig(auto_approve=True), tmp_path)
+    unknown_command = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["python3", "script.py"]},
+        annotations=RunCommandTool.annotations,
+    )
+    redirection = ToolAction(
+        tool_name="run_shell",
+        arguments={"script": "rg TODO > result.txt"},
+        annotations=RunShellTool.annotations,
+    )
+    network_tool = ToolAction(
+        tool_name="fetch_url",
+        arguments={"url": "https://example.com"},
+        annotations=ToolAnnotations(read_only=True, network_access=True),
+    )
+    escape = ToolAction(
+        tool_name="read_file",
+        arguments={"path": "../secret"},
+        annotations=ReadFileTool.annotations,
+    )
+    bypass = ToolAction(
+        tool_name="run_command",
+        arguments={"argv": ["/bin/sh", "-c", "rm -rf data"]},
+        annotations=RunCommandTool.annotations,
+    )
+
+    assert policy.evaluate(unknown_command).kind == PolicyDecisionKind.ALLOW
+    assert policy.evaluate(redirection).kind == PolicyDecisionKind.ALLOW
+    assert policy.evaluate(network_tool).kind == PolicyDecisionKind.ALLOW
+    assert policy.evaluate(escape).kind == PolicyDecisionKind.DENY
+    assert policy.evaluate(bypass).kind == PolicyDecisionKind.DENY
 
 
 def test_policy_separately_evaluates_shell_segments(tmp_path: Path) -> None:

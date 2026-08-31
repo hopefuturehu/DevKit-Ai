@@ -150,26 +150,37 @@ class DefaultPolicyEngine:
                     kind=PolicyDecisionKind.DENY,
                     reason="当前策略禁止网络访问",
                 )
-            if self.config.network == "ask":
+            if self.config.network == "ask" and not self.config.auto_approve:
                 return PolicyDecision(
                     kind=PolicyDecisionKind.ASK,
                     reason="该 Tool 将访问网络",
                 )
-        if annotations.destructive:
+        if annotations.destructive and not self.config.auto_approve:
             return PolicyDecision(
                 kind=PolicyDecisionKind.ASK,
                 reason="该 Tool 被标记为破坏性操作",
             )
         if action.tool_name == "run_command":
-            return self._evaluate_command(action.arguments)
+            return self._apply_auto_approval(self._evaluate_command(action.arguments))
         if action.tool_name == "run_shell":
-            return self._evaluate_shell(action.arguments)
+            return self._apply_auto_approval(self._evaluate_shell(action.arguments))
         if action.tool_name in {"ksys", "tuner"} and action.arguments.get("workload"):
-            return PolicyDecision(
+            decision = PolicyDecision(
                 kind=PolicyDecisionKind.ASK,
                 reason=f"{action.tool_name} 将启动用户指定的 workload",
             )
+            return self._apply_auto_approval(decision)
         return PolicyDecision(kind=PolicyDecisionKind.ALLOW, reason="符合当前安全策略")
+
+    def _apply_auto_approval(self, decision: PolicyDecision) -> PolicyDecision:
+        if self.config.auto_approve and decision.kind == PolicyDecisionKind.ASK:
+            return decision.model_copy(
+                update={
+                    "kind": PolicyDecisionKind.ALLOW,
+                    "reason": f"自动批准：{decision.reason}",
+                }
+            )
+        return decision
 
     def approval_pattern(self, action: ToolAction) -> ApprovalPattern:
         prefix = self._reusable_command_prefix(action)
