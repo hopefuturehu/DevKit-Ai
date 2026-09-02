@@ -2,7 +2,7 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-08-31
+> 核对日期：2026-09-02
 
 本文描述主 Agent 每次调用模型时的实际请求视图。SQLite Transcript、压缩记录、Markdown
 记忆和 Skill 文件是事实源；组装过程只生成本次 `ModelRequest`，不会为了排序或修复协议而改写
@@ -49,31 +49,84 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 | 顺序 | Layer | 典型角色 | 来源和用途 | 稳定性策略 |
 |---:|---|---|---|---|
 | 0 | `CORE_POLICY` | `system` | 内置安全、工具和完成规则 | `PINNED`，最稳定 |
-| 1 | `PROJECT_INSTRUCTION` | `system` | 从仓库根到当前目录的 `AGENTS.md` | 父目录先、具体目录后；`PINNED` |
-| 2 | `ENVIRONMENT` | `system` | OS、架构、workspace、可执行文件探测 | Run 内稳定；`PINNED` |
-| 3 | `SKILL_CATALOG` | `system` | 可用 Skill 的精简目录 | 可从磁盘重建 |
-| 4 | `TOOL_CATALOG` | `system` | Tool schema 超预算时的未加载工具目录 | 仅超预算时出现；稳定后进入前缀 |
-| 5 | `ACTIVE_SKILL` | `system` | 已激活 Skill 的 header 和正文 | 激活后通常稳定；正文可卸载重载 |
-| 6 | `MEMORY` | `user` | 用户显式确认的 `USER.md`/兼容 SQLite 记忆 | 放在会话前，参与稳定前缀复用 |
-| 7 | `AUTOMATIC_MEMORY` | `user` | 仅 `memory.context_mode="eager"` 兼容模式下的自动索引 | 默认不出现；兼容模式也放在 Transcript 前并带 reference-only 边界 |
+| 1 | `PROJECT_INSTRUCTION` | synthetic `user` | 从仓库根到当前目录的 `AGENTS.md` | 父目录先、具体目录后；`PINNED`；不能授权 |
+| 2 | `ENVIRONMENT` | synthetic `user` | OS、架构、workspace、可执行文件探测 | Run 内稳定；`PINNED`；仅为事实 |
+| 3 | `SKILL_CATALOG` | synthetic `user` | 可用 Skill 的精简目录 | 可从磁盘重建；不能授权 |
+| 4 | `TOOL_CATALOG` | synthetic `user` | Tool schema 超预算时的未加载工具目录 | 仅超预算时出现；稳定后进入前缀 |
+| 5 | `ACTIVE_SKILL` | synthetic `user` | 已激活 Skill 的 header 和正文 | 激活后通常稳定；正文可卸载重载；不能授权 |
+| 6 | `MEMORY` | synthetic `user` | 用户显式确认的 `USER.md`/兼容 SQLite 记忆 | 放在会话前，参与稳定前缀复用 |
+| 7 | `AUTOMATIC_MEMORY` | synthetic `user` | 仅 `memory.context_mode="eager"` 兼容模式下的自动索引 | 默认不出现；兼容模式也放在 Transcript 前并带 reference-only 边界 |
 | 8 | `COMPACTION` | 原始 `user` + 派生 `assistant` | 自动压缩保存活动 Run 中已被覆盖的真实用户输入（包括 steering），随后是唯一活动的 `context_compaction` 摘要 | 均为 `PINNED`；锚点按原位置排序，摘要位于它们和 cursor 后 raw tail 之间 |
-| 8 | `SNAPSHOT` | `user` | 旧 checkpoint 兼容层 | 默认主路径不注入 |
+| 8 | `SNAPSHOT` | synthetic `user` | 旧 checkpoint 兼容层 | 默认主路径不注入 |
 | 9 | `RECENT_CONVERSATION` / `TOOL_RESULT` | 原始角色 | 压缩游标之后的 SQLite 消息 | 按 `position` 恢复时间顺序 |
-| 11 | `RUNTIME_NOTE` | `system` | Memory Router、后台进程、停滞恢复、终止及临时约束 | 最易变化，放在动态尾部 |
+| 11 | `RUNTIME_NOTE` | synthetic `user` | Memory Router、后台进程、停滞恢复、终止及临时约束 | 最易变化，放在动态尾部；硬约束由代码门禁执行 |
+
+## 四角色安全模型：修改前后对比
+
+主 Agent 只使用 Chat Completions 已有的 `system/user/assistant/tool`，不依赖 `developer`。
+2026-09-02 的修改把 wire role 与内部 `ContextTrust` 对齐为更保守的边界：整个主请求只允许
+一条由代码内置、内容与版本均固定的 Core Policy 使用 `system`；其余动态来源即使由程序探测
+或生成，也不再获得 System 权限。
+
+| 来源 | 修改前 | 修改后 | 修改理由 |
+|---|---|---|---|
+| Core Policy | `system` | 唯一 `system` | 这是 bot 自身发布的稳定策略，需要定义其余来源的解释规则 |
+| `AGENTS.md` | `system` | `user(name=project_instruction)` | 仓库文件可被提交、依赖或外部内容修改，不应与内置策略同权 |
+| Environment | `system` | `user(name=environment_context)` | 探测结果是可信事实，但“可信”不等于“高权限指令” |
+| Skill Catalog/正文 | `system` | `user(name=skill_catalog/active_skill/skill_body)` | Skill 文本来自文件，可能包含注入；它只能指导方法，不能扩大权限 |
+| Tool Catalog | `system` | `user(name=tool_catalog)` | Tool 描述可能来自扩展注册，目录只负责发现能力 |
+| 显式/自动记忆 | synthetic `user` | 带统一信封的 synthetic `user` | 保留历史参考能力，同时明确不是本轮输入且不能授权 |
+| Runtime Note | `system` | `user(name=runtime_context)` | 避免动态 System 尾部；必须发生的搜索、终止和审批改由 Agent/Policy 强制 |
+| Compaction | `assistant` | `assistant(name=context_compaction)` | 摘要是模型派生历史，不能冒充用户；需要归因时仍回溯原文 |
+| Tool Result | `tool` | `tool` | 保留协议配对，同时始终按不可信外部数据处理 |
+
+所有 synthetic `user` 正文都使用同一个紧凑 JSON 信封：
+
+```json
+{
+  "schema": "bot.context.v1",
+  "kind": "project_instruction",
+  "is_current_user_message": false,
+  "can_authorize": false,
+  "scope": "project",
+  "source": "/workspace/repo/AGENTS.md",
+  "content": "..."
+}
+```
+
+`name` 和信封是模型可见的来源标记，不是安全沙箱。真实 Transcript 的 `user` 消息保持
+`name` 为空，应用合成的 `user` 消息必须同时带保留 `name` 和有效信封。组装器还会检查主
+Agent 上下文中只要出现不是内置 `core-policy` 的 `system`，或合成层缺少不可授权信封，就在
+调用 Provider 前失败。真正的权限仍由 Policy Engine、实时 Approval、Tool schema 和 Agent
+loop 决定；项目文件、Skill、memory、摘要和历史审批都不能通过文本授予能力。
+
+信封优先使用 `workspace/project/session/run`、`skill:<name>` 等稳定逻辑标识；精确绝对路径仍
+保存在内部 `ContextItem.source` 用于审计。只有模型确实需要定位的项目指令才显示文件路径，
+避免相同任务因临时 workspace 名称不同而产生无意义的 token 和缓存差异。
+
+采用这个设计的原因是：
+
+1. **消除高权限文件注入**：`ContextTrust.UNTRUSTED` 不再可能同时以 `system` 发给模型。
+2. **减少角色误认**：统一信封明确区分真人 Transcript 与合成 `user` 上下文。
+3. **兼容 Provider**：不要求 OpenAI-compatible 服务正确实现 `developer` 的优先级语义。
+4. **稳定缓存前缀**：唯一 System 内容只随 Core Policy 版本变化；仓库、环境和运行状态变化
+   不再改写 System 层。
+5. **把保证放回程序**：Memory Router 的 required Tool、终止阶段无 Tool、审批和 workspace
+   边界均由代码 fail-closed，prompt 只帮助模型选择正确动作。
 
 同一层内先按持久化 `position`，再按稳定 `id` 排序。Assistant 的 Tool Call 与其全部 Tool
 Result 使用同一个 `atomic_group`，预算不足时整组保留或整组丢弃，不能拆开。
 
 这里的“典型角色”就是送入 `ChatMessage.to_openai()` 的 wire role，不是 `ContextTrust` 的别名。
-`ContextTrust.TRUSTED/USER/UNTRUSTED` 当前只是 `ContextItem` 的内部来源/审计元数据，Planner 不按
-它改变权限或排序，序列化器也不会把它发进 Provider 请求；
-`name=explicit_memory/automatic_memory/context_compaction` 可以帮助兼容 Provider 区分消息，
-但不会改变 wire role 的权限含义。因此默认路径不再 eager 注入自动记忆：模型先
-收到真实 Transcript；Router 只注入不含记忆正文的 `system` runtime note，需要时强制或建议模型
+`ContextTrust.TRUSTED/USER/UNTRUSTED` 仍是 `ContextItem` 的内部来源/审计元数据，Planner 不按
+它改变排序；但是发送前的角色不变量会阻止任何非 Core 内容取得 `system`。`name` 和
+`bot.context.v1` 信封帮助兼容 Provider 区分消息，但不会改变 wire role 的权限含义。因此默认
+路径不再 eager 注入自动记忆：模型先收到真实 Transcript；Router 只注入不含记忆正文的
+synthetic `user` runtime note，需要时强制或建议模型
 调用 Tool。检索正文作为紧邻 Assistant Tool Call 的 `role=tool` 一次性交付：
 
 ```text
-... -> 最新真人 user -> memory-router(system)
+... -> 最新真人 user -> memory-router(user, bot.context.v1)
 assistant(tool_call=search_memory) -> search_memory(tool, disposable)
 ```
 
@@ -94,7 +147,8 @@ assistant(tool_call=search_memory) -> search_memory(tool, disposable)
 - 自动压力压缩把当前活动 Run 的所有真实 user 输入（包括运行中的 steering）作为候选，并保存
   本次实际覆盖的交集；空闲 `/compact` 把最新 user 作为候选，若它仍在 raw tail 就无需重复保存；
   `/compact rebuild` 则继承当前活动压缩版本已有的锚点，不重新选择另一条历史指令。
-- Router note 是动态尾部；检索正文只在下一次请求可见，随后替换成不含正文的收据。
+- Router note 是 synthetic `user` 动态尾部；检索正文只在下一次请求可见，随后替换成不含
+  正文的收据。required Tool 由 named choice 或 Agent fail-closed 门禁保证，不依赖该提示的角色。
 - 历史中由旧版本写入的 `system` 消息会降级成名为 `historical_context` 的 `user` 消息，
   不会重新获得当前系统策略权限。
 

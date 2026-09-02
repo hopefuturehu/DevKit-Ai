@@ -434,6 +434,12 @@ Assistant 摘要、兼容 Snapshot、近期会话/Tool Result、Runtime Note。�
 静态序列，而由 Router 通过 Tool 按需检索。Tool schema 不混入消息，而是作为独立请求字段按
 名称排序。
 
+主 Agent 固定使用 `system/user/assistant/tool` 四角色：只有代码内置的 Core Policy 可以映射为
+`system`；`AGENTS.md`、Environment、Skill、Memory、Tool Catalog 和 Runtime Note 都以带
+`bot.context.v1` 来源信封的 synthetic `user` 注入，并固定 `can_authorize=false`。组装器在
+Provider 调用前拒绝任何其他 System 来源。必须执行的 Memory 检索、终止禁用 Tool、审批和
+workspace 边界由 Agent/Policy 代码强制，不把安全保证寄托在 prompt 角色上。
+
 这个顺序形成“稳定前缀 → 因果历史 → 易变尾部”：显式记忆通常稳定，放在会话前参与缓存；
 Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 Tool Result 出现。layer 排序只决定模型
 看到的顺序；预算保留仍由 retention、priority 和 Tool 原子组单独决定。完整表格、角色、

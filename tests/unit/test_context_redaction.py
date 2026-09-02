@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 
 from bot.core.context import ContextAssembler, compact_messages, estimate_tokens
 from bot.core.events import AgentEvent, EventType
 from bot.core.models import ChatMessage, Role
+from bot.execution import EnvironmentCapabilities
 from bot.observability import Redactor
 from bot.skills import SkillCatalog
 from bot.tools import ToolResult
@@ -28,6 +30,50 @@ def test_context_manifest_reports_instruction_sources(tmp_path: Path) -> None:
         "skill_catalog",
     ]
     assert manifest[-1]["items"] == 1
+
+
+def test_base_context_keeps_only_core_policy_in_system_role(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("project rule", encoding="utf-8")
+    skill_dir = tmp_path / "skills" / "demo"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: demo\ndescription: Demo skill.\n---\nInstructions.",
+        encoding="utf-8",
+    )
+    catalog = SkillCatalog(tmp_path / "skills")
+    catalog.scan()
+    assembler = ContextAssembler(workspace=tmp_path, skill_catalog=catalog)
+
+    items = assembler.ledger_items(
+        EnvironmentCapabilities(
+            operating_system="linux",
+            architecture="aarch64",
+            executables={"git": "/usr/bin/git"},
+        )
+    )
+
+    assert [item.message.role for item in items] == [
+        Role.SYSTEM,
+        Role.USER,
+        Role.USER,
+        Role.USER,
+    ]
+    assert (
+        len(
+            assembler.system_messages(
+                EnvironmentCapabilities(
+                    operating_system="linux",
+                    architecture="aarch64",
+                )
+            )
+        )
+        == 1
+    )
+    for item in items[1:]:
+        envelope = json.loads(item.message.content or "")
+        assert envelope["schema"] == "bot.context.v1"
+        assert envelope["is_current_user_message"] is False
+        assert envelope["can_authorize"] is False
 
 
 def test_context_discovers_agents_hierarchy_from_repo_root(tmp_path: Path) -> None:

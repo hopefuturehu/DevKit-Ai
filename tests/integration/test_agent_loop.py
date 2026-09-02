@@ -328,7 +328,12 @@ async def test_managed_process_runtime_reminder_is_cache_stable(tmp_path: Path) 
     await asyncio.sleep(0.02)
     await runner._refresh_managed_process_note(runtime_notes)  # noqa: SLF001
 
-    assert first_content == MANAGED_PROCESS_REMINDER
+    envelope = json.loads(first_content or "")
+    assert runtime_notes[0].message.role == Role.USER
+    assert runtime_notes[0].message.name == "runtime_context"
+    assert envelope["content"] == MANAGED_PROCESS_REMINDER
+    assert envelope["is_current_user_message"] is False
+    assert envelope["can_authorize"] is False
     assert runtime_notes[0].message.content == first_content
     assert "proc_" not in first_content
     assert "elapsed" not in first_content
@@ -460,8 +465,16 @@ async def test_on_demand_memory_does_not_append_automatic_memory_to_plain_prompt
     request = provider.requests[0]
     assert not any(message.name == "automatic_memory" for message in request.messages)
     assert [
-        (message.name, message.content) for message in request.messages if message.role == Role.USER
+        (message.name, message.content)
+        for message in request.messages
+        if message.role == Role.USER and message.name is None
     ] == [(None, "解释这个独立问题")]
+    assert [message.name for message in request.messages if message.role == Role.SYSTEM] == [None]
+    assert all(
+        json.loads(message.content or "")["can_authorize"] is False
+        for message in request.messages
+        if message.role == Role.USER and message.name is not None
+    )
     assert request.tool_choice is None
     store.close()
 
@@ -753,6 +766,9 @@ def test_agent_sheds_and_reactivates_tool_schemas(tmp_path: Path) -> None:
 
     assert catalog is not None
     assert catalog.layer.value == "tool_catalog"
+    assert catalog.message.role == Role.USER
+    assert catalog.message.name == "tool_catalog"
+    assert json.loads(catalog.message.content or "")["can_authorize"] is False
     assert [tool.name for tool in initial] == sorted(tool.name for tool in initial)
     assert "large_0" not in {tool.name for tool in initial}
     assert activated.success
@@ -854,6 +870,22 @@ async def test_agent_activates_skill_calls_tool_and_finishes(tmp_path: Path) -> 
     assert EventType.SKILL_ACTIVATED in event_types
     assert EventType.TOOL_COMPLETED in event_types
     assert EventType.MODEL_USAGE in event_types
+    assert all(
+        len([message for message in request.messages if message.role == Role.SYSTEM]) == 1
+        for request in provider.requests
+    )
+    skill_context = [
+        message
+        for request in provider.requests[1:]
+        for message in request.messages
+        if message.name in {"active_skill", "skill_body"}
+    ]
+    assert {message.name for message in skill_context} == {"active_skill", "skill_body"}
+    assert all(message.role == Role.USER for message in skill_context)
+    assert all(
+        json.loads(message.content or "")["can_authorize"] is False
+        for message in skill_context
+    )
     assert store.load_messages(result.session_id)[-1].content == "Completed from evidence."
     store.close()
 

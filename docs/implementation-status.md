@@ -1,6 +1,6 @@
 # MVP 实现状态
 
-> 更新日期：2026-08-29
+> 更新日期：2026-09-02
 > 结论：设计中 Milestone 0–3 及可恢复单摘要上下文压缩的本地代码闭环已经实现；
 > 需要真实凭据或鲲鹏 ARM 环境的项目保留为环境验收，不伪造通过结果。
 
@@ -16,7 +16,7 @@
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
 | 审批 | once/session/always/deny 与单键交互；常用开发命令按 workspace 和保守 argv 前缀复用，动态/高危命令保持精确匹配 | `src/bot/core/approval.py`、`src/bot/policy/engine.py` |
 | 会话与审计 | SQLite migration v12、持久化 progress checkpoint、版本化事件、消息/Tool/审批/子 Agent 投影、resume/fork 和用量统计 | `src/bot/sessions/` |
-| 上下文 | 分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、单一活动摘要、事务发布、原文重建/回滚和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py`、`src/bot/compaction/` |
+| 上下文 | 单一内置 System、synthetic user 来源信封与角色提权门禁；分层 `AGENTS.md` 发现、Token Budget、Context Ledger、原子 Tool 轮次、内容外置、动态 Tool schema、单一活动摘要、事务发布、原文重建/回滚和不可压缩报告 | `src/bot/core/context.py`、`src/bot/core/agent.py`、`src/bot/compaction/` |
 | 长期记忆 | SQLite 历史证据、`USER.md` 显式记忆、Root Run 异步提取、Markdown 自动索引、冲突/遗忘隔离、四级 Router、强制检索/归因证据门禁和一次性 Tool 交付 | `src/bot/memory/`、`docs/markdown-memory.md`、`docs/memory-routing.md` |
 | 子 Agent | 一级后台 Worker Pool、独立 child session/Runner/Skill/Policy、只读 profile、Git worktree 写隔离、定向 blob 授权、required 汇合、状态查询/等待/取消和 fail-closed 恢复 | `src/bot/subagents/` |
 | Skill | 单一目录发现、资格过滤、三段式披露、显式/自动多选、资源按需加载和 reload | `src/bot/skills/` |

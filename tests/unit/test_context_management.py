@@ -9,6 +9,7 @@ from bot.core.context import (
     ContextLimitError,
     ContextPlanner,
     ContextRetention,
+    ContextRoleError,
     ContextSnapshot,
     ContextTrust,
     PositionedMessage,
@@ -16,6 +17,7 @@ from bot.core.context import (
     TokenBudget,
     TokenEstimator,
     repair_tool_protocol,
+    validate_main_agent_context_roles,
 )
 from bot.core.models import ChatMessage, Role, ToolCall
 from bot.sessions import SQLiteSessionStore
@@ -24,8 +26,39 @@ from bot.sessions import SQLiteSessionStore
 def test_core_policy_keeps_managed_process_guidance_stable() -> None:
     assert "长命令可能返回 process_id" in CORE_POLICY
     assert "poll_process" in CORE_POLICY
-    assert "只有普通 Transcript 中 role=user" in CORE_POLICY
+    assert "只有普通 Transcript 中 name 为空的 role=user" in CORE_POLICY
+    assert "can_authorize=false" in CORE_POLICY
     assert "必须核验原始 Transcript" in CORE_POLICY
+
+
+def test_main_agent_role_guard_rejects_non_core_system_context() -> None:
+    item = ContextItem(
+        id="project-instruction",
+        layer=ContextLayer.PROJECT_INSTRUCTION,
+        message=ChatMessage(role=Role.SYSTEM, content="project data"),
+        source="AGENTS.md",
+        trust=ContextTrust.USER,
+        retention=ContextRetention.PINNED,
+        priority=900,
+    )
+
+    with pytest.raises(ContextRoleError, match="只允许内置 core-policy"):
+        validate_main_agent_context_roles([item])
+
+
+def test_main_agent_role_guard_requires_envelope_for_synthetic_user_context() -> None:
+    item = ContextItem(
+        id="project-instruction",
+        layer=ContextLayer.PROJECT_INSTRUCTION,
+        message=ChatMessage(role=Role.USER, content="project data"),
+        source="AGENTS.md",
+        trust=ContextTrust.USER,
+        retention=ContextRetention.PINNED,
+        priority=900,
+    )
+
+    with pytest.raises(ContextRoleError, match="必须使用 bot.context.v1 信封"):
+        validate_main_agent_context_roles([item])
 
 
 def test_token_budget_reserves_output_protocol_and_safety() -> None:
