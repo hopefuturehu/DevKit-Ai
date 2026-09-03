@@ -262,17 +262,26 @@ Tool 通过 `ToolResult.progress` 显式返回强进展、弱进展、无进展�
 SQLite 并跨 Run 恢复。首次达到阈值时注入警告，随后进入一次受控恢复阶段；恢复后相同模式复发
 时撤销 Tool 定义，只允许模型生成一次事实化收尾。预算、上下文和失败也复用该终止协调器。
 
-### 5.3 后台子 Agent Worker Pool
+### 5.3 Markdown Agent 与父子调度
 
-父 Agent 通过四个内部控制 Tool 使用一级后台 Worker Pool：
+子 Agent 的能力定义来自内置、用户级和项目级 Markdown catalog。项目定义需要按
+workspace 真实路径与全部定义内容哈希显式信任；同名定义全部禁用，不静默覆盖。
+Markdown frontmatter 限定 model、Tool allowlist、Skill、隔离级别、执行模式和资源上限；
+正文只提供行为指令，不能扩大底层权限。
 
+父 Agent 通过以下内部控制 Tool 使用一级 Worker Pool：
+
+- `task`：默认前台等待，可转后台；传入 `task_id` 时续接原 child session；
+- `send_task_message`：将后续指令持久化后在后台续接；
 - `spawn_agent`：先持久化任务和独立 child session，再立即返回 `task_id`；
 - `get_agent_status`：按父会话边界查询状态、结果和独立用量；
 - `await_agents`：事件驱动等待多个任务，超时只返回状态，不取消任务；
-- `cancel_agent`：幂等取消 queued/running/waiting-approval 任务。
+- `cancel_agent`：幂等取消 queued/running/waiting-approval 任务；
+- `apply_agent_patch` / `cleanup_agent_worktree`：校验采用 patch 交付并回收受管 worktree。
 
 内置 profile 为 `explorer`、`reviewer` 和 `coder`。前两者只获得本地只读 Tool allowlist；
-`coder` 必须在从当前 `HEAD` 创建的 detached Git worktree 中工作，不直接写主工作区。每个任务
+`coder` 必须在从显式 `base_ref`（默认 `HEAD`）创建的 detached Git worktree 中工作，
+不直接写主工作区。每个任务
 创建独立 `AgentRunner`、`SkillManager`、`DefaultPolicyEngine` 和 child session；Provider、
 SQLite Store、ExecutionTarget 与无状态 Tool 实例可以共享。child runner 不注入 Worker Pool，
 因此委托深度由结构保证为 1。
@@ -280,6 +289,9 @@ SQLite Store、ExecutionTarget 与无状态 Tool 实例可以共享。child runn
 上下文采用显式委托：child session 只得到 objective、constraints、acceptance criteria 和经父
 session 授权的 `context_ref`，不使用 `fork_session`，也不复制父历史。child 结果以不可信
 Tool 数据返回；完整结果和包含 staged、unstaged、untracked 内容的 diff 使用 blob 引用。
+任务、每次续接的 run 与双向 mailbox 分表持久化；child 可返回 `waiting_parent`
+问题，父 Agent 续接后复用原会话。后台结果默认在下一个父会话安全边界投递；
+只有显式开启 `agents.auto_resume_background` 时才会产生新的父 Agent 调用。
 如果 SQLite 状态库配置在工作区内，其 DB/WAL/SHM/journal 路径会注入 child Tool 的禁读列表，
 防止绕过 blob 授权直接扫描父会话数据。`required=true` 的任务在父 Agent 最终回答前自动
 等待并原子回流，父运行异常结束时取消；detached 任务只在交互进程存活期间继续，
@@ -289,6 +301,7 @@ Tool 数据返回；完整结果和包含 staged、unstaged、untracked 内容�
 
 ```text
 queued → running ↔ waiting_approval → completed | failed | limit_reached
+                  └→ waiting_parent → queued（父 Agent 续接）
    └──────────────→ cancelling → cancelled
 进程崩溃恢复：running | waiting_approval | cancelling → interrupted
 ```
@@ -746,6 +759,12 @@ max_queued = 32
 max_tasks_per_session = 16
 allow_worktree_writes = true
 worktree_dir = ".bot/agent-worktrees"
+
+[agents]
+user_path = "~/.bot/agents"
+project_path = ".bot/agents"
+auto_resume_background = false
+required_wait_timeout_seconds = 900
 
 [permissions]
 mode = "safe"

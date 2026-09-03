@@ -74,15 +74,11 @@ class ProgressConfig(StrictModel):
             raise ValueError(
                 "progress.cycle_window_size 必须容纳 max_cycle_period * cycles_before_recovery"
             )
-        if (
-            self.process_inactivity_warning_seconds
-            >= self.process_inactivity_recovery_seconds
-        ):
+        if self.process_inactivity_warning_seconds >= self.process_inactivity_recovery_seconds:
             raise ValueError("process inactivity 的 warning 必须小于 recovery")
         if (
             self.process_inactivity_finalize_seconds is not None
-            and self.process_inactivity_recovery_seconds
-            >= self.process_inactivity_finalize_seconds
+            and self.process_inactivity_recovery_seconds >= self.process_inactivity_finalize_seconds
         ):
             raise ValueError("process inactivity 的 recovery 必须小于 finalize")
         return self
@@ -170,9 +166,7 @@ class ContextConfig(StrictModel):
     compaction_command_max_cost_usd: float | None = Field(default=0.25, gt=0)
     compaction_min_recent_user_turns: int = Field(default=3, ge=1, le=100)
     compaction_source_refs: Literal["range", "item"] = "range"
-    compaction_thinking: Literal[
-        "auto", "provider_default", "enabled", "disabled"
-    ] = "auto"
+    compaction_thinking: Literal["auto", "provider_default", "enabled", "disabled"] = "auto"
     compaction_max_message_chars: int = Field(default=12_000, ge=500)
     compaction_rebuild_every: int = Field(default=5, ge=1, le=100)
 
@@ -207,6 +201,13 @@ class SkillsConfig(StrictModel):
     max_catalog_chars: int = Field(default=8_000, gt=0)
 
 
+class AgentsConfig(StrictModel):
+    user_path: str = "~/.bot/agents"
+    project_path: str = ".bot/agents"
+    auto_resume_background: bool = False
+    required_wait_timeout_seconds: float = Field(default=900, gt=0, le=86_400)
+
+
 class DisplayConfig(StrictModel):
     tool_output: Literal["summary", "full"] = "summary"
     progress: bool = True
@@ -224,6 +225,7 @@ class AppConfig(StrictModel):
     context: ContextConfig = Field(default_factory=ContextConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     skills: SkillsConfig = Field(default_factory=SkillsConfig)
+    agents: AgentsConfig = Field(default_factory=AgentsConfig)
     display: DisplayConfig = Field(default_factory=DisplayConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
 
@@ -258,14 +260,16 @@ class AppConfig(StrictModel):
             > self.context.compaction_summary_tokens
         ):
             raise ValueError(
-                "context.compaction_summary_target_tokens 不能大于 "
-                "compaction_summary_tokens"
+                "context.compaction_summary_target_tokens 不能大于 compaction_summary_tokens"
             )
         if self.subagents.max_concurrent > self.subagents.max_queued:
             raise ValueError("subagents.max_concurrent 不能大于 max_queued")
         worktree_dir = Path(self.subagents.worktree_dir)
         if not worktree_dir.parts or worktree_dir.is_absolute() or ".." in worktree_dir.parts:
             raise ValueError("subagents.worktree_dir 必须是工作区内相对路径")
+        project_agents = Path(self.agents.project_path)
+        if not project_agents.parts or project_agents.is_absolute() or ".." in project_agents.parts:
+            raise ValueError("agents.project_path 必须是工作区内相对路径")
         memory_path = Path(self.memory.path).expanduser()
         if not memory_path.parts or str(memory_path) in {".", ".."}:
             raise ValueError("memory.path 不能指向工作区或空路径")
@@ -278,6 +282,18 @@ class AppConfig(StrictModel):
     def skill_path(self, workspace: Path) -> Path:
         path = Path(self.skills.path).expanduser()
         return path if path.is_absolute() else (workspace / path).resolve()
+
+    def user_agent_path(self) -> Path:
+        return Path(self.agents.user_path).expanduser().resolve()
+
+    def project_agent_path(self, workspace: Path) -> Path:
+        workspace = workspace.resolve()
+        path = (workspace / self.agents.project_path).resolve()
+        try:
+            path.relative_to(workspace)
+        except ValueError as exc:
+            raise ValueError("agents.project_path 通过符号链接逃逸工作区") from exc
+        return path
 
     def state_path(self, workspace: Path) -> Path:
         path = Path(self.storage.state_path).expanduser()

@@ -14,7 +14,7 @@ from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
 from bot.core.events import AgentEvent, EventSink
 from bot.core.models import ChatMessage
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 14
 
 
 class SQLiteSessionStore(EventSink):
@@ -242,6 +242,8 @@ class SQLiteSessionStore(EventSink):
                     spec_json TEXT NOT NULL,
                     context_refs_json TEXT NOT NULL,
                     required INTEGER NOT NULL DEFAULT 1,
+                    execution TEXT NOT NULL DEFAULT 'background',
+                    base_ref TEXT NOT NULL DEFAULT 'HEAD',
                     isolation TEXT NOT NULL,
                     workspace TEXT NOT NULL,
                     status TEXT NOT NULL,
@@ -262,6 +264,46 @@ class SQLiteSessionStore(EventSink):
                     ON agent_tasks(parent_session_id, created_at);
                 CREATE INDEX IF NOT EXISTS idx_agent_tasks_status_created
                     ON agent_tasks(status, created_at);
+                CREATE TABLE IF NOT EXISTS agent_task_runs (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL,
+                    sequence INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    input_json TEXT NOT NULL,
+                    result_json TEXT,
+                    error TEXT,
+                    input_tokens INTEGER NOT NULL DEFAULT 0,
+                    output_tokens INTEGER NOT NULL DEFAULT 0,
+                    cost_usd REAL,
+                    created_at TEXT NOT NULL,
+                    started_at TEXT,
+                    completed_at TEXT,
+                    UNIQUE(task_id, sequence),
+                    FOREIGN KEY(task_id) REFERENCES agent_tasks(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_agent_task_runs_task_sequence
+                    ON agent_task_runs(task_id, sequence);
+                CREATE TABLE IF NOT EXISTS agent_task_messages (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL,
+                    sequence INTEGER NOT NULL,
+                    direction TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    idempotency_key TEXT,
+                    created_at TEXT NOT NULL,
+                    delivered_at TEXT,
+                    UNIQUE(task_id, sequence),
+                    UNIQUE(task_id, idempotency_key),
+                    FOREIGN KEY(task_id) REFERENCES agent_tasks(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_agent_task_messages_delivery
+                    ON agent_task_messages(task_id, direction, delivered_at, sequence);
+                CREATE TABLE IF NOT EXISTS agent_workspace_trust (
+                    workspace TEXT PRIMARY KEY,
+                    content_sha256 TEXT NOT NULL,
+                    trusted_at TEXT NOT NULL
+                );
                 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
                     session_id UNINDEXED,
                     position UNINDEXED,
@@ -300,6 +342,37 @@ class SQLiteSessionStore(EventSink):
                 SELECT session_id, id, created_at FROM context_blobs
                 """
             )
+            # Backfill one run for tasks created before task/run separation.
+            legacy_tasks = self._connection.execute(
+                """
+                SELECT id, objective, status, result_json, error, created_at, started_at,
+                       completed_at
+                FROM agent_tasks AS t
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM agent_task_runs AS r WHERE r.task_id = t.id
+                )
+                """
+            ).fetchall()
+            for task in legacy_tasks:
+                self._connection.execute(
+                    """
+                    INSERT INTO agent_task_runs(
+                        id, task_id, sequence, status, input_json, result_json, error,
+                        created_at, started_at, completed_at
+                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        uuid4().hex,
+                        task["id"],
+                        task["status"],
+                        json.dumps({"prompt": task["objective"]}, ensure_ascii=False),
+                        task["result_json"],
+                        task["error"],
+                        task["created_at"],
+                        task["started_at"],
+                        task["completed_at"],
+                    ),
+                )
             approval_columns = {
                 row[1] for row in self._connection.execute("PRAGMA table_info(approvals)")
             }
@@ -324,6 +397,18 @@ class SQLiteSessionStore(EventSink):
             if "schema_version" not in event_columns:
                 self._connection.execute(
                     "ALTER TABLE events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1"
+                )
+            agent_task_columns = {
+                row[1] for row in self._connection.execute("PRAGMA table_info(agent_tasks)")
+            }
+            if "execution" not in agent_task_columns:
+                self._connection.execute(
+                    "ALTER TABLE agent_tasks "
+                    "ADD COLUMN execution TEXT NOT NULL DEFAULT 'background'"
+                )
+            if "base_ref" not in agent_task_columns:
+                self._connection.execute(
+                    "ALTER TABLE agent_tasks ADD COLUMN base_ref TEXT NOT NULL DEFAULT 'HEAD'"
                 )
             stale_build_cutoff = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
             self._connection.execute(
@@ -758,7 +843,7 @@ class SQLiteSessionStore(EventSink):
                     WHERE parent_session_id = ? AND id IN ({placeholders})
                         AND status IN (
                             'completed', 'blocked', 'failed', 'limit_reached',
-                            'cancelled', 'interrupted'
+                            'cancelled', 'interrupted', 'waiting_parent'
                         )
                     """,
                     (
@@ -769,6 +854,61 @@ class SQLiteSessionStore(EventSink):
                 )
         return int(position)
 
+    def append_messages_and_ack_agent_inbox(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        messages: list[ChatMessage],
+        inbox_message_ids: list[str],
+    ) -> list[int]:
+        """Atomically expose mailbox data to the parent transcript and acknowledge it."""
+        sanitized: list[ChatMessage] = []
+        for message in messages:
+            item = ChatMessage.model_validate(self._sanitizer(message.model_dump(mode="python")))
+            if error := item.assistant_payload_error():
+                raise ValueError(f"拒绝持久化无效消息: {error}")
+            sanitized.append(item)
+        unique_ids = list(dict.fromkeys(inbox_message_ids))
+        positions: list[int] = []
+        with self._lock, self._connection:
+            next_position = int(
+                self._connection.execute(
+                    "SELECT COALESCE(MAX(position), 0) + 1 FROM messages WHERE session_id = ?",
+                    (session_id,),
+                ).fetchone()[0]
+            )
+            now = datetime.now(UTC).isoformat()
+            for offset, message in enumerate(sanitized):
+                position = next_position + offset
+                self._connection.execute(
+                    """
+                    INSERT INTO messages(
+                        session_id, run_id, position, role, content, message_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        session_id,
+                        run_id,
+                        position,
+                        message.role.value,
+                        message.content,
+                        message.model_dump_json(),
+                        now,
+                    ),
+                )
+                positions.append(position)
+            if unique_ids:
+                placeholders = ",".join("?" for _ in unique_ids)
+                self._connection.execute(
+                    f"""
+                    UPDATE agent_task_messages SET delivered_at = ?
+                    WHERE id IN ({placeholders}) AND delivered_at IS NULL
+                    """,
+                    (now, *unique_ids),
+                )
+        return positions
+
     def append_messages_and_mark_agent_tasks_reported(
         self,
         *,
@@ -776,6 +916,7 @@ class SQLiteSessionStore(EventSink):
         run_id: str,
         messages: list[ChatMessage],
         task_ids: list[str],
+        include_active: bool = False,
     ) -> list[int]:
         """Atomically append a synthetic Tool exchange and acknowledge results."""
         if not messages:
@@ -818,14 +959,21 @@ class SQLiteSessionStore(EventSink):
             )
             if unique_task_ids:
                 placeholders = ",".join("?" for _ in unique_task_ids)
+                status_clause = (
+                    ""
+                    if include_active
+                    else """
+                        AND status IN (
+                            'completed', 'blocked', 'failed', 'limit_reached',
+                            'cancelled', 'interrupted', 'waiting_parent'
+                        )
+                    """
+                )
                 self._connection.execute(
                     f"""
                     UPDATE agent_tasks SET reported_at = ?
                     WHERE parent_session_id = ? AND id IN ({placeholders})
-                        AND status IN (
-                            'completed', 'blocked', 'failed', 'limit_reached',
-                            'cancelled', 'interrupted'
-                        )
+                    {status_clause}
                     """,
                     (now, session_id, *unique_task_ids),
                 )
@@ -1619,6 +1767,8 @@ class SQLiteSessionStore(EventSink):
         spec: dict[str, Any],
         context_refs: list[str],
         required: bool,
+        execution: str,
+        base_ref: str,
         isolation: str,
         idempotency_key: str | None,
     ) -> dict[str, Any]:
@@ -1654,9 +1804,9 @@ class SQLiteSessionStore(EventSink):
                 INSERT INTO agent_tasks(
                     id, parent_session_id, parent_run_id, child_session_id,
                     agent_name, objective, constraints_json, acceptance_criteria_json,
-                    spec_json, context_refs_json, required, isolation, workspace,
-                    status, idempotency_key, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)
+                    spec_json, context_refs_json, required, execution, base_ref,
+                    isolation, workspace, status, idempotency_key, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)
                 """,
                 (
                     task_id,
@@ -1670,11 +1820,44 @@ class SQLiteSessionStore(EventSink):
                     json.dumps(self._sanitizer(spec), ensure_ascii=False),
                     json.dumps(context_refs, ensure_ascii=False),
                     int(required),
+                    execution,
+                    base_ref,
                     isolation,
                     workspace,
                     idempotency_key,
                     now,
                 ),
+            )
+            run_id = uuid4().hex
+            self._connection.execute(
+                """
+                INSERT INTO agent_task_runs(
+                    id, task_id, sequence, status, input_json, created_at
+                ) VALUES (?, ?, 1, 'queued', ?, ?)
+                """,
+                (
+                    run_id,
+                    task_id,
+                    json.dumps(
+                        self._sanitizer(
+                            {
+                                "prompt": objective,
+                                "context_refs": context_refs,
+                                "initial": True,
+                            }
+                        ),
+                        ensure_ascii=False,
+                    ),
+                    now,
+                ),
+            )
+            self._append_agent_task_message_locked(
+                task_id=task_id,
+                direction="parent_to_child",
+                kind="instruction",
+                payload={"prompt": objective, "context_refs": context_refs, "initial": True},
+                idempotency_key=idempotency_key,
+                now=now,
             )
             return self._get_agent_task_locked(task_id)
 
@@ -1693,6 +1876,14 @@ class SQLiteSessionStore(EventSink):
                 (task_id, parent_session_id, parent_session_id),
             ).fetchone()
             return self._decode_agent_task(row) if row else None
+
+    def get_agent_task_by_child_session(self, child_session_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT * FROM agent_tasks WHERE child_session_id = ?",
+                (child_session_id,),
+            ).fetchone()
+        return self._decode_agent_task(row) if row else None
 
     def _get_agent_task_locked(self, task_id: str) -> dict[str, Any]:
         row = self._connection.execute(
@@ -1765,6 +1956,7 @@ class SQLiteSessionStore(EventSink):
             "limit_reached",
             "cancelled",
             "interrupted",
+            "waiting_parent",
         )
         placeholders = ",".join("?" for _ in terminal)
         query = f"SELECT COUNT(*) FROM agent_tasks WHERE status NOT IN ({placeholders})"
@@ -1781,24 +1973,283 @@ class SQLiteSessionStore(EventSink):
     def agent_task_usage(self, parent_session_id: str) -> dict[str, int | float]:
         with self._lock:
             rows = self._connection.execute(
-                "SELECT result_json FROM agent_tasks WHERE parent_session_id = ?",
+                """
+                SELECT r.input_tokens, r.output_tokens, r.cost_usd
+                FROM agent_task_runs AS r
+                JOIN agent_tasks AS t ON t.id = r.task_id
+                WHERE t.parent_session_id = ?
+                """,
                 (parent_session_id,),
             ).fetchall()
-        input_tokens = 0
-        output_tokens = 0
-        cost_usd = 0.0
-        for row in rows:
-            if not row["result_json"]:
-                continue
-            result = json.loads(row["result_json"])
-            input_tokens += int(result.get("input_tokens") or 0)
-            output_tokens += int(result.get("output_tokens") or 0)
-            cost_usd += float(result.get("cost_usd") or 0)
         return {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cost_usd": cost_usd,
+            "input_tokens": sum(int(row["input_tokens"] or 0) for row in rows),
+            "output_tokens": sum(int(row["output_tokens"] or 0) for row in rows),
+            "cost_usd": sum(float(row["cost_usd"] or 0) for row in rows),
         }
+
+    def create_agent_task_continuation(
+        self,
+        task_id: str,
+        *,
+        parent_session_id: str,
+        prompt: str,
+        context_refs: list[str],
+        parent_run_id: str,
+        execution: str,
+        idempotency_key: str | None,
+    ) -> dict[str, Any]:
+        now = datetime.now(UTC).isoformat()
+        with self._lock, self._connection:
+            task = self._connection.execute(
+                "SELECT * FROM agent_tasks WHERE id = ? AND parent_session_id = ?",
+                (task_id, parent_session_id),
+            ).fetchone()
+            if task is None:
+                raise ValueError("子 Agent 任务不存在或不属于当前父会话")
+            if task["status"] in {"queued", "running", "waiting_approval", "cancelling"}:
+                raise ValueError(f"子 Agent 当前状态 {task['status']}，不能开始续接运行")
+            if task["status"] == "cancelled":
+                raise ValueError("已取消的子 Agent 任务不能续接")
+            if idempotency_key:
+                existing = self._connection.execute(
+                    """
+                    SELECT id FROM agent_task_messages
+                    WHERE task_id = ? AND idempotency_key = ?
+                    """,
+                    (task_id, idempotency_key),
+                ).fetchone()
+                if existing:
+                    return self._get_agent_task_locked(task_id)
+            sequence = int(
+                self._connection.execute(
+                    "SELECT COALESCE(MAX(sequence), 0) + 1 FROM agent_task_runs WHERE task_id = ?",
+                    (task_id,),
+                ).fetchone()[0]
+            )
+            run_id = uuid4().hex
+            self._connection.execute(
+                """
+                INSERT INTO agent_task_runs(
+                    id, task_id, sequence, status, input_json, created_at
+                ) VALUES (?, ?, ?, 'queued', ?, ?)
+                """,
+                (
+                    run_id,
+                    task_id,
+                    sequence,
+                    json.dumps(
+                        self._sanitizer(
+                            {"prompt": prompt, "context_refs": context_refs, "initial": False}
+                        ),
+                        ensure_ascii=False,
+                    ),
+                    now,
+                ),
+            )
+            self._append_agent_task_message_locked(
+                task_id=task_id,
+                direction="parent_to_child",
+                kind="instruction",
+                payload={"prompt": prompt, "context_refs": context_refs, "initial": False},
+                idempotency_key=idempotency_key,
+                now=now,
+            )
+            self._connection.execute(
+                """
+                UPDATE agent_tasks
+                SET status = 'queued', parent_run_id = ?, context_refs_json = ?,
+                    execution = ?, owner_id = NULL, cancel_requested_at = NULL, started_at = NULL,
+                    completed_at = NULL, reported_at = NULL, result_json = NULL, error = NULL
+                WHERE id = ?
+                """,
+                (
+                    parent_run_id,
+                    json.dumps(context_refs, ensure_ascii=False),
+                    execution,
+                    task_id,
+                ),
+            )
+            return self._get_agent_task_locked(task_id)
+
+    def get_pending_agent_task_run(self, task_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT * FROM agent_task_runs
+                WHERE task_id = ? AND status IN ('queued', 'running')
+                ORDER BY sequence LIMIT 1
+                """,
+                (task_id,),
+            ).fetchone()
+        return self._decode_agent_task_run(row) if row else None
+
+    def list_agent_task_runs(self, task_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT * FROM agent_task_runs WHERE task_id = ? ORDER BY sequence",
+                (task_id,),
+            ).fetchall()
+        return [self._decode_agent_task_run(row) for row in rows]
+
+    @staticmethod
+    def _decode_agent_task_run(row: sqlite3.Row) -> dict[str, Any]:
+        item = dict(row)
+        item["input"] = json.loads(item.pop("input_json"))
+        result = item.pop("result_json")
+        item["result"] = json.loads(result) if result else None
+        return item
+
+    def append_agent_task_message(
+        self,
+        *,
+        task_id: str,
+        direction: str,
+        kind: str,
+        payload: dict[str, Any],
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        with self._lock, self._connection:
+            return self._append_agent_task_message_locked(
+                task_id=task_id,
+                direction=direction,
+                kind=kind,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                now=datetime.now(UTC).isoformat(),
+            )
+
+    def _append_agent_task_message_locked(
+        self,
+        *,
+        task_id: str,
+        direction: str,
+        kind: str,
+        payload: dict[str, Any],
+        idempotency_key: str | None,
+        now: str,
+    ) -> dict[str, Any]:
+        if direction not in {"parent_to_child", "child_to_parent"}:
+            raise ValueError(f"非法 Agent message direction: {direction}")
+        if kind not in {"instruction", "progress", "question", "result", "error"}:
+            raise ValueError(f"非法 Agent message kind: {kind}")
+        if idempotency_key:
+            existing = self._connection.execute(
+                "SELECT * FROM agent_task_messages WHERE task_id = ? AND idempotency_key = ?",
+                (task_id, idempotency_key),
+            ).fetchone()
+            if existing:
+                return self._decode_agent_task_message(existing)
+        sequence = int(
+            self._connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 FROM agent_task_messages WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()[0]
+        )
+        message_id = uuid4().hex
+        self._connection.execute(
+            """
+            INSERT INTO agent_task_messages(
+                id, task_id, sequence, direction, kind, payload_json,
+                idempotency_key, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                message_id,
+                task_id,
+                sequence,
+                direction,
+                kind,
+                json.dumps(self._sanitizer(payload), ensure_ascii=False),
+                idempotency_key,
+                now,
+            ),
+        )
+        row = self._connection.execute(
+            "SELECT * FROM agent_task_messages WHERE id = ?", (message_id,)
+        ).fetchone()
+        return self._decode_agent_task_message(row)
+
+    @staticmethod
+    def _decode_agent_task_message(row: sqlite3.Row) -> dict[str, Any]:
+        item = dict(row)
+        item["payload"] = json.loads(item.pop("payload_json"))
+        item.pop("idempotency_key", None)
+        return item
+
+    def list_agent_task_messages(
+        self,
+        task_id: str,
+        *,
+        direction: str | None = None,
+        undelivered_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        clauses = ["task_id = ?"]
+        args: list[Any] = [task_id]
+        if direction:
+            clauses.append("direction = ?")
+            args.append(direction)
+        if undelivered_only:
+            clauses.append("delivered_at IS NULL")
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT * FROM agent_task_messages WHERE "
+                + " AND ".join(clauses)
+                + " ORDER BY sequence",
+                tuple(args),
+            ).fetchall()
+        return [self._decode_agent_task_message(row) for row in rows]
+
+    def collect_agent_inbox(self, parent_session_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT m.* FROM agent_task_messages AS m
+                JOIN agent_tasks AS t ON t.id = m.task_id
+                WHERE t.parent_session_id = ? AND m.direction = 'child_to_parent'
+                  AND m.delivered_at IS NULL
+                ORDER BY m.created_at, m.sequence
+                """,
+                (parent_session_id,),
+            ).fetchall()
+        return [self._decode_agent_task_message(row) for row in rows]
+
+    def mark_agent_task_messages_delivered(self, task_id: str) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE agent_task_messages SET delivered_at = ?
+                WHERE task_id = ? AND direction = 'child_to_parent' AND delivered_at IS NULL
+                """,
+                (datetime.now(UTC).isoformat(), task_id),
+            )
+
+    def trust_agent_workspace(self, workspace: Path, content_sha256: str) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO agent_workspace_trust(workspace, content_sha256, trusted_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(workspace) DO UPDATE SET
+                    content_sha256 = excluded.content_sha256,
+                    trusted_at = excluded.trusted_at
+                """,
+                (str(workspace.resolve()), content_sha256, datetime.now(UTC).isoformat()),
+            )
+
+    def untrust_agent_workspace(self, workspace: Path) -> None:
+        with self._lock, self._connection:
+            self._connection.execute(
+                "DELETE FROM agent_workspace_trust WHERE workspace = ?",
+                (str(workspace.resolve()),),
+            )
+
+    def is_agent_workspace_trusted(self, workspace: Path, content_sha256: str) -> bool:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT content_sha256 FROM agent_workspace_trust WHERE workspace = ?",
+                (str(workspace.resolve()),),
+            ).fetchone()
+        return bool(row and row["content_sha256"] == content_sha256)
 
     def claim_agent_task(self, task_id: str, *, owner_id: str) -> bool:
         now = datetime.now(UTC).isoformat()
@@ -1810,6 +2261,18 @@ class SQLiteSessionStore(EventSink):
                 """,
                 (owner_id, now, task_id),
             )
+            if cursor.rowcount == 1:
+                self._connection.execute(
+                    """
+                    UPDATE agent_task_runs SET status = 'running', started_at = ?
+                    WHERE id = (
+                        SELECT id FROM agent_task_runs
+                        WHERE task_id = ? AND status = 'queued'
+                        ORDER BY sequence LIMIT 1
+                    )
+                    """,
+                    (now, task_id),
+                )
         return cursor.rowcount == 1
 
     def set_agent_task_waiting_approval(self, task_id: str) -> bool:
@@ -1839,7 +2302,7 @@ class SQLiteSessionStore(EventSink):
         from_statuses = ("running", "waiting_approval")
         if status == "cancelled":
             from_statuses = (*from_statuses, "cancelling", "queued")
-        return self._transition_agent_task(
+        transitioned = self._transition_agent_task(
             task_id,
             from_statuses=from_statuses,
             status=status,
@@ -1847,6 +2310,56 @@ class SQLiteSessionStore(EventSink):
             error=error,
             completed=True,
         )
+        if transitioned:
+            self._finish_active_agent_task_run(task_id, status, result, error)
+        return transitioned
+
+    def pause_agent_task_for_input(self, task_id: str, *, result: dict[str, Any]) -> bool:
+        transitioned = self._transition_agent_task(
+            task_id,
+            from_statuses=("running", "waiting_approval"),
+            status="waiting_parent",
+            result=result,
+            completed=False,
+        )
+        if transitioned:
+            self._finish_active_agent_task_run(task_id, "waiting_parent", result, None)
+        return transitioned
+
+    def _finish_active_agent_task_run(
+        self,
+        task_id: str,
+        status: str,
+        result: dict[str, Any] | None,
+        error: str | None,
+    ) -> None:
+        now = datetime.now(UTC).isoformat()
+        usage = result or {}
+        with self._lock, self._connection:
+            self._connection.execute(
+                """
+                UPDATE agent_task_runs
+                SET status = ?, result_json = ?, error = ?, input_tokens = ?,
+                    output_tokens = ?, cost_usd = ?, completed_at = ?
+                WHERE id = (
+                    SELECT id FROM agent_task_runs
+                    WHERE task_id = ? AND status = 'running'
+                    ORDER BY sequence DESC LIMIT 1
+                )
+                """,
+                (
+                    status,
+                    json.dumps(self._sanitizer(result), ensure_ascii=False)
+                    if result is not None
+                    else None,
+                    error,
+                    int(usage.get("input_tokens") or 0),
+                    int(usage.get("output_tokens") or 0),
+                    usage.get("cost_usd"),
+                    now,
+                    task_id,
+                ),
+            )
 
     def request_agent_task_cancel(
         self,
@@ -1875,15 +2388,24 @@ class SQLiteSessionStore(EventSink):
                 "interrupted",
             }:
                 return status
-            if status == "queued":
+            if status in {"queued", "waiting_parent"}:
                 cursor = self._connection.execute(
                     """
                     UPDATE agent_tasks SET status = 'cancelled', cancel_requested_at = ?,
-                        completed_at = ?, error = ? WHERE id = ? AND status = 'queued'
+                        completed_at = ?, error = ?
+                    WHERE id = ? AND status IN ('queued', 'waiting_parent')
                     """,
                     (now, now, reason, task_id),
                 )
                 if cursor.rowcount == 1:
+                    self._connection.execute(
+                        """
+                        UPDATE agent_task_runs
+                        SET status = 'cancelled', error = ?, completed_at = ?
+                        WHERE task_id = ? AND status = 'queued'
+                        """,
+                        (reason, now, task_id),
+                    )
                     return "cancelled"
             else:
                 cursor = self._connection.execute(
@@ -1925,6 +2447,27 @@ class SQLiteSessionStore(EventSink):
                 """,
                 (now, str(workspace.resolve())),
             )
+            task_ids = [str(row["id"]) for row in rows]
+            if task_ids:
+                placeholders = ",".join("?" for _ in task_ids)
+                self._connection.execute(
+                    f"""
+                    UPDATE agent_task_runs
+                    SET status = 'interrupted', completed_at = ?,
+                        error = COALESCE(error, 'Worker 进程中断')
+                    WHERE task_id IN ({placeholders}) AND status = 'running'
+                    """,
+                    (now, *task_ids),
+                )
+                for task_id in task_ids:
+                    self._append_agent_task_message_locked(
+                        task_id=task_id,
+                        direction="child_to_parent",
+                        kind="error",
+                        payload={"status": "interrupted", "error": "Worker 进程中断"},
+                        idempotency_key="worker-interrupted",
+                        now=now,
+                    )
         return [str(row["id"]) for row in rows]
 
     def interrupt_owned_agent_tasks(
@@ -1943,6 +2486,13 @@ class SQLiteSessionStore(EventSink):
         placeholders = ",".join("?" for _ in statuses)
         now = datetime.now(UTC).isoformat()
         with self._lock, self._connection:
+            selected = self._connection.execute(
+                f"""
+                SELECT id FROM agent_tasks
+                WHERE {owner_clause} AND workspace = ? AND status IN ({placeholders})
+                """,
+                (*arguments, str(workspace.resolve()), *statuses),
+            ).fetchall()
             cursor = self._connection.execute(
                 f"""
                 UPDATE agent_tasks SET status = 'interrupted', completed_at = ?,
@@ -1951,6 +2501,27 @@ class SQLiteSessionStore(EventSink):
                 """,
                 (now, *arguments, str(workspace.resolve()), *statuses),
             )
+            task_ids = [str(row["id"]) for row in selected]
+            if task_ids:
+                task_placeholders = ",".join("?" for _ in task_ids)
+                self._connection.execute(
+                    f"""
+                    UPDATE agent_task_runs
+                    SET status = 'interrupted', completed_at = ?,
+                        error = COALESCE(error, 'Worker Pool 已关闭')
+                    WHERE task_id IN ({task_placeholders}) AND status IN ('queued', 'running')
+                    """,
+                    (now, *task_ids),
+                )
+                for task_id in task_ids:
+                    self._append_agent_task_message_locked(
+                        task_id=task_id,
+                        direction="child_to_parent",
+                        kind="error",
+                        payload={"status": "interrupted", "error": "Worker Pool 已关闭"},
+                        idempotency_key="worker-pool-closed",
+                        now=now,
+                    )
         return cursor.rowcount
 
     def _transition_agent_task(

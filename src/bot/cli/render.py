@@ -121,8 +121,7 @@ class RichEventSink:
             self._finish_stream()
             self.console.print(
                 Text(
-                    "压缩请求失败："
-                    f"{payload.get('error_class')}，{payload.get('error')}",
+                    f"压缩请求失败：{payload.get('error_class')}，{payload.get('error')}",
                     style="yellow",
                 ),
                 highlight=False,
@@ -188,6 +187,30 @@ class RichEventSink:
                 f" {str(payload.get('task_id', ''))[:8]} waiting approval: {payload.get('reason')}"
             )
             self.console.print(line, highlight=False)
+        elif event.type == EventType.SUBAGENT_WAITING_PARENT:
+            self._finish_stream()
+            line = Text("? Subagent", style="yellow")
+            line.append(f" {str(payload.get('task_id', ''))[:8]} needs input", style="dim")
+            questions = payload.get("questions") or []
+            if questions:
+                line.append(f": {questions[0]}")
+            self.console.print(line, highlight=False)
+        elif event.type == EventType.SUBAGENT_PROGRESS:
+            self._finish_stream()
+            line = Text("… Subagent", style="blue")
+            line.append(f" {str(payload.get('task_id', ''))[:8]} ", style="dim")
+            line.append(str(payload.get("summary") or "progress"))
+            self.console.print(line, highlight=False)
+        elif event.type == EventType.SUBAGENT_PATCH_APPLIED:
+            self._finish_stream()
+            self.console.print(
+                f"[green]✓ Subagent patch[/green] {str(payload.get('task_id', ''))[:8]} applied"
+            )
+        elif event.type == EventType.SUBAGENT_WORKTREE_CLEANED:
+            self._finish_stream()
+            self.console.print(
+                f"[dim]Subagent worktree {str(payload.get('task_id', ''))[:8]} cleaned[/dim]"
+            )
         elif event.type in {
             EventType.SUBAGENT_FAILED,
             EventType.SUBAGENT_CANCELLED,

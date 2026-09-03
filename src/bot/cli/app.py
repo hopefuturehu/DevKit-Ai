@@ -43,6 +43,9 @@ from bot.observability import export_trace_bundle
 from bot.providers import ProviderError
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog
+from bot.subagents import AgentCatalog
+from bot.tools import ToolRegistry, register_builtin_tools
+from bot.tools.kunpeng import register_kunpeng_tools
 
 
 class NaturalLanguageGroup(TyperGroup):
@@ -62,6 +65,7 @@ app = typer.Typer(
     cls=NaturalLanguageGroup,
 )
 skill_app = typer.Typer(help="查看和诊断 Skill。")
+agent_app = typer.Typer(help="查看、校验和信任 Markdown Agent。")
 session_app = typer.Typer(help="查看和管理会话。")
 config_app = typer.Typer(help="查看生效配置。")
 model_app = typer.Typer(help="查看或切换模型。")
@@ -69,6 +73,7 @@ eval_app = typer.Typer(help="运行可复现的 Agent 评测任务。")
 trace_app = typer.Typer(help="导出和阅读完整 Agent 执行轨迹。")
 web_app = typer.Typer(help="启动 Web 界面。")
 app.add_typer(skill_app, name="skill")
+app.add_typer(agent_app, name="agent")
 app.add_typer(session_app, name="session")
 app.add_typer(config_app, name="config")
 app.add_typer(model_app, name="model")
@@ -335,7 +340,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             )
             console.print("\n".join([*runtime.tools.names(), *control_tools]))
             continue
-        if prompt == "/agents":
+        if prompt in {"/agents", "/agents tasks"}:
             tasks = runtime.subagents.list_tasks(session_id)
             if not tasks:
                 console.print("暂无后台子 Agent 任务。")
@@ -350,6 +355,27 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                         str(task["objective"])[:80],
                     )
                 console.print(table)
+            continue
+        if prompt == "/agents list":
+            _print_agents(runtime.agent_catalog)
+            continue
+        if prompt == "/agents reload":
+            _reload_runtime_agents(runtime)
+            console.print(f"已重新加载 {len(runtime.agent_catalog.agents)} 个 Agent。")
+            _print_agent_diagnostics(runtime.agent_catalog)
+            continue
+        if prompt == "/agents trust":
+            digest = AgentCatalog.compute_project_digest(
+                runtime.config.project_agent_path(runtime.workspace)
+            )
+            runtime.store.trust_agent_workspace(runtime.workspace, digest)
+            _reload_runtime_agents(runtime)
+            console.print("已信任当前内容摘要对应的项目 Agent；文件变化后需重新信任。")
+            continue
+        if prompt == "/agents untrust":
+            runtime.store.untrust_agent_workspace(runtime.workspace)
+            _reload_runtime_agents(runtime)
+            console.print("已取消当前工作区的项目 Agent 信任。")
             continue
         if prompt == "/model":
             console.print(f"{runtime.config.model.name} @ {runtime.config.model.base_url}")
@@ -432,7 +458,8 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             console.print(
                 "/status /tools /skills /skills reload /remember <text> "
                 "/memories /forget <id-or-key> /memory extract [run-id] "
-                "/agents /model /permissions /compact /compact rebuild "
+                "/agents tasks|list|reload|trust|untrust /model /permissions "
+                "/compact /compact rebuild "
                 "/compact rollback <id> /new /exit"
             )
             continue
@@ -672,11 +699,7 @@ def doctor_command(ctx: typer.Context) -> None:
             dotenv_value = None
         environment_value = os.environ.get(variable)
         if environment_value and dotenv_value and environment_value != dotenv_value:
-            selected = (
-                ".env"
-                if config.model.api_key_ref.startswith("dotenv:")
-                else "环境变量"
-            )
+            selected = ".env" if config.model.api_key_ref.startswith("dotenv:") else "环境变量"
             console.print(
                 f"[yellow]![/yellow] 环境变量 {variable} 与 {dotenv_path} 中的值不同；"
                 f"当前引用会使用{selected}，请确认这是预期行为"
@@ -688,8 +711,7 @@ def doctor_command(ctx: typer.Context) -> None:
                 mode = 0
             if mode & 0o077:
                 console.print(
-                    f"[yellow]![/yellow] {dotenv_path} 权限为 {mode:04o}，"
-                    "建议执行 chmod 600 .env"
+                    f"[yellow]![/yellow] {dotenv_path} 权限为 {mode:04o}，建议执行 chmod 600 .env"
                 )
 
     target = LocalExecutionTarget()
@@ -805,6 +827,12 @@ max_queued = 32
 max_tasks_per_session = 16
 allow_worktree_writes = true
 
+[agents]
+user_path = "~/.bot/agents"
+project_path = ".bot/agents"
+auto_resume_background = false
+required_wait_timeout_seconds = 900
+
 [permissions]
 mode = "safe"
 # 危险选项：自动批准所有 ASK；敏感路径、越界路径和非法策略绕过仍会拒绝
@@ -886,6 +914,171 @@ def _print_skills(catalog: SkillCatalog, active: set[str] | None = None) -> None
     console.print(table)
     for diagnostic in catalog.diagnostics:
         console.print(f"[{diagnostic.level}] {diagnostic.path}: {diagnostic.message}")
+
+
+def _agent_catalog(workspace: Path, config, store: SQLiteSessionStore) -> AgentCatalog:
+    tools = ToolRegistry()
+    register_builtin_tools(tools)
+    register_kunpeng_tools(tools)
+    try:
+        project_root = config.project_agent_path(workspace)
+    except ValueError as exc:
+        raise ConfigError(str(exc)) from exc
+    digest = AgentCatalog.compute_project_digest(project_root)
+    catalog = AgentCatalog(
+        builtin_root=Path(__file__).resolve().parents[1] / "assets" / "agents",
+        user_root=config.user_agent_path(),
+        project_root=project_root,
+        tools=tools,
+        project_trusted=store.is_agent_workspace_trusted(workspace, digest),
+        allow_worktree_writes=(
+            config.subagents.allow_worktree_writes and config.permissions.mode != "read-only"
+        ),
+    )
+    catalog.scan()
+    return catalog
+
+
+def _print_agent_diagnostics(catalog: AgentCatalog | None) -> None:
+    if catalog is None:
+        return
+    for diagnostic in catalog.diagnostics:
+        color = "red" if diagnostic.level == "error" else "yellow"
+        console.print(
+            f"[{color}]{diagnostic.level}[/{color}] {diagnostic.path}: {diagnostic.message}"
+        )
+
+
+def _print_agents(catalog: AgentCatalog | None) -> None:
+    if catalog is None:
+        console.print("Agent catalog 不可用。")
+        return
+    table = Table("名称", "来源", "模型", "隔离", "默认执行", "说明")
+    for item in catalog.summary():
+        table.add_row(
+            item["name"],
+            item["source"],
+            item["model"],
+            item["isolation"],
+            item["default_execution"],
+            item["description"],
+        )
+    console.print(table)
+    _print_agent_diagnostics(catalog)
+
+
+def _reload_runtime_agents(runtime) -> None:
+    catalog = runtime.agent_catalog
+    if catalog is None:
+        raise RuntimeError("Agent catalog 不可用")
+    digest = AgentCatalog.compute_project_digest(catalog.project_root)
+    catalog.project_trusted = runtime.store.is_agent_workspace_trusted(runtime.workspace, digest)
+    catalog.scan()
+    specs = catalog.list()
+    for spec in specs:
+        step_limits = [
+            value
+            for value in (
+                spec.max_steps,
+                runtime.config.agent.max_steps,
+                runtime.config.subagents.max_steps,
+            )
+            if value is not None
+        ]
+        spec.max_steps = min(step_limits) if step_limits else None
+        wall_time_limits = [
+            value
+            for value in (
+                spec.max_wall_time_seconds,
+                runtime.config.agent.max_wall_time_seconds,
+                runtime.config.subagents.max_wall_time_seconds,
+            )
+            if value is not None
+        ]
+        spec.max_wall_time_seconds = min(wall_time_limits) if wall_time_limits else None
+        configured_costs = [
+            value
+            for value in (
+                spec.max_cost_usd,
+                runtime.config.agent.max_cost_usd,
+                runtime.config.subagents.max_cost_usd_per_task,
+                runtime.config.subagents.max_total_cost_usd_per_session,
+            )
+            if value is not None
+        ]
+        spec.max_cost_usd = min(configured_costs) if configured_costs else None
+    runtime.subagents.replace_specs(specs)
+
+
+@agent_app.command("list")
+def agent_list(ctx: typer.Context) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    store = SQLiteSessionStore(config.state_path(workspace))
+    try:
+        _print_agents(_agent_catalog(workspace, config, store))
+    finally:
+        store.close()
+
+
+@agent_app.command("show")
+def agent_show(ctx: typer.Context, name: str) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    store = SQLiteSessionStore(config.state_path(workspace))
+    try:
+        catalog = _agent_catalog(workspace, config, store)
+        spec = catalog.agents.get(name)
+        if spec is None:
+            console.print(f"[red]Agent 不存在、冲突或尚未信任：{name}[/red]")
+            raise typer.Exit(1)
+        console.print_json(spec.model_dump_json())
+        console.print("\n" + spec.instructions, markup=False)
+    finally:
+        store.close()
+
+
+@agent_app.command("validate")
+def agent_validate(ctx: typer.Context) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    store = SQLiteSessionStore(config.state_path(workspace))
+    try:
+        catalog = _agent_catalog(workspace, config, store)
+        _print_agents(catalog)
+        if any(item.level == "error" for item in catalog.diagnostics):
+            raise typer.Exit(1)
+    finally:
+        store.close()
+
+
+@agent_app.command("trust")
+def agent_trust(ctx: typer.Context) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    try:
+        project_root = config.project_agent_path(workspace)
+    except ValueError as exc:
+        raise ConfigError(str(exc)) from exc
+    digest = AgentCatalog.compute_project_digest(project_root)
+    store = SQLiteSessionStore(config.state_path(workspace))
+    try:
+        store.trust_agent_workspace(workspace, digest)
+    finally:
+        store.close()
+    console.print(f"[green]已信任[/green] {project_root} 当前内容摘要 {digest[:12]}")
+
+
+@agent_app.command("untrust")
+def agent_untrust(ctx: typer.Context) -> None:
+    workspace = ctx.obj["workspace"].resolve()
+    config = load_config(workspace, config_path=ctx.obj["config_path"])
+    store = SQLiteSessionStore(config.state_path(workspace))
+    try:
+        store.untrust_agent_workspace(workspace)
+    finally:
+        store.close()
+    console.print(f"[yellow]已取消信任[/yellow] {workspace}")
 
 
 @session_app.command("list")
@@ -1114,9 +1307,7 @@ def web_start(
     try:
         import uvicorn  # noqa: F401
     except ImportError:
-        console.print(
-            "[red]Web UI 需要额外依赖。请安装: pip install fastapi uvicorn[/red]"
-        )
+        console.print("[red]Web UI 需要额外依赖。请安装: pip install fastapi uvicorn[/red]")
         raise typer.Exit(1) from None
 
     workspace = ctx.obj["workspace"].resolve()
@@ -1128,9 +1319,7 @@ def web_start(
     web_app_instance = create_app(workspace=workspace, config_path=config_path)
 
     console.print(
-        f"[green]Bot Web UI 启动中...[/green]\n"
-        f"  http://{host}:{port}\n"
-        f"  工作区: {workspace}"
+        f"[green]Bot Web UI 启动中...[/green]\n  http://{host}:{port}\n  工作区: {workspace}"
     )
 
     uvicorn.run(

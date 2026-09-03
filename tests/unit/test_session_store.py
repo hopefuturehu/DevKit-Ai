@@ -104,6 +104,7 @@ def test_session_store_migrates_legacy_event_schema(tmp_path: Path) -> None:
     connection.close()
     assert "schema_version" in columns
     assert 12 in versions
+    assert 14 in versions
 
 
 def test_new_schema_omits_episode_and_memory_card_tables(tmp_path: Path) -> None:

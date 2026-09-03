@@ -34,6 +34,8 @@ def _create_task(
         },
         context_refs=context_refs or [],
         required=True,
+        execution="background",
+        base_ref="HEAD",
         isolation="read_only",
         idempotency_key=f"idem-{task_id}",
     )
@@ -69,6 +71,8 @@ def test_agent_task_round_trip_survives_store_reopen(tmp_path: Path) -> None:
     assert persisted["constraints"] == ["只读"]
     assert persisted["acceptance_criteria"] == ["返回证据"]
     assert persisted["spec"]["name"] == "researcher"
+    assert persisted["execution"] == "background"
+    assert persisted["base_ref"] == "HEAD"
     assert persisted["result"] == result
     assert persisted["started_at"] is not None
     assert persisted["completed_at"] is not None
@@ -101,6 +105,32 @@ def test_blocked_agent_task_is_a_terminal_result(tmp_path: Path) -> None:
     assert persisted is not None
     assert persisted["status"] == "blocked"
     assert store.count_agent_tasks(parent_session_id) == 0
+    store.close()
+
+
+def test_waiting_parent_releases_capacity_and_can_be_cancelled(tmp_path: Path) -> None:
+    store = SQLiteSessionStore(tmp_path / "state.db")
+    parent_session_id = store.create_session(tmp_path)
+    task = _create_task(
+        store,
+        parent_session_id=parent_session_id,
+        task_id="task-waiting-parent",
+    )
+    assert store.claim_agent_task(task["id"], owner_id="worker-one")
+    assert store.pause_agent_task_for_input(
+        task["id"], result={"summary": "需要选择", "questions": ["使用 A 吗？"]}
+    )
+
+    assert store.count_agent_tasks(parent_session_id) == 0
+    assert (
+        store.request_agent_task_cancel(
+            task["id"], parent_session_id=parent_session_id, reason="用户放弃续接"
+        )
+        == "cancelled"
+    )
+    runs = store.list_agent_task_runs(task["id"])
+    assert runs[0]["status"] == "waiting_parent"
+    assert store.get_agent_task(task["id"])["status"] == "cancelled"
     store.close()
 
 
@@ -245,6 +275,10 @@ def test_recovery_interrupts_running_but_preserves_queued_tasks(tmp_path: Path) 
     assert recovered.get_agent_task(running["id"])["status"] == "interrupted"
     assert recovered.get_agent_task(running["id"])["completed_at"] is not None
     assert recovered.get_agent_task(queued["id"])["status"] == "queued"
+    assert recovered.list_agent_task_runs(running["id"])[0]["status"] == "interrupted"
+    inbox = recovered.collect_agent_inbox(parent_session_id)
+    assert inbox[0]["kind"] == "error"
+    assert inbox[0]["payload"]["status"] == "interrupted"
     recovered.close()
 
 

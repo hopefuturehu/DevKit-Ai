@@ -18,9 +18,9 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 - 运行中 steering、`/cancel`、五级上下文管理、可恢复单摘要压缩、显式/自动 Markdown
   长期记忆和 Token/费用记录；
 - 压缩事务发布、完整 Transcript 保留、覆盖范围与来源哈希校验、失败不推进、摘要回滚与原文重建；
-- 持久化后台子 Agent Worker Pool：`explorer`/`reviewer` 只读并行调查，`coder`
-  在独立 Git worktree 中修改；支持状态查询、等待、取消、崩溃后 fail-closed 恢复和
-  required 结果自动汇合。
+- Markdown 自定义 Agent catalog，支持前台/后台 `task`、同 child session 多轮续接、
+  持久化 mailbox、`waiting_parent` 提问、运行轨迹与用量审计；`coder` 在独立
+  Git worktree 中修改，可校验采用 patch 并清理 worktree。
 
 ## 开发安装
 
@@ -83,6 +83,12 @@ max_tasks_per_session = 16
 allow_worktree_writes = true
 # max_cost_usd_per_task = 0.5
 # max_total_cost_usd_per_session = 2.0
+
+[agents]
+user_path = "~/.bot/agents"
+project_path = ".bot/agents"
+auto_resume_background = false
+required_wait_timeout_seconds = 900
 
 [permissions]
 mode = "safe"
@@ -273,11 +279,15 @@ Router 的可证伪门禁、真实 DeepSeek 成对 A/B 结果和适用边界见
 Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`
 可取消当前运行。
 
-父 Agent 可调用 `spawn_agent`、`get_agent_status`、`await_agents` 和 `cancel_agent`。
+父 Agent 首选通过 `task` 以前台或后台方式调用 Markdown 自定义 Agent，并可以使用
+`send_task_message`、`get_agent_status`、`await_agents`、`cancel_agent`、`apply_agent_patch`
+和 `cleanup_agent_worktree`。完整定义格式、信任模型和父子交互协议见
+[Markdown 自定义 Agent](docs/custom-agents.md)。
 子 Agent 使用独立会话、Runner、Skill 激活状态和 Tool allowlist，默认最大委托深度为 1；
 父会话历史不会被复制，只有任务目标和显式授权的 `context_ref` 会进入子会话。`required=true`
-的任务会在父 Agent 最终回答前自动等待并作为不可信结构化结果回流；工作区内的
-SQLite/WAL 状态文件也不对 child Tool 开放。`coder` 的 worktree 从当前 `HEAD` 创建，
+的任务会在父 Agent 最终回答前有界等待并作为不可信结构化结果回流；工作区内的
+SQLite/WAL 状态文件也不对 child Tool 开放。`coder` 的 worktree 从显式
+`base_ref`（默认 `HEAD`）创建，
 不会自动携带主工作区未提交的改动。一次性 `bot run` 不会把任务变成进程外
 daemon；父运行结束后仍未完成的 detached 任务会在 Runtime 关闭时中断。
 

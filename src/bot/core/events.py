@@ -66,12 +66,16 @@ class EventType(StrEnum):
     SUBAGENT_QUEUED = "subagent.queued"
     SUBAGENT_STARTED = "subagent.started"
     SUBAGENT_WAITING_APPROVAL = "subagent.waiting_approval"
+    SUBAGENT_WAITING_PARENT = "subagent.waiting_parent"
     SUBAGENT_RESUMED = "subagent.resumed"
+    SUBAGENT_PROGRESS = "subagent.progress"
     SUBAGENT_COMPLETED = "subagent.completed"
     SUBAGENT_BLOCKED = "subagent.blocked"
     SUBAGENT_FAILED = "subagent.failed"
     SUBAGENT_CANCELLED = "subagent.cancelled"
     SUBAGENT_INTERRUPTED = "subagent.interrupted"
+    SUBAGENT_PATCH_APPLIED = "subagent.patch_applied"
+    SUBAGENT_WORKTREE_CLEANED = "subagent.worktree_cleaned"
 
 
 class AgentEvent(BaseModel):

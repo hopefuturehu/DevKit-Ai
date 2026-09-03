@@ -72,9 +72,7 @@ safety_margin_tokens = 1000
         load_config(tmp_path, config_path=config_path)
 
 
-def test_api_key_supports_dotenv_and_environment_references(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_api_key_supports_dotenv_and_environment_references(tmp_path: Path, monkeypatch) -> None:
     (tmp_path / ".env").write_text(
         'TEST_DOTENV_KEY="dotenv secret"\n',
         encoding="utf-8",
@@ -82,17 +80,11 @@ def test_api_key_supports_dotenv_and_environment_references(
     monkeypatch.delenv("TEST_DOTENV_KEY", raising=False)
     monkeypatch.setenv("TEST_BOT_KEY", "secret")
 
-    assert (
-        resolve_api_key("dotenv:TEST_DOTENV_KEY", workspace=tmp_path)
-        == "dotenv secret"
-    )
+    assert resolve_api_key("dotenv:TEST_DOTENV_KEY", workspace=tmp_path) == "dotenv secret"
     assert "TEST_DOTENV_KEY" not in os.environ
     assert resolve_api_key("env:TEST_BOT_KEY") == "secret"
     monkeypatch.setenv("TEST_DOTENV_KEY", "environment secret")
-    assert (
-        resolve_api_key("auto:TEST_DOTENV_KEY", workspace=tmp_path)
-        == "environment secret"
-    )
+    assert resolve_api_key("auto:TEST_DOTENV_KEY", workspace=tmp_path) == "environment secret"
     monkeypatch.delenv("TEST_DOTENV_KEY")
     assert resolve_api_key("auto:TEST_DOTENV_KEY", workspace=tmp_path) == "dotenv secret"
     assert "TEST_DOTENV_KEY" not in os.environ
@@ -107,9 +99,7 @@ def test_model_api_key_supports_direct_value_and_reference_fallback(
     direct = AppConfig.model_validate(
         {"model": {"api_key": "toml-secret", "api_key_ref": "env:TEST_MODEL_KEY"}}
     )
-    referenced = AppConfig.model_validate(
-        {"model": {"api_key_ref": "env:TEST_MODEL_KEY"}}
-    )
+    referenced = AppConfig.model_validate({"model": {"api_key_ref": "env:TEST_MODEL_KEY"}})
 
     assert resolve_model_api_key(direct.model, workspace=tmp_path) == "toml-secret"
     assert resolve_model_api_key(referenced.model, workspace=tmp_path) == "environment-secret"
@@ -154,6 +144,20 @@ def test_subagent_limits_are_strictly_validated(tmp_path: Path) -> None:
         load_config(tmp_path, overrides={"subagents": {"worktree_dir": "../escape"}})
     with pytest.raises(ConfigError, match="memory.path"):
         load_config(tmp_path, overrides={"memory": {"path": "."}})
+
+
+def test_project_agent_path_cannot_escape_through_symlink(tmp_path: Path) -> None:
+    outside = tmp_path.parent / f"{tmp_path.name}-outside-agents"
+    outside.mkdir()
+    project_bot = tmp_path / ".bot"
+    project_bot.mkdir()
+    try:
+        (project_bot / "agents").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("当前环境不允许创建符号链接")
+
+    with pytest.raises(ValueError, match="符号链接逃逸"):
+        AppConfig().project_agent_path(tmp_path)
 
 
 def test_execution_has_no_fixed_global_limit_by_default() -> None:
@@ -249,7 +253,7 @@ def test_config_writer_is_atomic_and_validates_values(tmp_path: Path) -> None:
 def test_config_validation_error_redacts_direct_api_key(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
     path.write_text(
-        "[model]\napi_key = \"must-not-leak\"\ncontext_window_tokens = 1000\n",
+        '[model]\napi_key = "must-not-leak"\ncontext_window_tokens = 1000\n',
         encoding="utf-8",
     )
 

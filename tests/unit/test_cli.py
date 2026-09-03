@@ -12,8 +12,10 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     initialized = runner.invoke(app, ["-C", str(tmp_path), "init"])
     assert initialized.exit_code == 0, initialized.output
     assert (tmp_path / ".bot" / "config.toml").exists()
-    assert (tmp_path / ".env.example").read_text(encoding="utf-8").endswith(
-        "BOT_MODEL_API_KEY=your-api-key\n"
+    assert (
+        (tmp_path / ".env.example")
+        .read_text(encoding="utf-8")
+        .endswith("BOT_MODEL_API_KEY=your-api-key\n")
     )
     assert 'api_key_ref = "auto:BOT_MODEL_API_KEY"' in (
         tmp_path / ".bot" / "config.toml"
@@ -21,9 +23,8 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     assert "model_request_retries = 2" in (tmp_path / ".bot" / "config.toml").read_text(
         encoding="utf-8"
     )
-    assert "auto_approve = false" in (tmp_path / ".bot" / "config.toml").read_text(
-        encoding="utf-8"
-    )
+    assert "auto_approve = false" in (tmp_path / ".bot" / "config.toml").read_text(encoding="utf-8")
+    assert "[agents]" in (tmp_path / ".bot" / "config.toml").read_text(encoding="utf-8")
     if os.name == "posix":
         assert (tmp_path / ".bot" / "config.toml").stat().st_mode & 0o077 == 0
     assert (tmp_path / "skills" / "kunpeng-performance-analysis" / "SKILL.md").is_file()
@@ -39,6 +40,24 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     )
     assert fetched.exit_code == 0, fetched.output
     assert "test-model" in fetched.output
+
+    local_state = runner.invoke(
+        app,
+        [
+            "-C",
+            str(tmp_path),
+            "config",
+            "set",
+            "storage.state_path",
+            "./.bot/state.db",
+        ],
+    )
+    assert local_state.exit_code == 0, local_state.output
+    agents = runner.invoke(app, ["-C", str(tmp_path), "agent", "list"])
+    assert agents.exit_code == 0, agents.output
+    assert "explorer" in agents.output
+    assert "reviewer" in agents.output
+    assert "coder" in agents.output
 
 
 def test_cli_help_and_version_do_not_require_model_configuration() -> None:

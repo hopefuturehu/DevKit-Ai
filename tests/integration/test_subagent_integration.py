@@ -23,7 +23,7 @@ from bot.policy import DefaultPolicyEngine
 from bot.providers import ModelProvider
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
-from bot.subagents import AgentSpec, BackgroundAgentPool, WorkerIsolation, default_agent_specs
+from bot.subagents import AgentSpec, BackgroundAgentPool, WorkerIsolation
 from bot.tools import ToolRegistry
 from bot.tools.builtins import ApplyPatchTool, ReadFileTool
 
@@ -233,7 +233,16 @@ def _make_runtime(
         store=store,
         event_bus=event_bus,
         execution_target=target,
-        specs=default_agent_specs(config, registry),
+        specs=[
+            AgentSpec(
+                name="explorer",
+                description="read-only explorer",
+                instructions="inspect and report evidence",
+                allowed_tools=["read_file"],
+                isolation=WorkerIsolation.READ_ONLY,
+                max_wall_time_seconds=10,
+            )
+        ],
         runner_factory=child_runner_factory,
     )
     parent_runner = AgentRunner(
