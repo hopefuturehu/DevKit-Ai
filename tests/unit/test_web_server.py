@@ -62,6 +62,7 @@ def test_create_app_starts_and_serves_rest_endpoints(tmp_path, monkeypatch) -> N
         detail = client.get(f"/api/sessions/{sid}").json()
         assert detail["session_id"] == sid
         assert detail["messages"] == []
+        assert detail["plan"] is None
         assert client.get("/api/sessions/missing").status_code == 404
 
 
@@ -79,6 +80,7 @@ def test_websocket_ping_session_and_approval(tmp_path, monkeypatch) -> None:
             created = ws.receive_json()
             assert created["type"] == "session_created"
             assert created["session_id"]
+            assert created["plan"] is None
 
             ws.send_text('{"type":"approval","decision":"approve"}')
             assert ws.receive_json()["type"] == "approval_resolved"

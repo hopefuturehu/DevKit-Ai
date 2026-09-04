@@ -1,3 +1,4 @@
+from importlib import import_module
 from io import StringIO
 
 import pytest
@@ -140,3 +141,51 @@ async def test_compaction_request_progress_is_visible() -> None:
     assert "input≈47619 tokens" in output
     assert "condense，duration=12.5s" in output
     assert "timeout，90 秒超时" in output
+
+
+@pytest.mark.asyncio
+async def test_plan_updates_are_rendered_as_todo_list() -> None:
+    stream = StringIO()
+    sink = RichEventSink(create_cli_console(file=stream, width=500))
+
+    await sink.publish(
+        _event(
+            EventType.PLAN_UPDATED,
+            {
+                "explanation": "范围已确认",
+                "items": [
+                    {"content": "分析入口", "status": "completed"},
+                    {"content": "实现功能", "status": "in_progress"},
+                    {"content": "运行测试", "status": "pending"},
+                ],
+            },
+        )
+    )
+
+    output = stream.getvalue()
+    assert "TODO list 已更新：范围已确认" in output
+    assert "✓ 分析入口" in output
+    assert "● 实现功能" in output
+    assert "○ 运行测试" in output
+
+
+def test_print_plan_supports_current_session_inspection(monkeypatch) -> None:
+    stream = StringIO()
+    cli_app = import_module("bot.cli.app")
+    monkeypatch.setattr(cli_app, "console", create_cli_console(file=stream, width=500))
+
+    cli_app._print_plan(  # noqa: SLF001
+        {
+            "explanation": "继续执行",
+            "items": [
+                {"content": "实现功能", "status": "in_progress"},
+                {"content": "运行测试", "status": "pending"},
+            ],
+        }
+    )
+
+    output = stream.getvalue()
+    assert "● in progress" in output
+    assert "实现功能" in output
+    assert "○ pending" in output
+    assert "继续执行" in output

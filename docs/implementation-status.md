@@ -1,6 +1,6 @@
 # MVP 实现状态
 
-> 更新日期：2026-09-03
+> 更新日期：2026-09-04
 > 结论：设计中 Milestone 0–3 及可恢复单摘要上下文压缩的本地代码闭环已经实现；
 > 需要真实凭据或鲲鹏 ARM 环境的项目保留为环境验收，不伪造通过结果。
 
@@ -12,6 +12,7 @@
 | Provider | OpenAI-compatible Chat Completions，SSE 文本、结构化 Tool Call、usage 与异常归一化 | `src/bot/providers/` |
 | Agent Core | Tool 进展协议、持久化 epoch、外部等待/静默检查、停滞纠偏和统一无 Tool 收尾 | `src/bot/core/agent.py`、`src/bot/core/progress.py`、`src/bot/core/termination/` |
 | 通用 Tool | read、search、精确 patch、argv command、受控 shell、HTTP fetch，以及受管进程的轮询、输入、终止和列表 | `src/bot/tools/builtins.py` |
+| TODO list | 单一 `update_plan` 全量快照 Tool、内容/唯一性/单 active 硬校验、`plan.updated` 持久事件投影、压缩后运行时恢复及 CLI/Web 展示 | `src/bot/tools/plan.py`、`src/bot/core/agent.py` |
 | 执行抽象 | `ExecutionTarget` 接口、本地异步 subprocess、同步等待/进程寿命分离、增量输出、hard timeout、leader 退出后的 PGID 跟踪与异常关闭清理 | `src/bot/execution/` |
 | 安全策略 | workspace/symlink 边界、敏感路径、危险命令审批、非 TTY fail-closed、环境变量 allowlist、脱敏 | `src/bot/policy/`、`src/bot/observability/` |
 | 审批 | once/session/always/deny 与单键交互；常用开发命令按 workspace 和保守 argv 前缀复用，动态/高危命令保持精确匹配 | `src/bot/core/approval.py`、`src/bot/policy/engine.py` |

@@ -155,6 +155,7 @@ def create_app(
             "session_id": session_id,
             "messages": [m.model_dump(mode="json") for m in messages],
             "usage": usage,
+            "plan": rt.store.load_plan(session_id),
         }
 
     @app.get("/api/skills")
@@ -228,6 +229,7 @@ def create_app(
                     await send_json({
                         "type": "session_created",
                         "session_id": session_id,
+                        "plan": None,
                     })
 
                 elif msg_type == "resume_session":
@@ -237,6 +239,7 @@ def create_app(
                         await send_json({
                             "type": "session_resumed",
                             "session_id": session_id,
+                            "plan": rt.store.load_plan(session_id),
                         })
                     else:
                         await send_json({
@@ -250,6 +253,7 @@ def create_app(
                         await send_json({
                             "type": "session_created",
                             "session_id": session_id,
+                            "plan": None,
                         })
 
                     prompt = msg.get("prompt", "").strip()
@@ -316,6 +320,7 @@ def create_app(
                     await send_json({
                         "type": "session_created",
                         "session_id": session_id,
+                        "plan": None,
                     })
 
                 elif msg_type == "compact":

@@ -11,8 +11,9 @@ from typing import Any
 from uuid import uuid4
 
 from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
-from bot.core.events import AgentEvent, EventSink
+from bot.core.events import AgentEvent, EventSink, EventType
 from bot.core.models import ChatMessage
+from bot.core.plan import validate_plan_payload
 
 SCHEMA_VERSION = 14
 
@@ -654,6 +655,28 @@ class SQLiteSessionStore(EventSink):
             item["payload"] = json.loads(item.pop("payload_json"))
             events.append(item)
         return events
+
+    def load_plan(self, session_id: str) -> dict[str, Any] | None:
+        """Project the latest durable plan.updated event for a session."""
+
+        with self._lock:
+            row = self._connection.execute(
+                """
+                SELECT payload_json
+                FROM events
+                WHERE session_id = ? AND type = ?
+                ORDER BY timestamp DESC, rowid DESC
+                LIMIT 1
+                """,
+                (session_id, EventType.PLAN_UPDATED.value),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            payload = json.loads(str(row["payload_json"]))
+        except (json.JSONDecodeError, TypeError):
+            return None
+        return validate_plan_payload(payload)
 
     def start_run(self, session_id: str, run_id: str) -> None:
         now = datetime.now(UTC).isoformat()

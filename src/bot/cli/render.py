@@ -86,6 +86,22 @@ class RichEventSink:
                 markup=False,
                 highlight=False,
             )
+        elif event.type == EventType.PLAN_UPDATED:
+            self._finish_stream()
+            explanation = payload.get("explanation")
+            heading = "TODO list 已更新"
+            if explanation:
+                heading += f"：{explanation}"
+            self.console.print(Text(heading, style="blue"), highlight=False)
+            markers = {"pending": "○", "in_progress": "●", "completed": "✓"}
+            for item in payload.get("items", []):
+                status = str(item.get("status", "pending"))
+                marker = markers.get(status, "○")
+                style = "green" if status == "completed" else "cyan"
+                self.console.print(
+                    Text(f"  {marker} {item.get('content', '')}", style=style),
+                    highlight=False,
+                )
         elif event.type == EventType.SKILL_ACTIVATED:
             self._finish_stream()
             explicit = "显式" if payload.get("explicit") else "自动"

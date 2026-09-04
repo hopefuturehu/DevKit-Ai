@@ -9,6 +9,8 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 
 - OpenAI-compatible Chat Completions 流式文本和结构化 Tool Calling；
 - 可恢复、可分叉的 SQLite 会话和 JSONL 审计事件；
+- 模型自主维护的会话级 TODO list，支持严格快照校验、事件持久化、CLI/Web 实时展示和
+  上下文压缩后恢复；
 - read/search/apply-patch/argv command/受控 shell/network 等通用 Tool；长命令在短暂
   同步等待后转为可轮询、可输入、可终止的受管进程；
 - Workspace 路径边界、危险操作审批、审批作用域、输出截断和敏感值脱敏；
@@ -257,7 +259,7 @@ Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 
 .venv/bin/python scripts/archive_terminalbench_result.py
 ```
 
-交互会话中可用 `/status`、`/tools`、`/agents`、`/skills`、`/model`、`/permissions`、
+交互会话中可用 `/status`、`/tools`、`/todo`、`/agents`、`/skills`、`/model`、`/permissions`、
 `/compact`、`/compact rebuild`、`/compact rollback <id>`、`/remember`、`/memories`、
 `/forget <id-or-key>`、`/memory extract [run-id]`、`/new` 和 `/exit`。`/compact` 会在
 Tool 原子组边界生成一个活动摘要，

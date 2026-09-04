@@ -32,6 +32,7 @@ from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
 from bot.tools import Tool, ToolAnnotations, ToolRegistry, ToolResult
 from bot.tools.builtins import ReadFileTool
+from bot.tools.plan import UpdatePlanTool
 
 
 class ScriptedProvider(ModelProvider):
@@ -263,6 +264,80 @@ def automatic_memory_candidate(
         confidence=0.92,
         evidence_positions=positions or [1, 2],
     )
+
+
+class CompactedPlanProjection:
+    """Hide all old transcript messages while leaving durable plan events available."""
+
+    def projection(self, session_id: str) -> dict[str, object]:
+        del session_id
+        return {"cursor_position": 10_000, "compaction": None}
+
+
+@pytest.mark.asyncio
+async def test_update_plan_persists_and_rehydrates_after_compaction(tmp_path: Path) -> None:
+    provider = ScriptedProvider(
+        [
+            tool_turn(
+                "plan-1",
+                "update_plan",
+                json.dumps(
+                    {
+                        "explanation": "实现阶段一",
+                        "items": [
+                            {"content": "分析入口", "status": "completed"},
+                            {"content": "实现 TODO", "status": "in_progress"},
+                            {"content": "运行测试", "status": "pending"},
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="第一轮完成"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="恢复后继续"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider, tools=[UpdatePlanTool()])
+
+    first = await runner.run(RunRequest(prompt="实现功能"))
+
+    assert first.status == "completed"
+    assert store.load_plan(first.session_id) == {
+        "explanation": "实现阶段一",
+        "items": [
+            {"content": "分析入口", "status": "completed"},
+            {"content": "实现 TODO", "status": "in_progress"},
+            {"content": "运行测试", "status": "pending"},
+        ],
+    }
+    assert any(
+        event["type"] == EventType.PLAN_UPDATED.value
+        for event in store.list_events(first.session_id)
+    )
+    second_request_context = "\n".join(
+        message.content or "" for message in provider.requests[1].messages
+    )
+    assert "当前会话 TODO list" in second_request_context
+    assert "实现 TODO" in second_request_context
+
+    runner.context_compactor = CompactedPlanProjection()
+    resumed = await runner.run(
+        RunRequest(prompt="继续处理未完成项", session_id=first.session_id)
+    )
+
+    assert resumed.status == "completed"
+    resumed_context = "\n".join(message.content or "" for message in provider.requests[2].messages)
+    assert "当前会话 TODO list" in resumed_context
+    assert "上下文压缩不会清除" in resumed_context
+    assert "实现 TODO" in resumed_context
+    assert "update_plan" in resumed_context
+    store.close()
 
 
 def make_test_runner(

@@ -22,6 +22,7 @@ from bot.tools.base import (
     path_is_denied,
     resolve_path,
 )
+from bot.tools.plan import UpdatePlanTool
 
 
 class ReadFileTool(Tool):
@@ -763,6 +764,7 @@ class FetchUrlTool(Tool):
 
 
 def register_builtin_tools(registry) -> None:
+    registry.register(UpdatePlanTool())
     registry.register(ReadFileTool())
     registry.register(SearchTextTool())
     registry.register(ApplyPatchTool())

@@ -22,6 +22,18 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
             sequence=1,
         )
     )
+    await store.publish(
+        AgentEvent(
+            type=EventType.PLAN_UPDATED,
+            session_id=session_id,
+            run_id=run_id,
+            sequence=2,
+            payload={
+                "explanation": "测试恢复",
+                "items": [{"content": "完成测试", "status": "in_progress"}],
+            },
+        )
+    )
     store.append_message(session_id, run_id, ChatMessage(role=Role.USER, content="hello"))
     with pytest.raises(ValueError, match="拒绝持久化无效消息"):
         store.append_message(session_id, run_id, ChatMessage(role=Role.ASSISTANT))
@@ -44,6 +56,10 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
     assert store.latest_session(tmp_path) == session_id
     assert store.load_messages(session_id)[0].content == "hello"
     assert store.list_events(session_id)[0]["schema_version"] == 1
+    assert store.load_plan(session_id) == {
+        "explanation": "测试恢复",
+        "items": [{"content": "完成测试", "status": "in_progress"}],
+    }
     assert store.session_usage(session_id) == {
         "runs": 1,
         "input_tokens": 10,
@@ -73,6 +89,10 @@ async def test_session_store_persists_events_and_messages(tmp_path: Path) -> Non
 
     reopened = SQLiteSessionStore(tmp_path / "state.db")
     assert reopened.load_messages(session_id)[0].content == "hello"
+    assert reopened.load_plan(session_id) == {
+        "explanation": "测试恢复",
+        "items": [{"content": "完成测试", "status": "in_progress"}],
+    }
     reopened.close()
 
 

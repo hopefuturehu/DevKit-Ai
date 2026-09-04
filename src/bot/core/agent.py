@@ -39,6 +39,7 @@ from bot.core.models import (
     ToolCall,
     ToolDefinition,
 )
+from bot.core.plan import PlanStatus, validate_plan_payload
 from bot.core.progress import ProgressKind, ProgressSignal
 from bot.core.termination import ProgressController, TerminationAction
 from bot.execution import ExecutionTarget, ProcessStatus
@@ -710,6 +711,7 @@ class AgentRunner:
                     run_id=run_id,
                 )
             await self._refresh_managed_process_note(runtime_notes)
+            self._refresh_plan_note(runtime_notes, session_id)
             request_tools = self.tool_registry.definitions()
             if self.config.skills.auto_activate and self.skills.catalog.skills:
                 request_tools.append(self.skills.catalog.activation_tool_definition())
@@ -1810,6 +1812,7 @@ class AgentRunner:
         ]
         runtime_notes: list[ContextItem] = []
         await self._refresh_managed_process_note(runtime_notes)
+        self._refresh_plan_note(runtime_notes, session_id)
         self._replace_runtime_note(
             runtime_notes,
             note_id="termination-finalizer",
@@ -1885,6 +1888,41 @@ class AgentRunner:
                 priority=825,
                 metadata={"has_running_processes": True},
             )
+        )
+
+    def _refresh_plan_note(
+        self,
+        runtime_notes: list[ContextItem],
+        session_id: str,
+    ) -> None:
+        runtime_notes[:] = [item for item in runtime_notes if item.id != "session-plan"]
+        plan = self.store.load_plan(session_id)
+        if plan is None:
+            return
+        items = plan["items"]
+        if not any(item["status"] != PlanStatus.COMPLETED.value for item in items):
+            return
+        markers = {
+            PlanStatus.PENDING.value: "[ ]",
+            PlanStatus.IN_PROGRESS.value: "[>]",
+            PlanStatus.COMPLETED.value: "[x]",
+        }
+        lines = [
+            "当前会话 TODO list（持久状态；上下文压缩不会清除）：",
+            *[
+                f"- {markers[item['status']]} {item['content']} ({item['status']})"
+                for item in items
+            ],
+            "更新时调用 update_plan，并提交包含已完成项在内的完整当前列表。",
+        ]
+        if plan.get("explanation"):
+            lines.insert(1, f"最近调整原因：{plan['explanation']}")
+        self._replace_runtime_note(
+            runtime_notes,
+            note_id="session-plan",
+            content="\n".join(lines),
+            priority=850,
+            source="sqlite:plan-events",
         )
 
     def _active_skill_items(self) -> list[ContextItem]:
@@ -3659,6 +3697,17 @@ class AgentRunner:
             result = await tool.execute(context, tool_call.arguments)
         except Exception as exc:
             result = ToolResult(success=False, error=f"Tool 未处理异常: {exc}")
+        if tool.name == "update_plan" and result.success:
+            plan_update = validate_plan_payload(result.metadata.get("plan_update"))
+            if plan_update is None:
+                result = ToolResult(success=False, error="update_plan 未返回有效计划快照")
+            else:
+                await self.event_bus.emit(
+                    EventType.PLAN_UPDATED,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload=plan_update,
+                )
         result = self.redactor.redact_tool_result(result)
         audit_reference = self.store.put_context_blob(
             session_id=session_id,

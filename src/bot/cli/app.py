@@ -340,6 +340,9 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             )
             console.print("\n".join([*runtime.tools.names(), *control_tools]))
             continue
+        if prompt == "/todo":
+            _print_plan(runtime.store.load_plan(session_id))
+            continue
         if prompt in {"/agents", "/agents tasks"}:
             tasks = runtime.subagents.list_tasks(session_id)
             if not tasks:
@@ -456,7 +459,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             continue
         if prompt in {"/help", "?"}:
             console.print(
-                "/status /tools /skills /skills reload /remember <text> "
+                "/status /tools /todo /skills /skills reload /remember <text> "
                 "/memories /forget <id-or-key> /memory extract [run-id] "
                 "/agents tasks|list|reload|trust|untrust /model /permissions "
                 "/compact /compact rebuild "
@@ -914,6 +917,23 @@ def _print_skills(catalog: SkillCatalog, active: set[str] | None = None) -> None
     console.print(table)
     for diagnostic in catalog.diagnostics:
         console.print(f"[{diagnostic.level}] {diagnostic.path}: {diagnostic.message}")
+
+
+def _print_plan(plan: dict | None) -> None:
+    if plan is None or not plan.get("items"):
+        console.print("当前会话没有 TODO。")
+        return
+    table = Table("状态", "TODO")
+    labels = {
+        "pending": "○ pending",
+        "in_progress": "● in progress",
+        "completed": "✓ completed",
+    }
+    for item in plan["items"]:
+        table.add_row(labels.get(str(item["status"]), str(item["status"])), str(item["content"]))
+    if plan.get("explanation"):
+        table.caption = str(plan["explanation"])
+    console.print(table)
 
 
 def _agent_catalog(workspace: Path, config, store: SQLiteSessionStore) -> AgentCatalog:
