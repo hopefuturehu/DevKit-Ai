@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T19:08:40.156811+00:00",
+  "generated_at": "2026-09-08T19:25:37.150141+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
     "pass": 5,
-    "not_run": 33,
+    "running": 1,
+    "not_run": 32,
     "fail": 2
   },
   "completed_cases": [
@@ -932,6 +933,38 @@
         "reason": "Exact-image Sympy protocol repeat and environment probes complete; image was not present in the retained original inventory."
       }
     },
+    "sympy_git_history_review": {
+      "source": "diagnostics/sympy-candidate/git-history-review.json",
+      "result": {
+        "task": "sympy__sympy-18532",
+        "requested_base_commit": "74227f900b05009d4eed62e34a166228788a32ca",
+        "observed_image_head": "0f7395788b70812b9960e55a1c5ad1602b65f0bb",
+        "observed_head_subject": "SWE-bench",
+        "next_visible_history_commit": "74227f900b05009d4eed62e34a166228788a32ca",
+        "observed_branches": [
+          "master"
+        ],
+        "official_harness_version": "4.1.0",
+        "official_build_source": "tools/swe/lib/python3.12/site-packages/swebench/harness/test_spec/python.py",
+        "official_build_source_sha256": "bb66f607d1932db995a11fd6d6dc2f1c86a695257385bc88f98409582c0c469a",
+        "build_behavior": [
+          "Reset repository to requested base commit",
+          "Remove origin and tags newer than the target timestamp",
+          "Expire reflogs and prune unreachable objects",
+          "Verify no later commits remain reachable",
+          "Commit installation changes under subject SWE-bench"
+        ],
+        "interpretation": "The observed extra commit is consistent with official image preparation, not evidence of a future issue-fix commit. No future-fix access was found in the reviewed Git tool calls.",
+        "limitations": [
+          "No complete Git-object audit of this already-cleaned image was performed",
+          "The runtime trace and installed build source do not prove that every prebuilt image obeyed the same cleanup procedure"
+        ],
+        "trace_sha256": {
+          "cases/swebench/sympy__sympy-18532/2/prediction.trace/messages.jsonl": "e930046b3d93cd9e1d9b9cf868c3b5016818e1129b2b6f477e9f6008bdf625b8"
+        },
+        "future_image_audit": "Prepared a separate no-model observer for subsequent selected SWE images; its Docker probe has not run yet because the main batch is still on Terminal tasks."
+      }
+    },
     "native_vim_manifest": {
       "source": "diagnostics/native-vim/manifest.json",
       "result": {
@@ -1366,6 +1399,7 @@
     "diagnostics/sympy-candidate/environment-probe.json": "810d77e80670a7fdd3bf234e5a1960a4e57e19c15a74f9480690da8fc17a65e1",
     "diagnostics/sympy-candidate/activation-probe.json": "474f917f87675ea68204e389bf01e68be2398e31590ae490185c4bd50ec74352",
     "diagnostics/sympy-candidate/cleanup.json": "cb72c345d9fc54b21543967b3869be228d85e8bdfd1c5d7969db045db55eede3",
+    "diagnostics/sympy-candidate/git-history-review.json": "fb9b6daf2fa0781ffd831e0aed21ab12f044a03c9e5b7630b65042089fc50f66",
     "diagnostics/native-vim/manifest.json": "373c7d339a04012d996b6d2f83ef9047d508e0d37bc434cde764844710146d4f",
     "diagnostics/native-vim/control-results.json": "42691cbb25eca074df2bad8ee1a32c3e95420e60234db49ff2d40df533494faf",
     "diagnostics/native-vim/model-result.json": "68d5a73010a39c6e3fdf2075dfc0e8c8945246606e0a8fb28930d3054c1ec084",
@@ -1381,6 +1415,8 @@
     "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/verifier/test-stdout.txt": "a511abf324fdcdc09b42f2d183c286b5c4345b7f7eb1abe2f927e7a1dbeac110",
     "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/result.json": "9fba6762196f5a0582695dad4310cfb9eb94023cb4b847426b2a046b835068e3",
     "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/result.json": "61dd7d4f3b0188e56f25c46280b547698d5a0394868c7a7229639cc86fbd903e",
+    "diagnostics/source-snapshots/9a31cb7b1aec7ed217913ce21d127ed3f98a6b7b7bd38758f3c681c457312607.py": "9a31cb7b1aec7ed217913ce21d127ed3f98a6b7b7bd38758f3c681c457312607",
+    "tools/swe/lib/python3.12/site-packages/swebench/harness/test_spec/python.py": "bb66f607d1932db995a11fd6d6dc2f1c86a695257385bc88f98409582c0c469a",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/result.json": "9f6e1ab1d4036a959567c393b7b66791756d8bbbb024d842eb0ca1133bff4a8f",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/result.json": "520274c3725418d61f82cd43b5283ea233fc9dbe160a8e92a1e394bcd7647dcc",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/events.jsonl": "94be146e4959f889d9c0c144b21ea8ebf74eb424e875f392c766f3c1037e3515",
@@ -1389,6 +1425,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/0eef975347171d9f278b14483df8afb3d68ac277189b209c8e52a0e2f494ce39.py": "0eef975347171d9f278b14483df8afb3d68ac277189b209c8e52a0e2f494ce39"
+    "diagnostics/source-snapshots/6341e868abcaaf608b203b01eef24b1679af962e38a36f198fc6b348f5c8e9be.py": "6341e868abcaaf608b203b01eef24b1679af962e38a36f198fc6b348f5c8e9be"
   }
 }
