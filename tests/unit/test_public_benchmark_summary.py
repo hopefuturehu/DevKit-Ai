@@ -198,3 +198,97 @@ def test_missing_structured_report_is_unknown_instead_of_zero_tests(tmp_path):
 
     assert report["baseline_scoring_counts"] == {"pass": 1}
     assert report["tasks"][0]["attempts"][0]["verifier_health"]["status"] == "unknown"
+
+
+def test_timeout_with_passing_artifact_keeps_late_terminal_event_separate(tmp_path):
+    trial = tmp_path / "terminalbench/example-baseline-1/trial"
+    write_json(
+        trial / "result.json",
+        {
+            "finished_at": "2026-09-08T18:02:00Z",
+            "agent_execution": {"finished_at": "2026-09-08T17:59:50Z"},
+            "exception_info": {"exception_type": "AgentTimeoutError"},
+            "verifier_result": {"rewards": {"reward": 1}},
+        },
+    )
+    write_json(
+        trial / "verifier/ctrf.json",
+        {
+            "results": {"tests": [{"name": "actual_assertion", "status": "passed"}]},
+        },
+    )
+    write_events(
+        trial / "agent/events.jsonl",
+        event("model.response", {"step": 65}),
+        event(
+            "run.finished",
+            {
+                "status": "limit_reached",
+                "steps": 65,
+                "termination_reason": "model_output_limit",
+                "input_tokens": 100,
+                "output_tokens": 10,
+            },
+        ),
+    )
+
+    report = summary.summarize(
+        tmp_path,
+        {
+            "terminalbench": [{"id": "terminal-bench/example"}],
+            "swebench": [],
+        },
+    )
+
+    attempt = report["tasks"][0]["attempts"][0]
+    assert report["baseline_counts"] == {"error": 1}
+    assert attempt["artifact_verdict"] == "pass"
+    assert attempt["agent_result_available"] is False
+    assert attempt["agent_metadata_source"] == "events.run.finished"
+    assert attempt["run_status"] == "limit_reached"
+    assert attempt["steps"] == 65
+    assert attempt["terminal_event_after_official_stop"] is True
+    # Terminal cumulative totals cannot stand in for request-level usage evidence.
+    assert attempt["usage"]["input_tokens"] == 0
+    assert attempt["usage"]["estimated_cost_usd"] is None
+
+
+def test_partial_model_activity_does_not_invent_a_terminal_event(tmp_path):
+    trial = tmp_path / "terminalbench/example-baseline-1/trial"
+    write_events(trial / "agent/events.jsonl", event("model.response", {"step": 1}))
+
+    report = summary.summarize(
+        tmp_path,
+        {
+            "terminalbench": [{"id": "terminal-bench/example"}],
+            "swebench": [],
+        },
+    )
+
+    attempt = report["tasks"][0]["attempts"][0]
+    assert attempt["run_status"] is None
+    assert attempt["agent_metadata_source"] is None
+    assert attempt["terminal_event_after_official_stop"] is None
+    assert attempt["artifact_verdict"] == "pending"
+
+
+def test_agent_result_file_retains_precedence_over_event_fallback(tmp_path):
+    trial = tmp_path / "terminalbench/example-baseline-1/trial"
+    write_json(trial / "agent/result.json", {"status": "completed", "steps": 3})
+    write_events(
+        trial / "agent/events.jsonl",
+        event("run.finished", {"status": "failed", "steps": 2}),
+    )
+
+    report = summary.summarize(
+        tmp_path,
+        {
+            "terminalbench": [{"id": "terminal-bench/example"}],
+            "swebench": [],
+        },
+    )
+
+    attempt = report["tasks"][0]["attempts"][0]
+    assert attempt["agent_metadata_source"] == "agent_result"
+    assert attempt["run_status"] == "completed"
+    assert attempt["steps"] == 3

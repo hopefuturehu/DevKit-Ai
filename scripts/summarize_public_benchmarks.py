@@ -24,6 +24,7 @@ def usage_metrics(path: Path) -> dict:
         "model_response_observed": False,
         "agent_started": False,
         "compaction_aggregate_fallbacks": 0,
+        "terminal_event": None,
     }
     events = Counter()
     seen = set()
@@ -42,6 +43,22 @@ def usage_metrics(path: Path) -> dict:
             kind = event["type"]
             events[kind] += 1
             payload = event["payload"]
+            if kind == "run.finished":
+                metrics["terminal_event"] = {
+                    "timestamp": event["timestamp"],
+                    **{
+                        key: payload[key]
+                        for key in (
+                            "status",
+                            "steps",
+                            "error",
+                            "termination_reason",
+                            "input_tokens",
+                            "output_tokens",
+                        )
+                        if key in payload
+                    },
+                }
             if kind in {"model.response", "assistant.delta", "assistant.reasoning.delta"}:
                 metrics["model_response_observed"] = True
             if kind == "context.compaction.request.completed":
@@ -146,6 +163,20 @@ def summarize(root: Path, suite: dict) -> dict:
                         official = load(result) if result.exists() else {}
                         agent = load(agent_result) if agent_result.exists() else {}
                         usage = usage_metrics(events_path)
+                        terminal_event = usage["terminal_event"]
+                        agent_metadata_source = "agent_result" if agent_result.exists() else None
+                        if not agent_result.exists() and terminal_event is not None:
+                            agent = terminal_event
+                            agent_metadata_source = "events.run.finished"
+                        stopped_at = (official.get("agent_execution") or {}).get("finished_at")
+                        terminal_after_stop = (
+                            datetime.fromisoformat(
+                                terminal_event["timestamp"].replace("Z", "+00:00")
+                            )
+                            > datetime.fromisoformat(stopped_at.replace("Z", "+00:00"))
+                            if terminal_event and stopped_at
+                            else None
+                        )
                         reward = (
                             (official.get("verifier_result") or {}).get("rewards", {}).get("reward")
                         )
@@ -158,6 +189,18 @@ def summarize(root: Path, suite: dict) -> dict:
                             if reward == 1
                             else "fail"
                         )
+                        verifier_health = terminal_verifier_health(trial, official)
+                        artifact_verdict = (
+                            "pending"
+                            if not official.get("finished_at")
+                            else "invalid_verifier"
+                            if verifier_health["status"] == "invalid"
+                            else "unknown"
+                            if verifier_health["status"] != "valid" or reward is None
+                            else "pass"
+                            if reward == 1
+                            else "fail"
+                        )
                         row["attempts"].append(
                             {
                                 "attempt": job.name.rsplit("-", 1)[-1],
@@ -165,8 +208,12 @@ def summarize(root: Path, suite: dict) -> dict:
                                 "reward": reward,
                                 "run_status": agent.get("status"),
                                 "agent_result_available": agent_result.exists(),
+                                "agent_metadata_source": agent_metadata_source,
+                                "terminal_event_after_official_stop": terminal_after_stop,
+                                "official_result_finished": bool(official.get("finished_at")),
                                 "model_response_observed": usage["model_response_observed"],
-                                "verifier_health": terminal_verifier_health(trial, official),
+                                "verifier_health": verifier_health,
+                                "artifact_verdict": artifact_verdict,
                                 "steps": agent.get("steps"),
                                 "error": agent.get("error"),
                                 "exception": official.get("exception_info"),

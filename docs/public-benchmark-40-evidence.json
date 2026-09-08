@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T21:10:40.587088+00:00",
+  "generated_at": "2026-09-08T21:38:19.272803+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -8,13 +8,17 @@
   "baseline_counts": {
     "pass": 5,
     "fail": 3,
-    "not_run": 32
+    "not_run": 30,
+    "error": 1,
+    "running": 1
   },
   "baseline_scoring_counts": {
     "pass": 5,
     "invalid_verifier": 1,
-    "not_run": 32,
-    "fail": 2
+    "not_run": 30,
+    "fail": 2,
+    "error": 1,
+    "running": 1
   },
   "completed_cases": [
     {
@@ -24,6 +28,7 @@
       "record": "cases/swebench/astropy__astropy-12907/1/result.json",
       "image_id": "sha256:9b1cabf7bcd83a28469f67e3852d8e2207e90d45aa71f436bb7e600bdee8bae2",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "gold": {
           "resolved": true,
@@ -90,6 +95,7 @@
       },
       "resolved": true,
       "empty_patch": false,
+      "observed_artifacts": [],
       "run_status": "completed",
       "steps": 27,
       "error": null,
@@ -103,6 +109,7 @@
       "record": "cases/swebench/django__django-14017/1/result.json",
       "image_id": "sha256:562c9d96fb9c2f6df6cd6740479a8a88d239a2fa2ed6488d5f86d43f5d9a9da0",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "gold": {
           "resolved": true,
@@ -169,6 +176,7 @@
       },
       "resolved": true,
       "empty_patch": false,
+      "observed_artifacts": [],
       "run_status": "completed",
       "steps": 46,
       "error": null,
@@ -182,6 +190,7 @@
       "record": "cases/swebench/sympy__sympy-18532/1/result.json",
       "image_id": "sha256:b54745fd69fab9e8cca8171125c3a0898cded28ea14f52849fddb6086af72a3c",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "gold": {
           "resolved": true,
@@ -232,6 +241,7 @@
       "resolved": false,
       "empty_patch": true,
       "tests_executed": false,
+      "observed_artifacts": [],
       "run_status": "limit_reached",
       "steps": 20,
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
@@ -245,6 +255,7 @@
       "record": "cases/terminalbench/custom-memory-heap-crash/1/result.json",
       "image_id": "sha256:7d4d46573a68e9463df7b9dd12cc791d94a310e6a5fa6ab318c368e258de3162",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -291,6 +302,7 @@
         "scope": "nonempty structured verifier run"
       },
       "scoring_status": "fail",
+      "observed_artifacts": [],
       "run_status": "limit_reached",
       "steps": 9,
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
@@ -304,6 +316,7 @@
       "record": "cases/terminalbench/multi-source-data-merger/1/result.json",
       "image_id": "sha256:5096d3409e5c692afd62a136f90a2e52dd87653aa6637a3e1ca31ad30fab1096",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -337,6 +350,7 @@
         "scope": "nonempty structured verifier run"
       },
       "scoring_status": "pass",
+      "observed_artifacts": [],
       "run_status": "completed",
       "steps": 10,
       "error": null,
@@ -350,6 +364,7 @@
       "record": "cases/terminalbench/openssl-selfsigned-cert/1/result.json",
       "image_id": "sha256:7082de4dab44888b5b5e9c0f9de09b30bc8cd28b329edc6d153fb5ce3dca5f24",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -395,6 +410,7 @@
         "scope": "nonempty structured verifier run"
       },
       "scoring_status": "pass",
+      "observed_artifacts": [],
       "run_status": "completed",
       "steps": 23,
       "error": null,
@@ -408,6 +424,7 @@
       "record": "cases/terminalbench/sam-cell-seg/1/result.json",
       "image_id": "sha256:792f56b9413a280dfbeb0c5b64067e4f7217f0fba16cd84918eb28928f406fd2",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -427,6 +444,10 @@
       },
       "scoring_status": "invalid_verifier",
       "output_capture": "cases/terminalbench/sam-cell-seg/1/output-capture.json",
+      "output_capture_attempts": [
+        "cases/terminalbench/sam-cell-seg/1/output-capture.json"
+      ],
+      "observed_artifacts": [],
       "final_source": "cases/terminalbench/sam-cell-seg/1/final-convert_masks.py",
       "run_status": "completed",
       "steps": 95,
@@ -441,6 +462,7 @@
       "record": "cases/terminalbench/sparql-university/1/result.json",
       "image_id": "sha256:4b477a009da63f0cff40da8caa52e09a382bf4a0ce011cd371c09650e665ba9c",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -474,6 +496,7 @@
         "scope": "nonempty structured verifier run"
       },
       "scoring_status": "pass",
+      "observed_artifacts": [],
       "run_status": "completed",
       "steps": 11,
       "error": null,
@@ -489,6 +512,7 @@
       "record": "cases/swebench/sympy__sympy-18532/2/result.json",
       "image_id": "sha256:b54745fd69fab9e8cca8171125c3a0898cded28ea14f52849fddb6086af72a3c",
       "agent_variant": "empty-reasoning-candidate",
+      "model_response_observed": true,
       "controls": {
         "gold": {
           "resolved": true,
@@ -555,6 +579,7 @@
       },
       "resolved": true,
       "empty_patch": false,
+      "observed_artifacts": [],
       "run_status": "failed",
       "steps": 119,
       "error": "provider_error: 模型 API 返回 HTTP 400: {\"error\":{\"message\":\"The `reasoning_content` in the thinking mode must be passed back to the API.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
@@ -568,6 +593,7 @@
       "record": "cases/terminalbench/chess-best-move/3/result.json",
       "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -598,6 +624,7 @@
         "cases/terminalbench/chess-best-move/3/output-capture-corrected.json",
         "cases/terminalbench/chess-best-move/3/output-capture.json"
       ],
+      "observed_artifacts": [],
       "run_status": "limit_reached",
       "steps": 35,
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
@@ -611,6 +638,7 @@
       "record": "cases/terminalbench/chess-best-move/4/result.json",
       "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
       "agent_variant": "empty-reasoning-candidate",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -637,6 +665,10 @@
       },
       "scoring_status": "fail",
       "output_capture": "cases/terminalbench/chess-best-move/4/output-capture.json",
+      "output_capture_attempts": [
+        "cases/terminalbench/chess-best-move/4/output-capture.json"
+      ],
+      "observed_artifacts": [],
       "run_status": "failed",
       "steps": 52,
       "error": "provider_error: 模型 API 返回 HTTP 400: {\"error\":{\"message\":\"The `reasoning_content` in the thinking mode must be passed back to the API.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
@@ -650,6 +682,7 @@
       "record": "cases/terminalbench/custom-memory-heap-crash/3/result.json",
       "image_id": "sha256:7d4d46573a68e9463df7b9dd12cc791d94a310e6a5fa6ab318c368e258de3162",
       "agent_variant": "original",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -697,6 +730,10 @@
       },
       "scoring_status": "fail",
       "output_capture": "cases/terminalbench/custom-memory-heap-crash/3/output-capture.json",
+      "output_capture_attempts": [
+        "cases/terminalbench/custom-memory-heap-crash/3/output-capture.json"
+      ],
+      "observed_artifacts": [],
       "final_source": "cases/terminalbench/custom-memory-heap-crash/3/final-user.cpp",
       "run_status": "limit_reached",
       "steps": 22,
@@ -711,6 +748,7 @@
       "record": "cases/terminalbench/custom-memory-heap-crash/4/result.json",
       "image_id": "sha256:7d4d46573a68e9463df7b9dd12cc791d94a310e6a5fa6ab318c368e258de3162",
       "agent_variant": "empty-reasoning-candidate",
+      "model_response_observed": true,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -757,6 +795,10 @@
       },
       "scoring_status": "pass",
       "output_capture": "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json",
+      "output_capture_attempts": [
+        "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json"
+      ],
+      "observed_artifacts": [],
       "final_source": "cases/terminalbench/custom-memory-heap-crash/4/final-user.cpp",
       "run_status": "completed",
       "steps": 27,
@@ -773,6 +815,7 @@
       "record": "cases/terminalbench/caffe-cifar-10/1/result.json",
       "image_id": "sha256:67f40b2f90da4a0e49d475a4d58450d3c0605756ba4b1c68e258141d1db200d1",
       "agent_variant": "original",
+      "model_response_observed": false,
       "controls": {
         "oracle": {
           "reward": 0.0,
@@ -797,6 +840,7 @@
       "record": "cases/terminalbench/chess-best-move/1/result.json",
       "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
       "agent_variant": "original",
+      "model_response_observed": false,
       "controls": {
         "oracle": {
           "reward": 0.0,
@@ -816,6 +860,7 @@
       "record": "cases/terminalbench/chess-best-move/2/result.json",
       "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
       "agent_variant": "original",
+      "model_response_observed": false,
       "controls": {},
       "error": "No actual verifier tests"
     },
@@ -826,6 +871,7 @@
       "record": "cases/terminalbench/custom-memory-heap-crash/2/result.json",
       "image_id": "sha256:7d4d46573a68e9463df7b9dd12cc791d94a310e6a5fa6ab318c368e258de3162",
       "agent_variant": "original",
+      "model_response_observed": false,
       "controls": {
         "oracle": {
           "reward": 1.0,
@@ -836,7 +882,6 @@
           "exception": null
         }
       },
-      "model_response_observed": false,
       "agent_result_available": false,
       "exception": {
         "exception_type": "NonZeroAgentExitCodeError",
@@ -844,6 +889,22 @@
         "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 351, in run\n    await self._prepare()\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 389, in _prepare\n    await self._setup_agent()\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 1180, in _setup_agent\n    await asyncio.wait_for(\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 622, in setup\n    await self.install(environment)\n  File \"/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/source/src/bot/evals/harbor_agent.py\", line 68, in install\n    await self.exec_as_root(\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 579, in exec_as_root\n    return await self._exec(\n           ^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 559, in _exec\n    raise self._classify_exec_error(command, result)\nharbor.agents.installed.base.NonZeroAgentExitCodeError: Command failed (exit 100): set -euo pipefail; if command -v curl >/dev/null 2>&1; then exit 0; fi; if command -v apt-get >/dev/null 2>&1; then export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y curl ca-certificates; elif command -v apk >/dev/null 2>&1; then apk add --no-cache curl ca-certificates; elif command -v dnf >/dev/null 2>&1; then dnf install -y curl ca-certificates; elif command -v yum >/dev/null 2>&1; then yum install -y curl ca-certificates; else echo 'curl is required to install uv' >&2; exit 1; fi\nstdout: Get:1 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]\nGet:2 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]\nGet:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]\nGet:4 http://archive.ubuntu.com/ubuntu n ... [1541 chars truncated] ... chive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nIgn:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\nErr:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nIgn:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\nErr:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nFetched 13.3 MB in 9min 8s (24.2 kB/s)\nReading package lists...\nE: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/noble/universe/binary-amd64/Packages  Connection failed [IP: 91.189.92.23 80]\nE: Some index files failed to download. They have been ignored, or old ones used instead.\n\nstderr: None\n",
         "occurred_at": "2026-09-09T01:35:30.347677"
       },
+      "run_status": null,
+      "steps": null,
+      "agent_metadata_source": null,
+      "terminal_event_after_official_stop": null,
+      "official_result_finished": true,
+      "artifact_verdict": "unknown",
+      "verifier_health": {
+        "status": "unknown",
+        "reason": "no_structured_test_report"
+      },
+      "model_test_finished": false,
+      "terminal_event": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "output_capture_attempts": [],
+      "observed_artifacts": [],
       "model_started": false
     },
     {
@@ -853,6 +914,7 @@
       "record": "cases/terminalbench/large-scale-text-editing/1/result.json",
       "image_id": "sha256:4ca0b429596fd62b9fab0a787e276ee7ee3faf2761b56473232327218c462c56",
       "agent_variant": "original",
+      "model_response_observed": false,
       "controls": {
         "oracle": {
           "reward": 0.0,
@@ -872,6 +934,7 @@
       "record": "cases/terminalbench/rstan-to-pystan/1/result.json",
       "image_id": "sha256:1b14d62b12dd1cb5420463579116a69e26fafc7d56745f8f896eb503a656b000",
       "agent_variant": "original",
+      "model_response_observed": false,
       "controls": {
         "oracle": {
           "reward": 0.0,
@@ -885,7 +948,69 @@
       "error": "Official control did not produce its expected verdict"
     }
   ],
-  "incomplete_agent_records": [],
+  "incomplete_agent_records": [
+    {
+      "id": "terminal-bench/largest-eigenval",
+      "attempt": "1",
+      "verdict": "error",
+      "record": "cases/terminalbench/largest-eigenval/1/result.json",
+      "image_id": "sha256:c46388bf47c6faec1324b39da95fd7bb7d1eee9e3a3a61e46f59a34ee1850805",
+      "agent_variant": "original",
+      "model_response_observed": true,
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "agent_result_available": false,
+      "exception": {
+        "exception_type": "AgentTimeoutError",
+        "exception_message": "Agent execution timed out after 900.0 seconds",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 168, in wrapper\n    return await fn(self, instruction, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/source/src/bot/evals/harbor_agent.py\", line 147, in run\n    await self.exec_as_agent(\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 592, in exec_as_agent\n    return await self._exec(\n           ^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 543, in _exec\n    result = await environment.exec(\n             ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 1096, in exec\n    return await self._compose_exec(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 1173, in _compose_exec\n    return await self._run_docker_compose_command(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 649, in _run_docker_compose_command\n    result = await self._collect_buffered_output(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 679, in _collect_buffered_output\n    stdout_bytes, stderr_bytes = await process.communicate(input=stdin_data)\n                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/subprocess.py\", line 201, in communicate\n    stdin, stdout, stderr = await tasks.gather(stdin, stdout, stderr)\n                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/subprocess.py\", line 181, in _read_stream\n    output = await stream.read()\n             ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/streams.py\", line 706, in read\n    block = await self.read(self._limit)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/streams.py\", line 713, in read\n    await self._wait_for_data('read')\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/streams.py\", line 545, in _wait_for_data\n    await self._waiter\nasyncio.exceptions.CancelledError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 450, in _run_agent_phase\n    await asyncio.wait_for(\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 519, in wait_for\n    async with timeouts.timeout(timeout):\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/timeouts.py\", line 115, in __aexit__\n    raise TimeoutError from exc_val\nTimeoutError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/single_step.py\", line 77, in _run_agent\n    await self._run_agent_phase(\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 459, in _run_agent_phase\n    raise AgentTimeoutError(\nharbor.trial.errors.AgentTimeoutError: Agent execution timed out after 900.0 seconds\n",
+        "occurred_at": "2026-09-09T05:20:23.781404"
+      },
+      "run_status": "limit_reached",
+      "steps": 65,
+      "agent_metadata_source": "events.run.finished",
+      "terminal_event_after_official_stop": true,
+      "official_result_finished": true,
+      "artifact_verdict": "pass",
+      "verifier_health": {
+        "test_count": 3,
+        "test_statuses": {
+          "passed": 3
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "model_test_finished": true,
+      "terminal_event": {
+        "timestamp": "2026-09-08T21:20:57.111964Z",
+        "status": "limit_reached",
+        "steps": 65,
+        "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+        "termination_reason": "model_output_limit",
+        "input_tokens": 2335233,
+        "output_tokens": 51067
+      },
+      "input_tokens": 2335233,
+      "output_tokens": 51067,
+      "output_capture_attempts": [
+        "cases/terminalbench/largest-eigenval/1/output-capture-extra.json",
+        "cases/terminalbench/largest-eigenval/1/output-capture.json"
+      ],
+      "observed_artifacts": [
+        "cases/terminalbench/largest-eigenval/1/observed-eig_solver.c",
+        "cases/terminalbench/largest-eigenval/1/observed-eigen.py"
+      ],
+      "model_started": true
+    }
+  ],
   "swe_smoke_controls": [
     {
       "report": "logs/run_evaluation/flash40-astropy__astropy-12907-gold-1/control-gold/astropy__astropy-12907/report.json",
@@ -1364,7 +1489,7 @@
     "summary_usage_reconciliation": {
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
-        "script_sha256": "14d651110a32a0bc0af4b424bc9118f797f0c91e230261fbf54cc9c41f62d5ad",
+        "script_sha256": "20eec64f82b31343e473cf4fc7ec6bc17f3936c801b4c4df571620d1b341947c",
         "completed_runs_checked": 14,
         "all_usage_totals_match": true,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
@@ -2732,6 +2857,393 @@
           }
         ]
       }
+    },
+    "eigen_timeout_observations": {
+      "source": "diagnostics/eigen-timeout-observations.json",
+      "result": {
+        "id": "terminal-bench/largest-eigenval",
+        "attempt": "1",
+        "classification": "Official artifact pass with AgentTimeoutError and missing final result export",
+        "agent_result_file_available": false,
+        "official_reward": 1,
+        "agent_execution": {
+          "started_at": "2026-09-08T21:05:23.765391Z",
+          "finished_at": "2026-09-08T21:20:23.774867Z"
+        },
+        "verifier": {
+          "started_at": "2026-09-08T21:20:24.255843Z",
+          "finished_at": "2026-09-08T21:20:46.724381Z"
+        },
+        "normal_response_count": 65,
+        "empty_reasoning_tool_steps": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "last_normal_response": {
+          "step": 65,
+          "finish_reason": "length",
+          "content_chars": 38049,
+          "reasoning_chars": 0,
+          "tool_call_count": 0,
+          "empty": false,
+          "turn_usage": {
+            "prompt_tokens": 67550,
+            "completion_tokens": 8192,
+            "total_tokens": 75742,
+            "prompt_tokens_details": {
+              "cached_tokens": 66816
+            },
+            "prompt_cache_hit_tokens": 66816,
+            "prompt_cache_miss_tokens": 734
+          },
+          "provider_metadata": {
+            "provider": "openai_compatible",
+            "request_id": null,
+            "response_id": "f8ffa097-edd7-4303-abed-55a62a1998a3",
+            "model": "deepseek-v4-flash",
+            "system_fingerprint": "a26a7955944dc5c60445bff77fac9c8e",
+            "choice_index": 0,
+            "chunk_count": 8194,
+            "content_chars": 38049,
+            "reasoning_chars": 0,
+            "tool_call_chunks": 0,
+            "observed_delta_fields": [
+              "content",
+              "role"
+            ],
+            "unhandled_delta_samples": [],
+            "finish_choice_fields": [
+              "delta",
+              "finish_reason",
+              "index",
+              "logprobs"
+            ]
+          },
+          "provider_retry_count": 0
+        },
+        "long_response_chars": 38049,
+        "long_response_has_dsml": false,
+        "long_response_excerpt": {
+          "start": "My scipy-based implementation is consistently faster than the reference at all sizes:\n- 2x2: 70us vs 124us (1.77x)\n- 4x4: 107us vs 164us (1.53x)\n- 6x6: 159us vs 215us (1.35x)\n- 8x8: 232us vs 293us (1.26x)\n- 10x10: 329us vs 399us (1.21x)\n\nAnd it passed all 20000 correctness validation tests. Let me reconsider whether I can push the margin further, especially at larger sizes where it's only ~20%.\n\nLet me reconsider the overhead breakdown. The raw dgeev for size 10 was ~295us, and my full solution is ~329us. The post-processing (argmax, eigenvector extraction) adds ~34us. Let me see if I can redu",
+          "end": "construct the EISPACK hqr2 algorithm carefully.\n\nLet me reconsider the algorithm. I'll write the full hqr2. Let me reconstruct it from the EISPACK source which I'll reproduce carefully.\n\nGiven the complexity, let me reconsider whether to write it from scratch or find a reference. Let me reconsider fetching the JAMA source one more time.\n\nLet me reconsider the JAMA GitHub URL. I'll try fetching from a specific known location.\n\nLet me reconsider — I'll write my own implementation. Let me reconstruct the hqr2 algorithm carefully and completely.\n\nLet me reconsider the algorithm. I'll write it out."
+        },
+        "terminal_event": {
+          "at": "2026-09-08T21:20:57.111964Z",
+          "status": "limit_reached",
+          "steps": 65,
+          "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+          "termination_reason": "model_output_limit",
+          "input_tokens": 2335233,
+          "output_tokens": 51067
+        },
+        "post_stop_responses": [
+          {
+            "at": "2026-09-08T21:20:50.536747Z",
+            "phase": null,
+            "step": 65,
+            "seconds_after_stop": 26.76188
+          },
+          {
+            "at": "2026-09-08T21:20:57.082733Z",
+            "phase": "finalizing",
+            "step": 65,
+            "seconds_after_stop": 33.307866
+          }
+        ],
+        "post_stop_tool_requests": [],
+        "entrypoint_writes": [
+          {
+            "at": "2026-09-08T21:19:11.532132+00:00",
+            "success": true,
+            "metadata": {
+              "path": "/app/eigen.py",
+              "bytes": 1310,
+              "before_sha256": "bbd5be97fb11e9ed46fd5f1fb9d407efb19b265b549d3c36e2cfba923efe3d9d",
+              "after_sha256": "a792992e03266a0dee74c6153395a72495770f9fce36c3144aa7732d33974fc6"
+            }
+          }
+        ],
+        "captured_entrypoint_sha256": "a792992e03266a0dee74c6153395a72495770f9fce36c3144aa7732d33974fc6",
+        "worker_limits": {
+          "max_steps": 240,
+          "max_wall_time_seconds": 7200.0,
+          "max_total_tool_output_bytes": null,
+          "max_consecutive_failures": null,
+          "max_cost_usd": null,
+          "model_request_retries": 2,
+          "model_request_retry_backoff_seconds": 1,
+          "process_hard_timeout_seconds": null,
+          "progress": {
+            "enabled": true,
+            "warning_after_no_progress_steps": 4,
+            "recovery_after_no_progress_steps": 7,
+            "finalize_after_no_progress_steps": 11,
+            "max_recovery_attempts_per_epoch": 1,
+            "exact_failure_warning": 2,
+            "exact_failure_recovery": 3,
+            "same_tool_failure_warning": 3,
+            "same_tool_failure_recovery": 5,
+            "idempotent_repeat_warning": 2,
+            "idempotent_repeat_recovery": 3,
+            "cycle_window_size": 16,
+            "max_cycle_period": 4,
+            "cycles_before_warning": 2,
+            "cycles_before_recovery": 3,
+            "process_inactivity_warning_seconds": 300.0,
+            "process_inactivity_recovery_seconds": 900.0,
+            "process_inactivity_finalize_seconds": null
+          },
+          "finalization": {
+            "enabled": true,
+            "model_timeout_seconds": 120.0,
+            "fallback_summary": true
+          }
+        },
+        "event_usage_totals_reconciled": true,
+        "estimated_cost_usd": 0.08541247200000003,
+        "usage_limitation": "Request usage reconciles with the terminal event in the same stream, not an independent result export or invoice; includes post-timeout model activity.",
+        "attribution": "The entrypoint was written before timeout and passed official assertions. A length-limited response and finalization continued after the official stop, with no subsequent tool requests observed. Worker limits allowed 7200 seconds while official limit was 900. This is a runtime/protocol/termination problem, not evidence of inability to implement the tested numerical solution. Empty-reasoning fallback contribution to the long response remains inferential.",
+        "source_sha256": {
+          "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/result.json": "9fd7b0d20bfb6f2782d8f80087c8b5319d580c4598f51400dd44d3232866f09e",
+          "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/exception.txt": "9ce2900d12132ccb3f12cd63846fbe6a59ad95e5b4e0a198208d923481304cb3",
+          "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/agent/events.jsonl": "dab237eb71cd235e4a43dafbbf0a3bcb5f8d667c64c1b33554d08cf57626458f",
+          "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/agent/state.db": "023d3ad325e8d24cddcedfbe6bf1742b85e10f51674970abbc86487a8fab3c97",
+          "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/verifier/ctrf.json": "1a2ee06eea5c62f2f828f4f6d02648ffea3a505737fe611f78d0219c632d9180",
+          "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/verifier/test-stdout.txt": "f060b3f73fdf803696952ce06e758941e6f0c11dd0d05497c79c7b4b8bdb5105",
+          "cases/terminalbench/largest-eigenval/1/output-capture.json": "dfcb5593e7ec52a444e830124240ee573e9fb00440247ca7f1991e3e8e4e1f88",
+          "cases/terminalbench/largest-eigenval/1/output-capture-extra.json": "265f187c92a1c9ecf86af137bd0a112dfd893e567c8f2894e9c84a0736621ef7",
+          "cases/terminalbench/largest-eigenval/1/observed-eigen.py": "a792992e03266a0dee74c6153395a72495770f9fce36c3144aa7732d33974fc6",
+          "cases/terminalbench/largest-eigenval/1/observed-eig_solver.c": "bf52fc8b7ed7a8fce6fff70de4db26cca8dd766b3a7a753880f1187f6f3c6989",
+          "diagnostics/inspect_eigen_timeout.py": "f8d960e43e93cf913d66af12432f15c6a7c73f95c5828e4c2d630a5a301bc56d",
+          "diagnostics/capture_eigen_artifacts.py": "f08a187aff75c2ef72af29afe2dde38a71c6aa2f5657fe72e4d0f4020d460a88"
+        }
+      }
+    },
+    "harbor_timeout_probe": {
+      "source": "diagnostics/harness-timeout-probe/result.json",
+      "result": {
+        "scope": "Actual Harbor 0.20.0 oracle/nop timeout fixture, no model calls or benchmark score changes",
+        "started_at": "2026-09-08T21:29:19.538368+00:00",
+        "image_id": "sha256:acc8c39db027c0cf3f45f960cb88e06be954dc34b15d7ab7622f4614ff21130a",
+        "observer_pid": 9571,
+        "runs": [
+          {
+            "agent": "oracle",
+            "returncode": 0,
+            "result": "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/result.json",
+            "exception_type": "AgentTimeoutError",
+            "agent_execution": {
+              "started_at": "2026-09-08T21:29:20.974058Z",
+              "finished_at": "2026-09-08T21:29:21.974729Z"
+            },
+            "verifier": {
+              "started_at": "2026-09-08T21:29:22.376608Z",
+              "finished_at": "2026-09-08T21:29:26.697931Z"
+            },
+            "reward": {
+              "reward": 0.0
+            },
+            "verifier_stdout": "late_write_detected\n2026-09-08T21:29:24.268958211Z\n"
+          },
+          {
+            "agent": "nop",
+            "returncode": 0,
+            "result": "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/result.json",
+            "exception_type": null,
+            "agent_execution": {
+              "started_at": "2026-09-08T21:29:41.444145Z",
+              "finished_at": "2026-09-08T21:29:41.444189Z"
+            },
+            "verifier": {
+              "started_at": "2026-09-08T21:29:41.836022Z",
+              "finished_at": "2026-09-08T21:29:46.150378Z"
+            },
+            "reward": {
+              "reward": 1.0
+            },
+            "verifier_stdout": "no_late_write\n"
+          }
+        ],
+        "finished_at": "2026-09-08T21:29:59.353282+00:00",
+        "image_preserved": true,
+        "probe_containers_remaining": [],
+        "source_sha256": {
+          "diagnostics/harness-timeout-probe/jobs/nop/config.json": "e20d1d792275e05526fb1bce0e16ca32c97d57268aab77a9003b6eb27b4b1658",
+          "diagnostics/harness-timeout-probe/jobs/nop/job.log": "5868e519b78e4f2f267470e411fb5e62ab85729eb3642ffbddd64e569930f993",
+          "diagnostics/harness-timeout-probe/jobs/nop/lock.json": "2ddb674ab328534dccb148a8ff10b69b0c847517fa06be20a7094d5a33ac7b7d",
+          "diagnostics/harness-timeout-probe/jobs/nop/result.json": "127cfba9da0d433a01365be2257fb4a894ce6db385771b2415b00d211c1a3ad5",
+          "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/artifacts/manifest.json": "c1db653f487fb773c4f9247162ab3314e7f0584a486914b9874c4b3d6949e42d",
+          "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/config.json": "f5f9a6cc5e1575b4058711dc1ab80e81539592f7590252725fe0035cce5fe998",
+          "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/lock.json": "89ec4acbc2587075fcd0411bfb41100b0a76a703d36327b74ec77299d4d56b0b",
+          "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/result.json": "d6e02e5b60413c8266ab94250a2e1ca09f25e8be50bea20fc39b0f27e4859c6f",
+          "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/trial.log": "5868e519b78e4f2f267470e411fb5e62ab85729eb3642ffbddd64e569930f993",
+          "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/verifier/reward.txt": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+          "diagnostics/harness-timeout-probe/jobs/nop/task__ezjZJ9Y/verifier/test-stdout.txt": "b385de3acb7de6a1cabf7023460d42b8d6bdcacb3c6d57e24a70d57e52de76b1",
+          "diagnostics/harness-timeout-probe/jobs/oracle/config.json": "0d18cc96419fbdf9b75e61c7801751bb9e992db878fc7489b102c0ffa495682a",
+          "diagnostics/harness-timeout-probe/jobs/oracle/job.log": "4e05f182fd9bbdb499fca2c87df51f6034b7097c590f8670c7b1c984019786fd",
+          "diagnostics/harness-timeout-probe/jobs/oracle/lock.json": "6d5ab8399e7eba3a6b3f9030707c8d41cca65abde174b4f4d43fcb8af36760f4",
+          "diagnostics/harness-timeout-probe/jobs/oracle/result.json": "041a213d404b95122370ca2935ca412029b8687b8445701da3fee586d6cccd82",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/agent/oracle.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/artifacts/manifest.json": "c1db653f487fb773c4f9247162ab3314e7f0584a486914b9874c4b3d6949e42d",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/config.json": "7b13d99a21902f29dd3fb6b3ec3ec7a3861c2008898e5e5f69ba2d13ddc629ed",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/exception.txt": "51116d59d2cee40e4f6001ac32c980cf93d9f5222061dba4c31f89e2f3ef076d",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/lock.json": "4b38a6364ae27737fd5de20c6940f6a7083e9e779c6f92661956796147ef34da",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/result.json": "034f4e2e3682b9812713efc87e5ff5e4458dad5274793a01c689d6d9aa056977",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/trial.log": "5868e519b78e4f2f267470e411fb5e62ab85729eb3642ffbddd64e569930f993",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/verifier/reward.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "diagnostics/harness-timeout-probe/jobs/oracle/task__5EPhRYr/verifier/test-stdout.txt": "358b71d1b706380587d2f1209714419e718706e9b4e540c61f8aaf5e1a00be23",
+          "diagnostics/harness-timeout-probe/nop.log": "86e09a0a10fb960ef6240571592b7dbaec6f7935f0fb146a4f4789d481afd03b",
+          "diagnostics/harness-timeout-probe/oracle.log": "5863cfa311ed3e3898ac46c39361eba84e3a7cdfde544db887e313cc8818266f",
+          "diagnostics/harness-timeout-probe/task/environment/Dockerfile": "aed312e8be107e3ca1b1ad008645e33b16a17a78e06331e7e6bfd29ede82d350",
+          "diagnostics/harness-timeout-probe/task/instruction.md": "7aa73851961ac71f2b69da40aeea3117def4eb728010ac3628b1244c7af2fcd0",
+          "diagnostics/harness-timeout-probe/task/solution/solve.sh": "07b7ef2c264b79c8410c468b0ea7a33576a484814ab17a6666660a7197372566",
+          "diagnostics/harness-timeout-probe/task/task.toml": "2f7d0a42d212c7ae79aef628fd1b9c2e01cda624f4475fd1ad4f16de48fae117",
+          "diagnostics/harness-timeout-probe/task/tests/test.sh": "35b4aadcdb9101c456fecde291c89042a9559aed6c939c2d608a282687f2f6d5",
+          "diagnostics/probe_harbor_timeout.py": "4bb5959db9ea482a55be92d620ce0ff63704d2d43530cb1a7c02878740be1495"
+        }
+      }
+    },
+    "harbor_inner_timeout_probe": {
+      "source": "diagnostics/harness-timeout-guard-probe/result.json",
+      "result": {
+        "scope": "Actual Harbor 0.20.0 fixture with an inner process-group timeout; no model calls or benchmark score changes",
+        "started_at": "2026-09-08T21:31:27.389680+00:00",
+        "image_id": "sha256:acc8c39db027c0cf3f45f960cb88e06be954dc34b15d7ab7622f4614ff21130a",
+        "observer_pid": 10207,
+        "runs": [
+          {
+            "agent": "oracle",
+            "returncode": 0,
+            "result": "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/result.json",
+            "exception_type": null,
+            "agent_execution": {
+              "started_at": "2026-09-08T21:31:28.809394Z",
+              "finished_at": "2026-09-08T21:31:29.656326Z"
+            },
+            "verifier": {
+              "started_at": "2026-09-08T21:31:30.094392Z",
+              "finished_at": "2026-09-08T21:31:34.402697Z"
+            },
+            "reward": {
+              "reward": 1.0
+            },
+            "verifier_stdout": "no_late_write\n"
+          },
+          {
+            "agent": "nop",
+            "returncode": 0,
+            "result": "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/result.json",
+            "exception_type": null,
+            "agent_execution": {
+              "started_at": "2026-09-08T21:31:49.176936Z",
+              "finished_at": "2026-09-08T21:31:49.176985Z"
+            },
+            "verifier": {
+              "started_at": "2026-09-08T21:31:49.578001Z",
+              "finished_at": "2026-09-08T21:31:53.918009Z"
+            },
+            "reward": {
+              "reward": 1.0
+            },
+            "verifier_stdout": "no_late_write\n"
+          }
+        ],
+        "finished_at": "2026-09-08T21:32:09.006572+00:00",
+        "image_preserved": true,
+        "probe_containers_remaining": [],
+        "source_sha256": {
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/config.json": "2fea14b0fcd98cb2061f7f4e052efd038aa4c280ab2632b9172da37ba73e0525",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/job.log": "5868e519b78e4f2f267470e411fb5e62ab85729eb3642ffbddd64e569930f993",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/lock.json": "0dbde24112e3fb1d0cba706d8faa93f65188d6293d34c0b481804a6ef29c1afd",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/result.json": "b07b1643d347410ac5ecd2a79966c57457c798866c3954c095a0bb8c639d82ee",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/artifacts/manifest.json": "c1db653f487fb773c4f9247162ab3314e7f0584a486914b9874c4b3d6949e42d",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/config.json": "d1ea40630644ee15ca03ad37f6f6918f30853ac52471775c101f780593fc843a",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/lock.json": "9da6cb05f66ff0f10bbb1a857966b25f8f79808191cfebd9cea0fb2c398441de",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/result.json": "ead16bad9856921da52afd7dfa6357d45d528b4552e3452da2286c4880205859",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/trial.log": "5868e519b78e4f2f267470e411fb5e62ab85729eb3642ffbddd64e569930f993",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/verifier/reward.txt": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+          "diagnostics/harness-timeout-guard-probe/jobs/nop/task__6u6faNR/verifier/test-stdout.txt": "b385de3acb7de6a1cabf7023460d42b8d6bdcacb3c6d57e24a70d57e52de76b1",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/config.json": "4ac27de709549740c09cab556227b7dea39d0624cb1625c6d011256d87553d96",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/job.log": "5868e519b78e4f2f267470e411fb5e62ab85729eb3642ffbddd64e569930f993",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/lock.json": "cfcf4c68775c998ca20fd20b3c6ec8b72acefca3a1c29dc0f3371cacdf412ab8",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/result.json": "9d884df30b3ec09a1d5d68544835afdc656f535517bfbb35e1d8c3387fdd4648",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/agent/exit-code.txt": "6affdae3b3c1aa6aa7689e9b6a7b3225a636aa1ac0025f490cca1285ceaf1487",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/agent/oracle.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/artifacts/manifest.json": "c1db653f487fb773c4f9247162ab3314e7f0584a486914b9874c4b3d6949e42d",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/config.json": "90c6745bcbc4153d779d41c8a0c44c5e321f1892abd5d60dda0a758764f95679",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/lock.json": "64ab0a9e253d1d1ed3ee767d940c890f7dda55e0b52c666299782095fdd806ea",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/result.json": "a2a17ca6397e184fc789ae2420406a9f111849b5845819f7e0b954f71c0f73fe",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/trial.log": "5868e519b78e4f2f267470e411fb5e62ab85729eb3642ffbddd64e569930f993",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/verifier/reward.txt": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+          "diagnostics/harness-timeout-guard-probe/jobs/oracle/task__yW3MH9N/verifier/test-stdout.txt": "b385de3acb7de6a1cabf7023460d42b8d6bdcacb3c6d57e24a70d57e52de76b1",
+          "diagnostics/harness-timeout-guard-probe/nop.log": "97a45796de3e2b84a554a4e649bbcf2cd1f49b37f02e77ff06ece59536c77aca",
+          "diagnostics/harness-timeout-guard-probe/oracle.log": "40dc33e1f836e3fda2f726063d937e356f4e9d6b96c296a675a741dfd18402e5",
+          "diagnostics/harness-timeout-guard-probe/task/environment/Dockerfile": "aed312e8be107e3ca1b1ad008645e33b16a17a78e06331e7e6bfd29ede82d350",
+          "diagnostics/harness-timeout-guard-probe/task/instruction.md": "7aa73851961ac71f2b69da40aeea3117def4eb728010ac3628b1244c7af2fcd0",
+          "diagnostics/harness-timeout-guard-probe/task/solution/solve.sh": "2e8c74dec59d3ef0506f2ff268d8c9d1f5cfa9f9ea89883caf2626d8f0b305e0",
+          "diagnostics/harness-timeout-guard-probe/task/task.toml": "2f7d0a42d212c7ae79aef628fd1b9c2e01cda624f4475fd1ad4f16de48fae117",
+          "diagnostics/harness-timeout-guard-probe/task/tests/test.sh": "35b4aadcdb9101c456fecde291c89042a9559aed6c939c2d608a282687f2f6d5",
+          "diagnostics/probe_harbor_timeout_guard.py": "a5af080c8a997b67ba0acdb2bf17e86e93486378ddd027b47cd1334ec619b486"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -2813,6 +3325,52 @@
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
     ],
+    "distinct_tasks_with_model_execution_and_official_result": 11,
+    "tested_task_ids": [
+      "astropy__astropy-12907",
+      "django__django-14017",
+      "sympy__sympy-18532",
+      "terminal-bench/chess-best-move",
+      "terminal-bench/custom-memory-heap-crash",
+      "terminal-bench/large-scale-text-editing",
+      "terminal-bench/largest-eigenval",
+      "terminal-bench/multi-source-data-merger",
+      "terminal-bench/openssl-selfsigned-cert",
+      "terminal-bench/sam-cell-seg",
+      "terminal-bench/sparql-university"
+    ],
+    "tasks_without_model_execution_and_official_result": [
+      "astropy__astropy-14182",
+      "django__django-15996",
+      "matplotlib__matplotlib-22711",
+      "matplotlib__matplotlib-23476",
+      "mwaskom__seaborn-3010",
+      "pallets__flask-4045",
+      "psf__requests-2317",
+      "psf__requests-2674",
+      "pydata__xarray-4248",
+      "pylint-dev__pylint-5859",
+      "pytest-dev__pytest-11143",
+      "pytest-dev__pytest-5227",
+      "scikit-learn__scikit-learn-13241",
+      "scikit-learn__scikit-learn-13584",
+      "sphinx-doc__sphinx-8435",
+      "sphinx-doc__sphinx-8506",
+      "sympy__sympy-20322",
+      "terminal-bench/bn-fit-modify",
+      "terminal-bench/caffe-cifar-10",
+      "terminal-bench/cobol-modernization",
+      "terminal-bench/code-from-image",
+      "terminal-bench/compile-compcert",
+      "terminal-bench/constraints-scheduling",
+      "terminal-bench/count-dataset-tokens",
+      "terminal-bench/dna-insert",
+      "terminal-bench/git-multibranch",
+      "terminal-bench/portfolio-optimization",
+      "terminal-bench/rstan-to-pystan",
+      "terminal-bench/video-processing"
+    ],
+    "coverage_limitation": "Completed-model-run fields retain the legacy final-export requirement. Model-execution-and-official-result coverage additionally includes observed model activity with a finished official trial but missing Agent export. Coverage is not a success or verifier-validity claim.",
     "scope": "Task coverage only, including separately labelled environment variants and repeated attempts; not a combined baseline score. Artifact-only replays add no model run."
   },
   "artifact_root": "artifacts/public-benchmark/20260909-flash",
@@ -2893,6 +3451,7 @@
     "cases/terminalbench/custom-memory-heap-crash/2/result.json": "904b5b8f26db4058f9bbe36932549695c205da7b2de5ffa74e885a2b874f9402",
     "terminalbench/custom-memory-heap-crash-baseline-2/61e021e0304c9818a9be2c9173c8a093__cSAEc9P/result.json": "c09b69aec0fccc0c96e23cedb0f902bb159dd9373de9ab7b6321c595d34d0973",
     "terminalbench/custom-memory-heap-crash-baseline-2/61e021e0304c9818a9be2c9173c8a093__cSAEc9P/trial.log": "1928af3c18dfee99c13566c69cafaa25f4f915ddb7e27c8e78a4220cacf79cbf",
+    "terminalbench/custom-memory-heap-crash-baseline-2/61e021e0304c9818a9be2c9173c8a093__cSAEc9P/exception.txt": "3175f74d552378d4ee7bcc7c6f89759d93849856b260ad66d21afc5ef3c544d5",
     "cases/terminalbench/custom-memory-heap-crash/3/result.json": "670734c490b8555ebd1b1aff5f71b7fb783ea3b2275e6438739d7b3a6fdd8089",
     "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/result.json": "20bd6a9d88c3c2cb93e28e2622164f1b330cc90f3a2c19b648488827f069028f",
     "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/agent/result.json": "21867e1af8bd35cb1898c101b371297a5c4aa571ba2fa7417ebecef6e5324700",
@@ -2917,6 +3476,24 @@
     "terminalbench/large-scale-text-editing-nop-1/1f1cddc3df15e452fe2d3c6928f6b1e5__oeeBtoK/result.json": "de9e22f93874cdea5b8b79d64964948857b3c2ac5105ce9f4d7f9f8fb0896b00",
     "terminalbench/large-scale-text-editing-nop-1/1f1cddc3df15e452fe2d3c6928f6b1e5__oeeBtoK/verifier/ctrf.json": "a95a1141a965d26aff2b2180ca1b621b23b446de9aa6d991bb430fa7759427bd",
     "terminalbench/large-scale-text-editing-nop-1/1f1cddc3df15e452fe2d3c6928f6b1e5__oeeBtoK/verifier/test-stdout.txt": "dac2292211b1277b35b19c000b5ac3549c36345a9da99f637d56ab454787decc",
+    "cases/terminalbench/largest-eigenval/1/result.json": "95e2ead373f091f147c521f30120d3a00401aaf5ef2ddba234a7d6d6685ff967",
+    "terminalbench/largest-eigenval-oracle-1/1b6f17c344d23e97435ba3fa93400d14__buW5jBj/result.json": "f545561927be69ad4a455d2bc4250341c4ccd7200711439989d6d5381eb7a529",
+    "terminalbench/largest-eigenval-oracle-1/1b6f17c344d23e97435ba3fa93400d14__buW5jBj/verifier/ctrf.json": "7ba3d34505dd3851d6d38c999c6edbe01e36ad55b2139b26df1b6252837e6f49",
+    "terminalbench/largest-eigenval-oracle-1/1b6f17c344d23e97435ba3fa93400d14__buW5jBj/verifier/test-stdout.txt": "90edf3180e48fb8a4f298a7abf4febed61831a3e447889f7a19dc646efef6a65",
+    "terminalbench/largest-eigenval-oracle-1/1b6f17c344d23e97435ba3fa93400d14__buW5jBj/agent/oracle.txt": "0c1e5519093525445cdc96b8ecc613494fec35660833b2591d3e1b3f257fa887",
+    "terminalbench/largest-eigenval-nop-1/1b6f17c344d23e97435ba3fa93400d14__q33x7Vn/result.json": "981fcd514d96ed354c4252b83f98981cd8b98292c11b1ae221d5a4a2ca9d9283",
+    "terminalbench/largest-eigenval-nop-1/1b6f17c344d23e97435ba3fa93400d14__q33x7Vn/verifier/ctrf.json": "588fe2f54e17348e70bb3d34aadcf8769f72c8918248c1b3f06f4e5bb70c07e2",
+    "terminalbench/largest-eigenval-nop-1/1b6f17c344d23e97435ba3fa93400d14__q33x7Vn/verifier/test-stdout.txt": "36232e0a8aacfc4d1243b01d6c333ba10bc9cb88b5960a5d518e2cce19298dae",
+    "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/result.json": "9fd7b0d20bfb6f2782d8f80087c8b5319d580c4598f51400dd44d3232866f09e",
+    "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/trial.log": "802e26738d0ecbbd9679666bccb34ed76ffaa00a9eaa1a7e4cbece77e58e7eaa",
+    "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/agent/events.jsonl": "dab237eb71cd235e4a43dafbbf0a3bcb5f8d667c64c1b33554d08cf57626458f",
+    "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/verifier/ctrf.json": "1a2ee06eea5c62f2f828f4f6d02648ffea3a505737fe611f78d0219c632d9180",
+    "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/verifier/test-stdout.txt": "f060b3f73fdf803696952ce06e758941e6f0c11dd0d05497c79c7b4b8bdb5105",
+    "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/exception.txt": "9ce2900d12132ccb3f12cd63846fbe6a59ad95e5b4e0a198208d923481304cb3",
+    "cases/terminalbench/largest-eigenval/1/output-capture-extra.json": "265f187c92a1c9ecf86af137bd0a112dfd893e567c8f2894e9c84a0736621ef7",
+    "cases/terminalbench/largest-eigenval/1/output-capture.json": "dfcb5593e7ec52a444e830124240ee573e9fb00440247ca7f1991e3e8e4e1f88",
+    "cases/terminalbench/largest-eigenval/1/observed-eig_solver.c": "bf52fc8b7ed7a8fce6fff70de4db26cca8dd766b3a7a753880f1187f6f3c6989",
+    "cases/terminalbench/largest-eigenval/1/observed-eigen.py": "a792992e03266a0dee74c6153395a72495770f9fce36c3144aa7732d33974fc6",
     "cases/terminalbench/multi-source-data-merger/1/result.json": "0f1ec22bcc1494f7ef338dd83df4331088e18b48baff5097ffc4a0b4d779ebc4",
     "terminalbench/multi-source-data-merger-oracle-1/70367c38732e1beda7b229968a48d602__8cPTtRX/result.json": "adcc3beef4f0a67420c57d3246ff0b02bfe9f65b5b7481a6e8df546dc44dcca8",
     "terminalbench/multi-source-data-merger-oracle-1/70367c38732e1beda7b229968a48d602__8cPTtRX/verifier/ctrf.json": "29a36b4f42b0722a1affb16ce795486fb80fd540d28713ba01d81e74a44adab0",
@@ -3002,7 +3579,7 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "4657684fb989b683dbcf8175bcf0ed90970836eaba5ad853392a9c727cbac3f0",
+    "diagnostics/summary-reconciliation.json": "be3d4466beadb6eaa2c631054934da83c67ccc87aa3b13086fd8e20d319250ec",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
     "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
     "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
@@ -3024,6 +3601,9 @@
     "diagnostics/caffe-network-probe.json": "246783265d8c3d715819b12ca71d48818d34f8b4f4353bd8c9b6d33c41dd494b",
     "cases/terminalbench/caffe-cifar-10/2/manifest.json": "90c586250626b003b3c3c63f9b7f6854c2efc47a6ae7323d375a55696eccab73",
     "diagnostics/eigenval-parameterized-reporting.json": "94517a0fe1f3773fd66df4290c79b5a1791972203d8aa1c5ead77c9acee9b09e",
+    "diagnostics/eigen-timeout-observations.json": "a3d479333cf3aa6e7ac72e5d25d0fe6c92a1f7805add22eb9f0e2523f7c5ee1c",
+    "diagnostics/harness-timeout-probe/result.json": "92365c44aadd3ef2496bf26473dc3d65ca2ebe0696d807388ef7bc319bf73013",
+    "diagnostics/harness-timeout-guard-probe/result.json": "c3c9a78bea8f30380ed0d18e19690c2d8a54107d031e00cbf87a82a2fcbb19c7",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -3053,6 +3633,11 @@
     "diagnostics/inspect_chess_candidate.py": "6966fb897c4fc5eeeddd8b4b3cf12ddad087e761f069c34efed7399a86667821",
     "diagnostics/recover_rstan_proxy.py": "a58f443d33820f6ab2fc985d700a07e989d86f59603b315a01dee794018637f4",
     "diagnostics/recover_caffe_proxy.py": "52556e0960be0a65678fa5bdbb15b1dee332be58ae9d78a2a9c93d8bfd39d614",
+    "diagnostics/capture_eigen_artifacts.py": "f08a187aff75c2ef72af29afe2dde38a71c6aa2f5657fe72e4d0f4020d460a88",
+    "diagnostics/capture_terminal_artifacts.py": "4dc11537ac084e79a0dfc943ef532d947e12bbe782858605ed72d75c2a17a39c",
+    "diagnostics/inspect_eigen_timeout.py": "f8d960e43e93cf913d66af12432f15c6a7c73f95c5828e4c2d630a5a301bc56d",
+    "diagnostics/probe_harbor_timeout.py": "4bb5959db9ea482a55be92d620ce0ff63704d2d43530cb1a7c02878740be1495",
+    "diagnostics/probe_harbor_timeout_guard.py": "a5af080c8a997b67ba0acdb2bf17e86e93486378ddd027b47cd1334ec619b486",
     "diagnostics/replay_chess_compaction.py": "fe0bea266f66532c2adf05d694f6bc750b7f05c848c05eacb15944925d777ca0",
     "diagnostics/chess-compaction-replay/candidate_summary_missing.request.json": "11dddcc08c7acc87b5f95819312788c28c7493d210770f62cb9fd064d494daf0",
     "diagnostics/chess-compaction-replay/summary_empty_counterfactual.request.json": "043282781d27b57578dff51a489cbe4584d00a047ea87fc86544900d5812f3cc",
@@ -3111,6 +3696,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/63ee092748998e39c12c70dc86f2477d8dcdb01da29568387070bcc38808cadb.py": "63ee092748998e39c12c70dc86f2477d8dcdb01da29568387070bcc38808cadb"
+    "diagnostics/source-snapshots/c840060972b144c8e17e35a165880ac029ed12c68a164a29ee39593bcae8ea91.py": "c840060972b144c8e17e35a165880ac029ed12c68a164a29ee39593bcae8ea91"
   }
 }
