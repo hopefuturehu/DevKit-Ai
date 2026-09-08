@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T18:06:59.879719+00:00",
+  "generated_at": "2026-09-08T18:16:26.952960+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
-    "not_run": 35,
-    "fail": 2,
-    "pass": 3
+    "pass": 4,
+    "not_run": 34,
+    "fail": 2
   },
   "completed_cases": [
     {
@@ -280,6 +280,43 @@
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
       "input_tokens": 121034,
       "output_tokens": 14881
+    },
+    {
+      "id": "terminal-bench/multi-source-data-merger",
+      "attempt": "1",
+      "verdict": "pass",
+      "record": "cases/terminalbench/multi-source-data-merger/1/result.json",
+      "image_id": "sha256:5096d3409e5c692afd62a136f90a2e52dd87653aa6637a3e1ca31ad30fab1096",
+      "agent_variant": "original",
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_output_files_exist",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_merged_data_exact_values",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_conflict_report_values",
+          "status": "passed"
+        }
+      ],
+      "run_status": "completed",
+      "steps": 10,
+      "error": null,
+      "input_tokens": 147706,
+      "output_tokens": 15623
     },
     {
       "id": "terminal-bench/openssl-selfsigned-cert",
@@ -725,6 +762,11 @@
     "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json": "889ed581db935aad55c1e0f07481923dedb62a4ed0cf1065ee1331960413253d",
     "cases/terminalbench/custom-memory-heap-crash/4/final-user.cpp": "5ee212b6bc82804b6a71f92922c24f26878671c75c10226c9179d1e834878be3",
     "cases/terminalbench/large-scale-text-editing/1/result.json": "9c5a87945a3dcf38d990afe08149f4b4402ec77f5a31cdd894adaffbf563b8fc",
+    "cases/terminalbench/multi-source-data-merger/1/result.json": "0f1ec22bcc1494f7ef338dd83df4331088e18b48baff5097ffc4a0b4d779ebc4",
+    "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/result.json": "c8ac35a7237a7e2a7e717c24df1d3d400886cf8e876a7d03c04bc2792ede2381",
+    "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/result.json": "a0451df2c86d25cf322480282d0f80f2cc48862dddd4f7b7e11d4cc458679207",
+    "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/events.jsonl": "fc6835cafddf6b35ae777cc34b3235fa6c53fcf053d7f429ad02ea9f16c16627",
+    "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/verifier/ctrf.json": "9c753572309201c2df6eb91e3142aa7b0aaa60c428088197623e8edd2b9cc762",
     "cases/terminalbench/openssl-selfsigned-cert/1/result.json": "017c3387a8ac86141262eef170c2ab11912c537d589f984abcac3d7f41fcc28c",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/result.json": "63973d8246ed5c526fbd652b9437be14338db00f73c01719595add0744c01606",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/result.json": "63f5066ea447a5927228e1bee1b813adf20b723a25f3c05a09297653e508f2b6",

@@ -33,10 +33,34 @@
       "skipped": 0
     }
   },
-  "full_task_result": "queued as attempt 4 after original-protocol attempt 3, with the same proxy route",
+  "full_task_result": {
+    "task": "terminal-bench/custom-memory-heap-crash",
+    "attempt": "4",
+    "verdict": "pass",
+    "reward": 1,
+    "agent_steps": 27,
+    "official_tests_passed": 6,
+    "paired_original_attempt": "3",
+    "paired_original_verdict": "fail",
+    "shared_provider_fingerprint": "a26a7955944dc5c60445bff77fac9c8e",
+    "original_max_completion_tokens": 8192,
+    "candidate_max_completion_tokens": 4725,
+    "interpretation": "Supports a contribution from the agent protocol defect; one candidate run does not estimate an improvement rate."
+  },
   "evidence_sha256": {
     "baseline-tests.xml": "027ade2e82e24250287f5ffad6fdf669a538e1929a9e6c253871b0c100e838c6",
     "candidate-tests.xml": "90ba67da8549e529e4a4db08b5f9f00d7e0e6e904493b34c06bc334d7225b442",
     "regression-tests.json": "78301b3f5eaddcf7c82b91df2746a79d06c11fbb42373cef57b0f21f235482b3"
+  },
+  "cross_task_validation": {
+    "task": "sympy__sympy-18532",
+    "attempt": "2",
+    "state": "running; original default tool environment retained"
+  },
+  "run_artifact_sha256": {
+    "cases/terminalbench/custom-memory-heap-crash/4/result.json": "64b2a27fb5b9dc54cc71ae7b335b448e1418a4623d383a58d6db72fa257d47fd",
+    "cases/terminalbench/custom-memory-heap-crash/4/final-user.cpp": "5ee212b6bc82804b6a71f92922c24f26878671c75c10226c9179d1e834878be3",
+    "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json": "889ed581db935aad55c1e0f07481923dedb62a4ed0cf1065ee1331960413253d",
+    "diagnostics/sympy-candidate/environment-probe.json": "810d77e80670a7fdd3bf234e5a1960a4e57e19c15a74f9480690da8fc17a65e1"
   }
 }
