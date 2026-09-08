@@ -261,7 +261,7 @@ def build_runtime(
             )
 
         child_event_bus = EventBus(
-            [store, CallbackEventSink(forward_child_progress)],
+            [store, *(event_sinks or []), CallbackEventSink(forward_child_progress)],
             transform=redactor.redact_event,
         )
         child_compactor = ContextCompactor(

@@ -1,129 +1,134 @@
-"""FastAPI web server exposing the bot CLI agent as a chat interface.
-
-Start with::
-
-    bot web                    # default http://0.0.0.0:8080
-    bot web --port 9090        # custom port
-    bot web --host 127.0.0.1   # localhost only
-"""
+"""FastAPI workbench for live tasks, durable history and workspace artifacts."""
 
 from __future__ import annotations
 
 import asyncio
 import json
-import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Literal
+from urllib.parse import quote, urlparse
+from uuid import uuid4
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from bot.cli.runtime import build_runtime
-from bot.core.approval import ApprovalResponse
-from bot.core.models import RunRequest
+from bot.core.events import CallbackEventSink
+from bot.web.queries import CursorExpired
 from bot.web.sink import WebSocketEventSink
-
-logger = logging.getLogger(__name__)
+from bot.web.workbench import WebApprovalHandler, WebWorkbench
 
 try:
-    from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-    from fastapi.responses import HTMLResponse
+    from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+    from fastapi.responses import HTMLResponse, JSONResponse, Response
+    from fastapi.staticfiles import StaticFiles
 except ImportError:
-    raise ImportError(
-        "Web UI 需要额外依赖。请安装: pip install fastapi uvicorn"
-    ) from None
+    raise ImportError("Web UI 需要额外依赖。请安装: pip install 'kunpeng-cli-agent[web]'") from None
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
+PageSize = Annotated[int, Query(ge=1, le=500)]
+Offset = Annotated[int, Query(ge=0)]
+OutputLimit = Annotated[int, Query(ge=1, le=200000)]
 
 
-class WebApprovalHandler:
-    """Resolves pending tool approvals from browser decisions.
-
-    Implements the ``ApprovalHandler`` protocol: ``approve()`` blocks until a
-    decision arrives, while the WebSocket handler calls ``resolve_next()`` when
-    the browser sends an ``approval`` message.
-    """
-
-    def __init__(self) -> None:
-        self._pending: asyncio.Queue[asyncio.Future[ApprovalResponse]] = asyncio.Queue()
-
-    async def approve(self, action: Any, decision: Any) -> ApprovalResponse:
-        future: asyncio.Future[ApprovalResponse] = asyncio.get_running_loop().create_future()
-        await self._pending.put(future)
-        return await future
-
-    def resolve_next(self, approved: bool) -> bool:
-        try:
-            future = self._pending.get_nowait()
-        except asyncio.QueueEmpty:
-            return False
-        if not future.done():
-            future.set_result(ApprovalResponse(approved=approved))
-        return True
+class StartRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    prompt: str = Field(min_length=1, max_length=200000)
+    skills: list[str] = Field(default_factory=list, max_length=100)
+    request_id: str = Field(min_length=1, max_length=128)
 
 
-def create_app(
-    workspace: Path | None = None,
-    config_path: Path | None = None,
-) -> FastAPI:
-    """Build the FastAPI application with all routes."""
+class SteerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1, max_length=200000)
+    message_id: str = Field(min_length=1, max_length=128)
 
+
+class ApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    session_id: str
+    run_id: str
+    approved: bool = Field(strict=True)
+
+
+def create_app(workspace: Path | None = None, config_path: Path | None = None) -> FastAPI:
     workspace = (workspace or Path.cwd()).resolve()
+    sink = WebSocketEventSink()
+    approvals = WebApprovalHandler()
+    workbench: WebWorkbench | None = None
 
-    # -- shared state -----------------------------------------------------------
-    # Each web client gets its own session; runtime and event sink are shared.
-
-    _runtime: Any = None
-    _event_sink = WebSocketEventSink()
-    _approval_handler = WebApprovalHandler()
+    async def observe(event):
+        if workbench is not None:
+            await workbench.publish(event)
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI):
-        nonlocal _runtime
-        # 将 WebSocket 事件 sink 直接注册进 EventBus，而不是事后访问
-        # Runtime.event_bus（Runtime 并不暴露 event_bus 字段）。
-        _runtime = build_runtime(
+    async def lifespan(app: FastAPI):
+        nonlocal workbench
+        runtime = build_runtime(
             workspace=workspace,
             config_path=config_path,
-            event_sinks=[_event_sink],
-            approval_handler=_approval_handler,
+            event_sinks=[sink, CallbackEventSink(observe)],
+            approval_handler=approvals,
         )
-        if _runtime.config.subagents.enabled:
-            await _runtime.subagents.start()
+        workbench = WebWorkbench(runtime, sink, approvals)
+        app.state.workbench = workbench
+        if runtime.config.subagents.enabled:
+            await runtime.subagents.start()
         try:
             yield
         finally:
-            if _runtime is not None:
-                await _runtime.aclose()
+            await workbench.close()
+            await runtime.aclose()
 
-    app = FastAPI(
-        title="Bot Web UI",
-        description="Web-based interactive interface for the bot CLI agent.",
-        version="0.1.0",
-        lifespan=lifespan,
-    )
+    app = FastAPI(title="Bot 实时任务工作台", version="0.2.0", lifespan=lifespan)
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
-    # -- helpers ----------------------------------------------------------------
-
-    def _rt_ok() -> Any:
-        if _runtime is None:
+    def wb() -> WebWorkbench:
+        if workbench is None:
             raise HTTPException(503, "Runtime not ready")
-        return _runtime
+        return workbench
 
-    # -- static ----------------------------------------------------------------
+    def same_origin(origin: str | None, host: str | None) -> bool:
+        return origin is None or urlparse(origin).netloc == host
+
+    @app.middleware("http")
+    async def browser_boundary(request: Request, call_next):
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(
+            request.headers.get("origin"), request.headers.get("host")
+        ):
+            return JSONResponse({"detail": "拒绝跨来源任务控制请求"}, status_code=403)
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' blob: data:; connect-src 'self'; object-src 'none'; "
+            "base-uri 'none'; frame-ancestors 'none'"
+        )
+        return response
+
+    @app.exception_handler(CursorExpired)
+    async def expired(request, exc):
+        return JSONResponse({"detail": str(exc), "code": "cursor_expired"}, status_code=409)
+
+    @app.exception_handler(LookupError)
+    async def missing(request, exc):
+        return JSONResponse({"detail": str(exc)}, status_code=404)
+
+    @app.exception_handler(ValueError)
+    async def invalid(request, exc):
+        return JSONResponse({"detail": str(exc)}, status_code=400)
 
     @app.get("/", response_class=HTMLResponse)
-    async def index() -> HTMLResponse:
-        html_path = _STATIC_DIR / "index.html"
-        if html_path.is_file():
-            return HTMLResponse(html_path.read_text(encoding="utf-8"))
-        return HTMLResponse("<h1>Bot Web UI</h1><p>index.html not found.</p>")
-
-    # -- REST endpoints --------------------------------------------------------
+    async def index():
+        return HTMLResponse((_STATIC_DIR / "index.html").read_text(encoding="utf-8"))
 
     @app.get("/api/status")
-    async def api_status() -> dict[str, Any]:
-        rt = _rt_ok()
+    async def status():
+        service = wb()
+        rt = service.runtime
         return {
-            "version": "0.1.0",
+            "version": "0.2.0",
             "workspace": str(rt.workspace),
             "model": rt.config.model.name,
             "base_url": rt.config.model.base_url,
@@ -131,246 +136,377 @@ def create_app(
             "auto_approve": rt.config.permissions.auto_approve,
             "active_skills": list(rt.skills.active),
             "subagents_enabled": rt.config.subagents.enabled,
+            "epoch": service.queries.epoch,
         }
 
     @app.get("/api/sessions")
-    async def api_sessions() -> list[dict[str, Any]]:
-        rt = _rt_ok()
-        return rt.store.list_sessions()
+    async def sessions(limit: PageSize = 50, offset: Offset = 0):
+        service = wb()
+        result = service.queries.sessions(limit=limit, offset=offset)
+        for item in result:
+            active = service.tasks.get(item["id"])
+            item["active_run_id"] = active[0] if active and not active[1].done() else None
+        return result
 
     @app.post("/api/sessions")
-    async def api_create_session() -> dict[str, str]:
-        rt = _rt_ok()
-        sid = rt.store.create_session(rt.workspace)
-        return {"session_id": sid}
+    async def create_session():
+        return {"session_id": wb().runtime.store.create_session(workspace)}
 
     @app.get("/api/sessions/{session_id}")
-    async def api_session_detail(session_id: str) -> dict[str, Any]:
-        rt = _rt_ok()
-        if not rt.store.session_exists(session_id):
-            raise HTTPException(404, "Session not found")
-        messages = rt.store.load_messages(session_id)
-        usage = rt.store.session_usage(session_id)
+    async def session_detail(session_id: str):
+        service = wb()
+        session = service.queries.session(session_id)
         return {
+            **session,
             "session_id": session_id,
-            "messages": [m.model_dump(mode="json") for m in messages],
-            "usage": usage,
-            "plan": rt.store.load_plan(session_id),
+            "messages": [
+                m.model_dump(mode="json") for m in service.runtime.store.load_messages(session_id)
+            ],
+            "usage": service.runtime.store.session_usage(session_id),
+            "plan": service.runtime.store.load_plan(session_id),
         }
 
-    @app.get("/api/skills")
-    async def api_skills() -> list[dict[str, str]]:
-        rt = _rt_ok()
+    @app.get("/api/sessions/{session_id}/runs")
+    async def runs(session_id: str, limit: PageSize = 50, offset: Offset = 0):
+        service = wb()
         return [
-            {"name": s.name, "description": s.description}
-            for s in rt.catalog.skills.values()
+            service.describe(run["id"])
+            for run in service.queries.runs(session_id, limit=limit, offset=offset)
+        ]
+
+    @app.post("/api/sessions/{session_id}/runs", status_code=202)
+    async def start_run(session_id: str, request: StartRequest):
+        if not request.prompt.strip():
+            raise ValueError("任务要求不能为空")
+        return await wb().start(
+            session_id, request.prompt.strip(), request.skills, request.request_id
+        )
+
+    @app.get("/api/runs/{run_id}")
+    async def run_detail(run_id: str):
+        return wb().describe(run_id)
+
+    @app.get("/api/runs/{run_id}/events")
+    async def events(
+        run_id: str,
+        cursor: str | None = None,
+        through: str | None = None,
+        limit: PageSize = 200,
+        children: bool = True,
+    ):
+        queries = wb().queries
+        run = queries.run(run_id)
+        return queries.events(
+            run["session_id"],
+            run_id=run_id,
+            cursor=cursor,
+            through=through,
+            limit=limit,
+            children=children,
+        )
+
+    @app.get("/api/sessions/{session_id}/events")
+    async def session_events(
+        session_id: str,
+        cursor: str | None = None,
+        through: str | None = None,
+        limit: PageSize = 200,
+    ):
+        return wb().queries.events(session_id, cursor=cursor, through=through, limit=limit)
+
+    @app.get("/api/runs/{run_id}/tools/{call_id}")
+    async def tool(run_id: str, call_id: str, offset: Offset = 0, limit: OutputLimit = 16000):
+        return wb().queries.tool(run_id, call_id, offset=offset, limit=limit)
+
+    @app.get("/api/runs/{run_id}/tools/{call_id}/events")
+    async def tool_events(
+        run_id: str,
+        call_id: str,
+        cursor: str | None = None,
+        through: str | None = None,
+        limit: PageSize = 50,
+    ):
+        queries = wb().queries
+        run = queries.run(run_id)
+        return queries.events(
+            run["session_id"],
+            run_id=run_id,
+            cursor=cursor,
+            through=through,
+            limit=limit,
+            children=False,
+            tool_call_id=call_id,
+        )
+
+    @app.get("/api/runs/{run_id}/blobs/{blob_id}")
+    async def blob(run_id: str, blob_id: str, offset: Offset = 0, limit: OutputLimit = 16000):
+        return wb().queries.blob(run_id, blob_id, offset=offset, limit=limit)
+
+    @app.get("/api/runs/{run_id}/children")
+    async def children(run_id: str):
+        return wb().queries.children(run_id)
+
+    @app.get("/api/runs/{run_id}/processes")
+    async def processes(run_id: str):
+        service = wb()
+        run = service.queries.run(run_id)
+        return [
+            service.runtime.runner.redactor.redact(p.model_dump(mode="json"))
+            for p in await service.runtime.target.list_processes()
+            if p.run_id == run_id and p.session_id == run["session_id"]
+        ]
+
+    @app.post("/api/runs/{run_id}/steer", status_code=202)
+    async def steer(run_id: str, request: SteerRequest):
+        service = wb()
+        run = service.queries.run(run_id)
+        if not request.text.strip():
+            raise ValueError("补充要求不能为空")
+        accepted = await service.steer(
+            run["session_id"], run_id, request.text.strip(), request.message_id
+        )
+        if not accepted:
+            raise HTTPException(409, "任务已结束或正在停止，补充要求未接收")
+        return {"accepted": True, "message_id": request.message_id}
+
+    @app.post("/api/runs/{run_id}/cancel", status_code=202)
+    async def cancel(run_id: str):
+        service = wb()
+        run = service.queries.run(run_id)
+        if not await service.cancel(run["session_id"], run_id):
+            raise HTTPException(409, "任务已经结束或不由此服务器控制")
+        return {"accepted": True, "status": "cancelling"}
+
+    @app.get("/api/sessions/{session_id}/approvals")
+    async def pending_approvals(session_id: str):
+        service = wb()
+        service.queries.session(session_id)
+        result = []
+        for approval_id, pending in approvals.pending.items():
+            action = pending.action
+            task = service.runtime.store.get_agent_task_by_child_session(action.session_id)
+            if action.session_id == session_id or task and task["parent_session_id"] == session_id:
+                result.append(
+                    service.runtime.runner.redactor.redact(
+                        {
+                            "approval_id": approval_id,
+                            "session_id": action.session_id,
+                            "run_id": action.run_id,
+                            "tool_call_id": action.tool_call_id,
+                            "name": action.tool_name,
+                            "arguments": action.arguments,
+                            "reason": pending.decision.reason,
+                        }
+                    )
+                )
+        return result
+
+    @app.post("/api/approvals/{approval_id}")
+    async def resolve_approval(approval_id: str, request: ApprovalRequest):
+        service = wb()
+        run = service.queries.run(request.run_id)
+        if run["session_id"] != request.session_id or not approvals.resolve(
+            approval_id,
+            session_id=request.session_id,
+            run_id=request.run_id,
+            approved=request.approved,
+        ):
+            raise HTTPException(409, "审批已处理、已失效或与该调用不匹配")
+        return {"accepted": True}
+
+    @app.post("/api/sessions/{session_id}/compact")
+    async def compact(session_id: str):
+        service = wb()
+        service.queries.session(session_id)
+        return await service.runtime.runner.compact_session(session_id)
+
+    @app.get("/api/runs/{run_id}/context")
+    async def context(run_id: str):
+        service = wb()
+        run = service.queries.run(run_id)
+        rows = service.queries.rows(
+            "SELECT id,type,timestamp,payload_json FROM events WHERE run_id=? "
+            "AND (type LIKE 'context.%' OR type LIKE 'memory.%' OR type='model.response') "
+            "ORDER BY rowid DESC LIMIT 200",
+            (run_id,),
+        )
+        for row in rows:
+            row["payload"] = json.loads(row.pop("payload_json"))
+        return {
+            "events": list(reversed(rows)),
+            "session_id": run["session_id"],
+            "compactions": service.runtime.store.list_context_compactions(run["session_id"]),
+        }
+
+    @app.get("/api/sessions/{session_id}/compactions/{compaction_id}")
+    async def compaction_source(
+        session_id: str, compaction_id: str, after: Offset = 0, limit: PageSize = 50
+    ):
+        service = wb()
+        service.queries.session(session_id)
+        record = service.runtime.store.get_context_compaction(session_id, compaction_id)
+        if record is None:
+            raise LookupError("上下文版本不存在")
+        start = max(record["covered_start_position"], after + 1)
+        end = min(record["covered_end_position"], start + limit - 1)
+        if start > end:
+            return {"compaction": record, "messages": [], "eof": True}
+        result = service.runtime.store.read_context_compaction_source(
+            requesting_session_id=session_id,
+            compaction_id=compaction_id,
+            start_position=start,
+            end_position=end,
+        )
+        return {**result, "eof": end >= record["covered_end_position"], "next_position": end}
+
+    @app.get("/api/runs/{run_id}/artifacts")
+    async def artifacts(run_id: str):
+        service = wb()
+        service.queries.run(run_id)
+        return await asyncio.to_thread(service.artifacts.listing, run_id)
+
+    @app.get("/api/runs/{run_id}/artifacts/{artifact_id}")
+    async def artifact(run_id: str, artifact_id: str):
+        service = wb()
+        service.queries.run(run_id)
+        return await asyncio.to_thread(service.artifacts.detail, run_id, artifact_id)
+
+    @app.get("/api/runs/{run_id}/artifacts/{artifact_id}/content")
+    async def artifact_content(
+        run_id: str,
+        artifact_id: str,
+        side: Literal["before", "after"] = "after",
+        download: bool = False,
+    ):
+        service = wb()
+        service.queries.run(run_id)
+        record, content = await asyncio.to_thread(
+            service.artifacts.content, run_id, artifact_id, side
+        )
+        item = record[side]
+        media_type = (
+            item["media_type"]
+            if item["media_type"] in {"image/png", "image/jpeg", "image/gif", "image/webp"}
+            else "text/plain"
+            if item["text"]
+            else "application/octet-stream"
+        )
+        disposition = (
+            "attachment" if download or media_type == "application/octet-stream" else "inline"
+        )
+        filename = quote(Path(record["path"]).name, safe="")
+        return Response(
+            content,
+            media_type=media_type,
+            headers={"Content-Disposition": f"{disposition}; filename*=UTF-8''{filename}"},
+        )
+
+    @app.get("/api/skills")
+    async def skills():
+        return [
+            {"name": skill.name, "description": skill.description}
+            for skill in wb().runtime.catalog.skills.values()
         ]
 
     @app.get("/api/tools")
-    async def api_tools() -> list[str]:
-        rt = _rt_ok()
-        return rt.tools.names()
-
-    # -- WebSocket --------------------------------------------------------------
+    async def tools():
+        return wb().runtime.tools.names()
 
     @app.websocket("/ws")
-    async def websocket_endpoint(ws: WebSocket) -> None:
+    async def websocket_endpoint(ws: WebSocket):
+        if not same_origin(ws.headers.get("origin"), ws.headers.get("host")):
+            await ws.close(code=1008)
+            return
         await ws.accept()
-        rt = _rt_ok()
+        service = wb()
+        queue = sink.subscribe()
+        drainer = None
+        session_id = None
+        write_lock = asyncio.Lock()
 
-        event_queue = _event_sink.subscribe()
-        session_id: str | None = None
-        _run_task: asyncio.Task | None = None
-        _stop_event = asyncio.Event()
+        async def send(data):
+            async with write_lock:
+                await ws.send_json(data)
 
-        async def send_json(data: dict[str, Any]) -> None:
-            try:
-                await ws.send_text(json.dumps(data, ensure_ascii=False))
-            except Exception:
-                _stop_event.set()
+        async def drain(subscription_id):
+            while True:
+                event = json.loads(await queue.get())
+                await send({"type": "event", "subscription_id": subscription_id, "event": event})
 
-        async def drain_events() -> None:
-            """Continuously forward events from the shared sink to this client."""
-            while not _stop_event.is_set():
-                try:
-                    raw = await asyncio.wait_for(event_queue.get(), timeout=1.0)
-                    await ws.send_text(raw)
-                except TimeoutError:
-                    continue
-                except asyncio.QueueEmpty:
+        async def subscribe(message):
+            nonlocal drainer, session_id
+            selected = message.get("session_id")
+            run_id = message.get("run_id") or None
+            service.queries.scope(selected, run_id)
+            service.queries.position(message.get("cursor"))
+            if drainer:
+                drainer.cancel()
+                with suppress(asyncio.CancelledError, WebSocketDisconnect):
+                    await drainer
+            session_id = selected
+            subscription_id = str(message.get("subscription_id") or uuid4().hex)
+            sink.configure(queue, lambda event: service.related(event, selected, run_id))
+            cursor = message.get("cursor")
+            through = service.queries.cursor(service.queries.watermark())
+            await send(
+                {
+                    "type": "subscribed",
+                    "subscription_id": subscription_id,
+                    "session_id": selected,
+                    "run_id": run_id,
+                    "epoch": service.queries.epoch,
+                }
+            )
+            while True:
+                page = service.queries.events(
+                    selected, run_id=run_id, cursor=cursor, through=through, limit=500
+                )
+                await send({"type": "snapshot", "subscription_id": subscription_id, **page})
+                cursor = page["cursor"]
+                if not page["has_more"]:
                     break
-                except Exception:
-                    break
-
-        def run_done_cb(task: asyncio.Task) -> None:
-            nonlocal _run_task
-            _run_task = None
-
-        # Start event drainer
-        drainer = asyncio.ensure_future(drain_events())
+            await send(
+                {"type": "snapshot_complete", "subscription_id": subscription_id, "cursor": cursor}
+            )
+            drainer = asyncio.create_task(drain(subscription_id))
 
         try:
-            while not _stop_event.is_set():
+            while True:
+                raw = await ws.receive_text()
                 try:
-                    raw = await ws.receive_text()
-                except WebSocketDisconnect:
-                    break
-                except RuntimeError:
-                    break
-
-                msg: dict[str, Any] = json.loads(raw)
-                msg_type = msg.get("type", "")
-
-                if msg_type == "ping":
-                    await send_json({"type": "pong"})
-
-                elif msg_type == "create_session":
-                    session_id = rt.store.create_session(rt.workspace)
-                    await send_json({
-                        "type": "session_created",
-                        "session_id": session_id,
-                        "plan": None,
-                    })
-
-                elif msg_type == "resume_session":
-                    requested = msg.get("session_id", "")
-                    if rt.store.session_exists(requested):
-                        session_id = requested
-                        await send_json({
-                            "type": "session_resumed",
-                            "session_id": session_id,
-                            "plan": rt.store.load_plan(session_id),
-                        })
+                    msg = json.loads(raw)
+                    if not isinstance(msg, dict):
+                        raise ValueError("消息必须是 JSON 对象")
+                    kind = msg.get("type")
+                    if kind == "ping":
+                        await send({"type": "pong"})
+                    elif kind in {"create_session", "new_session"}:
+                        session_id = service.runtime.store.create_session(workspace)
+                        await send(
+                            {"type": "session_created", "session_id": session_id, "plan": None}
+                        )
+                    elif kind in {"subscribe", "resume_session"}:
+                        await subscribe(msg)
                     else:
-                        await send_json({
+                        raise ValueError("未知消息类型；任务控制请使用对应 API")
+                except (ValueError, LookupError, ValidationError) as exc:
+                    await send(
+                        {
                             "type": "error",
-                            "message": f"Session '{requested[:16]}...' not found",
-                        })
-
-                elif msg_type == "chat":
-                    if not session_id:
-                        session_id = rt.store.create_session(rt.workspace)
-                        await send_json({
-                            "type": "session_created",
-                            "session_id": session_id,
-                            "plan": None,
-                        })
-
-                    prompt = msg.get("prompt", "").strip()
-                    if not prompt:
-                        await send_json({"type": "error", "message": "Empty prompt"})
-                        continue
-
-                    explicit_skills: list[str] = msg.get("skills", [])
-                    if isinstance(explicit_skills, str):
-                        explicit_skills = [
-                            s.strip() for s in explicit_skills.split(",") if s.strip()
-                        ]
-
-                    request = RunRequest(
-                        prompt=prompt,
-                        session_id=session_id,
-                        explicit_skills=explicit_skills,
+                            "message": str(exc),
+                            "code": "cursor_expired"
+                            if isinstance(exc, CursorExpired)
+                            else "invalid_request",
+                        }
                     )
-
-                    async def run_and_report(req: RunRequest = request) -> None:
-                        try:
-                            result = await rt.runner.run(req)
-                            await send_json({
-                                "type": "run_result",
-                                "session_id": result.session_id,
-                                "status": result.status,
-                                "final_text": result.final_text,
-                                "steps": result.steps,
-                                "error": result.error,
-                                "input_tokens": result.input_tokens,
-                                "output_tokens": result.output_tokens,
-                                "cost_usd": result.cost_usd,
-                            })
-                        except Exception as exc:
-                            logger.exception("Run failed")
-                            await send_json({
-                                "type": "error",
-                                "message": str(exc),
-                            })
-
-                    _run_task = asyncio.ensure_future(run_and_report())
-                    _run_task.add_done_callback(run_done_cb)
-
-                elif msg_type == "cancel":
-                    if session_id:
-                        await rt.runner.steer(session_id, "/cancel")
-                        await send_json({
-                            "type": "cancelled",
-                            "session_id": session_id,
-                        })
-
-                elif msg_type == "steer":
-                    if session_id:
-                        text = msg.get("text", "")
-                        ok = await rt.runner.steer(session_id, text)
-                        await send_json({
-                            "type": "steered",
-                            "accepted": ok,
-                        })
-
-                elif msg_type == "new_session":
-                    session_id = rt.store.create_session(rt.workspace)
-                    rt.skills.reset()
-                    await send_json({
-                        "type": "session_created",
-                        "session_id": session_id,
-                        "plan": None,
-                    })
-
-                elif msg_type == "compact":
-                    if session_id:
-                        try:
-                            result = await rt.runner.compact_session(session_id)
-                            await send_json({
-                                "type": "compacted",
-                                "result": result,
-                            })
-                        except Exception as exc:
-                            await send_json({
-                                "type": "error",
-                                "message": str(exc),
-                            })
-
-                elif msg_type == "approval":
-                    decision = msg.get("decision", "deny")
-                    _approval_handler.resolve_next(decision == "approve")
-                    await send_json({
-                        "type": "approval_resolved",
-                        "decision": decision,
-                    })
-
-                else:
-                    await send_json({
-                        "type": "error",
-                        "message": f"Unknown message type: {msg_type}",
-                    })
-
-        except WebSocketDisconnect:
+        except (WebSocketDisconnect, RuntimeError):
             pass
-        except Exception:
-            logger.exception("WebSocket error")
         finally:
-            _stop_event.set()
-            _event_sink.unsubscribe(event_queue)
-            if not drainer.done():
+            sink.unsubscribe(queue)
+            if drainer:
                 drainer.cancel()
-                try:
+                with suppress(asyncio.CancelledError, WebSocketDisconnect, RuntimeError):
                     await drainer
-                except asyncio.CancelledError:
-                    pass
-                except Exception:
-                    pass
-            if _run_task and not _run_task.done():
-                _run_task.cancel()
-                try:
-                    await _run_task
-                except Exception:
-                    pass
+            # A browser connection does not own (or cancel) any running task.
 
     return app

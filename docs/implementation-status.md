@@ -9,6 +9,7 @@
 | 设计域 | 实现结果 | 主要入口 |
 |---|---|---|
 | 通用 CLI | 交互、自然语言入口、单次运行、JSONL、管理命令、会话内命令、steering 与取消 | `bot`、`bot run`、`bot resume` |
+| Web 工作台 | 实时工具详情与进程日志、精确审批、补充要求与停止、断线历史恢复、文件快照与 diff、子任务时间线、上下文查看、移动端与主题 | `src/bot/web/`、[使用与验证](web-workbench.md) |
 | Provider | OpenAI-compatible Chat Completions，SSE 文本、结构化 Tool Call、usage 与异常归一化 | `src/bot/providers/` |
 | Agent Core | Tool 进展协议、持久化 epoch、外部等待/静默检查、停滞纠偏和统一无 Tool 收尾 | `src/bot/core/agent.py`、`src/bot/core/progress.py`、`src/bot/core/termination/` |
 | 通用 Tool | read、search、精确 patch、argv command、受控 shell、HTTP fetch，以及受管进程的轮询、输入、终止和列表 | `src/bot/tools/builtins.py` |

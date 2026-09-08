@@ -342,6 +342,21 @@ class BackgroundAgentPool:
             return_exceptions=True,
         )
 
+    async def cancel_run(self, parent_session_id: str, run_id: str, reason: str) -> None:
+        tasks = self.store.list_agent_tasks(
+            parent_session_id,
+            limit=self.config.subagents.max_tasks_per_session,
+        )
+        await asyncio.gather(
+            *(
+                self._cancel(parent_session_id, str(task["id"]), reason)
+                for task in tasks
+                if task["parent_run_id"] == run_id
+                and task["status"]
+                in {"queued", "running", "waiting_approval", "waiting_parent", "cancelling"}
+            )
+        )
+
     def list_tasks(self, parent_session_id: str) -> list[dict]:
         return [
             self._public_task(record)
@@ -630,6 +645,7 @@ class BackgroundAgentPool:
                 payload={
                     "task_id": task_id,
                     "child_session_id": record["child_session_id"],
+                    "objective": record["objective"],
                     "agent": agent_name,
                     "required": record["required"],
                     "isolation": record["isolation"],

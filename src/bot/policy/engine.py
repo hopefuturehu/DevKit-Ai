@@ -73,6 +73,10 @@ class ToolAction(BaseModel):
     tool_name: str
     arguments: dict[str, Any]
     annotations: ToolAnnotations
+    session_id: str | None = None
+    run_id: str | None = None
+    tool_call_id: str | None = None
+    approval_id: str | None = None
 
 
 class DefaultPolicyEngine:

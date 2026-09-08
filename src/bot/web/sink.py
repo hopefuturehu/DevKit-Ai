@@ -1,51 +1,51 @@
-"""WebSocket event sink that forwards AgentEvents to connected browser clients."""
+"""Scoped, bounded live notifications; SQLite is the source of truth."""
 
 from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from collections.abc import Callable
 
 from bot.core.events import AgentEvent
 
 
 class WebSocketEventSink:
-    """Collects AgentEvents into an in-memory async queue for WebSocket consumption."""
+    def __init__(self, max_queue: int = 1024) -> None:
+        self.max_queue = max_queue
+        self._queues: dict[asyncio.Queue[str], Callable[[AgentEvent], bool]] = {}
+        self._overflow: set[asyncio.Queue[str]] = set()
+        self.enrich: Callable[[AgentEvent], dict] = lambda event: event.model_dump(mode="json")
 
-    def __init__(self) -> None:
-        self._queues: list[asyncio.Queue[str]] = []
+    def subscribe(self, predicate=None) -> asyncio.Queue[str]:
+        queue: asyncio.Queue[str] = asyncio.Queue(maxsize=self.max_queue)
+        self._queues[queue] = predicate or (lambda event: False)
+        return queue
 
-    def subscribe(self) -> asyncio.Queue[str]:
-        q: asyncio.Queue[str] = asyncio.Queue()
-        self._queues.append(q)
-        return q
+    def configure(self, queue: asyncio.Queue[str], predicate) -> None:
+        self._queues[queue] = predicate
+        self._overflow.discard(queue)
+        while not queue.empty():
+            queue.get_nowait()
 
     def unsubscribe(self, queue: asyncio.Queue[str]) -> None:
-        try:
-            self._queues.remove(queue)
-        except ValueError:
-            pass
+        self._queues.pop(queue, None)
+        self._overflow.discard(queue)
 
     async def publish(self, event: AgentEvent) -> None:
-        payload = self._serialize_event(event)
-        dead: list[asyncio.Queue[str]] = []
-        for q in self._queues:
+        payload = None
+        for queue, predicate in tuple(self._queues.items()):
+            if queue in self._overflow or not predicate(event):
+                continue
+            if payload is None:
+                payload = json.dumps(self.enrich(event), ensure_ascii=False)
             try:
-                q.put_nowait(payload)
+                queue.put_nowait(payload)
             except asyncio.QueueFull:
-                dead.append(q)
-        for q in dead:
-            self._queues.remove(q)
+                while not queue.empty():
+                    queue.get_nowait()
+                queue.put_nowait(json.dumps({"type": "resync_required"}))
+                self._overflow.add(queue)
 
     @staticmethod
     def _serialize_event(event: AgentEvent) -> str:
-        data: dict[str, Any] = {
-            "id": event.id,
-            "type": event.type.value,
-            "session_id": event.session_id,
-            "run_id": event.run_id,
-            "sequence": event.sequence,
-            "timestamp": event.timestamp.isoformat(),
-            "payload": event.payload,
-        }
-        return json.dumps(data, ensure_ascii=False)
+        return event.model_dump_json()

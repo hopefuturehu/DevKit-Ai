@@ -14,6 +14,8 @@
 | [总体设计](design.md) | 产品边界、模块职责和设计基线；落地进度参照实现状态 |
 | [自动终止与长任务控制](termination.md) | 进展检测、恢复、硬预算和统一收尾 |
 | [Markdown 自定义 Agent](custom-agents.md) | 定义格式、信任、父子交互和 worktree 交付 |
+| [Web 任务工作台](web-workbench.md) | 启动与使用、状态语义、历史恢复、文件产物、协议和验证 |
+| [Web 实时任务工作台设计](web-execution-workbench-design.md) | 已落地的界面设计与原始交互原型 |
 | [项目思维导图](project-mindmap.xmind) | 项目模块与上下文链路的可视化阅读辅助；具体行为和指标口径以对应说明为准 |
 
 ## 上下文与记忆：当前实现
@@ -43,7 +45,6 @@
 
 | 文档 | 状态与用途 |
 |---|---|
-| [Web 实时任务工作台设计](web-execution-workbench-design.md) | 尚未实现的提案与交互原型；执行进度、工具详情、补充要求和历史恢复 |
 | [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 尚未实现的提案；Run 隔离、正文交付、裁剪和恢复 |
 | [Skill 卸载与缓存复用调研](skill-unloading-cache-comparison.md) | 上述提案的源码依据与成本取舍；固定 checkout 调研 |
 | [历史会话裁剪容量分析](history-pruning-analysis.md) | 2026-09-08 的离线容量回放，支撑待实施设计；不代表生产裁剪收益 |

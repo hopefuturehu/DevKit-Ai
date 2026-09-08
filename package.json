@@ -1,0 +1,11 @@
+{
+  "name": "bot-web-verification",
+  "private": true,
+  "scripts": {
+    "test:web": "node --test tests/web/*.test.mjs",
+    "test:web:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

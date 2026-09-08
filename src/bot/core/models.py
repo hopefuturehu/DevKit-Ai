@@ -149,6 +149,7 @@ class RunRequest(BaseModel):
 
     prompt: str
     session_id: str | None = None
+    run_id: str | None = None
     explicit_skills: list[str] = Field(default_factory=list)
     json_output: bool = False
 

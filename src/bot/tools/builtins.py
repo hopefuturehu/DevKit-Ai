@@ -421,6 +421,8 @@ class RunCommandTool(Tool):
             )
             spec = ProcessSpec(
                 argv=argv,
+                session_id=context.session_id,
+                run_id=context.run_id,
                 cwd=cwd,
                 timeout_seconds=(
                     float(configured_timeout) if configured_timeout is not None else None

@@ -1699,7 +1699,8 @@ async def test_agent_enforces_cost_before_requested_tool_runs(tmp_path: Path) ->
     assert result.status == "limit_reached"
     assert result.cost_usd == 1
     event_types = [event["type"] for event in store.list_events(result.session_id)]
-    assert event_types[-2:] == ["assistant.message", "run.limit_reached"]
+    assert event_types[-3:] == ["assistant.message", "run.limit_reached", "run.finished"]
+    assert store.list_events(result.session_id)[-1]["payload"]["cost_usd"] == 1
     assert "run.finalizing" in event_types
     store.close()
 

@@ -12,6 +12,8 @@ class ProcessSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     argv: list[str] = Field(min_length=1)
+    session_id: str | None = None
+    run_id: str | None = None
     cwd: Path
     env: dict[str, str] = Field(default_factory=dict)
     timeout_seconds: float | None = Field(default=None, gt=0)
@@ -46,6 +48,8 @@ class ProcessSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     process_id: str
+    session_id: str | None = None
+    run_id: str | None = None
     status: ProcessStatus
     argv: list[str]
     cwd: Path
@@ -112,6 +116,16 @@ class ExecutionTarget(ABC):
 
     async def list_processes(self) -> list[ProcessSnapshot]:
         return []
+
+    async def read_process_output(
+        self,
+        process_id: str,
+        *,
+        stdout_offset: int = 0,
+        stderr_offset: int = 0,
+        limit: int = 16000,
+    ) -> dict:
+        raise NotImplementedError("当前执行目标不支持独立日志读取")
 
     async def aclose(self) -> None:
         return None

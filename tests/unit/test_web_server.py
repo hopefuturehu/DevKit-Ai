@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -28,14 +29,17 @@ def _write_config(tmp_path):
 def test_web_approval_handler_resolves_pending_decision() -> None:
     async def scenario() -> None:
         handler = WebApprovalHandler()
-        task = asyncio.create_task(handler.approve(None, None))
-        await asyncio.sleep(0.01)
-        assert handler.resolve_next(True)
+        action = SimpleNamespace(approval_id="approval-1", session_id="s1", run_id="r1")
+        task = asyncio.create_task(handler.approve(action, None))
+        await asyncio.sleep(0)
+        assert not handler.resolve("approval-1", session_id="s2", run_id="r1", approved=True)
+        assert not handler.resolve("approval-1", session_id="s1", run_id="r2", approved=True)
+        assert handler.resolve("approval-1", session_id="s1", run_id="r1", approved=True)
         response = await task
         assert response.approved is True
         assert response.scope.value == "once"
         # No pending decision left: resolve returns False.
-        assert handler.resolve_next(False) is False
+        assert not handler.resolve("approval-1", session_id="s1", run_id="r1", approved=False)
 
     asyncio.run(scenario())
 
@@ -83,4 +87,5 @@ def test_websocket_ping_session_and_approval(tmp_path, monkeypatch) -> None:
             assert created["plan"] is None
 
             ws.send_text('{"type":"approval","decision":"approve"}')
-            assert ws.receive_json()["type"] == "approval_resolved"
+            # Uncorrelated legacy approvals must not resolve an arbitrary pending call.
+            assert ws.receive_json()["type"] == "error"

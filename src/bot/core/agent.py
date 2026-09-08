@@ -227,7 +227,7 @@ class AgentRunner:
             raise ValueError("执行型 Agent 模型必须支持流式输出和结构化 Tool Calling")
         self._session_approvals: set[tuple[str, str]] = set()
         self._force_compact_sessions: set[str] = set()
-        self._steering_queues: dict[str, asyncio.Queue[str]] = {}
+        self._steering_queues: dict[str, asyncio.Queue[tuple[str, str | None]]] = {}
         self._session_idle_events: dict[str, asyncio.Event] = {}
         self._activated_tools: dict[str, set[str]] = {}
         self._last_context_reports: dict[str, dict[str, object]] = {}
@@ -365,11 +365,11 @@ class AgentRunner:
             "budget": self._token_budget.as_dict(),
         }
 
-    async def steer(self, session_id: str, text: str) -> bool:
+    async def steer(self, session_id: str, text: str, *, message_id: str | None = None) -> bool:
         queue = self._steering_queues.get(session_id)
         if queue is None or not text.strip():
             return False
-        await queue.put(text.strip())
+        await queue.put((text.strip(), message_id))
         return True
 
     def is_session_running(self, session_id: str) -> bool:
@@ -384,7 +384,7 @@ class AgentRunner:
     async def run(self, request: RunRequest) -> RunResult:
         session_id = request.session_id or self.store.create_session(self.workspace)
         self.store.ensure_session(session_id, self.workspace)
-        run_id = uuid4().hex
+        run_id = request.run_id or uuid4().hex
         if self.memory_extractor is not None:
             self.memory_extractor.schedule(exclude_run_id=run_id)
         if session_id in self._steering_queues:
@@ -399,34 +399,36 @@ class AgentRunner:
                 self._steering_queues.pop(session_id, None)
                 idle_event.set()
                 raise
-        self.store.start_run(session_id, run_id)
-        await self.event_bus.emit(
-            EventType.RUN_STARTED,
-            session_id=session_id,
-            run_id=run_id,
-            payload={
-                "prompt": request.prompt,
-                "workspace": str(self.workspace),
-                "termination_policy": {
-                    "max_steps": self.config.agent.max_steps,
-                    "max_wall_time_seconds": self.config.agent.max_wall_time_seconds,
-                    "max_total_tool_output_bytes": (self.config.agent.max_total_tool_output_bytes),
-                    "max_consecutive_failures": (self.config.agent.max_consecutive_failures),
-                    "max_cost_usd": self.config.agent.max_cost_usd,
-                    "model_request_retries": self.config.agent.model_request_retries,
-                    "model_request_retry_backoff_seconds": (
-                        self.config.agent.model_request_retry_backoff_seconds
-                    ),
-                    "process_hard_timeout_seconds": (
-                        self.config.agent.process_hard_timeout_seconds
-                    ),
-                    "progress": self.config.agent.progress.model_dump(mode="json"),
-                    "finalization": self.config.agent.finalization.model_dump(mode="json"),
-                },
-            },
-        )
+        wall_time_limit = self.config.agent.max_wall_time_seconds
         try:
-            wall_time_limit = self.config.agent.max_wall_time_seconds
+            self.store.start_run(session_id, run_id)
+            await self.event_bus.emit(
+                EventType.RUN_STARTED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={
+                    "prompt": request.prompt,
+                    "workspace": str(self.workspace),
+                    "termination_policy": {
+                        "max_steps": self.config.agent.max_steps,
+                        "max_wall_time_seconds": self.config.agent.max_wall_time_seconds,
+                        "max_total_tool_output_bytes": (
+                            self.config.agent.max_total_tool_output_bytes
+                        ),
+                        "max_consecutive_failures": (self.config.agent.max_consecutive_failures),
+                        "max_cost_usd": self.config.agent.max_cost_usd,
+                        "model_request_retries": self.config.agent.model_request_retries,
+                        "model_request_retry_backoff_seconds": (
+                            self.config.agent.model_request_retry_backoff_seconds
+                        ),
+                        "process_hard_timeout_seconds": (
+                            self.config.agent.process_hard_timeout_seconds
+                        ),
+                        "progress": self.config.agent.progress.model_dump(mode="json"),
+                        "finalization": self.config.agent.finalization.model_dump(mode="json"),
+                    },
+                },
+            )
             if wall_time_limit is None:
                 result = await self._run_loop(request, session_id=session_id, run_id=run_id)
             else:
@@ -458,6 +460,19 @@ class AgentRunner:
             )
         except asyncio.CancelledError:
             error = "运行已取消"
+            # Cancel only processes owned by this Run. Another session may be
+            # executing against the shared target at the same time.
+            for process in await self.execution_target.list_processes():
+                if process.session_id == session_id and process.run_id == run_id:
+                    await self.execution_target.terminate_process(
+                        process.process_id,
+                        reason="用户停止任务",
+                    )
+            if self.subagent_controller is not None and hasattr(
+                self.subagent_controller, "cancel_run"
+            ):
+                await self.subagent_controller.cancel_run(session_id, run_id, "用户停止任务")
+            usage = self.store.latest_run_usage(run_id)
             await self.event_bus.emit(
                 EventType.RUN_CANCELLED,
                 session_id=session_id,
@@ -469,6 +484,9 @@ class AgentRunner:
                 status="cancelled",
                 error=error,
                 termination_reason="cancelled",
+                input_tokens=usage.get("input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0),
+                cost_usd=usage.get("cost_usd"),
             )
         except Exception as exc:
             error = str(exc)
@@ -498,6 +516,12 @@ class AgentRunner:
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
             cost_usd=result.cost_usd,
+        )
+        await self.event_bus.emit(
+            EventType.RUN_FINISHED,
+            session_id=session_id,
+            run_id=run_id,
+            payload=result.model_dump(mode="json"),
         )
         return result
 
@@ -1363,6 +1387,12 @@ class AgentRunner:
 
                 # Uniform execution evidence for built-in, internal and delegated Tools.
                 # A successful launch with status=running is not task completion.
+                result_reference = self.store.put_context_blob(
+                    session_id=session_id,
+                    run_id=run_id,
+                    content=result.model_content(),
+                    media_type="application/vnd.bot.tool-result+json",
+                )
                 await self.event_bus.emit(
                     EventType.TOOL_RESULT,
                     session_id=session_id,
@@ -1375,6 +1405,12 @@ class AgentRunner:
                         "returncode": result.metadata.get("returncode"),
                         "process_id": result.metadata.get("process_id"),
                         "process_status": result.metadata.get("process_status"),
+                        "error": result.error,
+                        "truncated": result.truncated,
+                        "context_ref": result_reference,
+                        "output_excerpt": self._inline_reference(
+                            result.output or result.model_content(), result_reference
+                        ),
                     },
                 )
 
@@ -3604,6 +3640,10 @@ class AgentRunner:
             tool_name=tool.name,
             arguments=tool_call.arguments,
             annotations=tool.annotations,
+            session_id=session_id,
+            run_id=run_id,
+            tool_call_id=tool_call.id,
+            approval_id=uuid4().hex,
         )
         decision = self.policy.evaluate(action)
         if decision.kind == PolicyDecisionKind.DENY:
@@ -3631,6 +3671,7 @@ class AgentRunner:
                     session_id=session_id,
                     run_id=run_id,
                     payload={
+                        "approval_id": action.approval_id,
                         "tool_call_id": tool_call.id,
                         "name": tool.name,
                         "arguments": tool_call.arguments,
@@ -3662,6 +3703,7 @@ class AgentRunner:
                 session_id=session_id,
                 run_id=run_id,
                 payload={
+                    "approval_id": action.approval_id,
                     "tool_call_id": tool_call.id,
                     "approved": approved,
                     "scope": scope.value,
@@ -3702,6 +3744,8 @@ class AgentRunner:
 
         context = ToolContext(
             workspace=self.workspace,
+            session_id=session_id,
+            run_id=run_id,
             execution_target=self.execution_target,
             workspace_only=self.config.permissions.workspace_only,
             max_output_bytes=self.config.agent.max_tool_output_bytes,
@@ -3776,7 +3820,7 @@ class AgentRunner:
             return None
         latest_text: str | None = None
         while not queue.empty():
-            text = queue.get_nowait()
+            text, message_id = queue.get_nowait()
             message = self.redactor.redact_message(
                 ChatMessage(
                     role=Role.USER,
@@ -3799,7 +3843,7 @@ class AgentRunner:
                 EventType.RUN_STEERED,
                 session_id=session_id,
                 run_id=run_id,
-                payload={"text": text},
+                payload={"text": text, "message_id": message_id},
             )
             latest_text = text
         return latest_text

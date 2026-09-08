@@ -532,6 +532,15 @@ class SQLiteSessionStore(EventSink):
             "cost_usd": float(row["cost_usd"]),
         }
 
+    def latest_run_usage(self, run_id: str) -> dict[str, Any]:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT payload_json FROM events WHERE run_id=? AND type='model.usage' "
+                "ORDER BY rowid DESC LIMIT 1",
+                (run_id,),
+            ).fetchone()
+        return json.loads(row[0]) if row else {}
+
     def fork_session(self, session_id: str, *, up_to_position: int | None = None) -> str:
         source = self.get_session(session_id)
         if source is None:

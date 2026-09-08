@@ -51,7 +51,9 @@ state_path = "./.bot/state.db"
     assert result.exit_code == 0, result.output
     events = [json.loads(line) for line in result.output.splitlines() if line.startswith("{")]
     assert any(event["type"] == "assistant.delta" for event in events)
-    assert events[-1]["type"] == "run.completed"
+    assert events[-2]["type"] == "run.completed"
+    assert events[-1]["type"] == "run.finished"
+    assert events[-1]["payload"]["status"] == "completed"
     assert CliProvider.requests[0].model == "mock-model"
     assert CliProvider.requests[0].messages[-1].content == "say hello"
     assert (tmp_path / ".bot" / "state.db").exists()

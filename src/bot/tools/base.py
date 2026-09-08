@@ -29,6 +29,8 @@ class ToolContext(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
     workspace: Path
+    session_id: str | None = None
+    run_id: str | None = None
     execution_target: ExecutionTarget
     workspace_only: bool = True
     max_output_bytes: int = Field(default=1_000_000, gt=0)

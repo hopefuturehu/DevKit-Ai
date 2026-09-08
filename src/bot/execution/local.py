@@ -184,6 +184,32 @@ class LocalExecutionTarget(ExecutionTarget):
             for managed in self._managed_processes.values()
         ]
 
+    async def read_process_output(
+        self,
+        process_id: str,
+        *,
+        stdout_offset: int = 0,
+        stderr_offset: int = 0,
+        limit: int = 16000,
+    ) -> dict:
+        managed = self._managed_process(process_id)
+        stdout = "".join(managed.stdout_parts)
+        stderr = "".join(managed.stderr_parts)
+        # This observer has independent cursors and never consumes Agent output.
+        return {
+            "snapshot": self._managed_snapshot(
+                managed,
+                consume_output=False,
+                include_output=False,
+            ).model_dump(mode="json"),
+            "stdout": stdout[stdout_offset : stdout_offset + limit],
+            "stderr": stderr[stderr_offset : stderr_offset + limit],
+            "stdout_offset": stdout_offset,
+            "stderr_offset": stderr_offset,
+            "stdout_length": len(stdout),
+            "stderr_length": len(stderr),
+        }
+
     async def aclose(self) -> None:
         live = [
             managed
@@ -331,6 +357,8 @@ class LocalExecutionTarget(ExecutionTarget):
             else elapsed
         )
         return ProcessSnapshot(
+            session_id=managed.spec.session_id,
+            run_id=managed.spec.run_id,
             process_id=managed.process_id,
             status=managed.status,
             argv=managed.spec.argv,

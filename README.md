@@ -11,6 +11,8 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 
 - OpenAI-compatible Chat Completions 流式文本和结构化 Tool Calling；
 - 可恢复、可分叉的 SQLite 会话和 JSONL 审计事件；
+- 面向使用者的 Web 实时任务工作台：工具参数与日志、运行中补充要求和停止、历史恢复、
+  文件差异与下载、子任务时间线和上下文查看；
 - 模型自主维护的会话级 TODO list，支持严格快照校验、事件持久化、CLI/Web 实时展示和
   上下文压缩后恢复；
 - read/search/apply-patch/argv command/受控 shell/network 等通用 Tool；长命令在短暂
@@ -32,6 +34,15 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 python3 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 ```
+
+Web 工作台使用相同的模型配置与工作区：
+
+```bash
+.venv/bin/pip install -e '.[web]'
+.venv/bin/bot -C . web start --host 127.0.0.1 --port 8080
+```
+
+打开 `http://127.0.0.1:8080`。使用方法和状态说明见 [Web 任务工作台](docs/web-workbench.md)。
 
 ## 最小配置
 
