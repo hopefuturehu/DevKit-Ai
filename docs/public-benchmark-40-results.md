@@ -1,10 +1,12 @@
 # 40 题公开基准结果与失败分析
 
-这是执行中的记录，不是最终报告。2026-09-09 02:44（Asia/Shanghai）快照：
+这是执行中的记录，不是最终报告。2026-09-09 03:00（Asia/Shanghai）快照：
 40 题中 7 题已完成首次真实模型运行并得到官方结果，5 通过、2 未通过。
 其中 6 题实际执行了模型产物的验收测试，1 题因空补丁被官方直接记为未解决，未执行验收测试。
 33 题尚无最终模型结果，其中 1 题被失败的官方参考解控制实验阻断，其他任务继续推进。
 不能据此宣称 40 题已完成，也不能将 5/7 当作完整公开基准成绩。
+另有大文本题的环境变体完成真实模型运行并通过，实际已覆盖 8 个不同题目；
+该结果单列，不与原镜像首次基线合并。
 
 范围、冻结规则、版本与限制见 [执行约定](public-benchmark-40-execution.md)。
 源码基线为 `578f660`，模型为 `deepseek-v4-flash`。本报告中的协议探针只用于分析，未修改该冻结基线。
@@ -17,7 +19,7 @@
 | --- | --- | --- | --- |
 | Terminal / openssl-selfsigned-cert | oracle=1，nop=0，无异常 | reward=1 | 23 步完成；官方验收通过 |
 | Terminal / custom-memory-heap-crash | oracle=1，nop=0，无异常 | reward=0；5 passed、1 failed | 第 9 步触发模型输出长度限制，尚未执行源码修复 |
-| Terminal / large-scale-text-editing | oracle=0，nop=0，无 harness 异常 | 尚未运行 Bot | 官方参考解在验收脚本内超时；不能按模型失败计分 |
+| Terminal / large-scale-text-editing | oracle=0，nop=0，无 harness 异常 | 原镜像尚未运行 Bot | 官方参考解超时；环境变体已通过，见单独记录 |
 | SWE / astropy__astropy-12907 | gold resolved=true，negative resolved=false | resolved=true | 27 步完成；2 项 FAIL_TO_PASS、13 项 PASS_TO_PASS 均通过 |
 | SWE / django__django-14017 | gold resolved=true，negative resolved=false | resolved=true | 46 步完成；2 项 FAIL_TO_PASS、147 项 PASS_TO_PASS 均通过 |
 | SWE / sympy__sympy-18532 | gold resolved=true，negative resolved=false | 空补丁，resolved=false | 第 20 步触发输出长度限制；官方未执行模型补丁验收测试 |
@@ -191,9 +193,25 @@ Docker 官方提供 [Rosetta 加速选项](https://docs.docker.com/desktop/setti
 并验证它可以在原 AMD64 任务容器中直接运行。隔离的派生镜像只替换 Vim 可执行文件，
 题面、参考解和全部验收文件的字节保持一致，600 秒限制保持不变。
 该变体已得到 oracle=1、nop=0，无执行异常；参考解的全部 5 项测试通过，pytest 总用时 83.42 秒。
-原版本 Bot 在这个变体上的真实模型诊断正在执行，结果将单独记录，不覆盖原镜像阻断。
+原版本 Bot 在这个变体上 24 步 completed，reward=1，全部 5 项测试通过，pytest 总用时 74.98 秒。
+消耗 405,824 input tokens、26,600 output tokens。最终 `apply_macros.vim` 已在容器清理前保存，
+SHA-256 为 `7ab23c6585ed3497c60b1aaf426de53ff1926906aa3db09b9ddc9395d803fdc3`。
+同一模型产物正在原 AMD64 镜像中复验；这一步不再调用模型，也不替换官方参考解控制的原始失败记录。
 该二进制与原 Debian Vim 的补丁集、构建参数和 C 库不同，因此这是环境诊断变体，不能冒充原镜像成绩，
 即使性能改善也不能单凭这一实验断定差异完全来自 QEMU。
+派生镜像及该变体的临时容器已清理，保留源码、构建信息、可执行文件、模型产物和验收证据供复核。
+
+## 报告统计的校验
+
+[汇总脚本](../scripts/summarize_public_benchmarks.py) 修正了压缩用量遗漏：
+使用每次压缩 API 请求的详细 usage，避免把随后发布的累计运行用量当作另一次响应；
+旧格式只有压缩总量时保留 token，但将缺少缓存明细的费用估算标为未知。
+当前 11 次已完成 Bot 运行的汇总 input/output tokens 均与其独立结果文件逐项一致。
+这里统计的是 Bot 运行，独立 API 探针尚不包含在这组对账范围内；缓存与峰谷价格估算仍不是账单。
+
+脚本也会显示已有模型事件、尚未形成最终报告的 Terminal 运行；结果文件缺失不会被直接当作“模型未启动”。
+后续 attempt 按数字排序，只有 attempt 1 属于冻结首次基线，后续成功复测不会自动填补首次基线。
+6 项回归检查覆盖压缩计量、重复 usage、两类基准的缺失终态、未写完的事件行和复测隔离。
 
 ## 尚未完成
 
