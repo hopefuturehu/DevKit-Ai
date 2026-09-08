@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T21:03:47.742128+00:00",
+  "generated_at": "2026-09-08T21:10:40.587088+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -2572,6 +2572,166 @@
           "tests/test_outputs.py": "e99b9f6284e923388fbc21488b1af99fdde46d4a809d3557b0788dbf1cb6b281"
         }
       }
+    },
+    "eigenval_parameterized_reporting": {
+      "source": "diagnostics/eigenval-parameterized-reporting.json",
+      "result": {
+        "id": "terminal-bench/largest-eigenval",
+        "scope": "Original oracle and nop verifier reporting; no new task or model execution",
+        "observation": "CTRF groups nine size parameterizations under each function and labels the extra cases as retries. Pytest logs contain 27 executed cases. CTRF entry counts are not physical case counts; use raw pytest outcomes to report this task.",
+        "controls": [
+          {
+            "phase": "oracle",
+            "reward": 1.0,
+            "ctrf_summary": {
+              "tests": 3,
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0,
+              "pending": 0,
+              "other": 0,
+              "start": 1788901352.4681582,
+              "stop": 1788901354.202184
+            },
+            "ctrf_entries": [
+              {
+                "name": "test_outputs.py::test_eigen_pair",
+                "status": "passed",
+                "retries": 8,
+                "tags": [
+                  "parametrize::size::[2, 3, 4, 5, 6, 7, 8, 9, 10]"
+                ]
+              },
+              {
+                "name": "test_outputs.py::test_dominance_eigenvalue",
+                "status": "passed",
+                "retries": 8,
+                "tags": [
+                  "parametrize::size::[2, 3, 4, 5, 6, 7, 8, 9, 10]"
+                ]
+              },
+              {
+                "name": "test_outputs.py::test_speedup",
+                "status": "passed",
+                "retries": 8,
+                "tags": [
+                  "parametrize::size::[2, 3, 4, 5, 6, 7, 8, 9, 10]"
+                ]
+              }
+            ],
+            "pytest_final_summary": "============================== 27 passed in 1.74s ==============================",
+            "pytest_status_lines": [
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[2]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[3]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[4]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[5]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[6]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[7]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[8]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[9]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[10]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[2]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[3]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[4]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[5]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[6]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[7]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[8]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[9]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[10]",
+              "PASSED ../tests/test_outputs.py::test_speedup[2]",
+              "PASSED ../tests/test_outputs.py::test_speedup[3]",
+              "PASSED ../tests/test_outputs.py::test_speedup[4]",
+              "PASSED ../tests/test_outputs.py::test_speedup[5]",
+              "PASSED ../tests/test_outputs.py::test_speedup[6]",
+              "PASSED ../tests/test_outputs.py::test_speedup[7]",
+              "PASSED ../tests/test_outputs.py::test_speedup[8]",
+              "PASSED ../tests/test_outputs.py::test_speedup[9]",
+              "PASSED ../tests/test_outputs.py::test_speedup[10]"
+            ],
+            "source_sha256": {
+              "terminalbench/largest-eigenval-oracle-1/1b6f17c344d23e97435ba3fa93400d14__buW5jBj/result.json": "f545561927be69ad4a455d2bc4250341c4ccd7200711439989d6d5381eb7a529",
+              "terminalbench/largest-eigenval-oracle-1/1b6f17c344d23e97435ba3fa93400d14__buW5jBj/verifier/ctrf.json": "7ba3d34505dd3851d6d38c999c6edbe01e36ad55b2139b26df1b6252837e6f49",
+              "terminalbench/largest-eigenval-oracle-1/1b6f17c344d23e97435ba3fa93400d14__buW5jBj/verifier/test-stdout.txt": "90edf3180e48fb8a4f298a7abf4febed61831a3e447889f7a19dc646efef6a65"
+            }
+          },
+          {
+            "phase": "nop",
+            "reward": 0.0,
+            "ctrf_summary": {
+              "tests": 3,
+              "passed": 2,
+              "failed": 1,
+              "skipped": 0,
+              "pending": 0,
+              "other": 0,
+              "start": 1788901389.5820155,
+              "stop": 1788901391.4112437
+            },
+            "ctrf_entries": [
+              {
+                "name": "test_outputs.py::test_eigen_pair",
+                "status": "passed",
+                "retries": 8,
+                "tags": [
+                  "parametrize::size::[2, 3, 4, 5, 6, 7, 8, 9, 10]"
+                ]
+              },
+              {
+                "name": "test_outputs.py::test_dominance_eigenvalue",
+                "status": "passed",
+                "retries": 8,
+                "tags": [
+                  "parametrize::size::[2, 3, 4, 5, 6, 7, 8, 9, 10]"
+                ]
+              },
+              {
+                "name": "test_outputs.py::test_speedup",
+                "status": "failed",
+                "retries": 8,
+                "tags": [
+                  "parametrize::size::[2, 3, 4, 5, 6, 7, 8, 9, 10]"
+                ]
+              }
+            ],
+            "pytest_final_summary": "========================= 3 failed, 24 passed in 1.84s =========================",
+            "pytest_status_lines": [
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[2]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[3]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[4]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[5]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[6]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[7]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[8]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[9]",
+              "PASSED ../tests/test_outputs.py::test_eigen_pair[10]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[2]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[3]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[4]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[5]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[6]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[7]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[8]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[9]",
+              "PASSED ../tests/test_outputs.py::test_dominance_eigenvalue[10]",
+              "PASSED ../tests/test_outputs.py::test_speedup[3]",
+              "PASSED ../tests/test_outputs.py::test_speedup[4]",
+              "PASSED ../tests/test_outputs.py::test_speedup[5]",
+              "PASSED ../tests/test_outputs.py::test_speedup[8]",
+              "PASSED ../tests/test_outputs.py::test_speedup[9]",
+              "PASSED ../tests/test_outputs.py::test_speedup[10]",
+              "FAILED ../tests/test_outputs.py::test_speedup[2] - AssertionError: 0.000124 s...",
+              "FAILED ../tests/test_outputs.py::test_speedup[6] - AssertionError: 0.000217 s...",
+              "FAILED ../tests/test_outputs.py::test_speedup[7] - AssertionError: 0.000253 s..."
+            ],
+            "source_sha256": {
+              "terminalbench/largest-eigenval-nop-1/1b6f17c344d23e97435ba3fa93400d14__q33x7Vn/result.json": "981fcd514d96ed354c4252b83f98981cd8b98292c11b1ae221d5a4a2ca9d9283",
+              "terminalbench/largest-eigenval-nop-1/1b6f17c344d23e97435ba3fa93400d14__q33x7Vn/verifier/ctrf.json": "588fe2f54e17348e70bb3d34aadcf8769f72c8918248c1b3f06f4e5bb70c07e2",
+              "terminalbench/largest-eigenval-nop-1/1b6f17c344d23e97435ba3fa93400d14__q33x7Vn/verifier/test-stdout.txt": "36232e0a8aacfc4d1243b01d6c333ba10bc9cb88b5960a5d518e2cce19298dae"
+            }
+          }
+        ]
+      }
     }
   },
   "environment_model_runs": [
@@ -2863,6 +3023,7 @@
     "diagnostics/caffe-oracle-observations.json": "3df05c0252953c1d047dede404c2dfa672a01c1b6725a2e6b6dd8e56bfc81c59",
     "diagnostics/caffe-network-probe.json": "246783265d8c3d715819b12ca71d48818d34f8b4f4353bd8c9b6d33c41dd494b",
     "cases/terminalbench/caffe-cifar-10/2/manifest.json": "90c586250626b003b3c3c63f9b7f6854c2efc47a6ae7323d375a55696eccab73",
+    "diagnostics/eigenval-parameterized-reporting.json": "94517a0fe1f3773fd66df4290c79b5a1791972203d8aa1c5ead77c9acee9b09e",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -2950,6 +3111,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/97af77988f1338b08c9def643d1aaaf42e717c7c213f202d33a6be0b91879a99.py": "97af77988f1338b08c9def643d1aaaf42e717c7c213f202d33a6be0b91879a99"
+    "diagnostics/source-snapshots/63ee092748998e39c12c70dc86f2477d8dcdb01da29568387070bcc38808cadb.py": "63ee092748998e39c12c70dc86f2477d8dcdb01da29568387070bcc38808cadb"
   }
 }
