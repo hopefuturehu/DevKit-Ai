@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T20:55:39.477048+00:00",
+  "generated_at": "2026-09-08T21:03:47.742128+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -766,6 +766,30 @@
     }
   ],
   "environment_failures": [
+    {
+      "id": "terminal-bench/caffe-cifar-10",
+      "attempt": "1",
+      "verdict": "error",
+      "record": "cases/terminalbench/caffe-cifar-10/1/result.json",
+      "image_id": "sha256:67f40b2f90da4a0e49d475a4d58450d3c0605756ba4b1c68e258141d1db200d1",
+      "agent_variant": "original",
+      "controls": {
+        "oracle": {
+          "reward": 0.0,
+          "exception": {
+            "exception_type": "AgentTimeoutError",
+            "exception_message": "Agent execution timed out after 3600.0 seconds",
+            "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/oracle.py\", line 132, in run\n    result = await environment.exec(\n             ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 1096, in exec\n    return await self._compose_exec(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 1173, in _compose_exec\n    return await self._run_docker_compose_command(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 649, in _run_docker_compose_command\n    result = await self._collect_buffered_output(\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/environments/docker/docker.py\", line 675, in _collect_buffered_output\n    stdout_bytes, stderr_bytes = await asyncio.wait_for(\n                                 ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/subprocess.py\", line 201, in communicate\n    stdin, stdout, stderr = await tasks.gather(stdin, stdout, stderr)\n                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/subprocess.py\", line 181, in _read_stream\n    output = await stream.read()\n             ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/streams.py\", line 706, in read\n    block = await self.read(self._limit)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/streams.py\", line 713, in read\n    await self._wait_for_data('read')\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/streams.py\", line 545, in _wait_for_data\n    await self._waiter\nasyncio.exceptions.CancelledError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 450, in _run_agent_phase\n    await asyncio.wait_for(\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 519, in wait_for\n    async with timeouts.timeout(timeout):\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/timeouts.py\", line 115, in __aexit__\n    raise TimeoutError from exc_val\nTimeoutError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/single_step.py\", line 77, in _run_agent\n    await self._run_agent_phase(\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 459, in _run_agent_phase\n    raise AgentTimeoutError(\nharbor.trial.errors.AgentTimeoutError: Agent execution timed out after 3600.0 seconds\n",
+            "occurred_at": "2026-09-09T04:58:58.172289"
+          }
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "error": "Official control did not produce its expected verdict"
+    },
     {
       "id": "terminal-bench/chess-best-move",
       "attempt": "1",
@@ -2448,6 +2472,106 @@
           }
         ]
       }
+    },
+    "caffe_original_oracle_observations": {
+      "source": "diagnostics/caffe-oracle-observations.json",
+      "result": {
+        "id": "terminal-bench/caffe-cifar-10",
+        "scope": "Completed original oracle control only; model has not run, negative control pending at observation time",
+        "exception": {
+          "exception_type": "AgentTimeoutError",
+          "exception_message": "Agent execution timed out after 3600.0 seconds"
+        },
+        "reward": 0.0,
+        "agent_execution": {
+          "started_at": "2026-09-08T19:58:58.206101Z",
+          "finished_at": "2026-09-08T20:58:58.160719Z"
+        },
+        "tests": [
+          {
+            "name": "test_outputs.py::test_caffe_version_and_source",
+            "status": "passed"
+          },
+          {
+            "name": "test_outputs.py::test_cifar10_model_exists",
+            "status": "failed"
+          },
+          {
+            "name": "test_outputs.py::test_prototxt_files_exist",
+            "status": "passed"
+          },
+          {
+            "name": "test_outputs.py::test_cpu_only_training_configured",
+            "status": "passed"
+          },
+          {
+            "name": "test_outputs.py::test_training_completed_500_iterations",
+            "status": "failed"
+          },
+          {
+            "name": "test_outputs.py::test_model_accuracy_verification",
+            "status": "failed"
+          }
+        ],
+        "network_and_training_timeline": [
+          "Fetched 10.7 MB in 14s (772 kB/s)",
+          "Fetched 21.7 MB in 1min 5s (333 kB/s)",
+          "Fetched 329 MB in 15min 55s (345 kB/s)",
+          "Fetched 86.9 MB in 4min 30s (322 kB/s)",
+          "CXX/LD -o .build_release/tools/caffe.bin",
+          "--2026-09-08 20:28:40--  http://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz",
+          "--2026-09-08 20:28:42--  https://cave.cs.toronto.edu/kriz/cifar-10-binary.tar.gz",
+          "2026-09-08 20:54:17 (108 KB/s) - 'cifar-10-binary.tar.gz' saved [170052171/170052171]",
+          "I20260908 20:54:24.313510 20316 caffe.cpp:239] Starting Optimization",
+          "I20260908 20:54:24.315296 20316 solver.cpp:347] Iteration 0, Testing net (#0)"
+        ],
+        "attribution": "Reference control timed out after long dependency/data downloads and incomplete training. This is not a model result. Network time is observed; whether proxy routing suffices and the contribution of CPU emulation remain unverified.",
+        "source_sha256": {
+          "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/result.json": "0d3aa6ef47ce6049b8ab50370f1eacd1e615822324bb5f41e95557285dee53a9",
+          "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/agent/oracle.txt": "c79c743cdce8c3d9ae60feb2652d81870744c92393f9cc8a4c55795e72cd8366",
+          "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/verifier/ctrf.json": "c5f817528367a3cc4807be5799e74edf59fc88b82704657bf5490fe1e216bfb6",
+          "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/verifier/test-stdout.txt": "7f5c3c84fa6e82f8deb2de8f91d54a3da51c107d0bc0e3f0ed98bcac669da944",
+          "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/exception.txt": "84ce21ebb0dc96d0ff3ff568fbb9bb01a8e391d75b43f10e7576f2f610e2cd83"
+        }
+      }
+    },
+    "caffe_proxy_network_probe": {
+      "source": "diagnostics/caffe-network-probe.json",
+      "result": {
+        "at": "2026-09-08T20:57:15.893936+00:00",
+        "url": "https://cave.cs.toronto.edu/kriz/cifar-10-binary.tar.gz",
+        "method": "streaming GET with Range bytes=0-65535; close after 65536 bytes",
+        "proxy": "http://127.0.0.1:7890",
+        "scope": "Host proxy download probe only; no modifications to live Caffe container or official results",
+        "http_status": 206,
+        "bytes_read": 65536,
+        "content_range": "bytes 0-65535/170052171",
+        "seconds": 1.694
+      }
+    },
+    "caffe_proxy_recovery_manifest": {
+      "source": "cases/terminalbench/caffe-cifar-10/2/manifest.json",
+      "result": {
+        "id": "terminal-bench/caffe-cifar-10",
+        "kind": "terminalbench",
+        "attempt": "2",
+        "source_commit": "578f660",
+        "agent_variant": "original",
+        "image_id": "sha256:67f40b2f90da4a0e49d475a4d58450d3c0605756ba4b1c68e258141d1db200d1",
+        "started_at": "2026-09-08T21:00:49.097196+00:00",
+        "experiment": "Original task/image/Bot with per-container read-only APT proxy mount and agent/verifier HTTP proxy environment",
+        "proxy_config_sha256": "a13b187e9018fd61175082e77775d4592aa70c4d301ab51790c104f0f0693366",
+        "concurrent_work": "Wait for main batch completion and an idle Docker daemon; hold the same batch.lock throughout recovery. Official 4 CPU / 8 GiB quotas remain unchanged.",
+        "original_task_files_sha256": {
+          "README.md": "e918e6852c5c034422b81a6be22d7596fddcee53abe088f56727b2482da32728",
+          "environment/Dockerfile": "b3b8adc915a1afa035b604273af3bc1aa8b90999d2dfd72763218b34cb87abcd",
+          "instruction.md": "46907b0ee048f74269c29a15e0e086546b2b1220149597017da8b5ccc05a0cea",
+          "solution/solve.sh": "771887de1ed557269c7f3160c777519aa9538e1e9b59771b2f6ef38c8952490c",
+          "task.toml": "2831165ad9d9e8bbc646e6d85c0a2290640dcc4f13749547a2937c7675012a8b",
+          "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+          "tests/test_outputs.py": "e99b9f6284e923388fbc21488b1af99fdde46d4a809d3557b0788dbf1cb6b281"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -2553,6 +2677,14 @@
     "cases/swebench/sympy__sympy-18532/2/prediction.events.jsonl": "f48a766123d3a5ea0d1737bc072da14d4e9e1339ec48bb771b6ffacd93138d02",
     "cases/swebench/sympy__sympy-18532/2/prediction.jsonl": "10b5a048d22b453d39dfa96154f05d24e0c66382e6481046e13ec0794f99a04a",
     "logs/run_evaluation/flash40-sympy__sympy-18532-grade-2/deepseek-v4-flash/sympy__sympy-18532/report.json": "b7e3cebebc1b3b91574377f53788272731c5512639fe8e30f384aa87c4407beb",
+    "cases/terminalbench/caffe-cifar-10/1/result.json": "507a37609a9632cfe577847ca4e823a07fa09049b3fd4bf40e261b0a0dd4d15c",
+    "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/result.json": "0d3aa6ef47ce6049b8ab50370f1eacd1e615822324bb5f41e95557285dee53a9",
+    "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/verifier/ctrf.json": "c5f817528367a3cc4807be5799e74edf59fc88b82704657bf5490fe1e216bfb6",
+    "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/verifier/test-stdout.txt": "7f5c3c84fa6e82f8deb2de8f91d54a3da51c107d0bc0e3f0ed98bcac669da944",
+    "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/agent/oracle.txt": "c79c743cdce8c3d9ae60feb2652d81870744c92393f9cc8a4c55795e72cd8366",
+    "terminalbench/caffe-cifar-10-nop-1/7b0045106d7d5af724efe96b610ba64f__ML8VGh6/result.json": "dc55529f5e5ebafa9f635ad35ef1aaa517dc3cd13856e42d4d663d9c78ce6917",
+    "terminalbench/caffe-cifar-10-nop-1/7b0045106d7d5af724efe96b610ba64f__ML8VGh6/verifier/ctrf.json": "cd115d2e715ffe1ae5ca14db2bdd53d40daafe2deb44af158effe5d7d1a5bf14",
+    "terminalbench/caffe-cifar-10-nop-1/7b0045106d7d5af724efe96b610ba64f__ML8VGh6/verifier/test-stdout.txt": "42655ab6c68d485f1eb0d1da1b16519bd4f3d61d83a0095a7d68ab73e9a42563",
     "cases/terminalbench/chess-best-move/1/result.json": "85733f95d4e243d108a2ec8174ec611d6027c2563345307ca18c2389a1a1924c",
     "terminalbench/chess-best-move-oracle-1/9ab8e4b3674282e751edafbd9b5bd551__qZbGcCp/result.json": "2cd419c783cc1bed51c51a469c6cb2dce58e3126e09ce6f59272e1858bb1560c",
     "terminalbench/chess-best-move-oracle-1/9ab8e4b3674282e751edafbd9b5bd551__qZbGcCp/verifier/ctrf.json": "6bfb48ab04ae9f63af15116ec9de14362f1f27f68ac5b6a3ad3f688014397d37",
@@ -2728,6 +2860,9 @@
     "cases/terminalbench/rstan-to-pystan/2/manifest.json": "08f079bfc3844dbe67e72b50aab249760338c08f720142cd9ae9c8e3119e0756",
     "diagnostics/chess-compaction-replay/manifest.json": "77ff2015f50a526a4ab3b74b73b7f7b5e23fd4da22c8d463c1f8c8ec75ccfa67",
     "diagnostics/chess-compaction-replay/result.json": "b8b1d00d3f7fe040eafd2fb856d7ecf12f88e18e57c800781a26fd09d60afd3e",
+    "diagnostics/caffe-oracle-observations.json": "3df05c0252953c1d047dede404c2dfa672a01c1b6725a2e6b6dd8e56bfc81c59",
+    "diagnostics/caffe-network-probe.json": "246783265d8c3d715819b12ca71d48818d34f8b4f4353bd8c9b6d33c41dd494b",
+    "cases/terminalbench/caffe-cifar-10/2/manifest.json": "90c586250626b003b3c3c63f9b7f6854c2efc47a6ae7323d375a55696eccab73",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -2756,6 +2891,7 @@
     "diagnostics/capture_terminal_output.py": "cbf9fcb92bc65675c29986e3be30ab8c787129dcb74acba9a683c72d632a6b63",
     "diagnostics/inspect_chess_candidate.py": "6966fb897c4fc5eeeddd8b4b3cf12ddad087e761f069c34efed7399a86667821",
     "diagnostics/recover_rstan_proxy.py": "a58f443d33820f6ab2fc985d700a07e989d86f59603b315a01dee794018637f4",
+    "diagnostics/recover_caffe_proxy.py": "52556e0960be0a65678fa5bdbb15b1dee332be58ae9d78a2a9c93d8bfd39d614",
     "diagnostics/replay_chess_compaction.py": "fe0bea266f66532c2adf05d694f6bc750b7f05c848c05eacb15944925d777ca0",
     "diagnostics/chess-compaction-replay/candidate_summary_missing.request.json": "11dddcc08c7acc87b5f95819312788c28c7493d210770f62cb9fd064d494daf0",
     "diagnostics/chess-compaction-replay/summary_empty_counterfactual.request.json": "043282781d27b57578dff51a489cbe4584d00a047ea87fc86544900d5812f3cc",
@@ -2814,6 +2950,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/1d671566ce974cf83482074f72102edb71fc52123decbb4a84888ef4de6b3e53.py": "1d671566ce974cf83482074f72102edb71fc52123decbb4a84888ef4de6b3e53"
+    "diagnostics/source-snapshots/97af77988f1338b08c9def643d1aaaf42e717c7c213f202d33a6be0b91879a99.py": "97af77988f1338b08c9def643d1aaaf42e717c7c213f202d33a6be0b91879a99"
   }
 }
