@@ -1361,6 +1361,23 @@ class AgentRunner:
                 else:
                     result = await self._execute_tool(tool_call, session_id, run_id)
 
+                # Uniform execution evidence for built-in, internal and delegated Tools.
+                # A successful launch with status=running is not task completion.
+                await self.event_bus.emit(
+                    EventType.TOOL_RESULT,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={
+                        "tool_call_id": tool_call.id,
+                        "name": tool_call.name,
+                        "success": result.success,
+                        "status": result.status.value if result.status is not None else None,
+                        "returncode": result.metadata.get("returncode"),
+                        "process_id": result.metadata.get("process_id"),
+                        "process_status": result.metadata.get("process_status"),
+                    },
+                )
+
                 if memory_routing is not None:
                     if tool_call.name == "search_memory" and result.success:
                         memory_routing.search_completed = True

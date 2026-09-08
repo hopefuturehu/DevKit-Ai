@@ -26,6 +26,7 @@ class EventType(StrEnum):
     TOOL_STARTED = "tool.started"
     TOOL_OUTPUT = "tool.output"
     TOOL_COMPLETED = "tool.completed"
+    TOOL_RESULT = "tool.result"
     PLAN_UPDATED = "plan.updated"
     CONTEXT_COMPACTED = "context.compacted"
     CONTEXT_CHECKPOINTED = "context.checkpointed"

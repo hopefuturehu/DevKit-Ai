@@ -237,13 +237,15 @@ bot resume '<session-id>'
 
 ```bash
 bot eval run evals/generic.jsonl -o .bot/eval-generic.jsonl
+bot eval run evals/artifacts.jsonl -o .bot/eval-artifacts.jsonl
 bot eval run evals/kunpeng.jsonl -o .bot/eval-kunpeng-with-skills.jsonl
 bot eval run evals/kunpeng.jsonl --disable-skills \
   -o .bot/eval-kunpeng-without-skills.jsonl
 ```
 
-Case 可断言最终状态、答案片段、工作区文件、Tool/Skill 轨迹和审批次数；结果记录耗时、
-Token、费用、Tool Call 和激活 Skill，便于比较通用 Agent 与领域 Skill 的增益。
+每个 Case 在独立的 fixture 副本和状态库中运行，可验收新产物、JSON Schema、禁止修改、
+真实 Tool 执行结果，以及独立容器中的测试。结果区分运行状态与验收结论，保存失败类别、
+版本/输入哈希、轨迹和用量指标。字段、隔离边界与验收器协议见[通用任务评测](docs/evaluation.md)。
 
 通过 Harbor 在 Terminal-Bench 2.1 的一次性任务容器中运行 smoke test：
 

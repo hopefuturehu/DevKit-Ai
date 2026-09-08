@@ -1270,6 +1270,9 @@ def eval_run(
     disable_skills: Annotated[
         bool, typer.Option("--disable-skills", help="关闭 Skill，作为对照组")
     ] = False,
+    artifacts_dir: Annotated[
+        Path | None, typer.Option("--artifacts-dir", help="逐次验收结果、清单和轨迹目录")
+    ] = None,
 ) -> None:
     try:
         cases = load_eval_cases(cases_path.resolve())
@@ -1286,26 +1289,29 @@ def eval_run(
                     base=cases_path.resolve().parent,
                     config_path=ctx.obj["config_path"],
                     disable_skills=disable_skills,
+                    artifacts_dir=artifacts_dir or ctx.obj["workspace"] / ".bot/evals",
+                    config_workspace=ctx.obj["workspace"],
                 )
             )
         return results
 
     results = _run(execute_cases())
-    table = Table("Case", "Passed", "Status", "Steps", "Tools", "Skills", "Tokens", "Cost", "Time")
+    table = Table("Case", "Verdict", "Run", "Failure", "Steps", "Tools", "Tokens", "Cost", "Time")
     for result in results:
         table.add_row(
             result.id,
-            "yes" if result.passed else "no",
-            result.status,
+            result.verdict,
+            result.run_status,
+            result.failure_kind or "-",
             str(result.steps),
             ",".join(result.tool_names) or "-",
-            ",".join(result.activated_skills) or "-",
             f"{result.input_tokens}/{result.output_tokens}",
             f"${result.cost_usd:.6f}" if result.cost_usd is not None else "-",
             f"{result.duration_seconds:.2f}s",
         )
         for failure in result.failures:
             console.print(f"[red]{result.id}: {failure}[/red]")
+        console.print(f"{result.id} 验收记录：{result.artifact_dir}")
     console.print(table)
     if output:
         write_eval_results(output.resolve(), results)

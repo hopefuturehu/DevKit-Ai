@@ -29,6 +29,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [通用任务评测](evaluation.md) | 隔离 fixture、文件/JSON/容器验收、真实工具结果、失败分类和复现清单 |
 | [上下文整体测试矩阵](context-evaluation-matrix.md) | 各评测入口、覆盖范围和仍缺的验收 |
 | [上下文效率评测指标口径](context-efficiency-benchmark-metrics.md) | Trace、聚合指标、门禁和差值公式 |
 | [长任务上下文缓存评测](context-cache-benchmark.md) | Fast / Soak 运行方法、缓存模拟口径与历史布局实验 |

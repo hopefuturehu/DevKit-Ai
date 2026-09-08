@@ -1,6 +1,6 @@
 # MVP 实现状态
 
-> 更新日期：2026-09-04
+> 更新日期：2026-09-08
 > 结论：设计中 Milestone 0–3 及可恢复单摘要上下文压缩的本地代码闭环已经实现；
 > 需要真实凭据或鲲鹏 ARM 环境的项目保留为环境验收，不伪造通过结果。
 
@@ -23,7 +23,7 @@
 | Skill | 单一目录发现、资格过滤、三段式披露、显式/自动多选、资源按需加载和 reload | `src/bot/skills/` |
 | 鲲鹏扩展 | KSYS、DevKit Tuner 结构化 Subprocess Adapter；非 ARM/缺工具时返回手动命令 | `src/bot/tools/kunpeng/` |
 | 领域手册 | 可偏离的 `kunpeng-performance-analysis` Skill，随 wheel 发布并由 `bot init` 安装 | `skills/kunpeng-performance-analysis/` |
-| 评测 | JSONL Case、结果/文件/Tool/Skill/审批断言、Token/费用指标、关闭 Skill 的对照组，以及 eager/on-demand Memory Router 的 scripted/live 成对 A/B | `bot eval run`、`evals/`、`scripts/run_memory_routing_behavior.py` |
+| 评测 | JSONL Case 独立 fixture/状态、文件变化与 JSON Schema 验收、容器命令验收、实际 Tool 结果配对、失败分类与版本清单；保留 Skill 对照及 Memory Router scripted/live 成对 A/B | `bot eval run`、`docs/evaluation.md`、`evals/`、`scripts/run_memory_routing_behavior.py` |
 
 ## 验证证据
 
