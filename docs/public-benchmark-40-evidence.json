@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T22:14:39.292774+00:00",
+  "generated_at": "2026-09-08T22:36:07.930432+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
-    "pass": 5,
+    "pass": 6,
     "fail": 4,
-    "not_run": 30,
+    "not_run": 29,
     "error": 1
   },
   "baseline_scoring_counts": {
-    "pass": 5,
+    "pass": 6,
     "invalid_verifier": 1,
-    "not_run": 30,
+    "not_run": 29,
     "fail": 3,
     "error": 1
   },
@@ -459,6 +459,65 @@
       "error": null,
       "input_tokens": 195334,
       "output_tokens": 5033
+    },
+    {
+      "id": "terminal-bench/portfolio-optimization",
+      "attempt": "1",
+      "verdict": "pass",
+      "record": "cases/terminalbench/portfolio-optimization/1/result.json",
+      "image_id": "sha256:b0ef263fdd85ca609faafead645c86c8a03f534178b3368e3eedc0a273b3fed9",
+      "agent_variant": "original",
+      "model_response_observed": true,
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_c_extension_exists",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_baseline_functionality",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_correctness_small",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_performance_and_scalability",
+          "status": "passed"
+        }
+      ],
+      "verifier_health": {
+        "test_count": 4,
+        "test_statuses": {
+          "passed": 4
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "pass",
+      "output_capture_attempts": [
+        "cases/terminalbench/portfolio-optimization/1/output-capture-remaining.json"
+      ],
+      "observed_artifacts": [
+        "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.c",
+        "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.py",
+        "cases/terminalbench/portfolio-optimization/1/observed-app__setup.py"
+      ],
+      "run_status": "completed",
+      "steps": 40,
+      "error": null,
+      "input_tokens": 711242,
+      "output_tokens": 12987
     },
     {
       "id": "terminal-bench/sam-cell-seg",
@@ -1533,7 +1592,7 @@
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
         "script_sha256": "20eec64f82b31343e473cf4fc7ec6bc17f3936c801b4c4df571620d1b341947c",
-        "completed_runs_checked": 15,
+        "completed_runs_checked": 16,
         "all_usage_totals_match": true,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
         "runs": [
@@ -1671,6 +1730,21 @@
               "output_tokens": 5033
             },
             "estimated_cost_usd": 0.012269788
+          },
+          {
+            "agent_result": "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/result.json",
+            "agent_result_sha256": "737b4f357b303489da070a56c0a9fa1da8a0c3fc7d9f1b69a398427c6398cc2a",
+            "events": "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/events.jsonl",
+            "events_sha256": "c9b493a926f7a474bc9973e79e9ac54b6efaadb4f3df0ab9554c6a5b72d6cfa9",
+            "expected": {
+              "input_tokens": 711242,
+              "output_tokens": 12987
+            },
+            "observed": {
+              "input_tokens": 711242,
+              "output_tokens": 12987
+            },
+            "estimated_cost_usd": 0.03008786
           },
           {
             "agent_result": "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/agent/result.json",
@@ -3871,6 +3945,178 @@
           "limits": "Small selected cohort, repeated attempts not independent, SAM has invalid original verification, Eigen has artifact pass with runtime error. No universal failure-rate or treatment-effect estimate."
         }
       }
+    },
+    "live_summary_observer": {
+      "source": "diagnostics/live-summary-observer/manifest.json",
+      "result": {
+        "pid": 22103,
+        "watched_pids": [
+          48973,
+          990,
+          3481
+        ],
+        "started_at": "2026-09-08T22:29:51.394589+00:00",
+        "interval_seconds": 60,
+        "watched_process_identities": {
+          "990": "Wed Sep  9 04:49:32 2026     /opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "3481": "Wed Sep  9 05:00:48 2026     /opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "48973": "Wed Sep  9 00:48:50 2026     /opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python"
+        },
+        "observer_sha256": "3044463c95b02be7c333f2175e042d5d5b2b506eb6a28cf56c1cb1ded53edb01",
+        "summarizer_sha256": "20eec64f82b31343e473cf4fc7ec6bc17f3936c801b4c4df571620d1b341947c",
+        "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
+        "policy": "Reads existing artifacts and refreshes only summary.json plus observer status; no models, Docker mutations or task restarts. Main batch and queued RStan/Caffe recovery processes were already launched.",
+        "limitation": "A report refresh is not proof of valid grading or full task coverage. The observer uses the reporting module version loaded at startup."
+      }
+    },
+    "portfolio_outcome_observations": {
+      "source": "diagnostics/portfolio-observations/result.json",
+      "result": {
+        "id": "terminal-bench/portfolio-optimization",
+        "attempt": "1",
+        "at": "2026-09-08T22:36:07.825588+00:00",
+        "official_reward": 1,
+        "official_tests_passed": 6,
+        "official_exception": null,
+        "case_verdict": "pass",
+        "agent_status": "completed",
+        "steps": 40,
+        "controls": {
+          "oracle": {
+            "reward": 1,
+            "exception": null,
+            "finished_at": "2026-09-08T21:59:45.332600Z"
+          },
+          "nop": {
+            "reward": 0,
+            "exception": null,
+            "finished_at": "2026-09-08T22:04:03.089271Z"
+          }
+        },
+        "input_tokens": 711242,
+        "output_tokens": 12987,
+        "independent_usage_export_matches": true,
+        "agent_execution": {
+          "started_at": "2026-09-08T22:05:51.719554Z",
+          "finished_at": "2026-09-08T22:22:15.292936Z"
+        },
+        "verifier": {
+          "started_at": "2026-09-08T22:22:15.961336Z",
+          "finished_at": "2026-09-08T22:33:08.869265Z"
+        },
+        "model_self_benchmarks": [
+          {
+            "process_id": "proc_6a5c784a08c146c6a32f05f2492b6ac0",
+            "requested_timeout_seconds": 300,
+            "status": "timed_out",
+            "elapsed_seconds": 300.174,
+            "returncode": null
+          },
+          {
+            "process_id": "proc_dffe8224dd7945c49ce07c34df27e3aa",
+            "requested_timeout_seconds": 600,
+            "status": "completed",
+            "elapsed_seconds": 444.933,
+            "returncode": 0,
+            "output": "diagnostics/portfolio-observations/model-self-benchmark.txt"
+          }
+        ],
+        "progress_warnings": [
+          {
+            "at": "2026-09-08T22:19:55.499521Z",
+            "step": 33,
+            "action": "warn",
+            "progress": "waiting",
+            "reason_code": "process_quiet",
+            "message": "进程 proc_dffe8224dd7945c49ce07c34df27e3aa 仍在运行，已静默 325.9 秒。",
+            "epoch": 1,
+            "no_progress_steps": 0,
+            "recovery_attempt": 0,
+            "pattern": {
+              "tool": "poll_process",
+              "subject": "process:proc_dffe8224dd7945c49ce07c34df27e3aa",
+              "inactivity_seconds": 325.922
+            }
+          }
+        ],
+        "self_test_limitation": "Self-benchmark output supports the observed workflow but does not decide the official grade. One inactivity warning occurred while a process was still running; the model calling it stale later is not proof of a newly injected stale warning.",
+        "setup_matches_official_package": true,
+        "artifact_capture": {
+          "task": "terminal-bench/portfolio-optimization",
+          "attempt": "1",
+          "started_at": "2026-09-08T22:22:14.826356+00:00",
+          "container": "d112f8945600f18ec47bbbe76935dc05__yvf46lm__env-main-1",
+          "capture_trigger": "worker_result",
+          "trigger_sha256": "737b4f357b303489da070a56c0a9fa1da8a0c3fc7d9f1b69a398427c6398cc2a",
+          "observer_sha256": "b126ea32d49781e34ca4402128327260fda0f6c19f70b3c26f62f60923486268",
+          "limitation": "Filesystem observation may overlap verifier execution. Timeout snapshots do not establish an immutable cutoff or graceful Worker termination. Missing optional paths are recorded as failed copies.",
+          "files": [
+            {
+              "container_path": "/app/portfolio_optimized.c",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.c",
+              "sha256": "9e7e7f9f1af9a1140a8bfa234dd6ea95c4ac72279dd517a8cedc7a2824accec1",
+              "bytes": 4407
+            },
+            {
+              "container_path": "/app/portfolio_optimized.py",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.py",
+              "sha256": "306096f885e0b98e4b03f1e210e8e292ff2c95b93e5b6b6f87f3b21858b49d2c",
+              "bytes": 1429
+            },
+            {
+              "container_path": "/app/setup.py",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/portfolio-optimization/1/observed-app__setup.py",
+              "sha256": "4712ead66edc6684c45880954e83d8b9a915bdaf0b60ebb0ee895a5b740a4c09",
+              "bytes": 350
+            }
+          ],
+          "finished_at": "2026-09-08T22:22:14.954164+00:00"
+        },
+        "image_cleanup_returncode": 0,
+        "cleanup_verified": {
+          "at": "2026-09-08T22:36:07.783302+00:00",
+          "removed_image_id": "sha256:b0ef263fdd85ca609faafead645c86c8a03f534178b3368e3eedc0a273b3fed9",
+          "removed_image_still_present": false,
+          "trial_containers_remaining": [],
+          "retained_images_missing": [],
+          "retained_image_count": 34,
+          "scope": "Live Docker image/container inventories after this case completed; unrelated resources were not removed."
+        },
+        "source_sha256": {
+          "cases/terminalbench/portfolio-optimization/1/result.json": "14645db35377a717861f1f2389abde0bed16c14f86bce277fdcc73296ccb2763",
+          "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/result.json": "be4b6bb917dd4f55baefcd9e08de429612b72b9cacfbb90f119f7c3fb673f8ba",
+          "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/result.json": "737b4f357b303489da070a56c0a9fa1da8a0c3fc7d9f1b69a398427c6398cc2a",
+          "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/events.jsonl": "c9b493a926f7a474bc9973e79e9ac54b6efaadb4f3df0ab9554c6a5b72d6cfa9",
+          "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/state.db": "da57ed50700d666133cba3c5ce85189d5b5fdf08b2f0924c55bd49b4789362a4",
+          "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/verifier/test-stdout.txt": "15ed447d29cd3fcad4eea130584b420209d309c4bbff19d9b96c10aad8fe959e",
+          "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/verifier/ctrf.json": "8e93b1551f552145ec9b0279797a3ec2b8ddb119df6836616a44f40887bc2a46",
+          "diagnostics/inspect_portfolio_result.py": "54985ab0d6fb834ef4b79957402ad546ee517e70b8e99c36f8f1282d6a70a853",
+          "terminalbench/portfolio-optimization-oracle-1/d112f8945600f18ec47bbbe76935dc05__peAnjD5/result.json": "38966806e0034676d1f380b228f063d9ec5898f0ba97492f16eb40f054a7d71a",
+          "terminalbench/portfolio-optimization-oracle-1/d112f8945600f18ec47bbbe76935dc05__peAnjD5/verifier/test-stdout.txt": "d6ee35e87bcb6b499d7db25024cb77d84f35e01162a7ce09f37e5f2f6ef9cd6b",
+          "terminalbench/portfolio-optimization-oracle-1/d112f8945600f18ec47bbbe76935dc05__peAnjD5/verifier/ctrf.json": "48f44f511c43ae4ecdd81486cdf2decb5f7afdc21f240f43e3a563d4e1fec27c",
+          "terminalbench/portfolio-optimization-nop-1/d112f8945600f18ec47bbbe76935dc05__4exi9dA/result.json": "98f070c70a6e73fd510e5360387a7f6f1d0f90de87215a863a45eb19e66b2ca1",
+          "terminalbench/portfolio-optimization-nop-1/d112f8945600f18ec47bbbe76935dc05__4exi9dA/verifier/test-stdout.txt": "8408ded9cc6d7588ae2c65a196acdc84087076f940eabd1103745705f9e9b31f",
+          "terminalbench/portfolio-optimization-nop-1/d112f8945600f18ec47bbbe76935dc05__4exi9dA/verifier/ctrf.json": "e84d4b929475269108b379aa1bd3c4ca9c226fbff13ade1c91f5655bc2f1772d",
+          "cases/terminalbench/portfolio-optimization/1/output-capture-remaining.json": "443cb1a8ce31d17f41e73982ee37ae84fbff66ca1c0cc0e5de6b3ee2876e7b02",
+          "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.c": "9e7e7f9f1af9a1140a8bfa234dd6ea95c4ac72279dd517a8cedc7a2824accec1",
+          "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.py": "306096f885e0b98e4b03f1e210e8e292ff2c95b93e5b6b6f87f3b21858b49d2c",
+          "cases/terminalbench/portfolio-optimization/1/observed-app__setup.py": "4712ead66edc6684c45880954e83d8b9a915bdaf0b60ebb0ee895a5b740a4c09",
+          "diagnostics/portfolio-observations/model-self-benchmark.txt": "419ae3819c6a5eb9f5dc777ee69ab99446934e3d3b2852cda30c3b08305f72ab"
+        },
+        "task_source_sha256": {
+          "instruction.md": "ffaadcbf9f576b5d5e087d2a06a4b525dd52c6b84d43eb9d85107f0a9aebcb5d",
+          "task.toml": "4918687e4e261a9852e39e5a554156733c071c17dc89c5f544f15f2ef744ce0a",
+          "environment/setup.py": "4712ead66edc6684c45880954e83d8b9a915bdaf0b60ebb0ee895a5b740a4c09",
+          "environment/benchmark.py": "64b6e7a40f79ed90a550bc15249ebc09babda14efe04a85a3cf54acd7fb4819f",
+          "tests/test_outputs.py": "800fc762b0a107b197d17cc2c094858490f02f09f47af4e3ee84253594f97fa7"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -3907,7 +4153,7 @@
     }
   ],
   "model_coverage": {
-    "distinct_tasks_with_completed_model_run": 11,
+    "distinct_tasks_with_completed_model_run": 12,
     "completed_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
@@ -3918,6 +4164,7 @@
       "terminal-bench/large-scale-text-editing",
       "terminal-bench/multi-source-data-merger",
       "terminal-bench/openssl-selfsigned-cert",
+      "terminal-bench/portfolio-optimization",
       "terminal-bench/sam-cell-seg",
       "terminal-bench/sparql-university"
     ],
@@ -3948,11 +4195,10 @@
       "terminal-bench/dna-insert",
       "terminal-bench/git-multibranch",
       "terminal-bench/largest-eigenval",
-      "terminal-bench/portfolio-optimization",
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
     ],
-    "distinct_tasks_with_model_execution_and_official_result": 12,
+    "distinct_tasks_with_model_execution_and_official_result": 13,
     "tested_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
@@ -3964,6 +4210,7 @@
       "terminal-bench/largest-eigenval",
       "terminal-bench/multi-source-data-merger",
       "terminal-bench/openssl-selfsigned-cert",
+      "terminal-bench/portfolio-optimization",
       "terminal-bench/sam-cell-seg",
       "terminal-bench/sparql-university"
     ],
@@ -3993,7 +4240,6 @@
       "terminal-bench/constraints-scheduling",
       "terminal-bench/dna-insert",
       "terminal-bench/git-multibranch",
-      "terminal-bench/portfolio-optimization",
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
     ],
@@ -4162,6 +4408,23 @@
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/events.jsonl": "16298e2f0aefea866d28584fe08d0b5b4ca2f718676d31c52fe37cdbc60fc8bf",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/verifier/ctrf.json": "534f9144d2c6df4464d989fda8358d551bed13918754f392858455112a712301",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/verifier/test-stdout.txt": "4ddf62f981ae3b08d515fea11b2ed9197917e3467db7be603c1adffddda21002",
+    "cases/terminalbench/portfolio-optimization/1/result.json": "14645db35377a717861f1f2389abde0bed16c14f86bce277fdcc73296ccb2763",
+    "terminalbench/portfolio-optimization-oracle-1/d112f8945600f18ec47bbbe76935dc05__peAnjD5/result.json": "38966806e0034676d1f380b228f063d9ec5898f0ba97492f16eb40f054a7d71a",
+    "terminalbench/portfolio-optimization-oracle-1/d112f8945600f18ec47bbbe76935dc05__peAnjD5/verifier/ctrf.json": "48f44f511c43ae4ecdd81486cdf2decb5f7afdc21f240f43e3a563d4e1fec27c",
+    "terminalbench/portfolio-optimization-oracle-1/d112f8945600f18ec47bbbe76935dc05__peAnjD5/verifier/test-stdout.txt": "d6ee35e87bcb6b499d7db25024cb77d84f35e01162a7ce09f37e5f2f6ef9cd6b",
+    "terminalbench/portfolio-optimization-oracle-1/d112f8945600f18ec47bbbe76935dc05__peAnjD5/agent/oracle.txt": "ed59c678b1e1494aa13abc012ecbf22284a632c48b6290ef07550d72e427eab4",
+    "terminalbench/portfolio-optimization-nop-1/d112f8945600f18ec47bbbe76935dc05__4exi9dA/result.json": "98f070c70a6e73fd510e5360387a7f6f1d0f90de87215a863a45eb19e66b2ca1",
+    "terminalbench/portfolio-optimization-nop-1/d112f8945600f18ec47bbbe76935dc05__4exi9dA/verifier/ctrf.json": "e84d4b929475269108b379aa1bd3c4ca9c226fbff13ade1c91f5655bc2f1772d",
+    "terminalbench/portfolio-optimization-nop-1/d112f8945600f18ec47bbbe76935dc05__4exi9dA/verifier/test-stdout.txt": "8408ded9cc6d7588ae2c65a196acdc84087076f940eabd1103745705f9e9b31f",
+    "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/result.json": "be4b6bb917dd4f55baefcd9e08de429612b72b9cacfbb90f119f7c3fb673f8ba",
+    "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/result.json": "737b4f357b303489da070a56c0a9fa1da8a0c3fc7d9f1b69a398427c6398cc2a",
+    "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/events.jsonl": "c9b493a926f7a474bc9973e79e9ac54b6efaadb4f3df0ab9554c6a5b72d6cfa9",
+    "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/verifier/ctrf.json": "8e93b1551f552145ec9b0279797a3ec2b8ddb119df6836616a44f40887bc2a46",
+    "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/verifier/test-stdout.txt": "15ed447d29cd3fcad4eea130584b420209d309c4bbff19d9b96c10aad8fe959e",
+    "cases/terminalbench/portfolio-optimization/1/output-capture-remaining.json": "443cb1a8ce31d17f41e73982ee37ae84fbff66ca1c0cc0e5de6b3ee2876e7b02",
+    "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.c": "9e7e7f9f1af9a1140a8bfa234dd6ea95c4ac72279dd517a8cedc7a2824accec1",
+    "cases/terminalbench/portfolio-optimization/1/observed-app__portfolio_optimized.py": "306096f885e0b98e4b03f1e210e8e292ff2c95b93e5b6b6f87f3b21858b49d2c",
+    "cases/terminalbench/portfolio-optimization/1/observed-app__setup.py": "4712ead66edc6684c45880954e83d8b9a915bdaf0b60ebb0ee895a5b740a4c09",
     "cases/terminalbench/rstan-to-pystan/1/result.json": "bc96122404454c261268135d632036b3d1b350643502fb7512c969a0e7e1af8f",
     "terminalbench/rstan-to-pystan-oracle-1/592f15f75751f3c4999c3d05087f2f8b__32ecvhU/result.json": "a481ebab6728795f3b96aa8a2dd3b65b500d533b5f1a6490da84897d77ccddb7",
     "terminalbench/rstan-to-pystan-oracle-1/592f15f75751f3c4999c3d05087f2f8b__32ecvhU/verifier/ctrf.json": "6abb81bb3ddd61c09c3a97ee9be94a8d7b15e7c24be0e7b0106c1f990d78ed1e",
@@ -4221,7 +4484,7 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "7012d6055a6bffb2ad7ff4de2ebbebcd7999e770bb9a4e1a6accb0b4e6dedcf1",
+    "diagnostics/summary-reconciliation.json": "2ed992c7b51ee8a8c141bcf1ea9f8ddba1e7f9982e766cd6b33e1559dac4c3fa",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
     "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
     "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
@@ -4250,6 +4513,8 @@
     "diagnostics/remaining-terminal-capture/manifest.json": "7cab061a18d260b454a7e5b0e4f45729fe497aeca2b2f19944e0564979820454",
     "diagnostics/midrun-integrity-audit.json": "dc18dffe58cc85b46786c88eafe7771d75c6ae232a636cd0eec90f6ed3ce12e1",
     "diagnostics/protocol-crosscase/result.json": "031bf35cb69dd264a0f21ef41ca3b4b25f33451efa76e478019a5f9f9117dea2",
+    "diagnostics/live-summary-observer/manifest.json": "af13809cc88ed7369f9bcdf564641cac613258ea9c28658930b0cffc186b11b0",
+    "diagnostics/portfolio-observations/result.json": "aa3cee669dc645a6adb1ed807093f8f98d490e32c682dfa15f8416e31792a1d9",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -4279,6 +4544,7 @@
     "diagnostics/inspect_chess_candidate.py": "6966fb897c4fc5eeeddd8b4b3cf12ddad087e761f069c34efed7399a86667821",
     "diagnostics/recover_rstan_proxy.py": "a58f443d33820f6ab2fc985d700a07e989d86f59603b315a01dee794018637f4",
     "diagnostics/recover_caffe_proxy.py": "52556e0960be0a65678fa5bdbb15b1dee332be58ae9d78a2a9c93d8bfd39d614",
+    "diagnostics/refresh_live_summary.py": "3044463c95b02be7c333f2175e042d5d5b2b506eb6a28cf56c1cb1ded53edb01",
     "diagnostics/capture_eigen_artifacts.py": "f08a187aff75c2ef72af29afe2dde38a71c6aa2f5657fe72e4d0f4020d460a88",
     "diagnostics/capture_terminal_artifacts.py": "4dc11537ac084e79a0dfc943ef532d947e12bbe782858605ed72d75c2a17a39c",
     "diagnostics/inspect_eigen_timeout.py": "f8d960e43e93cf913d66af12432f15c6a7c73f95c5828e4c2d630a5a301bc56d",
@@ -4344,6 +4610,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/46ff2564aaf5fecbc3b29656c77a8adf91cd2391f1961402f11b01f5542e4120.py": "46ff2564aaf5fecbc3b29656c77a8adf91cd2391f1961402f11b01f5542e4120"
+    "diagnostics/source-snapshots/cba29c1ca15521cc49beeffc72562c64a57a627f73737e18a058317d51c0c052.py": "cba29c1ca15521cc49beeffc72562c64a57a627f73737e18a058317d51c0c052"
   }
 }
