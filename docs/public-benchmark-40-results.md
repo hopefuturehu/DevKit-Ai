@@ -1,9 +1,9 @@
 # 40 题公开基准结果与失败分析
 
-这是执行中的记录，不是最终报告。2026-09-09 01:20（Asia/Shanghai）快照：
-40 题中 2 题完成真实模型运行和官方判分，1 通过、1 未通过；1 题模型运行结束、正在官方判分；
+这是执行中的记录，不是最终报告。2026-09-09 01:28（Asia/Shanghai）快照：
+40 题中 3 题完成真实模型运行和官方判分，2 通过、1 未通过；
 37 题尚无模型判分结果，其中 1 题被失败的官方参考解控制实验阻断。
-不能据此宣称 40 题已完成，也不能将 1/2 当作完整公开基准成绩。
+不能据此宣称 40 题已完成，也不能将 2/3 当作完整公开基准成绩。
 
 范围、冻结规则、版本与限制见 [执行约定](public-benchmark-40-execution.md)。
 源码基线为 `578f660`，模型为 `deepseek-v4-flash`。本报告中的协议探针只用于分析，未修改该冻结基线。
@@ -17,7 +17,7 @@
 | Terminal / openssl-selfsigned-cert | oracle=1，nop=0，无异常 | reward=1 | 23 步完成；官方验收通过 |
 | Terminal / custom-memory-heap-crash | oracle=1，nop=0，无异常 | reward=0；5 passed、1 failed | 第 9 步触发模型输出长度限制，尚未执行源码修复 |
 | Terminal / large-scale-text-editing | oracle=0，nop=0，无 harness 异常 | 尚未运行 Bot | 官方参考解在验收脚本内超时；不能按模型失败计分 |
-| SWE / astropy__astropy-12907 | gold resolved=true，negative resolved=false | 判分中 | 正反例均成功应用补丁并实际运行了测试 |
+| SWE / astropy__astropy-12907 | gold resolved=true，negative resolved=false | resolved=true | 27 步完成；2 项 FAIL_TO_PASS、13 项 PASS_TO_PASS 均通过 |
 
 其余题目保留在 [固定 20＋20 清单](../evals/public-regression-40-v1.json)，没有因缓存、耗时或失败而换题。
 批次使用独立 attempt、官方 run_id 和进程记录继续执行；实时汇总位于产物目录的 `summary.json`。
@@ -76,9 +76,12 @@ LLM 不参与上述通过与否的裁决。失败原因由轨迹审查与对照�
 这些是单轮协议实验，没有执行返回的工具，也未经过官方整题验收。重建请求未包含原请求的完整运行提示和动态工具选择快照。
 
 所以目前不能断言模式切换必然导致此次 DSML/长度失败，更不能断言修好该字段后整题就会通过。
+Astropy 的成功运行也经历了 reasoning 为空的工具轮次，说明这一现象不足以单独预测整题失败。
 当前归因是“协议兼容问题已确认；此次失败的直接成因仍需整题对照”，不是“纯模型能力不足”。
 后续需要保持模型、题面、源码其余部分和验收不变，分别重复原配置与仅修复字段回传的候选配置；
 原始失败会继续保留。是否提高输出上限应作为独立变量，避免一次改动多个因素后无法归因。
+同配置整题复测 attempt 2 已启动：复用首次通过的正反例控制，保持镜像 ID、冻结 wheel、配置、步数与时间限制一致。
+它与首次成绩分开记录；复测使用官方的 1 CPU / 2 GiB 资源上限，与主批次的 SWE 任务同时运行，需保留这一负载条件。
 
 ## 阻断 1：large-scale-text-editing
 

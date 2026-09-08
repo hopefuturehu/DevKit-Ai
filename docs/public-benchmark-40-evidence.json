@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T17:21:56.457548+00:00",
+  "generated_at": "2026-09-08T17:27:41.705333+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -8,10 +8,86 @@
   "baseline_counts": {
     "not_run": 37,
     "fail": 1,
-    "pass": 1,
-    "running": 1
+    "pass": 2
   },
   "completed_cases": [
+    {
+      "id": "astropy__astropy-12907",
+      "attempt": "1",
+      "verdict": "pass",
+      "record": "cases/swebench/astropy__astropy-12907/1/result.json",
+      "image_id": "sha256:9b1cabf7bcd83a28469f67e3852d8e2207e90d45aa71f436bb7e600bdee8bae2",
+      "controls": {
+        "gold": {
+          "resolved": true,
+          "patch_successfully_applied": true,
+          "tests": {
+            "FAIL_TO_PASS": {
+              "success": 2,
+              "failure": 0
+            },
+            "PASS_TO_PASS": {
+              "success": 13,
+              "failure": 0
+            },
+            "FAIL_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            },
+            "PASS_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            }
+          }
+        },
+        "negative": {
+          "resolved": false,
+          "patch_successfully_applied": true,
+          "tests": {
+            "FAIL_TO_PASS": {
+              "success": 0,
+              "failure": 2
+            },
+            "PASS_TO_PASS": {
+              "success": 13,
+              "failure": 0
+            },
+            "FAIL_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            },
+            "PASS_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            }
+          }
+        }
+      },
+      "tests": {
+        "FAIL_TO_PASS": {
+          "success": 2,
+          "failure": 0
+        },
+        "PASS_TO_PASS": {
+          "success": 13,
+          "failure": 0
+        },
+        "FAIL_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        },
+        "PASS_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        }
+      },
+      "resolved": true,
+      "run_status": "completed",
+      "steps": 27,
+      "error": null,
+      "input_tokens": 395318,
+      "output_tokens": 9382
+    },
     {
       "id": "terminal-bench/custom-memory-heap-crash",
       "attempt": "1",
@@ -28,11 +104,6 @@
           "exception": null
         }
       },
-      "run_status": "limit_reached",
-      "steps": 9,
-      "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
-      "input_tokens": 121034,
-      "output_tokens": 14881,
       "tests": [
         {
           "name": "test_outputs.py::test_protected_files_not_modified",
@@ -58,7 +129,12 @@
           "name": "test_outputs.py::test_no_memory_leaks_with_valgrind",
           "status": "passed"
         }
-      ]
+      ],
+      "run_status": "limit_reached",
+      "steps": 9,
+      "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+      "input_tokens": 121034,
+      "output_tokens": 14881
     },
     {
       "id": "terminal-bench/openssl-selfsigned-cert",
@@ -76,11 +152,6 @@
           "exception": null
         }
       },
-      "run_status": "completed",
-      "steps": 23,
-      "error": null,
-      "input_tokens": 195334,
-      "output_tokens": 5033,
       "tests": [
         {
           "name": "test_outputs.py::test_directory_structure",
@@ -106,9 +177,15 @@
           "name": "test_outputs.py::test_python_verification_script",
           "status": "passed"
         }
-      ]
+      ],
+      "run_status": "completed",
+      "steps": 23,
+      "error": null,
+      "input_tokens": 195334,
+      "output_tokens": 5033
     }
   ],
+  "diagnostic_repeats": [],
   "environment_failures": [
     {
       "id": "terminal-bench/large-scale-text-editing",
@@ -335,6 +412,11 @@
   },
   "artifact_root": "artifacts/public-benchmark/20260909-flash",
   "artifact_sha256": {
+    "cases/swebench/astropy__astropy-12907/1/result.json": "9e51198c126f1c1b5dffd9ec95b7ab8d66d2d3ae566f3b582d672bfacb2ed0b1",
+    "cases/swebench/astropy__astropy-12907/1/prediction.result.json": "913a680bf456fad1310b040e3905364aed0f09b97495774cfa4fdee58f6a7241",
+    "cases/swebench/astropy__astropy-12907/1/prediction.events.jsonl": "a57cfdc051fe0526fd44b47a5735435a76cc69fa2364920cfa571baa913069ff",
+    "cases/swebench/astropy__astropy-12907/1/prediction.jsonl": "6c25a2fabeaf13062b36dbfc3f928b3e874deb5d80d5c5c38c3b0ba79aeab5fe",
+    "logs/run_evaluation/flash40-astropy__astropy-12907-grade-1/deepseek-v4-flash/astropy__astropy-12907/report.json": "fe3f3bddc9631279d3babf7270913070d91e9207c3468bd947823aee3e7b1b86",
     "cases/terminalbench/custom-memory-heap-crash/1/result.json": "f16e7a56902634aa63f741e2c883d07b747986a477dee76883c8b95240d6f58e",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/result.json": "02f4bd145f9e674feccb2d4263e600286d0c9018ac24b9c0290aba8ff63b71b9",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json": "0dd42b2bb2ec668b1f024ea68a98f4afda4ba33bfe855df8f5c21ffa51cfeed5",
@@ -358,6 +440,6 @@
     "diagnostics/heap-protocol-replay/preserve_empty-2.response.json": "c7f88a27f66bca1970e12d6728bc6be65a84605c844f8dd0605e893cb2b4b6a3",
     "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/test-stdout.txt": "1fe8fd4178fde316c94526be300db53edff6ebdce1415262fea4476b0b2da776",
     "diagnostics/replay_heap_protocol.py": "d9eda87a57b85d7b1621f8587d00603278f2eb5595647f1f81847c978d00bef4",
-    "diagnostics/record_evidence.py": "5ec21223132f18a282fc88e7543513b02478b0e8eed634a35ec925a98add4839"
+    "diagnostics/record_evidence.py": "c3c19779adea0de1828e253879e7f8a5e7420aa1d3826a5960d2b43afb855c3f"
   }
 }
