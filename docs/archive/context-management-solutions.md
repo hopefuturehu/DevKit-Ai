@@ -3,7 +3,7 @@
 > **⚠️ 本文档为历史分析记录，保留以供设计溯源。**
 > 文中分析的是旧版 `ContextSnapshot` + `compact_messages()` 系统的问题。
 > 当前代码已演进为 **可恢复的单摘要压缩** 方案（详见
-> [recoverable-context-compaction.md](recoverable-context-compaction.md)），
+> [recoverable-context-compaction.md](../recoverable-context-compaction.md)），
 > 旧版 `ContextSnapshot` 和 `compact_messages()` 已不再用于生产路径，
 > 相关表结构仅保留向后兼容读取。
 >
@@ -12,7 +12,7 @@
 >
 > 状态：历史存档
 > 日期：2025-07（分析阶段），2026-07（标注存档）
-> 前置文档：[design.md](design.md)、[implementation-status.md](implementation-status.md)
+> 前置文档：[design.md](../design.md)、[implementation-status.md](../implementation-status.md)
 
 ---
 

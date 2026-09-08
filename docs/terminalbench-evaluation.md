@@ -90,7 +90,7 @@ Terminal-Bench 运行一样，它默认不设置美元费用预算。Harbor 仍�
 覆盖 suite 默认值；显式传入 `--max-cost-usd` 可为单次实验恢复费用门禁。
 
 首次六任务实测的逐项结果、上下文 token、压缩覆盖率和失败归因见
-[Terminal-Bench 上下文中等任务集结果](terminalbench-context-medium-six-results.md)。
+[Terminal-Bench 上下文中等任务集结果](archive/terminalbench-context-medium-six-results.md)。
 
 只做预检、构建 wheel 并查看最终 Harbor 命令：
 

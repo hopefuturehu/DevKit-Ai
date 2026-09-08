@@ -12,8 +12,8 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 注入。KAT 是较早的 Nanobot 派生实现，放在文末作为演进参照，不与当前 Nanobot 重复展开。
 
 本文只描述上述 commit 的实现，不把项目宣传文案或未来计划当成已实现行为。当前 `bot` 的
-修复前运行数据和卡游标案例见[上下文压缩历史快照](context-compaction-current-state.md)与
-[长会话上下文压缩问题](context-compaction-failure-analysis.md)；本项目自身的请求层顺序见
+修复前运行数据和卡游标案例见[上下文压缩历史快照](archive/context-compaction-current-state.md)与
+[长会话上下文压缩问题](archive/context-compaction-failure-analysis.md)；本项目自身的请求层顺序见
 [模型上下文分块与组装顺序](context-assembly.md)。
 
 ## 1. 结论摘要
@@ -325,7 +325,7 @@ Dream Prompt 主动要求 MECE 分类、替换冲突、迁移流程到 Skill、�
 它证明当前固定样本上的协议可以跑通，并量出了“无关轮次省输入，相关轮次付一次往返”的方向；每桶
 只有一个语义 fixture，不能外推总体误归因率或漏召回率。完整边界、测试设计和脱敏结果见
 [Memory Router 设计与验收](memory-routing.md)与
-[真实 canary JSON](memory-routing-live-canary-2026-08-29.json)。
+[真实 canary JSON](archive/memory-routing-live-canary-2026-08-29.json)。
 
 几种路线可概括为：
 

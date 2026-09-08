@@ -17,8 +17,8 @@
 有界之后，压缩仍然有 57.7% 的失败率和数分钟级停顿。下文未特别标注的“当前”均指该快照
 时点，不代表 2026-08-26 的仓库行为。
 
-当前实现应以[模型上下文分块与组装顺序](context-assembly.md)和
-[可恢复的单摘要上下文压缩](recoverable-context-compaction.md)为准。关键差异如下：
+当前实现应以[模型上下文分块与组装顺序](../context-assembly.md)和
+[可恢复的单摘要上下文压缩](../recoverable-context-compaction.md)为准。关键差异如下：
 
 | 项目 | 本文历史基线 `f930a19` | 当前实现 `2035795` |
 |---|---|---|
@@ -31,9 +31,9 @@
 | 时间门禁 | 只有 HTTP 层超时 | 每个压缩请求 90 秒墙钟；显式命令另有请求数、总时间和费用预算 |
 
 端到端开源框架对比见
-[本地开源 Agent 框架上下文管理对比](context-framework-comparison.md)；历史演进、失败归因和候选
+[本地开源 Agent 框架上下文管理对比](../context-framework-comparison.md)；历史演进、失败归因和候选
 改造方案见 [context-compaction-failure-analysis.md](context-compaction-failure-analysis.md)；可恢复
-压缩的原始设计见 [recoverable-context-compaction.md](recoverable-context-compaction.md)。
+压缩的原始设计见 [recoverable-context-compaction.md](../recoverable-context-compaction.md)。
 
 ## 1. 快照结论摘要
 
@@ -94,11 +94,11 @@ Resume 时还会重新验证原始范围的 SHA-256。因此当前实现属于�
 
 主要实现位于：
 
-- [`ContextConfig`](../src/bot/config/models.py#L134-L157)：长度与压缩预算；
-- [`TokenBudget`](../src/bot/core/context.py#L76-L109)：主请求硬限制和触发目标；
-- [`ContextCompactor`](../src/bot/compaction/service.py#L72-L128)：压缩入口和版本投影；
-- [`ContextCompactor.compact()`](../src/bot/compaction/service.py#L121-L314)：安全边界、计划与范围重试；
-- [`SQLiteSessionStore`](../src/bot/sessions/store.py#L885-L1038)：压缩事务持久化。
+- [`ContextConfig`](../../src/bot/config/models.py#L134-L157)：长度与压缩预算；
+- [`TokenBudget`](../../src/bot/core/context.py#L76-L109)：主请求硬限制和触发目标；
+- [`ContextCompactor`](../../src/bot/compaction/service.py#L72-L128)：压缩入口和版本投影；
+- [`ContextCompactor.compact()`](../../src/bot/compaction/service.py#L121-L314)：安全边界、计划与范围重试；
+- [`SQLiteSessionStore`](../../src/bot/sessions/store.py#L885-L1038)：压缩事务持久化。
 
 ### 2.2 快照时的预算
 
@@ -141,10 +141,10 @@ Resume 时还会重新验证原始范围的 SHA-256。因此当前实现属于�
 
 相关调用点：
 
-- [`/model` 直接修改运行模型](../src/bot/cli/app.py#L353-L359)；
-- [压缩模型为空时继承主模型](../src/bot/compaction/service.py#L1041-L1053)；
-- [候选摘要校验](../src/bot/compaction/service.py#L1103-L1160)；
-- [失败后缩小范围](../src/bot/compaction/service.py#L260-L313)。
+- [`/model` 直接修改运行模型](../../src/bot/cli/app.py#L353-L359)；
+- [压缩模型为空时继承主模型](../../src/bot/compaction/service.py#L1041-L1053)；
+- [候选摘要校验](../../src/bot/compaction/service.py#L1103-L1160)；
+- [失败后缩小范围](../../src/bot/compaction/service.py#L260-L313)。
 
 ## 3. 真实运行数据
 
@@ -355,7 +355,7 @@ GROUP BY status;
 ```
 
 失败分类按持久化错误文本归类：输出长度、来源引用、空摘要、缺章节和其他。活动 cursor 后的
-70,288 token 使用当前 [`TokenEstimator`](../src/bot/core/context.py#L339-L383) 对消息 674–740
+70,288 token 使用当前 [`TokenEstimator`](../../src/bot/core/context.py#L339-L383) 对消息 674–740
 逐条估算。Provider completion 与可见摘要比例只统计 `ready` 和 `superseded` 且摘要长度大于
 零的 11 个已发布版本。
 

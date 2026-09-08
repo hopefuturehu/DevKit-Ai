@@ -103,7 +103,7 @@ marker”和“是否走最短 Tool 路径”是独立诊断，不会把答对�
 | `attribution_conflict` | +1 | +1,698 | +$0.001448 | +0.501 s |
 
 机器可读的脱敏聚合结果保存在
-[`memory-routing-live-canary-2026-08-29.json`](memory-routing-live-canary-2026-08-29.json)。原始本地
+[`memory-routing-live-canary-2026-08-29.json`](archive/memory-routing-live-canary-2026-08-29.json)。原始本地
 产物目录为 `/private/tmp/bot-memory-routing-live-20260829-v4`，不纳入 Git。
 
 真实运行还发现并修复了两个原评测无法发现的 Provider 兼容问题：DeepSeek thinking mode 拒绝

@@ -99,7 +99,7 @@ Fast 和 Soak 必须保持事实可见、单活动摘要、Transcript 不可变�
 ## 推广记录（2026-08-25）
 
 逐次冒烟、失败方案、评分器修正、关闭思考前后对比以及全量缓存基准见
-[长会话上下文压缩问题第 16 节](context-compaction-failure-analysis.md#16-实施与验证记录2026-08-25)。
+[长会话上下文压缩问题第 16 节](archive/context-compaction-failure-analysis.md#16-实施与验证记录2026-08-25)。
 
 `hybrid-20k` 使用 12 轮合成 Transcript（每轮含 14,000 字符 Tool 输出）完成 20 次 DeepSeek
 V4 Flash 真实回放，全部门禁通过：

@@ -263,7 +263,7 @@ Router 主要依靠规则和词法匹配，包括中文片段匹配，不是向�
 - **定位**：拆开请求输入、可见摘要、reasoning、finish reason、恢复分支和耗时，发现不能把所有失败归结为输入太长。
 - **处理**：压缩模型与运行时主模型切换解耦；3K 软目标、4K 可见硬限制；默认范围级溯源；在仓库适配的 DeepSeek 官方端点上关闭压缩请求 thinking；按错误类型选择恢复动作。
 - **取舍**：摘要更短仍可能损失细节；关闭 thinking 的配置具有端点适用范围；历史前后实验负载不同，不能宣称单个改动带来了全部收益。
-- **证据**：第 5.2 节及[失败分析](context-compaction-failure-analysis.md)。
+- **证据**：第 5.2 节及[失败分析](archive/context-compaction-failure-analysis.md)。
 
 | 错误 | 当前恢复方向 | 原因 |
 |---|---|---|
@@ -367,7 +367,7 @@ Fast 在压缩后恢复到 80% 命中所需请求数由 **6 次变成 2 次**。
 
 此外，2026-08-31 已把历史“三轮硬下限”改为当前“有界 tail + 用户锚点 + Assistant-safe 切分”。20 次回放是旧候选的历史结果，不能当作这些后续改动已经重复完成的真实模型验证。
 
-来源：[压缩有效性评测](context-compaction-effectiveness.md)、[历史失败分析](context-compaction-failure-analysis.md)。
+来源：[压缩有效性评测](context-compaction-effectiveness.md)、[历史失败分析](archive/context-compaction-failure-analysis.md)。
 
 ### 5.3 记忆按需检索：小样本真实模型的成本取舍
 
@@ -386,7 +386,7 @@ Fast 在压缩后恢复到 80% 命中所需请求数由 **6 次变成 2 次**。
 
 这里是四个语义样本的重复运行，不能称为 24 个不同业务场景，也不能推断统计显著性。
 
-来源：[Memory Router](memory-routing.md)、[已入库的机器可读聚合结果](memory-routing-live-canary-2026-08-29.json)。
+来源：[Memory Router](memory-routing.md)、[已入库的机器可读聚合结果](archive/memory-routing-live-canary-2026-08-29.json)。
 
 ### 5.4 真实任务验证的边界
 
@@ -396,7 +396,7 @@ Fast 在压缩后恢复到 80% 命中所需请求数由 **6 次变成 2 次**。
 
 **可口述**：“已有真实任务探索，但压缩效果的外部验证还不充分。下一轮需要确保轨迹实际跨过压缩点，再在同任务、同模型和预算下比较有无压缩及不同策略，并使用独立 verifier 判断任务是否完成。”
 
-来源：[TerminalBench 六任务记录](terminalbench-context-medium-six-results.md)。
+来源：[TerminalBench 六任务记录](archive/terminalbench-context-medium-six-results.md)。
 
 ## 6. 高频面试问题与建议回答
 

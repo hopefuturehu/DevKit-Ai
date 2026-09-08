@@ -3,7 +3,9 @@
 `bot` 是一个通用的本地优先 CLI Agent。核心通过 OpenAI-compatible API 调用模型，并以
 Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 
-当前实现目标和边界见 [docs/design.md](docs/design.md)。
+文档入口见 [docs/README.md](docs/README.md)，按当前实现、评测、设计提案和历史归档分类。
+项目设计目标和边界见 [docs/design.md](docs/design.md)，已实现能力与待验收项见
+[实现状态](docs/implementation-status.md)。
 
 ## 已实现能力
 
