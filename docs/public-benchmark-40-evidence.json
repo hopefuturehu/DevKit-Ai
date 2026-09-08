@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T20:29:04.402734+00:00",
+  "generated_at": "2026-09-08T20:34:37.689009+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -2065,6 +2065,25 @@
           "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/verifier/test-stdout.txt": "90f02d245864a14caf6da102fe55e040ad0a837cf5826ff5ba16baddffb47a18"
         }
       }
+    },
+    "isolated_vm_feasibility": {
+      "source": "diagnostics/isolated-vm-feasibility.json",
+      "result": {
+        "checked_at": "2026-09-08T20:33:43.922254+00:00",
+        "host_memory_bytes": 17179869184,
+        "host_cpus": 10,
+        "docker_memory_bytes": 12544471040,
+        "docker_cpus": 4,
+        "lima_installed": false,
+        "additional_vm_started": false,
+        "additional_software_installed": false,
+        "decision": "Do not start an additional 8 GiB heavy-task VM alongside the existing ~12 GiB Docker VM on a 16 GiB host. Keep the primary batch running; isolated Rosetta may be revisited in a non-overlapping resource window.",
+        "official_sources": [
+          "https://lima-vm.io/docs/config/multi-arch/",
+          "https://lima-vm.io/docs/config/vmtype/vz/"
+        ],
+        "permission_boundary": "Shared Docker restart/Rosetta-setting approval remains unanswered; no shared Docker settings changed."
+      }
     }
   },
   "environment_model_runs": [
@@ -2333,6 +2352,7 @@
     "diagnostics/worker-activation-integration-v2/result.json": "d3e1c0ba1ef2b4e8a05e58c2739c5e2136ccbfe833495218d7903fa331153c0c",
     "cases/terminalbench/chess-best-move/4/manifest.json": "bae6e37e6a60ac5b7be9c864642b1ed2f1cea15be568b7d79e3e426619d39989",
     "diagnostics/chess-protocol/original-observations.json": "5900dd545aca771729102f043508d9a0c560f8742c546c872f3a5616a19f8826",
+    "diagnostics/isolated-vm-feasibility.json": "84ef8d2db0c99d7d3976a63ed7abdc4447568fe669ab6f981129ae16dc9140d1",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -2410,6 +2430,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/e3dc8613220bc578a8f3df81dd4cff54f28cb1abdb4dd0c589c3714534d2a707.py": "e3dc8613220bc578a8f3df81dd4cff54f28cb1abdb4dd0c589c3714534d2a707"
+    "diagnostics/source-snapshots/210c4560fda5379deb6a4ad60d6b88995cd64b72209ec7edbf3df0e3154e04f4.py": "210c4560fda5379deb6a4ad60d6b88995cd64b72209ec7edbf3df0e3154e04f4"
   }
 }
