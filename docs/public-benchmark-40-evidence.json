@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T21:48:38.882377+00:00",
+  "generated_at": "2026-09-08T21:54:36.437026+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -3384,6 +3384,66 @@
           "task.toml": "8220a1b8e6e08ecb95556920de358b6aa74b112d8a79625db6915f6b316ccd18"
         }
       }
+    },
+    "remaining_terminal_artifact_observer": {
+      "source": "diagnostics/remaining-terminal-capture/manifest.json",
+      "result": {
+        "pid": 14587,
+        "batch_pid": 48973,
+        "started_at": "2026-09-08T21:52:16.345843+00:00",
+        "source_sha256": "b126ea32d49781e34ca4402128327260fda0f6c19f70b3c26f62f60923486268",
+        "files": {
+          "portfolio-optimization": [
+            "/app/portfolio_optimized.c",
+            "/app/portfolio_optimized.py",
+            "/app/setup.py"
+          ],
+          "constraints-scheduling": [
+            "/app/meeting_scheduled.ics",
+            "/app/alice_calendar.ics",
+            "/app/bob_calendar.ics",
+            "/app/carol_calendar.ics"
+          ],
+          "dna-insert": [
+            "/app/primers.fasta",
+            "/app/sequences.fasta"
+          ],
+          "bn-fit-modify": [
+            "/app/learned_dag.csv",
+            "/app/intervened_dag.csv",
+            "/app/final_bn_sample.csv"
+          ],
+          "code-from-image": [
+            "/app/output.txt",
+            "/app/solve.py",
+            "/app/program.py"
+          ],
+          "cobol-modernization": [
+            "/app/program.py",
+            "/app/data/ACCOUNTS.DAT",
+            "/app/data/BOOKS.DAT",
+            "/app/data/TRANSACTIONS.DAT"
+          ],
+          "compile-compcert": [
+            "/tmp/CompCert/ccomp",
+            "/tmp/CompCert/compcert.ini",
+            "/tmp/CompCert/Makefile.config"
+          ],
+          "git-multibranch": [
+            "/git/project/hooks/post-receive",
+            "/etc/nginx/nginx.conf",
+            "/etc/nginx/sites-enabled/default",
+            "/etc/nginx/conf.d/default.conf",
+            "/etc/ssh/sshd_config"
+          ],
+          "video-processing": [
+            "/app/jump_analyzer.py",
+            "/app/output.toml"
+          ]
+        },
+        "policy": "Only original attempt 1 baseline containers; explicit paths; docker cp after Worker result or official Agent timeout. No model calls, container exec, or task mutations.",
+        "limitation": "Filesystem observation may overlap verifier execution. Timeout snapshots do not establish an immutable cutoff or graceful Worker termination. Missing optional paths are recorded as failed copies."
+      }
     }
   },
   "environment_model_runs": [
@@ -3760,6 +3820,7 @@
     "diagnostics/harness-timeout-probe/result.json": "92365c44aadd3ef2496bf26473dc3d65ca2ebe0696d807388ef7bc319bf73013",
     "diagnostics/harness-timeout-guard-probe/result.json": "c3c9a78bea8f30380ed0d18e19690c2d8a54107d031e00cbf87a82a2fcbb19c7",
     "diagnostics/count-tokens-observations/result.json": "9bc497676313a5116ee07ea600554d9829a573f216cbbf9b7ef6e05111a3c711",
+    "diagnostics/remaining-terminal-capture/manifest.json": "7cab061a18d260b454a7e5b0e4f45729fe497aeca2b2f19944e0564979820454",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -3795,6 +3856,7 @@
     "diagnostics/probe_harbor_timeout.py": "4bb5959db9ea482a55be92d620ce0ff63704d2d43530cb1a7c02878740be1495",
     "diagnostics/probe_harbor_timeout_guard.py": "a5af080c8a997b67ba0acdb2bf17e86e93486378ddd027b47cd1334ec619b486",
     "diagnostics/inspect_count_tokens.py": "c437d4b72eb02989d1a7e018bb22d254fc4b315ca46ffdf592c6f3d4836e8701",
+    "diagnostics/capture_remaining_terminal.py": "b126ea32d49781e34ca4402128327260fda0f6c19f70b3c26f62f60923486268",
     "diagnostics/replay_chess_compaction.py": "fe0bea266f66532c2adf05d694f6bc750b7f05c848c05eacb15944925d777ca0",
     "diagnostics/chess-compaction-replay/candidate_summary_missing.request.json": "11dddcc08c7acc87b5f95819312788c28c7493d210770f62cb9fd064d494daf0",
     "diagnostics/chess-compaction-replay/summary_empty_counterfactual.request.json": "043282781d27b57578dff51a489cbe4584d00a047ea87fc86544900d5812f3cc",
@@ -3853,6 +3915,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/d8a27d33fc2b5800c73b79f2f403f3526328856d60b80d95d059d3f453fda624.py": "d8a27d33fc2b5800c73b79f2f403f3526328856d60b80d95d059d3f453fda624"
+    "diagnostics/source-snapshots/33a36623a557bf8b020630bdb7b4747149423329470a3beb09df40a8c4826c9a.py": "33a36623a557bf8b020630bdb7b4747149423329470a3beb09df40a8c4826c9a"
   }
 }
