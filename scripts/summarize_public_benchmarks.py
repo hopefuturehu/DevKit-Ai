@@ -110,6 +110,24 @@ def usage_metrics(path: Path) -> dict:
     return metrics
 
 
+def terminal_verifier_health(trial: Path, official: dict) -> dict:
+    """Check whether a finished structured verifier actually executed assertions."""
+    if not official.get("finished_at"):
+        return {"status": "pending"}
+    report = trial / "verifier/ctrf.json"
+    if not report.exists():
+        return {"status": "unknown", "reason": "no_structured_test_report"}
+    results = load(report)["results"]
+    tests = results.get("tests", [])
+    statuses = Counter(test["status"] for test in tests)
+    detail = {"test_count": len(tests), "test_statuses": dict(statuses), "report": str(report)}
+    if not tests:
+        return {**detail, "status": "invalid", "reason": "no_tests_collected"}
+    if statuses["passed"] + statuses["failed"] == 0:
+        return {**detail, "status": "invalid", "reason": "no_tests_executed"}
+    return {**detail, "status": "valid", "scope": "nonempty structured verifier run"}
+
+
 def summarize(root: Path, suite: dict) -> dict:
     rows = []
     for kind in ("terminalbench", "swebench"):
@@ -148,6 +166,7 @@ def summarize(root: Path, suite: dict) -> dict:
                                 "run_status": agent.get("status"),
                                 "agent_result_available": agent_result.exists(),
                                 "model_response_observed": usage["model_response_observed"],
+                                "verifier_health": terminal_verifier_health(trial, official),
                                 "steps": agent.get("steps"),
                                 "error": agent.get("error"),
                                 "exception": official.get("exception_info"),
@@ -200,8 +219,13 @@ def summarize(root: Path, suite: dict) -> dict:
                 (attempt for attempt in row["attempts"] if attempt["attempt"] == "1"), None
             )
             row["baseline_verdict"] = baseline["verdict"] if baseline else "not_run"
+            row["baseline_scoring_status"] = (
+                "invalid_verifier"
+                if baseline and baseline.get("verifier_health", {}).get("status") == "invalid"
+                else row["baseline_verdict"]
+            )
             row["attribution"] = (
-                "not_applicable" if row["baseline_verdict"] == "pass" else "needs_review"
+                "not_applicable" if row["baseline_scoring_status"] == "pass" else "needs_review"
             )
             rows.append(row)
     return {
@@ -209,6 +233,7 @@ def summarize(root: Path, suite: dict) -> dict:
         "model": "deepseek-v4-flash",
         "suite_size": len(rows),
         "baseline_counts": dict(Counter(r["baseline_verdict"] for r in rows)),
+        "baseline_scoring_counts": dict(Counter(r["baseline_scoring_status"] for r in rows)),
         "pricing": {
             "source": "https://api-docs.deepseek.com/quick_start/pricing/",
             "observed_on": "2026-09-09",
@@ -230,7 +255,11 @@ def main() -> None:
     temporary.replace(output)
     print(
         json.dumps(
-            {"suite_size": report["suite_size"], "baseline_counts": report["baseline_counts"]}
+            {
+                "suite_size": report["suite_size"],
+                "baseline_counts": report["baseline_counts"],
+                "baseline_scoring_counts": report["baseline_scoring_counts"],
+            }
         )
     )
 

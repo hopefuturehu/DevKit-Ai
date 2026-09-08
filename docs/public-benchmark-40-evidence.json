@@ -1,13 +1,18 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T19:25:37.150141+00:00",
+  "generated_at": "2026-09-08T19:55:35.714973+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
     "pass": 5,
-    "running": 1,
+    "fail": 3,
+    "not_run": 32
+  },
+  "baseline_scoring_counts": {
+    "pass": 5,
+    "invalid_verifier": 1,
     "not_run": 32,
     "fail": 2
   },
@@ -276,6 +281,16 @@
           "status": "passed"
         }
       ],
+      "verifier_health": {
+        "test_count": 6,
+        "test_statuses": {
+          "passed": 5,
+          "failed": 1
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "fail",
       "run_status": "limit_reached",
       "steps": 9,
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
@@ -313,6 +328,15 @@
           "status": "passed"
         }
       ],
+      "verifier_health": {
+        "test_count": 3,
+        "test_statuses": {
+          "passed": 3
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "pass",
       "run_status": "completed",
       "steps": 10,
       "error": null,
@@ -362,11 +386,53 @@
           "status": "passed"
         }
       ],
+      "verifier_health": {
+        "test_count": 6,
+        "test_statuses": {
+          "passed": 6
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "pass",
       "run_status": "completed",
       "steps": 23,
       "error": null,
       "input_tokens": 195334,
       "output_tokens": 5033
+    },
+    {
+      "id": "terminal-bench/sam-cell-seg",
+      "attempt": "1",
+      "verdict": "fail",
+      "record": "cases/terminalbench/sam-cell-seg/1/result.json",
+      "image_id": "sha256:792f56b9413a280dfbeb0c5b64067e4f7217f0fba16cd84918eb28928f406fd2",
+      "agent_variant": "original",
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [],
+      "verifier_health": {
+        "test_count": 0,
+        "test_statuses": {},
+        "status": "invalid",
+        "reason": "no_tests_collected"
+      },
+      "scoring_status": "invalid_verifier",
+      "output_capture": "cases/terminalbench/sam-cell-seg/1/output-capture.json",
+      "final_source": "cases/terminalbench/sam-cell-seg/1/final-convert_masks.py",
+      "run_status": "completed",
+      "steps": 95,
+      "error": null,
+      "input_tokens": 3388507,
+      "output_tokens": 31286
     },
     {
       "id": "terminal-bench/sparql-university",
@@ -399,6 +465,15 @@
           "status": "passed"
         }
       ],
+      "verifier_health": {
+        "test_count": 3,
+        "test_statuses": {
+          "passed": 3
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "pass",
       "run_status": "completed",
       "steps": 11,
       "error": null,
@@ -529,6 +604,16 @@
           "status": "passed"
         }
       ],
+      "verifier_health": {
+        "test_count": 6,
+        "test_statuses": {
+          "passed": 5,
+          "failed": 1
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "fail",
       "output_capture": "cases/terminalbench/custom-memory-heap-crash/3/output-capture.json",
       "final_source": "cases/terminalbench/custom-memory-heap-crash/3/final-user.cpp",
       "run_status": "limit_reached",
@@ -580,6 +665,15 @@
           "status": "passed"
         }
       ],
+      "verifier_health": {
+        "test_count": 6,
+        "test_statuses": {
+          "passed": 6
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "pass",
       "output_capture": "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json",
       "final_source": "cases/terminalbench/custom-memory-heap-crash/4/final-user.cpp",
       "run_status": "completed",
@@ -623,6 +717,25 @@
       "verdict": "error",
       "record": "cases/terminalbench/large-scale-text-editing/1/result.json",
       "image_id": "sha256:4ca0b429596fd62b9fab0a787e276ee7ee3faf2761b56473232327218c462c56",
+      "agent_variant": "original",
+      "controls": {
+        "oracle": {
+          "reward": 0.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "error": "Official control did not produce its expected verdict"
+    },
+    {
+      "id": "terminal-bench/rstan-to-pystan",
+      "attempt": "1",
+      "verdict": "error",
+      "record": "cases/terminalbench/rstan-to-pystan/1/result.json",
+      "image_id": "sha256:1b14d62b12dd1cb5420463579116a69e26fafc7d56745f8f896eb503a656b000",
       "agent_variant": "original",
       "controls": {
         "oracle": {
@@ -1116,26 +1229,11 @@
     "summary_usage_reconciliation": {
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
-        "script_sha256": "5fc1d6c9e6fac7a1f8845b8f2985609b147d2c2183a11c2c0070083f48200974",
-        "completed_runs_checked": 11,
+        "script_sha256": "14d651110a32a0bc0af4b424bc9118f797f0c91e230261fbf54cc9c41f62d5ad",
+        "completed_runs_checked": 12,
         "all_usage_totals_match": true,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
         "runs": [
-          {
-            "agent_result": "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/result.json",
-            "agent_result_sha256": "63f5066ea447a5927228e1bee1b813adf20b723a25f3c05a09297653e508f2b6",
-            "events": "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/events.jsonl",
-            "events_sha256": "16298e2f0aefea866d28584fe08d0b5b4ca2f718676d31c52fe37cdbc60fc8bf",
-            "expected": {
-              "input_tokens": 195334,
-              "output_tokens": 5033
-            },
-            "observed": {
-              "input_tokens": 195334,
-              "output_tokens": 5033
-            },
-            "estimated_cost_usd": 0.012269788
-          },
           {
             "agent_result": "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json",
             "agent_result_sha256": "0dd42b2bb2ec668b1f024ea68a98f4afda4ba33bfe855df8f5c21ffa51cfeed5",
@@ -1150,51 +1248,6 @@
               "output_tokens": 14881
             },
             "estimated_cost_usd": 0.023989292
-          },
-          {
-            "agent_result": "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/result.json",
-            "agent_result_sha256": "a0451df2c86d25cf322480282d0f80f2cc48862dddd4f7b7e11d4cc458679207",
-            "events": "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/events.jsonl",
-            "events_sha256": "fc6835cafddf6b35ae777cc34b3235fa6c53fcf053d7f429ad02ea9f16c16627",
-            "expected": {
-              "input_tokens": 147706,
-              "output_tokens": 15623
-            },
-            "observed": {
-              "input_tokens": 147706,
-              "output_tokens": 15623
-            },
-            "estimated_cost_usd": 0.013743076
-          },
-          {
-            "agent_result": "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/result.json",
-            "agent_result_sha256": "87fb873326a0c833d860095c37a1c24b5b92913b175ad89cd484889fe63537c3",
-            "events": "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/events.jsonl",
-            "events_sha256": "26c1537a6d959df720764b940d605043189207a93dcc9cebf26001f63b7c3cbc",
-            "expected": {
-              "input_tokens": 217734,
-              "output_tokens": 22068
-            },
-            "observed": {
-              "input_tokens": 217734,
-              "output_tokens": 22068
-            },
-            "estimated_cost_usd": 0.020479800000000003
-          },
-          {
-            "agent_result": "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/result.json",
-            "agent_result_sha256": "520274c3725418d61f82cd43b5283ea233fc9dbe160a8e92a1e394bcd7647dcc",
-            "events": "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/events.jsonl",
-            "events_sha256": "94be146e4959f889d9c0c144b21ea8ebf74eb424e875f392c766f3c1037e3515",
-            "expected": {
-              "input_tokens": 405824,
-              "output_tokens": 26600
-            },
-            "observed": {
-              "input_tokens": 405824,
-              "output_tokens": 26600
-            },
-            "estimated_cost_usd": 0.02400924800000001
           },
           {
             "agent_result": "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/agent/result.json",
@@ -1227,6 +1280,81 @@
             "estimated_cost_usd": 0.020975724
           },
           {
+            "agent_result": "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/result.json",
+            "agent_result_sha256": "520274c3725418d61f82cd43b5283ea233fc9dbe160a8e92a1e394bcd7647dcc",
+            "events": "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/events.jsonl",
+            "events_sha256": "94be146e4959f889d9c0c144b21ea8ebf74eb424e875f392c766f3c1037e3515",
+            "expected": {
+              "input_tokens": 405824,
+              "output_tokens": 26600
+            },
+            "observed": {
+              "input_tokens": 405824,
+              "output_tokens": 26600
+            },
+            "estimated_cost_usd": 0.02400924800000001
+          },
+          {
+            "agent_result": "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/result.json",
+            "agent_result_sha256": "a0451df2c86d25cf322480282d0f80f2cc48862dddd4f7b7e11d4cc458679207",
+            "events": "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/events.jsonl",
+            "events_sha256": "fc6835cafddf6b35ae777cc34b3235fa6c53fcf053d7f429ad02ea9f16c16627",
+            "expected": {
+              "input_tokens": 147706,
+              "output_tokens": 15623
+            },
+            "observed": {
+              "input_tokens": 147706,
+              "output_tokens": 15623
+            },
+            "estimated_cost_usd": 0.013743076
+          },
+          {
+            "agent_result": "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/result.json",
+            "agent_result_sha256": "63f5066ea447a5927228e1bee1b813adf20b723a25f3c05a09297653e508f2b6",
+            "events": "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/events.jsonl",
+            "events_sha256": "16298e2f0aefea866d28584fe08d0b5b4ca2f718676d31c52fe37cdbc60fc8bf",
+            "expected": {
+              "input_tokens": 195334,
+              "output_tokens": 5033
+            },
+            "observed": {
+              "input_tokens": 195334,
+              "output_tokens": 5033
+            },
+            "estimated_cost_usd": 0.012269788
+          },
+          {
+            "agent_result": "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/agent/result.json",
+            "agent_result_sha256": "9654b5e2290f34bad8a57e28f95b81d29da7948c8436708c91c692b9b3513ad4",
+            "events": "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/agent/events.jsonl",
+            "events_sha256": "6aad93de8772dc352388dfde51ec4c2869cc1ec205a67a44d0b198742688c513",
+            "expected": {
+              "input_tokens": 3388507,
+              "output_tokens": 31286
+            },
+            "observed": {
+              "input_tokens": 3388507,
+              "output_tokens": 31286
+            },
+            "estimated_cost_usd": 0.08236644400000001
+          },
+          {
+            "agent_result": "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/result.json",
+            "agent_result_sha256": "87fb873326a0c833d860095c37a1c24b5b92913b175ad89cd484889fe63537c3",
+            "events": "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/events.jsonl",
+            "events_sha256": "26c1537a6d959df720764b940d605043189207a93dcc9cebf26001f63b7c3cbc",
+            "expected": {
+              "input_tokens": 217734,
+              "output_tokens": 22068
+            },
+            "observed": {
+              "input_tokens": 217734,
+              "output_tokens": 22068
+            },
+            "estimated_cost_usd": 0.020479800000000003
+          },
+          {
             "agent_result": "cases/swebench/astropy__astropy-12907/1/prediction.result.json",
             "agent_result_sha256": "913a680bf456fad1310b040e3905364aed0f09b97495774cfa4fdee58f6a7241",
             "events": "cases/swebench/astropy__astropy-12907/1/prediction.events.jsonl",
@@ -1240,6 +1368,21 @@
               "output_tokens": 9382
             },
             "estimated_cost_usd": 0.018322399999999996
+          },
+          {
+            "agent_result": "cases/swebench/django__django-14017/1/prediction.result.json",
+            "agent_result_sha256": "ee198827a83700196fc611b1f51eb3ecc5688b9437b78eded6a3fb94e5d85eae",
+            "events": "cases/swebench/django__django-14017/1/prediction.events.jsonl",
+            "events_sha256": "779d2f0c37b6b1ea7a0f9fe5c0528bf08e12f7b13217ada34359e145afe9bb54",
+            "expected": {
+              "input_tokens": 1100857,
+              "output_tokens": 30533
+            },
+            "observed": {
+              "input_tokens": 1100857,
+              "output_tokens": 30533
+            },
+            "estimated_cost_usd": 0.041065696
           },
           {
             "agent_result": "cases/swebench/sympy__sympy-18532/1/prediction.result.json",
@@ -1270,23 +1413,29 @@
               "output_tokens": 93547
             },
             "estimated_cost_usd": 0.17860408000000003
-          },
-          {
-            "agent_result": "cases/swebench/django__django-14017/1/prediction.result.json",
-            "agent_result_sha256": "ee198827a83700196fc611b1f51eb3ecc5688b9437b78eded6a3fb94e5d85eae",
-            "events": "cases/swebench/django__django-14017/1/prediction.events.jsonl",
-            "events_sha256": "779d2f0c37b6b1ea7a0f9fe5c0528bf08e12f7b13217ada34359e145afe9bb54",
-            "expected": {
-              "input_tokens": 1100857,
-              "output_tokens": 30533
-            },
-            "observed": {
-              "input_tokens": 1100857,
-              "output_tokens": 30533
-            },
-            "estimated_cost_usd": 0.041065696
           }
         ]
+      }
+    },
+    "sam_verifier_replay_manifest": {
+      "source": "diagnostics/sam-verifier-replay/manifest.json",
+      "result": {
+        "classification": "Same model artifact, fresh original image, verified system dependency bootstrap; no model call",
+        "id": "terminal-bench/sam-cell-seg",
+        "image_id": "sha256:792f56b9413a280dfbeb0c5b64067e4f7217f0fba16cd84918eb28928f406fd2",
+        "image_digest": "alexgshaw/sam-cell-seg@sha256:d76bdeef19d8113f4094013249c982eca93e62e46130484846269b2d378879d0",
+        "model_source_sha256": "0925b4575d350d9d8172199553822c199e1c127562dcff3e34f19fff4bd6c2d9",
+        "original_record": "cases/terminalbench/sam-cell-seg/1/result.json",
+        "started_at": "2026-09-08T19:44:55.830165+00:00",
+        "free_bytes_before_pull": 10709475328,
+        "unchanged_files_sha256": {
+          "task.toml": "f0eb6af2acb87cb6fee67d77e8fdd55e3b331baf48999260bc5b6c4ac466c128",
+          "environment/Dockerfile": "43c8f78b721c30bff9e7e0d8b7fe89196664a49df53c97384da76a2cba26c494",
+          "instruction.md": "370629c8a1b22896e5bb85d13411a860c496d294e70d0ec7ab98c2911c922150",
+          "tests/test.sh": "7f2bc4976949fba258f1db6dedacb55377adc300d535ab849131744ce80bf8fd",
+          "tests/test_outputs.py": "853165994896503e0f7657885a9f361695b2eb3ea8ba097403270378dd566847"
+        },
+        "bootstrap_policy": "Only curl/git/libgl1 with mandatory dependencies; apt retries through the existing host proxy; libGL load check; original official verifier unchanged"
       }
     }
   },
@@ -1346,10 +1495,18 @@
     "cases/swebench/sympy__sympy-18532/2/prediction.jsonl": "10b5a048d22b453d39dfa96154f05d24e0c66382e6481046e13ec0794f99a04a",
     "logs/run_evaluation/flash40-sympy__sympy-18532-grade-2/deepseek-v4-flash/sympy__sympy-18532/report.json": "b7e3cebebc1b3b91574377f53788272731c5512639fe8e30f384aa87c4407beb",
     "cases/terminalbench/custom-memory-heap-crash/1/result.json": "f16e7a56902634aa63f741e2c883d07b747986a477dee76883c8b95240d6f58e",
+    "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/result.json": "76fa196bed90b0c8ed03b3ea95cf5d08d77be7dc201a1c55e48dec530ac93407",
+    "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/verifier/ctrf.json": "d8ef2384f9630c91b5f84b34f76a40745a0ab3dda7291781a5fe7230ba4b65a5",
+    "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/verifier/test-stdout.txt": "5df416a7b406a64a0d0b25149288ea47907fb567cc792dbccf3de603827d2973",
+    "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/agent/oracle.txt": "003152ac353077d33f2d62245095474b2448e47467e65908e885f77450b4cdab",
+    "terminalbench/custom-memory-heap-crash-nop-1/61e021e0304c9818a9be2c9173c8a093__rguKYE3/result.json": "04ddd2251efbcf25441b67400022fd1cf21a4549781c8003a2f5dc79b6ac699f",
+    "terminalbench/custom-memory-heap-crash-nop-1/61e021e0304c9818a9be2c9173c8a093__rguKYE3/verifier/ctrf.json": "b69b33112824c36ab30f1c0be2ed5887534004f3f2dde6af8778544319a8da8f",
+    "terminalbench/custom-memory-heap-crash-nop-1/61e021e0304c9818a9be2c9173c8a093__rguKYE3/verifier/test-stdout.txt": "45006de25b9b6da6baa1d4776f0fafc69e73ba0b0fa704e014cef9dbb91871a7",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/result.json": "02f4bd145f9e674feccb2d4263e600286d0c9018ac24b9c0290aba8ff63b71b9",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json": "0dd42b2bb2ec668b1f024ea68a98f4afda4ba33bfe855df8f5c21ffa51cfeed5",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/events.jsonl": "8f6548c42c2944ed0d36fb4824cebaca4caf9c54a93b641d26d787160867288c",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/verifier/ctrf.json": "5560faa85b0e65e17471f4c33a9216c0569e2ff2685b247bdb9102528eaa4663",
+    "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/verifier/test-stdout.txt": "98584d88253f4f7ba22f9258f83e39713d6b1ec8815df70d45856a9b2e4f507f",
     "cases/terminalbench/custom-memory-heap-crash/2/result.json": "904b5b8f26db4058f9bbe36932549695c205da7b2de5ffa74e885a2b874f9402",
     "terminalbench/custom-memory-heap-crash-baseline-2/61e021e0304c9818a9be2c9173c8a093__cSAEc9P/result.json": "c09b69aec0fccc0c96e23cedb0f902bb159dd9373de9ab7b6321c595d34d0973",
     "terminalbench/custom-memory-heap-crash-baseline-2/61e021e0304c9818a9be2c9173c8a093__cSAEc9P/trial.log": "1928af3c18dfee99c13566c69cafaa25f4f915ddb7e27c8e78a4220cacf79cbf",
@@ -1358,6 +1515,7 @@
     "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/agent/result.json": "21867e1af8bd35cb1898c101b371297a5c4aa571ba2fa7417ebecef6e5324700",
     "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/agent/events.jsonl": "19971ae0582f91d6c632e9d88f94e256dc03282841d283c8f23c0a7d3068e2bc",
     "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/verifier/ctrf.json": "77f71ed08f5cc56e4e60ad5b290d3c81bdaa246ace6c9c65fcd9c20527dbc8bc",
+    "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/verifier/test-stdout.txt": "4d6751b78437c1a59bde6a7710d678e24d2c1f278f771eabe1364ab4bb4293ef",
     "cases/terminalbench/custom-memory-heap-crash/3/output-capture.json": "616eed4a7245030e763c74581c2effadb3d2b149e0dff56cee458f59599e5e2b",
     "cases/terminalbench/custom-memory-heap-crash/3/final-user.cpp": "a231a3f4a4f524d1123ce4a6aa9d12a4dec013a3676b28437142365c28c80732",
     "cases/terminalbench/custom-memory-heap-crash/4/result.json": "64b2a27fb5b9dc54cc71ae7b335b448e1418a4623d383a58d6db72fa257d47fd",
@@ -1365,24 +1523,80 @@
     "terminalbench/custom-memory-heap-crash-baseline-4/61e021e0304c9818a9be2c9173c8a093__Q3ypBXD/agent/result.json": "9ac939de1b3a46ef61f46ce98090707b2c7e2fd0ea981891c78f1b0e3f11c683",
     "terminalbench/custom-memory-heap-crash-baseline-4/61e021e0304c9818a9be2c9173c8a093__Q3ypBXD/agent/events.jsonl": "745f07e0fcfe33de6ce0917501834a9f9f75fecaa4aca6f9dbcd4fe79bd85fdd",
     "terminalbench/custom-memory-heap-crash-baseline-4/61e021e0304c9818a9be2c9173c8a093__Q3ypBXD/verifier/ctrf.json": "afd9b12a6415f61bc6fd3399e9cebede82545766294209417a27c17b28ac98a2",
+    "terminalbench/custom-memory-heap-crash-baseline-4/61e021e0304c9818a9be2c9173c8a093__Q3ypBXD/verifier/test-stdout.txt": "dbb04ac50b60b22caceea500490e25e2527bc1f9656d5ef8b836a09d93fe7bae",
     "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json": "889ed581db935aad55c1e0f07481923dedb62a4ed0cf1065ee1331960413253d",
     "cases/terminalbench/custom-memory-heap-crash/4/final-user.cpp": "5ee212b6bc82804b6a71f92922c24f26878671c75c10226c9179d1e834878be3",
     "cases/terminalbench/large-scale-text-editing/1/result.json": "9c5a87945a3dcf38d990afe08149f4b4402ec77f5a31cdd894adaffbf563b8fc",
+    "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/result.json": "230107f3dfe5acbb8b7df3d832223ad384847c1a4b0f02e150cc5ed0c4bff37b",
+    "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/ctrf.json": "6ab8eeb5c8d0eecaa6853a445705baaaa656e93d2724e4bb8e456b66fe467f77",
+    "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/test-stdout.txt": "1fe8fd4178fde316c94526be300db53edff6ebdce1415262fea4476b0b2da776",
+    "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/agent/oracle.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "terminalbench/large-scale-text-editing-nop-1/1f1cddc3df15e452fe2d3c6928f6b1e5__oeeBtoK/result.json": "de9e22f93874cdea5b8b79d64964948857b3c2ac5105ce9f4d7f9f8fb0896b00",
+    "terminalbench/large-scale-text-editing-nop-1/1f1cddc3df15e452fe2d3c6928f6b1e5__oeeBtoK/verifier/ctrf.json": "a95a1141a965d26aff2b2180ca1b621b23b446de9aa6d991bb430fa7759427bd",
+    "terminalbench/large-scale-text-editing-nop-1/1f1cddc3df15e452fe2d3c6928f6b1e5__oeeBtoK/verifier/test-stdout.txt": "dac2292211b1277b35b19c000b5ac3549c36345a9da99f637d56ab454787decc",
     "cases/terminalbench/multi-source-data-merger/1/result.json": "0f1ec22bcc1494f7ef338dd83df4331088e18b48baff5097ffc4a0b4d779ebc4",
+    "terminalbench/multi-source-data-merger-oracle-1/70367c38732e1beda7b229968a48d602__8cPTtRX/result.json": "adcc3beef4f0a67420c57d3246ff0b02bfe9f65b5b7481a6e8df546dc44dcca8",
+    "terminalbench/multi-source-data-merger-oracle-1/70367c38732e1beda7b229968a48d602__8cPTtRX/verifier/ctrf.json": "29a36b4f42b0722a1affb16ce795486fb80fd540d28713ba01d81e74a44adab0",
+    "terminalbench/multi-source-data-merger-oracle-1/70367c38732e1beda7b229968a48d602__8cPTtRX/verifier/test-stdout.txt": "dd9aeb40a16d8bd7b67c4357d6fc17175bd7a564c0e6d2e1ed0533e51fa6c0f1",
+    "terminalbench/multi-source-data-merger-oracle-1/70367c38732e1beda7b229968a48d602__8cPTtRX/agent/oracle.txt": "f7da07c010147652d7e4b7155d361bf75c20d047ae410fc9f9c489b38d0d44d2",
+    "terminalbench/multi-source-data-merger-nop-1/70367c38732e1beda7b229968a48d602__oacHcLV/result.json": "456c0d15b7952351a6479d8115e78aade2cfc853b8017dee42e6881c11959535",
+    "terminalbench/multi-source-data-merger-nop-1/70367c38732e1beda7b229968a48d602__oacHcLV/verifier/ctrf.json": "da36f785ac5f6aa2e5fc5319d0def6cac214677017af6232403bdbc259d9493a",
+    "terminalbench/multi-source-data-merger-nop-1/70367c38732e1beda7b229968a48d602__oacHcLV/verifier/test-stdout.txt": "a417aa05f7a9993ebee3e0257b1ea660409baec51dddbc5cbb389deda61f306c",
     "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/result.json": "c8ac35a7237a7e2a7e717c24df1d3d400886cf8e876a7d03c04bc2792ede2381",
     "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/result.json": "a0451df2c86d25cf322480282d0f80f2cc48862dddd4f7b7e11d4cc458679207",
     "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/events.jsonl": "fc6835cafddf6b35ae777cc34b3235fa6c53fcf053d7f429ad02ea9f16c16627",
     "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/verifier/ctrf.json": "9c753572309201c2df6eb91e3142aa7b0aaa60c428088197623e8edd2b9cc762",
+    "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/verifier/test-stdout.txt": "8d6587d6798a49d8a273f9a39fbad8bff7addcb9171d95182ffff7290abcd9c1",
     "cases/terminalbench/openssl-selfsigned-cert/1/result.json": "017c3387a8ac86141262eef170c2ab11912c537d589f984abcac3d7f41fcc28c",
+    "terminalbench/openssl-selfsigned-cert-oracle-1/d4afa2bd2a9ba1420db8d6cfde42ffdb__wPNY7Th/result.json": "ae6e60ce6c41806c35c9460728e2e265726a4e87cc20840026b904bf5b5430b4",
+    "terminalbench/openssl-selfsigned-cert-oracle-1/d4afa2bd2a9ba1420db8d6cfde42ffdb__wPNY7Th/verifier/ctrf.json": "81aeeaebaa92fc78a9c6cb8a206c59d0a3f1557414cd0cf016de63627d12e5da",
+    "terminalbench/openssl-selfsigned-cert-oracle-1/d4afa2bd2a9ba1420db8d6cfde42ffdb__wPNY7Th/verifier/test-stdout.txt": "fd2ce6fce531f7c46236328b16f15ce1773e2767744fa4ff01224539fae67483",
+    "terminalbench/openssl-selfsigned-cert-oracle-1/d4afa2bd2a9ba1420db8d6cfde42ffdb__wPNY7Th/agent/oracle.txt": "de5e467105c2c20bc9ba04e8f8e09d1f4a47b40bfd0beca54df452ce29247ad1",
+    "terminalbench/openssl-selfsigned-cert-nop-1/d4afa2bd2a9ba1420db8d6cfde42ffdb__BUbxqH3/result.json": "415bf1b3efd79cb7bae9e7d0b529f68727d4f1dc6f3eac9f6822caa9ded523ee",
+    "terminalbench/openssl-selfsigned-cert-nop-1/d4afa2bd2a9ba1420db8d6cfde42ffdb__BUbxqH3/verifier/ctrf.json": "1b3941ee2635551d2a37fb79b4ef52369abf91c36dbee17e308935e00e2b2952",
+    "terminalbench/openssl-selfsigned-cert-nop-1/d4afa2bd2a9ba1420db8d6cfde42ffdb__BUbxqH3/verifier/test-stdout.txt": "07d0fdc9166cb53aecb8b6f75e088a427d0b6e9e2c1ebf9fcd262455b5334c6d",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/result.json": "63973d8246ed5c526fbd652b9437be14338db00f73c01719595add0744c01606",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/result.json": "63f5066ea447a5927228e1bee1b813adf20b723a25f3c05a09297653e508f2b6",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/events.jsonl": "16298e2f0aefea866d28584fe08d0b5b4ca2f718676d31c52fe37cdbc60fc8bf",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/verifier/ctrf.json": "534f9144d2c6df4464d989fda8358d551bed13918754f392858455112a712301",
+    "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/verifier/test-stdout.txt": "4ddf62f981ae3b08d515fea11b2ed9197917e3467db7be603c1adffddda21002",
+    "cases/terminalbench/rstan-to-pystan/1/result.json": "bc96122404454c261268135d632036b3d1b350643502fb7512c969a0e7e1af8f",
+    "terminalbench/rstan-to-pystan-oracle-1/592f15f75751f3c4999c3d05087f2f8b__32ecvhU/result.json": "a481ebab6728795f3b96aa8a2dd3b65b500d533b5f1a6490da84897d77ccddb7",
+    "terminalbench/rstan-to-pystan-oracle-1/592f15f75751f3c4999c3d05087f2f8b__32ecvhU/verifier/ctrf.json": "6abb81bb3ddd61c09c3a97ee9be94a8d7b15e7c24be0e7b0106c1f990d78ed1e",
+    "terminalbench/rstan-to-pystan-oracle-1/592f15f75751f3c4999c3d05087f2f8b__32ecvhU/verifier/test-stdout.txt": "581aa6aac49010d4d6aefd20a5021050558e87e8b2d9aa46881f5ca7eea82b10",
+    "terminalbench/rstan-to-pystan-oracle-1/592f15f75751f3c4999c3d05087f2f8b__32ecvhU/agent/oracle.txt": "ca38959a4c31ac00640fef232a67021588a5b12352fa908e0ca994229107f261",
+    "terminalbench/rstan-to-pystan-oracle-1/592f15f75751f3c4999c3d05087f2f8b__32ecvhU/agent/exit-code.txt": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "terminalbench/rstan-to-pystan-nop-1/592f15f75751f3c4999c3d05087f2f8b__3eGp5u4/result.json": "af0c1ec3d243c5660426a6de3cd7beac2984172bc5ff09d6709d21026e2f81c3",
+    "terminalbench/rstan-to-pystan-nop-1/592f15f75751f3c4999c3d05087f2f8b__3eGp5u4/verifier/ctrf.json": "f7169d78dff546e1982d5fcb943a9be1be8fc2c9d54b03fa9e91c78014d41dc0",
+    "terminalbench/rstan-to-pystan-nop-1/592f15f75751f3c4999c3d05087f2f8b__3eGp5u4/verifier/test-stdout.txt": "76dc1dc415fd8300155cc1f2c46ce99c3d4b63b4b086a36ea1ad25706b2f5e18",
+    "cases/terminalbench/sam-cell-seg/1/result.json": "0f2b4fd121e0c70c8cead8e2d5edf49b2d69620e9e9facaca027bbf3e3f9442a",
+    "terminalbench/sam-cell-seg-oracle-1/37c182b91df18b9c2ea2dceda47430bb__mYwvp7p/result.json": "ad810ac77d7aa5dcb6611ca34c94050e5005b0cdcd3a2772b33f73dca9086595",
+    "terminalbench/sam-cell-seg-oracle-1/37c182b91df18b9c2ea2dceda47430bb__mYwvp7p/verifier/ctrf.json": "b89fcd71108f3e6f99ad20ba58c125cb5c7a05b167f3b15df099b4b1845d6e18",
+    "terminalbench/sam-cell-seg-oracle-1/37c182b91df18b9c2ea2dceda47430bb__mYwvp7p/verifier/test-stdout.txt": "7959f8407abce723dcb933d4dae844367a0c9e8cb9bc0fb61adef7812bafbf75",
+    "terminalbench/sam-cell-seg-oracle-1/37c182b91df18b9c2ea2dceda47430bb__mYwvp7p/agent/oracle.txt": "ef0c76e0ec7dc3514fdb1ad40b6ee96ddd7d8e0775c80bcc81df5eab7541700d",
+    "terminalbench/sam-cell-seg-nop-1/37c182b91df18b9c2ea2dceda47430bb__V6sx8id/result.json": "d33c1c262a18a2de28137fcb165c54da4ced716166a41e951c2517d7d7f5f803",
+    "terminalbench/sam-cell-seg-nop-1/37c182b91df18b9c2ea2dceda47430bb__V6sx8id/verifier/ctrf.json": "09934efb7df2cdc6a3c873c840712b188a016f5779287adcc1dc45c6ba126271",
+    "terminalbench/sam-cell-seg-nop-1/37c182b91df18b9c2ea2dceda47430bb__V6sx8id/verifier/test-stdout.txt": "01fa358f7db79f72ebe6eb852a2ceaf60fd866a7e71a0d2e05b60c0329d55475",
+    "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/result.json": "c799446b3e7d87086537d9a99a722f8e88c3156292087f0153efbd472ded4659",
+    "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/agent/result.json": "9654b5e2290f34bad8a57e28f95b81d29da7948c8436708c91c692b9b3513ad4",
+    "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/agent/events.jsonl": "6aad93de8772dc352388dfde51ec4c2869cc1ec205a67a44d0b198742688c513",
+    "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/verifier/ctrf.json": "1c82988721c78a1401989a73b9f008022ab8f10c9485bffb4c63853aff740edb",
+    "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/verifier/test-stdout.txt": "0b3105abf102b400a360899fe6ced5161ba16590c834eb82899cade657dfecc3",
+    "cases/terminalbench/sam-cell-seg/1/output-capture.json": "563e882194fc660ad1007db099a875e4c0df24174ea19b51367058735d50c071",
+    "cases/terminalbench/sam-cell-seg/1/final-convert_masks.py": "0925b4575d350d9d8172199553822c199e1c127562dcff3e34f19fff4bd6c2d9",
     "cases/terminalbench/sparql-university/1/result.json": "a61a637b5714dd3accb8da6df71c8d840c804a526c32d2f6339161754267ccd4",
+    "terminalbench/sparql-university-oracle-1/02aeca67b6c5b0d2d72c91ab471beb51__8yenjHB/result.json": "98c51d329cbae7b15938cc46e20c830fdabbe50c634260f671f514ef56891790",
+    "terminalbench/sparql-university-oracle-1/02aeca67b6c5b0d2d72c91ab471beb51__8yenjHB/verifier/ctrf.json": "1d7469bee753dc7e293cf76393e4c87ecc4177b755b1bc410eb29e9cc7ca9c46",
+    "terminalbench/sparql-university-oracle-1/02aeca67b6c5b0d2d72c91ab471beb51__8yenjHB/verifier/test-stdout.txt": "82d1ba50e29e73d00be676653ad53cdd8f28c8877870efd33e680500d629426a",
+    "terminalbench/sparql-university-oracle-1/02aeca67b6c5b0d2d72c91ab471beb51__8yenjHB/agent/oracle.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "terminalbench/sparql-university-nop-1/02aeca67b6c5b0d2d72c91ab471beb51__zrk9PDF/result.json": "882664f9b24aef01558f01fae4d0777dbb94d6579f2d45c7a36a32926279b18f",
+    "terminalbench/sparql-university-nop-1/02aeca67b6c5b0d2d72c91ab471beb51__zrk9PDF/verifier/ctrf.json": "1aaec6a0211fbe1948eab29e4690a7e3c85fd006114f4e5cdfeb038e9d4f3a51",
+    "terminalbench/sparql-university-nop-1/02aeca67b6c5b0d2d72c91ab471beb51__zrk9PDF/verifier/test-stdout.txt": "ab897e3e8755f3e1a262e40f56b06ed3cdd0d28dcb92ff095a2f7e0be0d2ec5c",
     "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/result.json": "d933f920bd398b1e1943e23eddc974547ca2ff38f1ed848f6fb68d1bb660eda7",
     "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/result.json": "87fb873326a0c833d860095c37a1c24b5b92913b175ad89cd484889fe63537c3",
     "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/events.jsonl": "26c1537a6d959df720764b940d605043189207a93dcc9cebf26001f63b7c3cbc",
     "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/verifier/ctrf.json": "4da1050daf56e1620990506bbadca291ed425b83fea176b97cb7a1ddbbffdcb4",
+    "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/verifier/test-stdout.txt": "20aac2e7aaf15d8b810968bd9ad0544d0b1645191ce155e592c0243cc07e60ad",
     "logs/run_evaluation/flash40-astropy__astropy-12907-gold-1/control-gold/astropy__astropy-12907/report.json": "fe3f3bddc9631279d3babf7270913070d91e9207c3468bd947823aee3e7b1b86",
     "logs/run_evaluation/flash40-astropy__astropy-12907-negative-1/control-negative/astropy__astropy-12907/report.json": "694d47ab10f881fae49f54c1d0d1776143e5d268ca6f0c3bc5dee7ebbb705361",
     "diagnostics/empty-reasoning-api-probe.json": "4637d2e76398fdc9ebbe67a8d64e2e31c275fa6fdaf88b3865d646fbaff9e872",
@@ -1393,7 +1607,6 @@
     "diagnostics/heap-protocol-replay/baseline_disabled-2.response.json": "6244d8460d0867ed738ffef3e6d02337a212f380c79fd3076a6223cfac89730e",
     "diagnostics/heap-protocol-replay/preserve_empty-1.response.json": "2c40c826d150e4c30c2c2f915e57ab8eb5a2f5709c9c839101a1330e52e27d37",
     "diagnostics/heap-protocol-replay/preserve_empty-2.response.json": "c7f88a27f66bca1970e12d6728bc6be65a84605c844f8dd0605e893cb2b4b6a3",
-    "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/test-stdout.txt": "1fe8fd4178fde316c94526be300db53edff6ebdce1415262fea4476b0b2da776",
     "diagnostics/replay_heap_protocol.py": "d9eda87a57b85d7b1621f8587d00603278f2eb5595647f1f81847c978d00bef4",
     "diagnostics/sympy-candidate/protocol-observations.json": "3d212ccaa780b6fa5d7af41168e772bd503366649d159fe907e5ea75a62ad503",
     "diagnostics/sympy-candidate/environment-probe.json": "810d77e80670a7fdd3bf234e5a1960a4e57e19c15a74f9480690da8fc17a65e1",
@@ -1406,7 +1619,10 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "a23b306d620f4b41158d6f4e78d4196f00cee4a9c5aaa4f9bab81fe969d86659",
+    "diagnostics/summary-reconciliation.json": "5cd00082e8352f6876d175f7ec382b722709cb773b402cea6bf51861d760b24d",
+    "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
+    "diagnostics/replay_sam_verifier.py": "6d3375002660e55608560151ea156010ee23e3e13847f6770fa251458c2d8609",
+    "diagnostics/sam-verifier-replay/task/solution/solve.sh": "ac3e9b269ce93c8204e4a657d05579f22be790af6643ef5b4e9103fcc6105e91",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/verifier/ctrf.json": "cfbd5650309229aae45696f6eaf5cfd1f1aa9629b1da869574c017c2b28ee83b",
     "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/verifier/ctrf.json": "fa747403edb7db3635f4433df4db0b1d43c071bf21413251abfab1c0cbb5498a",
     "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/verifier/ctrf.json": "e9aee3fdb91131a62f0677ebd635c8bf210fb10ddea0861301dc756cc3b20a2c",
@@ -1425,6 +1641,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/6341e868abcaaf608b203b01eef24b1679af962e38a36f198fc6b348f5c8e9be.py": "6341e868abcaaf608b203b01eef24b1679af962e38a36f198fc6b348f5c8e9be"
+    "diagnostics/source-snapshots/02c80919f2dc6acb03b3c6178865f15e0b6dde031ce840ea61079301aa2d1c1d.py": "02c80919f2dc6acb03b3c6178865f15e0b6dde031ce840ea61079301aa2d1c1d"
   }
 }

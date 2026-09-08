@@ -144,3 +144,57 @@ def test_later_diagnostics_do_not_become_the_frozen_first_baseline(tmp_path):
 
     assert result["baseline_counts"] == {"not_run": 1}
     assert [a["attempt"] for a in result["tasks"][0]["attempts"]] == ["2", "10"]
+
+
+@pytest.mark.parametrize(
+    "statuses,reward,expected",
+    [
+        ([], 0, "invalid_verifier"),
+        ([], 1, "invalid_verifier"),
+        (["skipped"], 0, "invalid_verifier"),
+        (["failed"], 0, "fail"),
+    ],
+)
+def test_terminal_scoring_separates_collection_failure_from_failed_tests(
+    tmp_path, statuses, reward, expected
+):
+    trial = tmp_path / "terminalbench/example-baseline-1/trial"
+    write_json(
+        trial / "result.json",
+        {"finished_at": "2026-09-08T18:01:00Z", "verifier_result": {"rewards": {"reward": reward}}},
+    )
+    write_json(trial / "agent/result.json", {"status": "completed"})
+    write_json(
+        trial / "verifier/ctrf.json",
+        {
+            "results": {
+                "summary": {"tests": len(statuses)},
+                "tests": [{"name": "actual_assertion", "status": status} for status in statuses],
+            }
+        },
+    )
+
+    report = summary.summarize(
+        tmp_path, {"terminalbench": [{"id": "terminal-bench/example"}], "swebench": []}
+    )
+
+    assert report["baseline_counts"] == {"pass" if reward else "fail": 1}
+    assert report["baseline_scoring_counts"] == {expected: 1}
+    assert report["tasks"][0]["attempts"][0]["verifier_health"]["status"] == (
+        "valid" if expected == "fail" else "invalid"
+    )
+
+
+def test_missing_structured_report_is_unknown_instead_of_zero_tests(tmp_path):
+    trial = tmp_path / "terminalbench/example-baseline-1/trial"
+    write_json(
+        trial / "result.json",
+        {"finished_at": "2026-09-08T18:01:00Z", "verifier_result": {"rewards": {"reward": 1}}},
+    )
+
+    report = summary.summarize(
+        tmp_path, {"terminalbench": [{"id": "terminal-bench/example"}], "swebench": []}
+    )
+
+    assert report["baseline_scoring_counts"] == {"pass": 1}
+    assert report["tasks"][0]["attempts"][0]["verifier_health"]["status"] == "unknown"
