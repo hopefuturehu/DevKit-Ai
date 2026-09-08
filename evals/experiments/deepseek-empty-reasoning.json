@@ -55,12 +55,22 @@
   "cross_task_validation": {
     "task": "sympy__sympy-18532",
     "attempt": "2",
-    "state": "running; original default tool environment retained"
+    "state": "officially resolved; original default tool environment retained",
+    "resolved": true,
+    "FAIL_TO_PASS_success": 2,
+    "PASS_TO_PASS_success": 28,
+    "agent_status": "failed",
+    "agent_steps": 119,
+    "residual_issue": "Final running request returned reasoning_content HTTP 400 after a valid patch had been written; exact rejected payload unavailable."
   },
   "run_artifact_sha256": {
     "cases/terminalbench/custom-memory-heap-crash/4/result.json": "64b2a27fb5b9dc54cc71ae7b335b448e1418a4623d383a58d6db72fa257d47fd",
     "cases/terminalbench/custom-memory-heap-crash/4/final-user.cpp": "5ee212b6bc82804b6a71f92922c24f26878671c75c10226c9179d1e834878be3",
     "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json": "889ed581db935aad55c1e0f07481923dedb62a4ed0cf1065ee1331960413253d",
-    "diagnostics/sympy-candidate/environment-probe.json": "810d77e80670a7fdd3bf234e5a1960a4e57e19c15a74f9480690da8fc17a65e1"
+    "diagnostics/sympy-candidate/environment-probe.json": "810d77e80670a7fdd3bf234e5a1960a4e57e19c15a74f9480690da8fc17a65e1",
+    "cases/swebench/sympy__sympy-18532/2/result.json": "09b6e219e6870a4ad413ea085cb0d3f0e75d4f1bd4f9032adf1943c168019729",
+    "cases/swebench/sympy__sympy-18532/2/prediction.result.json": "136374e365e0747fc033694c44adcf0a6cc13686f22297b258eb93f257d4c18f",
+    "cases/swebench/sympy__sympy-18532/2/prediction.jsonl": "10b5a048d22b453d39dfa96154f05d24e0c66382e6481046e13ec0794f99a04a",
+    "diagnostics/sympy-candidate/protocol-observations.json": "3d212ccaa780b6fa5d7af41168e772bd503366649d159fe907e5ea75a62ad503"
   }
 }

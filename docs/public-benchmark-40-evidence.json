@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T18:16:26.952960+00:00",
+  "generated_at": "2026-09-08T18:44:37.366180+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
-    "pass": 4,
-    "not_run": 34,
+    "pass": 5,
+    "not_run": 33,
     "fail": 2
   },
   "completed_cases": [
@@ -366,9 +366,125 @@
       "error": null,
       "input_tokens": 195334,
       "output_tokens": 5033
+    },
+    {
+      "id": "terminal-bench/sparql-university",
+      "attempt": "1",
+      "verdict": "pass",
+      "record": "cases/terminalbench/sparql-university/1/result.json",
+      "image_id": "sha256:4b477a009da63f0cff40da8caa52e09a382bf4a0ce011cd371c09650e665ba9c",
+      "agent_variant": "original",
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_sparql_file_exists",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_sparql_runs_without_error",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_sparql_query_results",
+          "status": "passed"
+        }
+      ],
+      "run_status": "completed",
+      "steps": 11,
+      "error": null,
+      "input_tokens": 217734,
+      "output_tokens": 22068
     }
   ],
   "diagnostic_repeats": [
+    {
+      "id": "sympy__sympy-18532",
+      "attempt": "2",
+      "verdict": "pass",
+      "record": "cases/swebench/sympy__sympy-18532/2/result.json",
+      "image_id": "sha256:b54745fd69fab9e8cca8171125c3a0898cded28ea14f52849fddb6086af72a3c",
+      "agent_variant": "empty-reasoning-candidate",
+      "controls": {
+        "gold": {
+          "resolved": true,
+          "patch_successfully_applied": true,
+          "tests": {
+            "FAIL_TO_PASS": {
+              "success": 2,
+              "failure": 0
+            },
+            "PASS_TO_PASS": {
+              "success": 28,
+              "failure": 0
+            },
+            "FAIL_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            },
+            "PASS_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            }
+          }
+        },
+        "negative": {
+          "resolved": false,
+          "patch_successfully_applied": true,
+          "tests": {
+            "FAIL_TO_PASS": {
+              "success": 0,
+              "failure": 2
+            },
+            "PASS_TO_PASS": {
+              "success": 28,
+              "failure": 0
+            },
+            "FAIL_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            },
+            "PASS_TO_FAIL": {
+              "success": 0,
+              "failure": 0
+            }
+          }
+        }
+      },
+      "tests": {
+        "FAIL_TO_PASS": {
+          "success": 2,
+          "failure": 0
+        },
+        "PASS_TO_PASS": {
+          "success": 28,
+          "failure": 0
+        },
+        "FAIL_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        },
+        "PASS_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        }
+      },
+      "resolved": true,
+      "empty_patch": false,
+      "run_status": "failed",
+      "steps": 119,
+      "error": "provider_error: 模型 API 返回 HTTP 400: {\"error\":{\"message\":\"The `reasoning_content` in the thinking mode must be passed back to the API.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "input_tokens": 6237427,
+      "output_tokens": 93547
+    },
     {
       "id": "terminal-bench/custom-memory-heap-crash",
       "attempt": "3",
@@ -722,6 +838,160 @@
     ],
     "limitation": "Reconstructed transcript/core policy; no exact environment/runtime notes or dynamic tool schema snapshot. No returned tools executed; not an official task rerun."
   },
+  "additional_diagnostics": {
+    "sympy_protocol_observations": {
+      "source": "diagnostics/sympy-candidate/protocol-observations.json",
+      "result": {
+        "model": "deepseek-v4-flash",
+        "attempt": 2,
+        "official_resolved": true,
+        "agent_status": "failed",
+        "agent_error": "provider_error: 模型 API 返回 HTTP 400: {\"error\":{\"message\":\"The `reasoning_content` in the thinking mode must be passed back to the API.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+        "steps": 119,
+        "normal_responses": 118,
+        "thinking_enabled_responses": 118,
+        "empty_reasoning_tool_steps": [
+          4,
+          5,
+          7,
+          21,
+          23,
+          31,
+          53,
+          63,
+          111
+        ],
+        "max_completion_tokens": 4418,
+        "stored_tool_turns": 118,
+        "stored_tool_turns_missing_reasoning": 0,
+        "provider_failure": [
+          {
+            "step": 119,
+            "status": "failed",
+            "reason_code": "provider_error",
+            "message": "模型 API 返回 HTTP 400: {\"error\":{\"message\":\"The `reasoning_content` in the thinking mode must be passed back to the API.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+            "model_finalizer": true,
+            "provider_retry_count": 0,
+            "provider_error_kind": "protocol"
+          }
+        ],
+        "limitation": "The exact rejected outbound request was not captured. Stored tool-call turns all preserve reasoning fields; the cause of the later HTTP 400 has not been isolated. No claim that compaction caused it."
+      }
+    },
+    "sympy_original_environment": {
+      "source": "diagnostics/sympy-candidate/environment-probe.json",
+      "result": {
+        "default": {
+          "returncode": 0,
+          "stdout": "{\"executable\": \"/opt/miniconda3/bin/python\", \"version\": \"3.11.5\", \"path\": \"/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\", \"mpmath_available\": false}",
+          "stderr": ""
+        },
+        "testbed": {
+          "returncode": 0,
+          "stdout": "{\"executable\": \"/opt/miniconda3/envs/testbed/bin/python\", \"version\": \"3.9.20\", \"path\": \"/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\", \"mpmath_available\": true}",
+          "stderr": ""
+        }
+      }
+    },
+    "sympy_activation_probe": {
+      "source": "diagnostics/sympy-candidate/activation-probe.json",
+      "result": {
+        "default": {
+          "launcher": "/opt/miniconda3/bin/python",
+          "path": "/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "child_rc": 1,
+          "child_stdout": "",
+          "child_stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nModuleNotFoundError: No module named 'mpmath'\n"
+        },
+        "testbed_activated": {
+          "launcher": "/opt/miniconda3/bin/python",
+          "path": "/opt/miniconda3/envs/testbed/bin:/opt/miniconda3/condabin:/opt/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "child_rc": 0,
+          "child_stdout": "{\"executable\": \"/opt/miniconda3/envs/testbed/bin/python\", \"python\": \"3.9.20\", \"mpmath\": \"1.3.0\", \"sympy_file\": \"/testbed/sympy/__init__.py\"}\n",
+          "child_stderr": ""
+        },
+        "provenance": {
+          "image_id": "sha256:b54745fd69fab9e8cca8171125c3a0898cded28ea14f52849fddb6086af72a3c",
+          "local_execution_source_sha256": "0c90e1846e6477f351cde7f138937c1a914e989da4a3032e494953c5444c36a3",
+          "method": "Executed the frozen LocalExecutionTarget._safe_environment method extracted by AST, then spawned the real project Python in a disposable container. No model invoked; not a full Worker integration test."
+        }
+      }
+    },
+    "sympy_image_cleanup": {
+      "source": "diagnostics/sympy-candidate/cleanup.json",
+      "result": {
+        "at": "2026-09-08T18:44:17.875588+00:00",
+        "tag": "swebench/sweb.eval.x86_64.sympy_1776_sympy-18532:latest",
+        "image_id": "sha256:b54745fd69fab9e8cca8171125c3a0898cded28ea14f52849fddb6086af72a3c",
+        "returncode": 0,
+        "stdout": "Untagged: swebench/sweb.eval.x86_64.sympy_1776_sympy-18532:latest\nUntagged: swebench/sweb.eval.x86_64.sympy_1776_sympy-18532@sha256:c2c4bbb1fa8a6b6a18dff5455cfbb57dceb6dbb446c74529c92bde20220d3c32\nDeleted: sha256:b54745fd69fab9e8cca8171125c3a0898cded28ea14f52849fddb6086af72a3c\nDeleted: sha256:2cf7313cd2908ff749e3d76a20bf509e9e134dff718a45f5b05cad90e3776585\nDeleted: sha256:e5f91fca7433be96317d347d324c919861efae5ae768bcadde2fd011653ec24f\nDeleted: sha256:0f044b246d1f516868130dd8c00f64ce03b26e7a779b24ebd4f7d096dc8fab54\nDeleted: sha256:603ad4cdf9f865da087a6cff6720fa19159196183990e0e60ecaa73fb097a6f0\nDeleted: sha256:0978b19cde395c8e9d7cd291de5d60b45350378b0ed066748348944072e6173b\nDeleted: sha256:a634031e76f92305770c0d66bccc23d78a0050fb795e2b6899fc6772cd5f0063\nDeleted: sha256:8876ba60ff5288b36e43471244bb68618607edc89d02952521abe78b16f64ccb\nDeleted: sha256:1d15e24435ad0b6de659a9bef5a6f6b65542467bea064e43c83ebcd33f7beae1\nDeleted: sha256:6564f6d5b14ac3b34d5dc0b6ec4f94d21cce28262be158eaab1a3c4c58a810cd\nDeleted: sha256:beb59027b96ddbf30ac9c80b527668fe7011f4f553fe83f5e59199e9a84fb5ca\n",
+        "stderr": "",
+        "reason": "Exact-image Sympy protocol repeat and environment probes complete; image was not present in the retained original inventory."
+      }
+    },
+    "native_vim_manifest": {
+      "source": "diagnostics/native-vim/manifest.json",
+      "result": {
+        "source_url": "https://github.com/vim/vim/archive/refs/tags/v9.0.1378.tar.gz",
+        "source_sha256": "2f7089042fa4abe4e978d285d00ad5dbd8bc53fab1d5d4264c7fa203eb7c3a6b",
+        "source_bytes": 16972388,
+        "purpose": "Isolated native ARM64 Vim performance diagnostic; original shared Docker settings untouched",
+        "caveat": "Upstream 9.0.1378 compared with Debian 9.0.1378 + distribution patches; not bit-identical builds",
+        "build": {
+          "argv": [
+            "docker",
+            "run",
+            "--rm",
+            "--name",
+            "kunpeng-vim-native-build-20260909",
+            "--platform",
+            "linux/arm64",
+            "--cpus",
+            "1",
+            "--memory",
+            "1g",
+            "--mount",
+            "type=bind,src=/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/diagnostics/native-vim,dst=/out",
+            "alpine:3.20",
+            "sh",
+            "/out/build.sh"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 111.83179903030396,
+          "script_sha256": "525661eb033b2ce7984f8fd1f8b4dd6d52f48fc52ac07df1f50e4702f7e0317e"
+        },
+        "binary_sha256": "f0176daf03a70185fb17ae164bebab9ed86414f875b2d508a2cac47c6181fd5a",
+        "original_image": "alexgshaw/large-scale-text-editing:20251031",
+        "diagnostic_image": "kunpeng-diagnostic/large-text-native-vim:20260909",
+        "diagnostic_image_id": "sha256:c130649239a1fc47ca5829fad670e6d97ab19918cc9632b220be963adccf92f6",
+        "unchanged_files_sha256": {
+          "instruction.md": "2746a16369b28b2e368ca168bc85222811cbe570f3b315f1b1c432afad07ddc8",
+          "solution/solve.sh": "a4fb27c7fa4cd4da26f7fbccbaaca24c290dc41ab9dbbb6e1dc916e72743c55d",
+          "tests/test.sh": "e5edb6fcd43d7e638ffcf64522c11185a8355afb5daf6ad805cdfedd47e9ceb3",
+          "tests/test_outputs.py": "f5e69f4fedeefa23197745888a5847161529f454e6b5c32a4057363d9ae4cd43",
+          "tests/gen_large_csv.py": "167daab578dc75ba1385c40492037f11708b06ea4cda836cd05f12017ae54654"
+        },
+        "classification": "diagnostic environment variant; original image baseline unchanged; official internal 600 second limit unchanged"
+      }
+    },
+    "native_vim_controls": {
+      "source": "diagnostics/native-vim/control-results.json",
+      "result": {
+        "oracle": {
+          "path": "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/result.json",
+          "sha256": "9fba6762196f5a0582695dad4310cfb9eb94023cb4b847426b2a046b835068e3",
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "path": "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/result.json",
+          "sha256": "61dd7d4f3b0188e56f25c46280b547698d5a0394868c7a7229639cc86fbd903e",
+          "reward": 0.0,
+          "exception": null
+        }
+      }
+    }
+  },
   "artifact_root": "artifacts/public-benchmark/20260909-flash",
   "artifact_sha256": {
     "cases/swebench/astropy__astropy-12907/1/result.json": "9e51198c126f1c1b5dffd9ec95b7ab8d66d2d3ae566f3b582d672bfacb2ed0b1",
@@ -739,6 +1009,11 @@
     "cases/swebench/sympy__sympy-18532/1/prediction.events.jsonl": "428a73a82ea5385692a610e631cca839d0033dae9e48fb4b2c360e8ec5b7c346",
     "cases/swebench/sympy__sympy-18532/1/prediction.jsonl": "e30c7fd043c402e3e1576bfe825300ec7a3eaa6cbf220ad1a5197b0b2c983b36",
     "deepseek-v4-flash.flash40-sympy__sympy-18532-grade-1.json": "3fb8007975f9607361ee46d6f90b3eef6e5a1f8d8e9d807fa441ec0a9651d3aa",
+    "cases/swebench/sympy__sympy-18532/2/result.json": "09b6e219e6870a4ad413ea085cb0d3f0e75d4f1bd4f9032adf1943c168019729",
+    "cases/swebench/sympy__sympy-18532/2/prediction.result.json": "136374e365e0747fc033694c44adcf0a6cc13686f22297b258eb93f257d4c18f",
+    "cases/swebench/sympy__sympy-18532/2/prediction.events.jsonl": "f48a766123d3a5ea0d1737bc072da14d4e9e1339ec48bb771b6ffacd93138d02",
+    "cases/swebench/sympy__sympy-18532/2/prediction.jsonl": "10b5a048d22b453d39dfa96154f05d24e0c66382e6481046e13ec0794f99a04a",
+    "logs/run_evaluation/flash40-sympy__sympy-18532-grade-2/deepseek-v4-flash/sympy__sympy-18532/report.json": "b7e3cebebc1b3b91574377f53788272731c5512639fe8e30f384aa87c4407beb",
     "cases/terminalbench/custom-memory-heap-crash/1/result.json": "f16e7a56902634aa63f741e2c883d07b747986a477dee76883c8b95240d6f58e",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/result.json": "02f4bd145f9e674feccb2d4263e600286d0c9018ac24b9c0290aba8ff63b71b9",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json": "0dd42b2bb2ec668b1f024ea68a98f4afda4ba33bfe855df8f5c21ffa51cfeed5",
@@ -772,6 +1047,11 @@
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/result.json": "63f5066ea447a5927228e1bee1b813adf20b723a25f3c05a09297653e508f2b6",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/events.jsonl": "16298e2f0aefea866d28584fe08d0b5b4ca2f718676d31c52fe37cdbc60fc8bf",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/verifier/ctrf.json": "534f9144d2c6df4464d989fda8358d551bed13918754f392858455112a712301",
+    "cases/terminalbench/sparql-university/1/result.json": "a61a637b5714dd3accb8da6df71c8d840c804a526c32d2f6339161754267ccd4",
+    "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/result.json": "d933f920bd398b1e1943e23eddc974547ca2ff38f1ed848f6fb68d1bb660eda7",
+    "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/result.json": "87fb873326a0c833d860095c37a1c24b5b92913b175ad89cd484889fe63537c3",
+    "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/events.jsonl": "26c1537a6d959df720764b940d605043189207a93dcc9cebf26001f63b7c3cbc",
+    "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/verifier/ctrf.json": "4da1050daf56e1620990506bbadca291ed425b83fea176b97cb7a1ddbbffdcb4",
     "logs/run_evaluation/flash40-astropy__astropy-12907-gold-1/control-gold/astropy__astropy-12907/report.json": "fe3f3bddc9631279d3babf7270913070d91e9207c3468bd947823aee3e7b1b86",
     "logs/run_evaluation/flash40-astropy__astropy-12907-negative-1/control-negative/astropy__astropy-12907/report.json": "694d47ab10f881fae49f54c1d0d1776143e5d268ca6f0c3bc5dee7ebbb705361",
     "diagnostics/empty-reasoning-api-probe.json": "4637d2e76398fdc9ebbe67a8d64e2e31c275fa6fdaf88b3865d646fbaff9e872",
@@ -784,6 +1064,18 @@
     "diagnostics/heap-protocol-replay/preserve_empty-2.response.json": "c7f88a27f66bca1970e12d6728bc6be65a84605c844f8dd0605e893cb2b4b6a3",
     "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/test-stdout.txt": "1fe8fd4178fde316c94526be300db53edff6ebdce1415262fea4476b0b2da776",
     "diagnostics/replay_heap_protocol.py": "d9eda87a57b85d7b1621f8587d00603278f2eb5595647f1f81847c978d00bef4",
-    "diagnostics/source-snapshots/ef5278647fe0ae200bb4e84fee53b156b60cdfb7a500e458d086a24c08f3b5e6.py": "ef5278647fe0ae200bb4e84fee53b156b60cdfb7a500e458d086a24c08f3b5e6"
+    "diagnostics/sympy-candidate/protocol-observations.json": "3d212ccaa780b6fa5d7af41168e772bd503366649d159fe907e5ea75a62ad503",
+    "diagnostics/sympy-candidate/environment-probe.json": "810d77e80670a7fdd3bf234e5a1960a4e57e19c15a74f9480690da8fc17a65e1",
+    "diagnostics/sympy-candidate/activation-probe.json": "474f917f87675ea68204e389bf01e68be2398e31590ae490185c4bd50ec74352",
+    "diagnostics/sympy-candidate/cleanup.json": "cb72c345d9fc54b21543967b3869be228d85e8bdfd1c5d7969db045db55eede3",
+    "diagnostics/native-vim/manifest.json": "373c7d339a04012d996b6d2f83ef9047d508e0d37bc434cde764844710146d4f",
+    "diagnostics/native-vim/control-results.json": "42691cbb25eca074df2bad8ee1a32c3e95420e60234db49ff2d40df533494faf",
+    "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/verifier/ctrf.json": "fa747403edb7db3635f4433df4db0b1d43c071bf21413251abfab1c0cbb5498a",
+    "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/verifier/ctrf.json": "e9aee3fdb91131a62f0677ebd635c8bf210fb10ddea0861301dc756cc3b20a2c",
+    "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/verifier/test-stdout.txt": "eba040d3be26be37d6cca42198f5f557737f40081aa88a0fe70e6e7f641811ec",
+    "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/verifier/test-stdout.txt": "a511abf324fdcdc09b42f2d183c286b5c4345b7f7eb1abe2f927e7a1dbeac110",
+    "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/result.json": "9fba6762196f5a0582695dad4310cfb9eb94023cb4b847426b2a046b835068e3",
+    "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/result.json": "61dd7d4f3b0188e56f25c46280b547698d5a0394868c7a7229639cc86fbd903e",
+    "diagnostics/source-snapshots/6d9753063330de29000e90e30b4ef052607e157e5b632cc1838978b6e0849ade.py": "6d9753063330de29000e90e30b4ef052607e157e5b632cc1838978b6e0849ade"
   }
 }
