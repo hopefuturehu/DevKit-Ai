@@ -38,6 +38,7 @@
 | [上下文压缩有效性评测](context-compaction-effectiveness.md) | 故障矩阵、Provider 回放、推广门禁与历史确认结果 |
 | [Terminal-Bench 评测](terminalbench-evaluation.md) | 任务集运行、预算、诊断和结果归档 |
 | [SWE-bench 评测](swebench-evaluation.md) | 单实例准备、容器执行和 prediction 产物 |
+| [公开基准执行预检（2026-09-09）](benchmark-preflight-2026-09-09.md) | 找回 20＋20 任务范围、环境实测、官方判分控制实验及剩余阻塞 |
 
 这些文档仍对应仓库中的评测脚本和测试，因此保留在当前目录；其中带日期的结果是历史基线，不表示本次整理重新运行了评测。
 

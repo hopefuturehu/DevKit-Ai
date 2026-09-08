@@ -1,0 +1,450 @@
+{
+  "source_commit": "f65bffe985ea21f28913d9aa405d5b05a75c683f",
+  "wheel_sha256": "4fd202a518f618d3ea287f77cb6c2a5a47845176161b4e6a8de1380dac39cff2",
+  "regular_tests": {
+    "passed": 120,
+    "skipped": 7
+  },
+  "docker_enabled_test_module": {
+    "passed": 9
+  },
+  "model_generation_calls": 0,
+  "scope": {
+    "terminalbench": 20,
+    "swebench_lite": 20,
+    "custom_scenarios_in_scope": 0,
+    "planned_smoke_total": 6,
+    "case_ids_frozen": false
+  },
+  "network": [
+    {
+      "target": "github",
+      "host": "api.github.com",
+      "route": "configured_proxy",
+      "status": 200,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 1.16
+    },
+    {
+      "target": "github",
+      "host": "api.github.com",
+      "route": "direct",
+      "status": 200,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 0.6
+    },
+    {
+      "target": "pypi_harbor",
+      "host": "pypi.org",
+      "route": "configured_proxy",
+      "status": 200,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 1.06
+    },
+    {
+      "target": "pypi_harbor",
+      "host": "pypi.org",
+      "route": "direct",
+      "status": 200,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 2.2
+    },
+    {
+      "target": "pypi_swebench",
+      "host": "pypi.org",
+      "route": "configured_proxy",
+      "status": 200,
+      "tls_verified": true,
+      "available_version": "5.0.2",
+      "reachable": true,
+      "seconds": 1.41
+    },
+    {
+      "target": "pypi_swebench",
+      "host": "pypi.org",
+      "route": "direct",
+      "status": 200,
+      "tls_verified": true,
+      "available_version": "5.0.2",
+      "reachable": true,
+      "seconds": 3.4
+    },
+    {
+      "target": "huggingface",
+      "host": "huggingface.co",
+      "route": "configured_proxy",
+      "status": 200,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 1.39
+    },
+    {
+      "target": "huggingface",
+      "host": "huggingface.co",
+      "route": "direct",
+      "error_type": "ConnectTimeout",
+      "reachable": false,
+      "seconds": 24.06
+    },
+    {
+      "target": "astral",
+      "host": "astral.sh",
+      "route": "configured_proxy",
+      "status": 200,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 2.08
+    },
+    {
+      "target": "astral",
+      "host": "astral.sh",
+      "route": "direct",
+      "status": 200,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 2.22
+    },
+    {
+      "target": "docker_registry",
+      "host": "registry-1.docker.io",
+      "route": "configured_proxy",
+      "status": 401,
+      "tls_verified": true,
+      "reachable": true,
+      "seconds": 1.01
+    },
+    {
+      "target": "docker_registry",
+      "host": "registry-1.docker.io",
+      "route": "direct",
+      "error_type": "ConnectTimeout",
+      "reachable": false,
+      "seconds": 24.04
+    },
+    {
+      "target": "model_listing",
+      "host": "api.deepseek.com",
+      "route": "configured_proxy",
+      "status": 200,
+      "tls_verified": true,
+      "configured_model_listed": true,
+      "reachable": true,
+      "seconds": 1.53
+    },
+    {
+      "target": "model_listing",
+      "host": "api.deepseek.com",
+      "route": "direct",
+      "status": 200,
+      "tls_verified": true,
+      "configured_model_listed": true,
+      "reachable": true,
+      "seconds": 0.15
+    }
+  ],
+  "ports": {
+    "loopback_bind": true,
+    "wildcard_proxy_bind": true,
+    "allowed_target_relay": true,
+    "other_target_rejected": true,
+    "proxy_closed": true,
+    "upstream_closed": true
+  },
+  "swe-setup": {
+    "create": {
+      "returncode": 0
+    },
+    "uv": {
+      "returncode": 0
+    },
+    "venv": {
+      "returncode": 0
+    },
+    "bot": {
+      "returncode": 0
+    },
+    "worker-help": {
+      "returncode": 0
+    },
+    "model-route": {
+      "returncode": 0
+    },
+    "cleanup_returncode": 0
+  },
+  "git-fetch": {
+    "base_checkout": true,
+    "binary_patch": true,
+    "runtime_state_excluded": true,
+    "workspace_cleaned": true
+  },
+  "docker-pull": {
+    "returncode": 0
+  },
+  "swe-gold": {
+    "total_instances": 1,
+    "submitted_instances": 1,
+    "completed_instances": 1,
+    "resolved_instances": 1,
+    "unresolved_instances": 0,
+    "empty_patch_instances": 0,
+    "error_instances": 0,
+    "completed_ids": [
+      "sympy__sympy-20590"
+    ],
+    "incomplete_ids": [],
+    "empty_patch_ids": [],
+    "submitted_ids": [
+      "sympy__sympy-20590"
+    ],
+    "resolved_ids": [
+      "sympy__sympy-20590"
+    ],
+    "unresolved_ids": [],
+    "error_ids": [],
+    "schema_version": 2
+  },
+  "swe-wrong": {
+    "total_instances": 1,
+    "submitted_instances": 1,
+    "completed_instances": 1,
+    "resolved_instances": 0,
+    "unresolved_instances": 1,
+    "empty_patch_instances": 0,
+    "error_instances": 0,
+    "completed_ids": [
+      "sympy__sympy-20590"
+    ],
+    "incomplete_ids": [],
+    "empty_patch_ids": [],
+    "submitted_ids": [
+      "sympy__sympy-20590"
+    ],
+    "resolved_ids": [],
+    "unresolved_ids": [
+      "sympy__sympy-20590"
+    ],
+    "error_ids": [],
+    "schema_version": 2
+  },
+  "swe-empty": {
+    "total_instances": 1,
+    "submitted_instances": 1,
+    "completed_instances": 0,
+    "resolved_instances": 0,
+    "unresolved_instances": 0,
+    "empty_patch_instances": 1,
+    "error_instances": 0,
+    "completed_ids": [],
+    "incomplete_ids": [],
+    "empty_patch_ids": [
+      "sympy__sympy-20590"
+    ],
+    "submitted_ids": [
+      "sympy__sympy-20590"
+    ],
+    "resolved_ids": [],
+    "unresolved_ids": [],
+    "error_ids": [],
+    "schema_version": 2
+  },
+  "terminal-oracle-openssl": [
+    {
+      "task_name": "terminal-bench/openssl-selfsigned-cert",
+      "agent_info": {
+        "name": "oracle",
+        "version": "1.0.0",
+        "model_info": null
+      },
+      "exception_info": null,
+      "verifier_result": {
+        "rewards": {
+          "reward": 1.0
+        }
+      },
+      "agent_setup": {
+        "started_at": "2026-09-08T16:16:18.331982Z",
+        "finished_at": "2026-09-08T16:16:18.332030Z"
+      },
+      "agent_execution": {
+        "started_at": "2026-09-08T16:16:18.332092Z",
+        "finished_at": "2026-09-08T16:16:22.047144Z"
+      },
+      "started_at": "2026-09-08T16:16:17.037804Z",
+      "finished_at": "2026-09-08T16:17:48.072423Z"
+    }
+  ],
+  "terminal-nop-openssl": [
+    {
+      "task_name": "terminal-bench/openssl-selfsigned-cert",
+      "agent_info": {
+        "name": "nop",
+        "version": "1.0.0",
+        "model_info": null
+      },
+      "exception_info": null,
+      "verifier_result": {
+        "rewards": {
+          "reward": 0.0
+        }
+      },
+      "agent_setup": {
+        "started_at": "2026-09-08T16:18:12.842162Z",
+        "finished_at": "2026-09-08T16:18:12.842204Z"
+      },
+      "agent_execution": {
+        "started_at": "2026-09-08T16:18:12.842258Z",
+        "finished_at": "2026-09-08T16:18:12.842301Z"
+      },
+      "started_at": "2026-09-08T16:18:11.624506Z",
+      "finished_at": "2026-09-08T16:19:50.387071Z"
+    }
+  ],
+  "terminal-bot-install-only": [
+    {
+      "task_name": "terminal-bench/openssl-selfsigned-cert",
+      "agent_info": {
+        "name": "kunpeng-bot",
+        "version": "0.1.0",
+        "model_info": null
+      },
+      "exception_info": null,
+      "verifier_result": null,
+      "agent_setup": {
+        "started_at": "2026-09-08T16:18:55.796098Z",
+        "finished_at": "2026-09-08T16:21:18.323020Z"
+      },
+      "agent_execution": null,
+      "started_at": "2026-09-08T16:18:54.583969Z",
+      "finished_at": "2026-09-08T16:21:29.306064Z"
+    }
+  ],
+  "harbor_uvx": {
+    "returncode": 0
+  },
+  "swe-gold-detail": {
+    "sympy__sympy-20590": {
+      "patch_is_None": false,
+      "patch_exists": true,
+      "patch_successfully_applied": true,
+      "resolved": true,
+      "tests_status": {
+        "FAIL_TO_PASS": {
+          "success": [
+            "test_immutable"
+          ],
+          "failure": []
+        },
+        "PASS_TO_PASS": {
+          "success": [
+            "test__aresame",
+            "test_structure",
+            "test_equality",
+            "test_matches_basic",
+            "test_has",
+            "test_subs",
+            "test_subs_with_unicode_symbols",
+            "test_atoms",
+            "test_free_symbols_empty",
+            "test_doit",
+            "test_S",
+            "test_xreplace",
+            "test_preorder_traversal",
+            "test_sorted_args",
+            "test_call",
+            "test_rewrite",
+            "test_literal_evalf_is_number_is_zero_is_comparable",
+            "test_as_Basic",
+            "test_atomic",
+            "test_as_dummy",
+            "test_canonical_variables"
+          ],
+          "failure": []
+        },
+        "FAIL_TO_FAIL": {
+          "success": [],
+          "failure": []
+        },
+        "PASS_TO_FAIL": {
+          "success": [],
+          "failure": []
+        }
+      }
+    }
+  },
+  "swe-wrong-detail": {
+    "sympy__sympy-20590": {
+      "patch_is_None": false,
+      "patch_exists": true,
+      "patch_successfully_applied": true,
+      "resolved": false,
+      "tests_status": {
+        "FAIL_TO_PASS": {
+          "success": [],
+          "failure": [
+            "test_immutable"
+          ]
+        },
+        "PASS_TO_PASS": {
+          "success": [
+            "test__aresame",
+            "test_structure",
+            "test_equality",
+            "test_matches_basic",
+            "test_has",
+            "test_subs",
+            "test_subs_with_unicode_symbols",
+            "test_atoms",
+            "test_free_symbols_empty",
+            "test_doit",
+            "test_S",
+            "test_xreplace",
+            "test_preorder_traversal",
+            "test_sorted_args",
+            "test_call",
+            "test_rewrite",
+            "test_literal_evalf_is_number_is_zero_is_comparable",
+            "test_as_Basic",
+            "test_atomic",
+            "test_as_dummy",
+            "test_canonical_variables"
+          ],
+          "failure": []
+        },
+        "FAIL_TO_FAIL": {
+          "success": [],
+          "failure": []
+        },
+        "PASS_TO_FAIL": {
+          "success": [],
+          "failure": []
+        }
+      }
+    }
+  },
+  "cleanup": {
+    "created_containers_remaining": 0,
+    "created_networks_remaining": 0,
+    "temporary_proxy_closed": true,
+    "temporary_worktrees_removed": true,
+    "temporary_image_tag_removed": true,
+    "original_images_retained": true
+  },
+  "git_worktree_probe": {
+    "detached_commit": "b913b7b",
+    "root_head_unchanged": true,
+    "temporary_worktree_removed": true
+  },
+  "swe_harness": {
+    "tested_version": "4.1.0",
+    "incompatible_version": "5.0.2",
+    "cached_image": "sha256:009b2459034ca58c95c12171e6149f2ca786ba0f533e5769e0cd4c94582c9f8a",
+    "expected_env_image": "sweb.env.py.x86_64.c795f4b88616b8462021ed:latest",
+    "cached_env_image": "sweb.env.py.x86_64.6066c7c15483c5fa2eebd6:latest",
+    "temporary_namespace": "bot-preflight",
+    "temporary_tag": "20260909"
+  }
+}
