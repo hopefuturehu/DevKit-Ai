@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T19:55:35.714973+00:00",
+  "generated_at": "2026-09-08T20:08:56.363286+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -684,6 +684,35 @@
     }
   ],
   "environment_failures": [
+    {
+      "id": "terminal-bench/chess-best-move",
+      "attempt": "1",
+      "verdict": "error",
+      "record": "cases/terminalbench/chess-best-move/1/result.json",
+      "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
+      "agent_variant": "original",
+      "controls": {
+        "oracle": {
+          "reward": 0.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "error": "Official control did not produce its expected verdict"
+    },
+    {
+      "id": "terminal-bench/chess-best-move",
+      "attempt": "2",
+      "verdict": "error",
+      "record": "cases/terminalbench/chess-best-move/2/result.json",
+      "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
+      "agent_variant": "original",
+      "controls": {},
+      "error": "No actual verifier tests"
+    },
     {
       "id": "terminal-bench/custom-memory-heap-crash",
       "attempt": "2",
@@ -1437,6 +1466,303 @@
         },
         "bootstrap_policy": "Only curl/git/libgl1 with mandatory dependencies; apt retries through the existing host proxy; libGL load check; original official verifier unchanged"
       }
+    },
+    "sam_verifier_replay_result": {
+      "source": "diagnostics/sam-verifier-replay/result.json",
+      "result": {
+        "classification": "Same model artifact, fresh original image, verified system dependency bootstrap; no model call",
+        "id": "terminal-bench/sam-cell-seg",
+        "image_id": "sha256:792f56b9413a280dfbeb0c5b64067e4f7217f0fba16cd84918eb28928f406fd2",
+        "image_digest": "alexgshaw/sam-cell-seg@sha256:d76bdeef19d8113f4094013249c982eca93e62e46130484846269b2d378879d0",
+        "model_source_sha256": "0925b4575d350d9d8172199553822c199e1c127562dcff3e34f19fff4bd6c2d9",
+        "original_record": "cases/terminalbench/sam-cell-seg/1/result.json",
+        "started_at": "2026-09-08T19:44:55.830165+00:00",
+        "free_bytes_before_pull": 10709475328,
+        "unchanged_files_sha256": {
+          "task.toml": "f0eb6af2acb87cb6fee67d77e8fdd55e3b331baf48999260bc5b6c4ac466c128",
+          "environment/Dockerfile": "43c8f78b721c30bff9e7e0d8b7fe89196664a49df53c97384da76a2cba26c494",
+          "instruction.md": "370629c8a1b22896e5bb85d13411a860c496d294e70d0ec7ab98c2911c922150",
+          "tests/test.sh": "7f2bc4976949fba258f1db6dedacb55377adc300d535ab849131744ce80bf8fd",
+          "tests/test_outputs.py": "853165994896503e0f7657885a9f361695b2eb3ea8ba097403270378dd566847"
+        },
+        "bootstrap_policy": "Only curl/git/libgl1 with mandatory dependencies; apt retries through the existing host proxy; libGL load check; original official verifier unchanged",
+        "phase": {
+          "argv": [
+            "/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/bin/harbor",
+            "run",
+            "--path",
+            "/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/diagnostics/sam-verifier-replay/task",
+            "--agent",
+            "oracle",
+            "--n-concurrent",
+            "1",
+            "--n-attempts",
+            "1",
+            "--jobs-dir",
+            "/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/terminalbench",
+            "--job-name",
+            "sam-cell-seg-artifact-replay-1",
+            "--quiet"
+          ],
+          "started_at": "2026-09-08T19:48:16.576963+00:00",
+          "pid": 87481,
+          "returncode": 0,
+          "finished_at": "2026-09-08T20:03:05.033535+00:00"
+        },
+        "official_result_path": "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json",
+        "official_result_sha256": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
+        "reward": 1.0,
+        "exception": null,
+        "finished_at": "2026-09-08T20:03:05.034426+00:00",
+        "test_summary": {
+          "tests": 9,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "pending": 0,
+          "other": 0,
+          "start": 1788897407.5106647,
+          "stop": 1788897769.994588
+        }
+      }
+    },
+    "sam_verifier_replay_cleanup": {
+      "source": "diagnostics/sam-verifier-replay/cleanup.json",
+      "result": {
+        "finished_at": "2026-09-08T20:04:57.025488+00:00",
+        "image_id": "sha256:792f56b9413a280dfbeb0c5b64067e4f7217f0fba16cd84918eb28928f406fd2",
+        "was_retained": false,
+        "containers_remaining": [],
+        "image_rm_returncode": 0,
+        "image_remaining": false,
+        "cleanup_output": "Untagged: alexgshaw/sam-cell-seg:20251031\nUntagged: alexgshaw/sam-cell-seg@sha256:d76bdeef19d8113f4094013249c982eca93e62e46130484846269b2d378879d0\nDeleted: sha256:792f56b9413a280dfbeb0c5b64067e4f7217f0fba16cd84918eb28928f406fd2\nDeleted: sha256:8f9676f5671ded98e1d1ead3285212c8b8656612e488558af829647b5842ee5e\nDeleted: sha256:8666f659bbc284417d2f05e76e0427b381c5349ac3b9003680e2c29be522d197\nDeleted: sha256:054fb81f9555c1477c456bd569f9cc7c508c2033106215f79777914ec09a2625\nDeleted: sha256:17caf0b3c49267cc0bea58b887b52dd28901c0bceece8c5657af44f3c0ce90b2\nDeleted: sha256:61b06fba346f5527eb9e6785ab1f8189faf72361ac8f7a1141ec1ddd7c80e3f7\nDeleted: sha256:4f88a7914a5bbae2ff1ae4d6011a8c45300ac94032ee856873055b1bd251205c\nDeleted: sha256:a63cdeba1d05363107e62bb14c97f9bbb810186e1e59a71c3671a14b36ca7b0f\nDeleted: sha256:a60dcbc8722b7ecb7798ea22a4dad988c0ce2ccb1efb598aa8deee75026f3e1d\nDeleted: sha256:f8b7333a4ac07b3cf4c5976461e665c3445b16dacf992d1d3130e2d39ebe2570\nDeleted: sha256:77c2e291dd8342baaa9f49b9265f1925e1357f6a98a61f736d060eaaf3cd7b3b\nDeleted: sha256:f2522c6ed78b338a9e272dd5038005d008f74729e036073e837f701f221b99ba\n"
+      }
+    },
+    "chess_proxy_recovery_manifest": {
+      "source": "cases/terminalbench/chess-best-move/2/manifest.json",
+      "result": {
+        "id": "terminal-bench/chess-best-move",
+        "kind": "terminalbench",
+        "attempt": "2",
+        "source_commit": "578f660",
+        "agent_variant": "original",
+        "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
+        "started_at": "2026-09-08T20:01:22.752503+00:00",
+        "experiment": "Original task/image/Bot with per-container read-only APT proxy mount and agent/verifier HTTP proxy environment",
+        "proxy_config_sha256": "a13b187e9018fd61175082e77775d4592aa70c4d301ab51790c104f0f0693366",
+        "concurrent_work": "Wait for SAM artifact replay to finish; official 1 CPU / 2 GiB task quota; main serial batch continues. CPU contention remains possible.",
+        "original_task_files_sha256": {
+          "README.md": "bdf339ea1848c81e884f0f811803ecdeaa3dc741e997bda53841f2816fbafd18",
+          "environment/Dockerfile": "d5697e7a11399e45f105bf43f40e5c95746d6a8601965ea6935a52b59bbbfa2b",
+          "environment/make.py": "46b95008df62fac7ca7fd7260baf36519de5718b91a4bde485c8d9b7d37f17c1",
+          "instruction.md": "6ba25be4e291a4ad04ae42b2dddefcdaef67ca45ca9d5dce661a2e517b19ce7a",
+          "solution/solve.sh": "53b5c5e2278ca915b0930eedfd44565ca84ef21c7346fd6601434484cf76151f",
+          "task.toml": "d8f01d3c84ed5836edbb49c6c3b3cc7b5b96d951cf01a0987467c9206fb22f9e",
+          "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+          "tests/test_outputs.py": "a540714e0156fc14564badedcb48d1f7b69a4b457d876036535439b30cb8f286"
+        }
+      }
+    },
+    "chess_proxy_recovery_structured_mount_manifest": {
+      "source": "cases/terminalbench/chess-best-move/3/manifest.json",
+      "result": {
+        "id": "terminal-bench/chess-best-move",
+        "kind": "terminalbench",
+        "attempt": "3",
+        "source_commit": "578f660",
+        "agent_variant": "original",
+        "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
+        "started_at": "2026-09-08T20:06:55.151191+00:00",
+        "experiment": "Original task/image/Bot with per-container read-only APT proxy mount and agent/verifier HTTP proxy environment",
+        "proxy_config_sha256": "a13b187e9018fd61175082e77775d4592aa70c4d301ab51790c104f0f0693366",
+        "concurrent_work": "Wait for SAM artifact replay to finish; official 1 CPU / 2 GiB task quota; main serial batch continues. CPU contention remains possible.",
+        "original_task_files_sha256": {
+          "README.md": "bdf339ea1848c81e884f0f811803ecdeaa3dc741e997bda53841f2816fbafd18",
+          "environment/Dockerfile": "d5697e7a11399e45f105bf43f40e5c95746d6a8601965ea6935a52b59bbbfa2b",
+          "environment/make.py": "46b95008df62fac7ca7fd7260baf36519de5718b91a4bde485c8d9b7d37f17c1",
+          "instruction.md": "6ba25be4e291a4ad04ae42b2dddefcdaef67ca45ca9d5dce661a2e517b19ce7a",
+          "solution/solve.sh": "53b5c5e2278ca915b0930eedfd44565ca84ef21c7346fd6601434484cf76151f",
+          "task.toml": "d8f01d3c84ed5836edbb49c6c3b3cc7b5b96d951cf01a0987467c9206fb22f9e",
+          "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+          "tests/test_outputs.py": "a540714e0156fc14564badedcb48d1f7b69a4b457d876036535439b30cb8f286"
+        }
+      }
+    },
+    "chess_proxy_download_probe": {
+      "source": "cases/terminalbench/chess-best-move/2/apt-probe.phase.json",
+      "result": {
+        "phase": "apt-probe",
+        "argv": [
+          "docker",
+          "run",
+          "--rm",
+          "--pull",
+          "never",
+          "--name",
+          "kunpeng-chess-apt-probe-90540",
+          "--cpus",
+          "0.5",
+          "--memory",
+          "512m",
+          "--mount",
+          "type=bind,src=/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/diagnostics/apt-proxy.conf,dst=/etc/apt/apt.conf.d/99benchmark-proxy,readonly",
+          "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
+          "bash",
+          "-lc",
+          "set -e; apt-config shell TASK_PROXY Acquire::http::Proxy TASK_RETRIES Acquire::Retries; cd /tmp; apt-get download stockfish; sha256sum stockfish*.deb"
+        ],
+        "started_at": "2026-09-08T20:05:01.719385+00:00",
+        "timeout": 240,
+        "pid": 91300,
+        "returncode": 0,
+        "finished_at": "2026-09-08T20:05:28.621116+00:00"
+      }
+    },
+    "summary_reasoning_api_probe": {
+      "source": "diagnostics/summary-reasoning-probe/result.json",
+      "result": {
+        "kind": "Synthetic non-tool assistant checkpoint field-presence acceptance probe",
+        "limitation": "No exact rejected outbound SWE request was captured; this does not establish that compaction caused that failure. No returned tool is executed.",
+        "model": "deepseek-v4-flash",
+        "results": [
+          {
+            "variant": "summary_reasoning_missing",
+            "repeat": 1,
+            "started_at": "2026-09-08T20:05:43.383177+00:00",
+            "finished_at": "2026-09-08T20:05:44.515348+00:00",
+            "http_status": 400,
+            "error": {
+              "message": "The `reasoning_content` in the thinking mode must be passed back to the API.",
+              "type": "invalid_request_error",
+              "param": null,
+              "code": "invalid_request_error"
+            },
+            "usage": null,
+            "finish_reason": null,
+            "request_sha256": "ecdd18f52d77fadd63cc122ba5890ff31cdaf674c64281c0bc55e9c11357acd1"
+          },
+          {
+            "variant": "summary_reasoning_empty",
+            "repeat": 1,
+            "started_at": "2026-09-08T20:05:44.516319+00:00",
+            "finished_at": "2026-09-08T20:05:46.024523+00:00",
+            "http_status": 200,
+            "error": null,
+            "usage": {
+              "prompt_tokens": 472,
+              "completion_tokens": 34,
+              "total_tokens": 506,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 31
+              },
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 472
+            },
+            "finish_reason": "stop",
+            "request_sha256": "e8e0b901c79e87c51be6dc3186c29c8e3e87977cece27fe9536704951fabe080"
+          },
+          {
+            "variant": "summary_reasoning_missing",
+            "repeat": 2,
+            "started_at": "2026-09-08T20:05:46.025449+00:00",
+            "finished_at": "2026-09-08T20:05:46.509997+00:00",
+            "http_status": 400,
+            "error": {
+              "message": "The `reasoning_content` in the thinking mode must be passed back to the API.",
+              "type": "invalid_request_error",
+              "param": null,
+              "code": "invalid_request_error"
+            },
+            "usage": null,
+            "finish_reason": null,
+            "request_sha256": "ecdd18f52d77fadd63cc122ba5890ff31cdaf674c64281c0bc55e9c11357acd1"
+          },
+          {
+            "variant": "summary_reasoning_empty",
+            "repeat": 2,
+            "started_at": "2026-09-08T20:05:46.510888+00:00",
+            "finished_at": "2026-09-08T20:05:48.504487+00:00",
+            "http_status": 200,
+            "error": null,
+            "usage": {
+              "prompt_tokens": 472,
+              "completion_tokens": 128,
+              "total_tokens": 600,
+              "prompt_tokens_details": {
+                "cached_tokens": 384
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 128
+              },
+              "prompt_cache_hit_tokens": 384,
+              "prompt_cache_miss_tokens": 88
+            },
+            "finish_reason": "length",
+            "request_sha256": "e8e0b901c79e87c51be6dc3186c29c8e3e87977cece27fe9536704951fabe080"
+          }
+        ]
+      }
+    },
+    "summary_reasoning_serializer_probe": {
+      "source": "diagnostics/summary-reasoning-probe/serializer-observation.json",
+      "result": {
+        "scope": "Actual isolated candidate serializer and provider payload construction, no network or model call",
+        "observations": [
+          {
+            "input_summary_reasoning": null,
+            "serialized_summary_reasoning_present": false,
+            "tool_reasoning_preserved": true,
+            "fallback_disabled": false
+          },
+          {
+            "input_summary_reasoning": "",
+            "serialized_summary_reasoning_present": false,
+            "tool_reasoning_preserved": true,
+            "fallback_disabled": false
+          }
+        ],
+        "successful_normal_steps_after_sympy_compaction": [
+          88,
+          89,
+          90,
+          91,
+          92,
+          93,
+          94,
+          95,
+          96,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115,
+          116,
+          117,
+          118
+        ],
+        "source_sha256": {
+          "diagnostics/empty-reasoning-candidate/source/src/bot/core/models.py": "24aafbc7b83af82d1d69cad1e86880a3670c4e9138af0033bc3a8cc075982047",
+          "diagnostics/empty-reasoning-candidate/source/src/bot/providers/openai_compatible.py": "6c877738fb3b75e91b7757e3b245fc0968e05e002274c898b28e8eaa14d236d0",
+          "diagnostics/empty-reasoning-candidate/source/src/bot/compaction/service.py": "3a3f1a2dbc67cdfcabf3c4cb8539bf40bc5df440ed3ce15c3c46e5aa3ddd69c5"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -1494,6 +1820,16 @@
     "cases/swebench/sympy__sympy-18532/2/prediction.events.jsonl": "f48a766123d3a5ea0d1737bc072da14d4e9e1339ec48bb771b6ffacd93138d02",
     "cases/swebench/sympy__sympy-18532/2/prediction.jsonl": "10b5a048d22b453d39dfa96154f05d24e0c66382e6481046e13ec0794f99a04a",
     "logs/run_evaluation/flash40-sympy__sympy-18532-grade-2/deepseek-v4-flash/sympy__sympy-18532/report.json": "b7e3cebebc1b3b91574377f53788272731c5512639fe8e30f384aa87c4407beb",
+    "cases/terminalbench/chess-best-move/1/result.json": "85733f95d4e243d108a2ec8174ec611d6027c2563345307ca18c2389a1a1924c",
+    "terminalbench/chess-best-move-oracle-1/9ab8e4b3674282e751edafbd9b5bd551__qZbGcCp/result.json": "2cd419c783cc1bed51c51a469c6cb2dce58e3126e09ce6f59272e1858bb1560c",
+    "terminalbench/chess-best-move-oracle-1/9ab8e4b3674282e751edafbd9b5bd551__qZbGcCp/verifier/ctrf.json": "6bfb48ab04ae9f63af15116ec9de14362f1f27f68ac5b6a3ad3f688014397d37",
+    "terminalbench/chess-best-move-oracle-1/9ab8e4b3674282e751edafbd9b5bd551__qZbGcCp/verifier/test-stdout.txt": "628cbfacf9a94e58942a6ececef2dbc2c80f28c29a5ed8d76c596df0ae1586df",
+    "terminalbench/chess-best-move-oracle-1/9ab8e4b3674282e751edafbd9b5bd551__qZbGcCp/agent/oracle.txt": "af8037026644dc4866f1ba7317bb7c78c8e167871401e34d505ec467bd55730d",
+    "terminalbench/chess-best-move-nop-1/9ab8e4b3674282e751edafbd9b5bd551__HFrm2ke/result.json": "02d15303ce93d19e3e5abb08c5e98abc1999f6e08bd4997f2709b60f78195f8c",
+    "terminalbench/chess-best-move-nop-1/9ab8e4b3674282e751edafbd9b5bd551__HFrm2ke/verifier/ctrf.json": "b5b3d30f037484d31e2e3c7018f8b6bb2ff0f4e72a413ef231e72973e4407288",
+    "terminalbench/chess-best-move-nop-1/9ab8e4b3674282e751edafbd9b5bd551__HFrm2ke/verifier/test-stdout.txt": "c4f9e9e1ac9e12ba96a0bbf90b409cc06edeaf0662d6ad581ff04ae70078e100",
+    "cases/terminalbench/chess-best-move/2/result.json": "18e4144227455a306542098b0a71ab12aa1db475a5441d2b66682a4820fdd278",
+    "terminalbench/chess-best-move-oracle-2/9ab8e4b3674282e751edafbd9b5bd551__xYcLGSx/result.json": "37a4b57f00253f99dd1e1232a2d316aa013f9422987fbf0ff198806b318c6bf5",
     "cases/terminalbench/custom-memory-heap-crash/1/result.json": "f16e7a56902634aa63f741e2c883d07b747986a477dee76883c8b95240d6f58e",
     "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/result.json": "76fa196bed90b0c8ed03b3ea95cf5d08d77be7dc201a1c55e48dec530ac93407",
     "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/verifier/ctrf.json": "d8ef2384f9630c91b5f84b34f76a40745a0ab3dda7291781a5fe7230ba4b65a5",
@@ -1621,8 +1957,33 @@
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
     "diagnostics/summary-reconciliation.json": "5cd00082e8352f6876d175f7ec382b722709cb773b402cea6bf51861d760b24d",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
+    "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
+    "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
+    "cases/terminalbench/chess-best-move/2/manifest.json": "dc96b26bc4665af9eed1d4e8b5cead4cf08bf6b71753f6b330a6a342dfa30419",
+    "cases/terminalbench/chess-best-move/3/manifest.json": "a62a0d986d069c54fe282588d861fc9d8242efeba5106836d249e0f9ad94f6b3",
+    "cases/terminalbench/chess-best-move/2/apt-probe.phase.json": "ae325a43c577856ca3e1d98c4c714549fa440347801ac8943fefef224b76a98d",
+    "diagnostics/summary-reasoning-probe/result.json": "c5ab010db1bbaa17969b096c76795fd72adfbc3aa07ca0ecc56915f7538826ee",
+    "diagnostics/summary-reasoning-probe/serializer-observation.json": "a35612b6652723cb82bcce210fe7f719291e48905b9b88c21a347c5814ef84db",
+    "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
+    "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
+    "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
+    "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/agent/oracle.txt": "18a2387ba7a18c0907a1f43a0fee292a0bd8f3a5877d6548ffa5ee54feebf07a",
     "diagnostics/replay_sam_verifier.py": "6d3375002660e55608560151ea156010ee23e3e13847f6770fa251458c2d8609",
     "diagnostics/sam-verifier-replay/task/solution/solve.sh": "ac3e9b269ce93c8204e4a657d05579f22be790af6643ef5b4e9103fcc6105e91",
+    "diagnostics/recover_chess_proxy.py": "295bc535218f377864d24136b2f4cbd364196a4775a7d550c14d1b87ea15abb4",
+    "diagnostics/recover_chess_proxy_v2.py": "5e28cc1c987319e7dea022781f16299eb658a27eecc219d20ba48394c9b279ce",
+    "diagnostics/apt-proxy.conf": "a13b187e9018fd61175082e77775d4592aa70c4d301ab51790c104f0f0693366",
+    "diagnostics/reconcile_summary.py": "5e70f59cc538f9020d20d0bbc970791cfa97742d08e6ef532a0513c0ec573f0e",
+    "diagnostics/probe_summary_reasoning.py": "77ffaa514e877061ba146f9b8cd436dce4ce60f4e7a8dfc6759d5da27a6c52b3",
+    "cases/terminalbench/chess-best-move/2/apt-probe.log": "89abe4ecff4d599f745509d14ba5459254d76475c6240fd3ec3dc1a5d63ba81d",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_empty-1.request.json": "e8e0b901c79e87c51be6dc3186c29c8e3e87977cece27fe9536704951fabe080",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_empty-2.request.json": "e8e0b901c79e87c51be6dc3186c29c8e3e87977cece27fe9536704951fabe080",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_missing-1.request.json": "ecdd18f52d77fadd63cc122ba5890ff31cdaf674c64281c0bc55e9c11357acd1",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_missing-2.request.json": "ecdd18f52d77fadd63cc122ba5890ff31cdaf674c64281c0bc55e9c11357acd1",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_empty-1.response.json": "2ce23eb8ed3f6a3edd6055ca0ab222c9539a27cce2ac5b5256ec899e044f63dd",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_empty-2.response.json": "25f4263c595e873625a0211d183aa24e710339fc647488ba99d35e19ea0fd688",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_missing-1.response.json": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194",
+    "diagnostics/summary-reasoning-probe/summary_reasoning_missing-2.response.json": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/verifier/ctrf.json": "cfbd5650309229aae45696f6eaf5cfd1f1aa9629b1da869574c017c2b28ee83b",
     "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/verifier/ctrf.json": "fa747403edb7db3635f4433df4db0b1d43c071bf21413251abfab1c0cbb5498a",
     "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/verifier/ctrf.json": "e9aee3fdb91131a62f0677ebd635c8bf210fb10ddea0861301dc756cc3b20a2c",
@@ -1641,6 +2002,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/02c80919f2dc6acb03b3c6178865f15e0b6dde031ce840ea61079301aa2d1c1d.py": "02c80919f2dc6acb03b3c6178865f15e0b6dde031ce840ea61079301aa2d1c1d"
+    "diagnostics/source-snapshots/64065108abd437cbf192d8c4152a5d62819763886710bcf7a30f4158f1ab7b31.py": "64065108abd437cbf192d8c4152a5d62819763886710bcf7a30f4158f1ab7b31"
   }
 }
