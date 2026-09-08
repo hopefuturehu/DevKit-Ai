@@ -189,6 +189,29 @@ Nanobot 的 [context.py](../../nanobot/nanobot/agent/context.py) 把 always Skil
 
 对 `bot` 的直接启发是：新方案若移除独立 Active Skill 全文层，就需要显式补上“活动正文的压缩保护、实际可见性检查、必要内容恢复与有界失败”这一闭环。不能认为其他框架都自动解决了它，也不宜为了保护 Skill 而无限 pin 全文。执行进度、当前操作所需原文和引用应分别管理；这些仍是本项目待实现的设计内容。
 
+### 4.8 摘要前有没有工具结果裁剪优先级
+
+需要区分“先缩短哪些已加载结果”“每种结果缩短后留下什么”和“哪些历史进入摘要”。所查实现里，Hermes 的规则最完整，OpenCode V1 有明确的历史裁剪保护；这不等于它们有一张通用、可配置的数字 priority 表。
+
+| 框架 | 摘要前相关处理 | 优先级的实际含义 |
+|---|---|---|
+| Hermes | 完整压缩前先运行工具结果 prune；也可配置独立主动 prune | 多阶段回收顺序、近期保护、Skill 特例、工具类型定制简短记录 |
+| OpenCode V1 | 历史 prune 保护近期结果并跳过 `skill`；摘要输入另行截断 | 历史保护规则明确，但不能把豁免延伸到摘要输入的全文保留 |
+| DeepSeek Harness | 可选 pruner 在压力路径先处理大工具结果，再重新计量决定是否摘要 | 主要看文本大小，没有按工具语义价值排序或 Skill 豁免 |
+| Codex | 历史记录时按 TruncationPolicy 限制工具输出；所查本地摘要请求仍超限时从最早历史项开始移除 | 长度、历史位置及协议规则，未见该路径的工具价值排序表 |
+| Pi | 工具自身可限制输出；通用 compaction 按近期 token 与合法切点选择摘要范围 | 时间位置与 Tool 配对保护，未见默认的历史工具结果多阶段语义 prune |
+| Nanobot | 通用近期合法尾部；归档模型输入格式化后按 token 预算截断 | 位置与大小规则，未见按工具重要性分级的 pruner |
+
+**Hermes 的四个 pass：** 先将较大的重复文本结果替换成指向近期副本的说明，再处理受保护尾部之外的旧工具正文，再缩短旧 Assistant Tool Call 的大参数；当受保护区域本身超过软预算，才进一步处理区域内的大结果。压力降级先保留短近期区域，再尝试保留最近一个工具结果，最终必要时连该结果也可缩短。去重不受近期尾部保护限制，因为较新的完整副本仍在；因此不能把整个算法简单概括为“旧的先删、新的绝不删”。
+
+它的 `_summarize_tool_result_unguarded()` 是确定性的工具类型格式化，不是每条结果再调用一次 LLM：terminal 尽量留下命令、退出码和输出行数；read_file 留下路径、起始位置和长度；search_files 留下查询和匹配数；大型 skill_view 被缩短后给出重读提示。这比纯首尾截断更了解工具结构，但也不保证测试失败详情、文件正文等任务关键内容仍然存在。源码见 [context_compressor.py](../../hermes-agent/agent/context_compressor.py) 的 `_prune_old_tool_results()`、`_summarize_tool_result_unguarded()` 和 `compress()`。独立主动 prune 是可选路径，另有最小回收量与再次触发门槛，不能说所有可选策略默认开启。
+
+**OpenCode V1 的两个层次：** `prune()` 从历史尾部向前扫描，跳过最靠近当前输入的区域、保护累计约 40K token 的候选工具输出、豁免 `skill`，且可回收量超过 20K token 才提交。它不是对各工具逐个计算重要性分数。真正生成摘要输入时，`serialize()` 对已完成工具输出另用 `TOOL_OUTPUT_MAX_CHARS = 2_000` 截取开头；这里没有 `skill` 豁免。工具错误走单独的错误分支，也不能据此声称完整错误信息经过了语义优先级评分。V1 `prune()` 还在主循环结束后被调度，不能描述成每次 LLM 摘要前必定运行它。上述两个实现都在 [V1 compaction.ts](../../opencode/packages/opencode/src/session/compaction.ts)。
+
+Codex 的长度策略见 [history.rs](../../codex/codex-rs/core/src/context_manager/history.rs) 的 `process_item()`，本地摘要超限处理见 [compact.rs](../../codex/codex-rs/core/src/compact.rs)。Pi 的合法切点见 [compaction.ts](../../pi-mono/packages/coding-agent/src/core/compaction/compaction.ts) 的 `findCutPoint()`。Nanobot 的摘要输入截断见 [memory.py](../../nanobot/nanobot/agent/memory.py) 的 `archive()` 与 `_truncate_to_token_budget()`。这些均是对应主路径的结论，不外推为项目所有插件、模型和工具都只有同一种策略。
+
+对 bot 的改进方向可先借鉴 Hermes 的分阶段回收与工具专用预览，以及 OpenCode 的有限近期保护；为当前 Skill、未解决错误和后续验证所需证据增加明确的保留 / 回读契约。原子组完整、正文可回读、回收量足够和语义不退化需要分别验收，不能用最终 Planner 的 priority 代替摘要前的信息保护。
+
 ## 5. `bot` 应当改哪里
 
 ### 5.1 当前有三种可避免的扰动
