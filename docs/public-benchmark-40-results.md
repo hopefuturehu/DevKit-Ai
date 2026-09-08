@@ -1,9 +1,10 @@
 # 40 题公开基准结果与失败分析
 
-这是执行中的记录，不是最终报告。2026-09-09 01:40（Asia/Shanghai）快照：
-40 题中 3 题完成真实模型运行和官方判分，2 通过、1 未通过；1 题正在运行模型；
-36 题尚未运行模型，其中 1 题被失败的官方参考解控制实验阻断。
-不能据此宣称 40 题已完成，也不能将 2/3 当作完整公开基准成绩。
+这是执行中的记录，不是最终报告。2026-09-09 02:06（Asia/Shanghai）快照：
+40 题中 5 题已完成真实模型运行并得到官方结果，3 通过、2 未通过。
+其中 4 题实际执行了模型产物的验收测试，1 题因空补丁被官方直接记为未解决，未执行验收测试。
+35 题尚无最终模型结果，其中 1 题被失败的官方参考解控制实验阻断，其他任务继续推进。
+不能据此宣称 40 题已完成，也不能将 3/5 当作完整公开基准成绩。
 
 范围、冻结规则、版本与限制见 [执行约定](public-benchmark-40-execution.md)。
 源码基线为 `578f660`，模型为 `deepseek-v4-flash`。本报告中的协议探针只用于分析，未修改该冻结基线。
@@ -18,10 +19,13 @@
 | Terminal / custom-memory-heap-crash | oracle=1，nop=0，无异常 | reward=0；5 passed、1 failed | 第 9 步触发模型输出长度限制，尚未执行源码修复 |
 | Terminal / large-scale-text-editing | oracle=0，nop=0，无 harness 异常 | 尚未运行 Bot | 官方参考解在验收脚本内超时；不能按模型失败计分 |
 | SWE / astropy__astropy-12907 | gold resolved=true，negative resolved=false | resolved=true | 27 步完成；2 项 FAIL_TO_PASS、13 项 PASS_TO_PASS 均通过 |
-| SWE / django__django-14017 | gold resolved=true，negative resolved=false | 模型运行中 | 正反例均保留 147 项 PASS_TO_PASS；2 项 FAIL_TO_PASS 仅在 gold 通过 |
+| SWE / django__django-14017 | gold resolved=true，negative resolved=false | resolved=true | 46 步完成；2 项 FAIL_TO_PASS、147 项 PASS_TO_PASS 均通过 |
+| SWE / sympy__sympy-18532 | gold resolved=true，negative resolved=false | 空补丁，resolved=false | 第 20 步触发输出长度限制；官方未执行模型补丁验收测试 |
+| Terminal / multi-source-data-merger | oracle=1，nop=0 | Agent 安装/执行中 | 已进入主批次的下一题 |
 
 其余题目保留在 [固定 20＋20 清单](../evals/public-regression-40-v1.json)，没有因缓存、耗时或失败而换题。
 批次使用独立 attempt、官方 run_id 和进程记录继续执行；实时汇总位于产物目录的 `summary.json`。
+原定 6 题冒烟目前完成 5 题真实模型运行；大文件编辑题仍因参考解超时而暂挂，其余任务先继续执行，未用另一题替换它。
 
 ## 如何判定通过
 
@@ -87,7 +91,11 @@ Astropy 的成功运行也经历了 reasoning 为空的工具轮次，说明这�
 
 后续原版本 attempt 3 与候选版本 attempt 4 使用相同代理设置顺序执行，继续复用首次通过的正反例控制，
 保持镜像 ID、题面、模型、步数与时间限制一致。二者使用官方的 1 CPU / 2 GiB 资源上限，
-与主批次的 SWE 任务同时运行，需保留这一负载条件。候选只改变 reasoning 空值的协议处理，输出上限仍未调整。
+与主批次任务同时运行，期间跨越 SWE 与 Terminal 任务，需保留这一负载条件。候选只改变 reasoning 空值的协议处理，输出上限仍未调整。
+attempt 3 已由官方判为 reward=0，仍是 Release 崩溃，5 passed、1 failed。
+该次模型在第 22 步达到输出长度限制，最后一轮长正文没有 DSML 标记；此现象与首次的 DSML 正文应分开记录。
+模型结束后、容器清理前已保存最终 `user.cpp`，其 SHA-256 为
+`a231a3f4a4f524d1123ce4a6aa9d12a4dec013a3676b28437142365c28c80732`。
 
 ### 隔离候选的回归验证
 
@@ -101,6 +109,24 @@ Astropy 的成功运行也经历了 reasoning 为空的工具轮次，说明这�
 - 验证了导入模块确实来自各自源码目录，wheel 中相关模块字节与候选源码一致，补丁能应用到基线。
 
 这些检查证明候选覆盖了已定位的协议缺陷。整题对照尚在执行，不能把上述单元/集成测试通过写成 benchmark 已通过。
+候选的真实 API 轨迹已出现空 reasoning 工具轮次：第 8、10 步为空，其后的第 9、11 步分别恢复非空 reasoning，
+记录的 thinking 模式保持 enabled。这验证了候选机制确实在真实任务中被触发，整题得分仍需等待官方验收。
+
+## 失败 2：sympy__sympy-18532
+
+官方参考补丁通过，无关补丁未通过。Bot 运行到第 20 步时得到 `finish_reason=length`，
+随后导出的 `model_patch` 长度为 0。官方汇总为 `empty_patch_instances=1`、`completed_instances=0`、`resolved_instances=0`。
+因此此项是“没有提交修复”，不能写成“提交的修复未通过某条官方测试”。
+
+运行记录显示模型完成了源码阅读、类型行为检查、Git 历史查询以及一次依赖安装，没有发出源码写入操作。
+空补丁与操作记录一致，目前没有证据表明补丁导出器丢失了修复。
+默认 `python` 最初缺少 mpmath，模型执行 `pip install mpmath` 后相关检查可以运行；
+仍需使用相同镜像核对默认工具环境与官方 testbed 环境是否一致，不能仅凭“安装成功”认定环境完全等价。
+
+第 3 步出现空 reasoning 的工具调用，随后 reasoning 持续为空；第 20 步输出约 3.4 万字符的正文，
+没有原生工具调用，触发了输出长度限制。这与内存堆失败共享协议模式切换与长度限制现象，但仍不是充分的单因证明。
+当前归因为“未形成修复，受模型输出限制终止；已知协议缺陷可能参与”，模型能否在兼容修复后解决该 issue 尚待整题对照。
+相同 digest 的镜像正在为诊断恢复；原始空补丁结果保留在首次成绩中。
 
 ## 阻断 1：large-scale-text-editing
 
