@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T22:00:13.387616+00:00",
+  "generated_at": "2026-09-08T22:14:39.292774+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -3526,6 +3526,351 @@
           "cases/swebench/django__django-14017/1/prediction.events.jsonl": "779d2f0c37b6b1ea7a0f9fe5c0528bf08e12f7b13217ada34359e145afe9bb54"
         }
       }
+    },
+    "protocol_crosscase_observations": {
+      "source": "diagnostics/protocol-crosscase/result.json",
+      "result": {
+        "at": "2026-09-08T22:14:39.126256+00:00",
+        "summary_generated_at": "2026-09-08T21:48:38.235326+00:00",
+        "scope": "Finished attempts present in this immutable summary snapshot; original attempt 1 statistics separate from diagnostic repeats. Native Vim environment variant and independent API probes are outside this summary-table cohort.",
+        "statistics": {
+          "original_attempts": 10,
+          "original_attempts_with_zero_reasoning_text_tools": 8,
+          "original_attempts_with_reasoning_field_observed_without_text": 8,
+          "original_passes": 5,
+          "original_passes_with_zero_reasoning_text_tools": 3,
+          "original_passes_with_reasoning_field_observed_without_text": 3,
+          "original_attempts_with_length_response": 3
+        },
+        "rows": [
+          {
+            "id": "terminal-bench/multi-source-data-merger",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "pass",
+            "run_status": "completed",
+            "artifact_verdict": "pass",
+            "normal_responses": 10,
+            "zero_reasoning_text_tool_count": 0,
+            "first_zero_reasoning_text_tool_step": null,
+            "reasoning_field_observed_without_text_steps": [],
+            "reasoning_field_not_observed_count": 0,
+            "length_responses": [],
+            "max_completion_tokens": 6731
+          },
+          {
+            "id": "terminal-bench/sparql-university",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "pass",
+            "run_status": "completed",
+            "artifact_verdict": "pass",
+            "normal_responses": 11,
+            "zero_reasoning_text_tool_count": 0,
+            "first_zero_reasoning_text_tool_step": null,
+            "reasoning_field_observed_without_text_steps": [],
+            "reasoning_field_not_observed_count": 0,
+            "length_responses": [],
+            "max_completion_tokens": 10957
+          },
+          {
+            "id": "terminal-bench/sam-cell-seg",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "fail",
+            "run_status": "completed",
+            "artifact_verdict": "invalid_verifier",
+            "normal_responses": 95,
+            "zero_reasoning_text_tool_count": 85,
+            "first_zero_reasoning_text_tool_step": 10,
+            "reasoning_field_observed_without_text_steps": [
+              10
+            ],
+            "reasoning_field_not_observed_count": 84,
+            "length_responses": [],
+            "max_completion_tokens": 4181
+          },
+          {
+            "id": "terminal-bench/custom-memory-heap-crash",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "fail",
+            "run_status": "limit_reached",
+            "artifact_verdict": "fail",
+            "normal_responses": 9,
+            "zero_reasoning_text_tool_count": 1,
+            "first_zero_reasoning_text_tool_step": 8,
+            "reasoning_field_observed_without_text_steps": [
+              8
+            ],
+            "reasoning_field_not_observed_count": 0,
+            "length_responses": [
+              {
+                "step": 9,
+                "completion_tokens": 8192,
+                "earlier_zero_reasoning_text_tool_step": true,
+                "earlier_reasoning_field_observed_without_text": true
+              }
+            ],
+            "max_completion_tokens": 8192
+          },
+          {
+            "id": "terminal-bench/custom-memory-heap-crash",
+            "attempt": "3",
+            "original_attempt": false,
+            "reported_verdict": "fail",
+            "run_status": "limit_reached",
+            "artifact_verdict": "fail",
+            "normal_responses": 22,
+            "zero_reasoning_text_tool_count": 16,
+            "first_zero_reasoning_text_tool_step": 6,
+            "reasoning_field_observed_without_text_steps": [
+              6
+            ],
+            "reasoning_field_not_observed_count": 15,
+            "length_responses": [
+              {
+                "step": 22,
+                "completion_tokens": 8192,
+                "earlier_zero_reasoning_text_tool_step": true,
+                "earlier_reasoning_field_observed_without_text": true
+              }
+            ],
+            "max_completion_tokens": 8192
+          },
+          {
+            "id": "terminal-bench/custom-memory-heap-crash",
+            "attempt": "4",
+            "original_attempt": false,
+            "reported_verdict": "pass",
+            "run_status": "completed",
+            "artifact_verdict": "pass",
+            "normal_responses": 27,
+            "zero_reasoning_text_tool_count": 5,
+            "first_zero_reasoning_text_tool_step": 8,
+            "reasoning_field_observed_without_text_steps": [
+              8,
+              10,
+              16,
+              21,
+              24
+            ],
+            "reasoning_field_not_observed_count": 0,
+            "length_responses": [],
+            "max_completion_tokens": 4725
+          },
+          {
+            "id": "terminal-bench/chess-best-move",
+            "attempt": "3",
+            "original_attempt": false,
+            "reported_verdict": "fail",
+            "run_status": "limit_reached",
+            "artifact_verdict": "fail",
+            "normal_responses": 35,
+            "zero_reasoning_text_tool_count": 29,
+            "first_zero_reasoning_text_tool_step": 6,
+            "reasoning_field_observed_without_text_steps": [
+              6
+            ],
+            "reasoning_field_not_observed_count": 28,
+            "length_responses": [
+              {
+                "step": 35,
+                "completion_tokens": 8192,
+                "earlier_zero_reasoning_text_tool_step": true,
+                "earlier_reasoning_field_observed_without_text": true
+              }
+            ],
+            "max_completion_tokens": 8192
+          },
+          {
+            "id": "terminal-bench/chess-best-move",
+            "attempt": "4",
+            "original_attempt": false,
+            "reported_verdict": "fail",
+            "run_status": "failed",
+            "artifact_verdict": "fail",
+            "normal_responses": 51,
+            "zero_reasoning_text_tool_count": 2,
+            "first_zero_reasoning_text_tool_step": 18,
+            "reasoning_field_observed_without_text_steps": [
+              18,
+              26
+            ],
+            "reasoning_field_not_observed_count": 0,
+            "length_responses": [],
+            "max_completion_tokens": 9590
+          },
+          {
+            "id": "terminal-bench/largest-eigenval",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "error",
+            "run_status": "limit_reached",
+            "artifact_verdict": "pass",
+            "normal_responses": 65,
+            "zero_reasoning_text_tool_count": 60,
+            "first_zero_reasoning_text_tool_step": 5,
+            "reasoning_field_observed_without_text_steps": [
+              5
+            ],
+            "reasoning_field_not_observed_count": 59,
+            "length_responses": [
+              {
+                "step": 65,
+                "completion_tokens": 8192,
+                "earlier_zero_reasoning_text_tool_step": true,
+                "earlier_reasoning_field_observed_without_text": true
+              }
+            ],
+            "max_completion_tokens": 8192
+          },
+          {
+            "id": "terminal-bench/count-dataset-tokens",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "fail",
+            "run_status": "completed",
+            "artifact_verdict": "fail",
+            "normal_responses": 40,
+            "zero_reasoning_text_tool_count": 35,
+            "first_zero_reasoning_text_tool_step": 5,
+            "reasoning_field_observed_without_text_steps": [
+              5
+            ],
+            "reasoning_field_not_observed_count": 34,
+            "length_responses": [],
+            "max_completion_tokens": 2321
+          },
+          {
+            "id": "terminal-bench/openssl-selfsigned-cert",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "pass",
+            "run_status": "completed",
+            "artifact_verdict": "pass",
+            "normal_responses": 23,
+            "zero_reasoning_text_tool_count": 20,
+            "first_zero_reasoning_text_tool_step": 3,
+            "reasoning_field_observed_without_text_steps": [
+              3
+            ],
+            "reasoning_field_not_observed_count": 19,
+            "length_responses": [],
+            "max_completion_tokens": 626
+          },
+          {
+            "id": "astropy__astropy-12907",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "pass",
+            "run_status": "completed",
+            "artifact_verdict": null,
+            "normal_responses": 27,
+            "zero_reasoning_text_tool_count": 15,
+            "first_zero_reasoning_text_tool_step": 12,
+            "reasoning_field_observed_without_text_steps": [
+              12
+            ],
+            "reasoning_field_not_observed_count": 14,
+            "length_responses": [],
+            "max_completion_tokens": 3088
+          },
+          {
+            "id": "django__django-14017",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "pass",
+            "run_status": "completed",
+            "artifact_verdict": null,
+            "normal_responses": 46,
+            "zero_reasoning_text_tool_count": 34,
+            "first_zero_reasoning_text_tool_step": 12,
+            "reasoning_field_observed_without_text_steps": [
+              12
+            ],
+            "reasoning_field_not_observed_count": 33,
+            "length_responses": [],
+            "max_completion_tokens": 6532
+          },
+          {
+            "id": "sympy__sympy-18532",
+            "attempt": "1",
+            "original_attempt": true,
+            "reported_verdict": "fail",
+            "run_status": "limit_reached",
+            "artifact_verdict": null,
+            "normal_responses": 20,
+            "zero_reasoning_text_tool_count": 17,
+            "first_zero_reasoning_text_tool_step": 3,
+            "reasoning_field_observed_without_text_steps": [
+              3
+            ],
+            "reasoning_field_not_observed_count": 16,
+            "length_responses": [
+              {
+                "step": 20,
+                "completion_tokens": 8192,
+                "earlier_zero_reasoning_text_tool_step": true,
+                "earlier_reasoning_field_observed_without_text": true
+              }
+            ],
+            "max_completion_tokens": 8192
+          },
+          {
+            "id": "sympy__sympy-18532",
+            "attempt": "2",
+            "original_attempt": false,
+            "reported_verdict": "pass",
+            "run_status": "failed",
+            "artifact_verdict": null,
+            "normal_responses": 118,
+            "zero_reasoning_text_tool_count": 9,
+            "first_zero_reasoning_text_tool_step": 4,
+            "reasoning_field_observed_without_text_steps": [
+              4,
+              5,
+              7,
+              21,
+              23,
+              31,
+              53,
+              63,
+              111
+            ],
+            "reasoning_field_not_observed_count": 0,
+            "length_responses": [],
+            "max_completion_tokens": 4418
+          }
+        ],
+        "source_sha256": {
+          "diagnostics/protocol-crosscase/summary-snapshot.json": "bc1b0c6291c84e5675b87d2610803ff92e236e20d0bec499f303ff2b23863e2a",
+          "diagnostics/inspect_protocol_crosscase.py": "e177af969894d57c23a21116cee89e77514cfd4b4a5e8a1f31fff8ae8e0dbe41",
+          "source/src/bot/providers/openai_compatible.py": "096cdb7d129cc09fffda8ab8e5720c63d4a57c492b322182a3eb25ee4b61a626",
+          "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/events.jsonl": "fc6835cafddf6b35ae777cc34b3235fa6c53fcf053d7f429ad02ea9f16c16627",
+          "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/events.jsonl": "26c1537a6d959df720764b940d605043189207a93dcc9cebf26001f63b7c3cbc",
+          "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/agent/events.jsonl": "6aad93de8772dc352388dfde51ec4c2869cc1ec205a67a44d0b198742688c513",
+          "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/events.jsonl": "8f6548c42c2944ed0d36fb4824cebaca4caf9c54a93b641d26d787160867288c",
+          "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/agent/events.jsonl": "19971ae0582f91d6c632e9d88f94e256dc03282841d283c8f23c0a7d3068e2bc",
+          "terminalbench/custom-memory-heap-crash-baseline-4/61e021e0304c9818a9be2c9173c8a093__Q3ypBXD/agent/events.jsonl": "745f07e0fcfe33de6ce0917501834a9f9f75fecaa4aca6f9dbcd4fe79bd85fdd",
+          "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/events.jsonl": "3650d6ec98d8f765314da03ac0fa07d5c43bdccef55166b1b7789c91bd049109",
+          "terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/agent/events.jsonl": "0f535c676d1735a56308f29794354bc420ca17dd61d715bc6a409fb5261e580c",
+          "terminalbench/largest-eigenval-baseline-1/1b6f17c344d23e97435ba3fa93400d14__KcKa4gJ/agent/events.jsonl": "dab237eb71cd235e4a43dafbbf0a3bcb5f8d667c64c1b33554d08cf57626458f",
+          "terminalbench/count-dataset-tokens-baseline-1/cd0574ec8281f53854256acc93702ed1__74qM7YC/agent/events.jsonl": "d7946bb1daebbd3ad759771afa5d2573c8148b56b5fc847d2e568f2c7b724d96",
+          "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/events.jsonl": "16298e2f0aefea866d28584fe08d0b5b4ca2f718676d31c52fe37cdbc60fc8bf",
+          "cases/swebench/astropy__astropy-12907/1/prediction.events.jsonl": "a57cfdc051fe0526fd44b47a5735435a76cc69fa2364920cfa571baa913069ff",
+          "cases/swebench/django__django-14017/1/prediction.events.jsonl": "779d2f0c37b6b1ea7a0f9fe5c0528bf08e12f7b13217ada34359e145afe9bb54",
+          "cases/swebench/sympy__sympy-18532/1/prediction.events.jsonl": "428a73a82ea5385692a610e631cca839d0033dae9e48fb4b2c360e8ec5b7c346",
+          "cases/swebench/sympy__sympy-18532/2/prediction.events.jsonl": "f48a766123d3a5ea0d1737bc072da14d4e9e1339ec48bb771b6ffacd93138d02"
+        },
+        "interpretation": {
+          "counterexample": "Tool responses with observed reasoning_content field but zero reasoning text also occur in three original passing tasks, so their occurrence does not suffice to predict failure.",
+          "observed_limits": "All length-finished responses in this cohort have 8192 completion tokens and an earlier tool step with reasoning_content field observed but zero reasoning text; temporal association does not establish causality.",
+          "output_cap": "Other responses in this cohort exceed 8192 completion tokens. This does not determine the service cap for every mode or request.",
+          "field_semantics": "reasoning_chars=0 alone does not distinguish empty from absent fields. observed_delta_fields separately records field presence, but does not preserve null versus empty-string values. A response without reasoning text is not itself an Agent defect; field loss and mode-switch handling require separate protocol evidence.",
+          "limits": "Small selected cohort, repeated attempts not independent, SAM has invalid original verification, Eigen has artifact pass with runtime error. No universal failure-rate or treatment-effect estimate."
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -3904,6 +4249,7 @@
     "diagnostics/count-tokens-observations/result.json": "9bc497676313a5116ee07ea600554d9829a573f216cbbf9b7ef6e05111a3c711",
     "diagnostics/remaining-terminal-capture/manifest.json": "7cab061a18d260b454a7e5b0e4f45729fe497aeca2b2f19944e0564979820454",
     "diagnostics/midrun-integrity-audit.json": "dc18dffe58cc85b46786c88eafe7771d75c6ae232a636cd0eec90f6ed3ce12e1",
+    "diagnostics/protocol-crosscase/result.json": "031bf35cb69dd264a0f21ef41ca3b4b25f33451efa76e478019a5f9f9117dea2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -3998,6 +4344,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/d3951b5031a3664488602924612655c933aaa003e828f59c22f2b59c5baa0ffe.py": "d3951b5031a3664488602924612655c933aaa003e828f59c22f2b59c5baa0ffe"
+    "diagnostics/source-snapshots/46ff2564aaf5fecbc3b29656c77a8adf91cd2391f1961402f11b01f5542e4120.py": "46ff2564aaf5fecbc3b29656c77a8adf91cd2391f1961402f11b01f5542e4120"
   }
 }
