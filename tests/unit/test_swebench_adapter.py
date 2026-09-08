@@ -129,6 +129,37 @@ def test_restricted_connect_proxy_only_accepts_configured_upstream() -> None:
     assert not _connect_target_allowed("GET api.example:443 HTTP/1.1", "api.example", 443)
 
 
+def test_swebench_unlimited_cost_keeps_step_and_time_limits() -> None:
+    overrides = _worker_config_overrides(
+        max_steps=240, max_wall_time_seconds=7200, max_cost_usd=None
+    )
+    assert overrides["agent"] == {
+        "max_steps": 240,
+        "max_wall_time_seconds": 7200,
+        "max_cost_usd": None,
+    }
+
+
+@pytest.mark.parametrize("cost_args,expected", [([], 1.0), (["--no-cost-limit"], None)])
+def test_worker_cli_forwards_explicit_cost_policy(monkeypatch, cost_args, expected) -> None:
+    from bot.evals import swebench_worker
+
+    captured = {}
+
+    async def fake_worker(*args, **kwargs):
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(swebench_worker, "run_worker", fake_worker)
+    assert (
+        swebench_worker.main(
+            ["instance.json", "--workspace", "/testbed", "--config", "config.toml", *cost_args]
+        )
+        == 0
+    )
+    assert captured["max_cost_usd"] == expected
+
+
 def test_api_key_environment_normalizes_dotenv_for_child_process(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

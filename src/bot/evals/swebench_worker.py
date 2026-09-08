@@ -32,13 +32,13 @@ def _validate_container_artifact_path(path: Path | None) -> Path | None:
 
 
 def _worker_config_overrides(
-    *, max_steps: int, max_wall_time_seconds: float, max_cost_usd: float
+    *, max_steps: int, max_wall_time_seconds: float, max_cost_usd: float | None
 ) -> dict[str, object]:
     if max_steps < 1:
         raise ValueError("SWE-bench max_steps 必须大于 0")
     if max_wall_time_seconds <= 0:
         raise ValueError("SWE-bench max_wall_time_seconds 必须大于 0")
-    if max_cost_usd <= 0:
+    if max_cost_usd is not None and max_cost_usd <= 0:
         raise ValueError("SWE-bench max_cost_usd 必须大于 0")
     return {
         "agent": {
@@ -62,7 +62,7 @@ async def run_worker(
     state_backup_path: Path | None = None,
     max_steps: int = DEFAULT_SWEBENCH_MAX_STEPS,
     max_wall_time_seconds: float = DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS,
-    max_cost_usd: float = DEFAULT_SWEBENCH_MAX_COST_USD,
+    max_cost_usd: float | None = DEFAULT_SWEBENCH_MAX_COST_USD,
 ) -> int:
     if os.environ.get("SWEBENCH_CONTAINER") != "1" or not Path("/.dockerenv").exists():
         raise RuntimeError("SWE-bench Worker 只允许在显式标记的一次性容器中运行")
@@ -121,7 +121,9 @@ def main(argv: list[str] | None = None) -> int:
         type=float,
         default=DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS,
     )
-    parser.add_argument("--max-cost-usd", type=float, default=DEFAULT_SWEBENCH_MAX_COST_USD)
+    cost = parser.add_mutually_exclusive_group()
+    cost.add_argument("--max-cost-usd", type=float, default=DEFAULT_SWEBENCH_MAX_COST_USD)
+    cost.add_argument("--no-cost-limit", dest="max_cost_usd", action="store_const", const=None)
     args = parser.parse_args(argv)
     return asyncio.run(
         run_worker(

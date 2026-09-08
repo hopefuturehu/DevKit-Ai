@@ -243,7 +243,7 @@ def run_container_instance(
     output_path: Path,
     max_steps: int = DEFAULT_SWEBENCH_MAX_STEPS,
     max_wall_time_seconds: float = DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS,
-    max_cost_usd: float = DEFAULT_SWEBENCH_MAX_COST_USD,
+    max_cost_usd: float | None = DEFAULT_SWEBENCH_MAX_COST_USD,
 ) -> int:
     """Run the agent inside a disposable SWE-bench instance container."""
     if not (project_root / "pyproject.toml").is_file():
@@ -254,7 +254,7 @@ def run_container_instance(
         raise ValueError("SWE-bench max_steps 必须大于 0")
     if max_wall_time_seconds <= 0:
         raise ValueError("SWE-bench max_wall_time_seconds 必须大于 0")
-    if max_cost_usd <= 0:
+    if max_cost_usd is not None and max_cost_usd <= 0:
         raise ValueError("SWE-bench max_cost_usd 必须大于 0")
 
     config = load_config(project_root, config_path=config_path)
@@ -297,7 +297,7 @@ def run_container_instance(
             "SWE-bench worker limits: "
             f"max_steps={max_steps}, "
             f"max_wall_time_seconds={max_wall_time_seconds:g}, "
-            f"max_cost_usd={max_cost_usd:g}\n",
+            f"max_cost_usd={max_cost_usd if max_cost_usd is not None else 'unlimited'}\n",
         )
         try:
             mount = f"type=bind,src={project_root},dst=/opt/kunpeng-bot-src,readonly"
@@ -406,8 +406,11 @@ def run_container_instance(
                     str(max_steps),
                     "--max-wall-time-seconds",
                     str(max_wall_time_seconds),
-                    "--max-cost-usd",
-                    str(max_cost_usd),
+                    *(
+                        ["--max-cost-usd", str(max_cost_usd)]
+                        if max_cost_usd is not None
+                        else ["--no-cost-limit"]
+                    ),
                 ],
                 cwd=project_root,
                 stdout_path=events_path,

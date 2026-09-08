@@ -26,7 +26,9 @@ def main() -> int:
         type=float,
         default=DEFAULT_SWEBENCH_MAX_WALL_TIME_SECONDS,
     )
-    parser.add_argument("--max-cost-usd", type=float, default=DEFAULT_SWEBENCH_MAX_COST_USD)
+    cost = parser.add_mutually_exclusive_group()
+    cost.add_argument("--max-cost-usd", type=float, default=DEFAULT_SWEBENCH_MAX_COST_USD)
+    cost.add_argument("--no-cost-limit", dest="max_cost_usd", action="store_const", const=None)
     args = parser.parse_args()
 
     instance = load_instance(args.instance_file.resolve(), args.instance_id)

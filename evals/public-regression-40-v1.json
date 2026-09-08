@@ -1,0 +1,435 @@
+{
+  "schema_version": 1,
+  "name": "public-regression-40-v1",
+  "seed": "bot-public-regression-v1",
+  "selection": "One per stratum, then one additional case from largest strata; ties by stratum name; cases ordered by SHA256(seed:id). No outcome-based replacement.",
+  "terminalbench_dataset": "terminal-bench/terminal-bench-2-1",
+  "terminalbench_population": 89,
+  "swebench_dataset": "SWE-bench/SWE-bench_Lite",
+  "swebench_population": 300,
+  "swebench_arrow_sha256": "b77fa3036c06219715a35e8088fee13b0b87bc957052546c3270caf38a325627",
+  "terminalbench": [
+    {
+      "id": "terminal-bench/multi-source-data-merger",
+      "category": "data-processing",
+      "difficulty": "medium",
+      "package_hash": "70367c38732e1beda7b229968a48d60242277c2fa4db91339c3f064c4c230d49",
+      "task_toml_sha256": "ee3964c0ee040f0a0cb121cefefbc15443d127684acb003fa5b61dd42f31c694",
+      "image": "alexgshaw/multi-source-data-merger:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/sparql-university",
+      "category": "data-querying",
+      "difficulty": "hard",
+      "package_hash": "02aeca67b6c5b0d2d72c91ab471beb51ded6f42f0dc3dec580e20d489f09a867",
+      "task_toml_sha256": "47a6f6dd9ce0fc7631ef607e900fcd039b2d064ea90545645b49c678cddc9585",
+      "image": "alexgshaw/sparql-university:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/sam-cell-seg",
+      "category": "data-science",
+      "difficulty": "hard",
+      "package_hash": "37c182b91df18b9c2ea2dceda47430bbd585e7880c56fca2f1975907ce0df8ce",
+      "task_toml_sha256": "f0eb6af2acb87cb6fee67d77e8fdd55e3b331baf48999260bc5b6c4ac466c128",
+      "image": "alexgshaw/sam-cell-seg:20251031",
+      "cpus": 1,
+      "memory_mb": 4096,
+      "agent_timeout_sec": 7200.0,
+      "verifier_timeout_sec": 7200.0
+    },
+    {
+      "id": "terminal-bench/rstan-to-pystan",
+      "category": "data-science",
+      "difficulty": "medium",
+      "package_hash": "592f15f75751f3c4999c3d05087f2f8b2a4dbaaedbfad5a30ae54058b80b925f",
+      "task_toml_sha256": "ed0cd4382cb353e73cb575aa7a20b624e35f09ddd8769c332f40f8986980e13f",
+      "image": "alexgshaw/rstan-to-pystan:20251031",
+      "cpus": 4,
+      "memory_mb": 8192,
+      "agent_timeout_sec": 1800.0,
+      "verifier_timeout_sec": 1800.0
+    },
+    {
+      "id": "terminal-bench/custom-memory-heap-crash",
+      "category": "debugging",
+      "difficulty": "medium",
+      "package_hash": "61e021e0304c9818a9be2c9173c8a0938ce5d136e95c5422e099f1fdb2dc080e",
+      "task_toml_sha256": "ed474be1983e212913aa8866ebb66216acbe36aef2339ac375d232aa46617481",
+      "image": "alexgshaw/custom-memory-heap-crash:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 1800.0,
+      "verifier_timeout_sec": 1800.0
+    },
+    {
+      "id": "terminal-bench/large-scale-text-editing",
+      "category": "file-operations",
+      "difficulty": "medium",
+      "package_hash": "1f1cddc3df15e452fe2d3c6928f6b1e5b5330a7ae67cab373a0d089ea7d334a2",
+      "task_toml_sha256": "5c9488e80c1186f72efb8193e6be13c74eadf334b3846db2e794d24513a88f5f",
+      "image": "alexgshaw/large-scale-text-editing:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 1200.0,
+      "verifier_timeout_sec": 1200.0
+    },
+    {
+      "id": "terminal-bench/chess-best-move",
+      "category": "games",
+      "difficulty": "medium",
+      "package_hash": "9ab8e4b3674282e751edafbd9b5bd551fef995fd6601585a2cdb04fd70c520da",
+      "task_toml_sha256": "d8f01d3c84ed5836edbb49c6c3b3cc7b5b96d951cf01a0987467c9206fb22f9e",
+      "image": "alexgshaw/chess-best-move:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/caffe-cifar-10",
+      "category": "machine-learning",
+      "difficulty": "medium",
+      "package_hash": "7b0045106d7d5af724efe96b610ba64f7893f5c88528401c573c4d47e384e2bf",
+      "task_toml_sha256": "2831165ad9d9e8bbc646e6d85c0a2290640dcc4f13749547a2937c7675012a8b",
+      "image": "alexgshaw/caffe-cifar-10:20260403",
+      "cpus": 4,
+      "memory_mb": 8192,
+      "agent_timeout_sec": 3600.0,
+      "verifier_timeout_sec": 1200.0
+    },
+    {
+      "id": "terminal-bench/largest-eigenval",
+      "category": "mathematics",
+      "difficulty": "medium",
+      "package_hash": "1b6f17c344d23e97435ba3fa93400d141f6bb7763ed2014fab418830983791b3",
+      "task_toml_sha256": "f7b9b7dda446f969a3ce88f61039d216f4d58b5fc5c10ff9faa24e2403bbd830",
+      "image": "alexgshaw/largest-eigenval:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/count-dataset-tokens",
+      "category": "model-training",
+      "difficulty": "medium",
+      "package_hash": "cd0574ec8281f53854256acc93702ed1441407c0428849e1dd4f27e863c6b08a",
+      "task_toml_sha256": "8220a1b8e6e08ecb95556920de358b6aa74b112d8a79625db6915f6b316ccd18",
+      "image": "alexgshaw/count-dataset-tokens:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/portfolio-optimization",
+      "category": "optimization",
+      "difficulty": "medium",
+      "package_hash": "d112f8945600f18ec47bbbe76935dc05953173cc3d0a375a7aa2712b091584e4",
+      "task_toml_sha256": "4918687e4e261a9852e39e5a554156733c071c17dc89c5f544f15f2ef744ce0a",
+      "image": "alexgshaw/portfolio-optimization:20251031",
+      "cpus": 1,
+      "memory_mb": 4096,
+      "agent_timeout_sec": 3600.0,
+      "verifier_timeout_sec": 3600.0
+    },
+    {
+      "id": "terminal-bench/constraints-scheduling",
+      "category": "personal-assistant",
+      "difficulty": "medium",
+      "package_hash": "91dd6f87e1ee508328d5aafbd99a6bd1ccc47bc22671b4aaa4060bda492deb53",
+      "task_toml_sha256": "7b9842de16d74e8faf8c7c0aa03b0b81145941cb12dd322d81ae23fc48607250",
+      "image": "alexgshaw/constraints-scheduling:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 1200.0,
+      "verifier_timeout_sec": 1200.0
+    },
+    {
+      "id": "terminal-bench/dna-insert",
+      "category": "scientific-computing",
+      "difficulty": "medium",
+      "package_hash": "37fc023970e3464c1acc31f43e04a0b4b94758130d340788f261f00764d9e530",
+      "task_toml_sha256": "1a9efd5c826d64d31c4874b395f1f9c488b2f26581b0c752fc4619ff177f25eb",
+      "image": "alexgshaw/dna-insert:20251031",
+      "cpus": 1,
+      "memory_mb": 4096,
+      "agent_timeout_sec": 1800.0,
+      "verifier_timeout_sec": 1800.0
+    },
+    {
+      "id": "terminal-bench/bn-fit-modify",
+      "category": "scientific-computing",
+      "difficulty": "hard",
+      "package_hash": "b5f9644970c17ad9ddb46b7266f7bcd87c761d77d7e6f55d7cfe7284d5ff66e9",
+      "task_toml_sha256": "6493f7162da424a4fd95da721bd3fd1ce7e5dd26e792132cb9c46db536b67090",
+      "image": "alexgshaw/bn-fit-modify:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 3600.0,
+      "verifier_timeout_sec": 3600.0
+    },
+    {
+      "id": "terminal-bench/openssl-selfsigned-cert",
+      "category": "security",
+      "difficulty": "medium",
+      "package_hash": "d4afa2bd2a9ba1420db8d6cfde42ffdb4873ae2d955c35014e8da94444c83302",
+      "task_toml_sha256": "75c8913f0fa15890786c11999cde920b8bfc10d4ce8a14edf1e76985a2ac5800",
+      "image": "alexgshaw/openssl-selfsigned-cert:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/code-from-image",
+      "category": "software-engineering",
+      "difficulty": "medium",
+      "package_hash": "ef2907bb300d9b3352410c2a75dbf831278c187c073298371870ea9c83526f78",
+      "task_toml_sha256": "3a13c1e252bb8759f51215be0b2b2cb1b4c697f0dd570f2d7702cc28b28f08de",
+      "image": "alexgshaw/code-from-image:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 1200.0,
+      "verifier_timeout_sec": 1200.0
+    },
+    {
+      "id": "terminal-bench/cobol-modernization",
+      "category": "software-engineering",
+      "difficulty": "easy",
+      "package_hash": "e03aa03965eee48c9f772d566ff9bcd741fceeac9693123f82a13fdd46be0d88",
+      "task_toml_sha256": "4b620211dc3d6b1b989f0210c5ecd2f606974581c8bce27bd78659d48cf0cfbd",
+      "image": "alexgshaw/cobol-modernization:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/compile-compcert",
+      "category": "system-administration",
+      "difficulty": "medium",
+      "package_hash": "22bde2a73d62fa46f5ab96f710561a72e8d1aa4266f008605a17f174622ad785",
+      "task_toml_sha256": "1d9618d7178cfa15918a293da126b867f3a7db160e604d4fec369949884dac39",
+      "image": "alexgshaw/compile-compcert:20260403",
+      "cpus": 2,
+      "memory_mb": 4096,
+      "agent_timeout_sec": 2400.0,
+      "verifier_timeout_sec": 2400.0
+    },
+    {
+      "id": "terminal-bench/git-multibranch",
+      "category": "system-administration",
+      "difficulty": "medium",
+      "package_hash": "7759a92a373c967dd31535975bad8659410644025673fe62385444fd2605c5fa",
+      "task_toml_sha256": "4b9981604578a31205257cca36a28d0c89c9d8d1058541330acd11d3f8d65f82",
+      "image": "alexgshaw/git-multibranch:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 900.0,
+      "verifier_timeout_sec": 900.0
+    },
+    {
+      "id": "terminal-bench/video-processing",
+      "category": "video-processing",
+      "difficulty": "hard",
+      "package_hash": "d3f02e177b49e5768b6ce6709fc4ae3ef2ce0cdecb63b09fc9b07f9d3ddb7203",
+      "task_toml_sha256": "be4fb42fccc5faa4862789cedd2c560eaa5758a2971989649a6dafeaeccc17aa",
+      "image": "alexgshaw/video-processing:20251031",
+      "cpus": 1,
+      "memory_mb": 2048,
+      "agent_timeout_sec": 3600.0,
+      "verifier_timeout_sec": 3600.0
+    }
+  ],
+  "swebench": [
+    {
+      "id": "astropy__astropy-12907",
+      "repo": "astropy/astropy",
+      "version": "4.3",
+      "base_commit": "d16bfe05a744909de4b27f5875fe0d4ed41ce607",
+      "problem_statement_sha256": "c01334ec1b21a089c650cf2e7b96ab974469076bf1260d23885799e1f0a7551f",
+      "issue_title": "Modeling's `separability_matrix` does not compute separability correctly for nested CompoundModels",
+      "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907:latest"
+    },
+    {
+      "id": "astropy__astropy-14182",
+      "repo": "astropy/astropy",
+      "version": "5.1",
+      "base_commit": "a5917978be39d13cd90b517e1de4e7a539ffaa48",
+      "problem_statement_sha256": "2f743a72613ab0e8e063ff7b7f0a233015ad12ba14992625d9f84b315fa885fd",
+      "issue_title": "Please support header rows in RestructuredText output",
+      "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-14182:latest"
+    },
+    {
+      "id": "django__django-15996",
+      "repo": "django/django",
+      "version": "4.2",
+      "base_commit": "b30c0081d4d8a31ab7dc7f72a4c7099af606ef29",
+      "problem_statement_sha256": "c716931e6bb5da2257e874f067f6b8b9f5265d9be646249946047091d0a60796",
+      "issue_title": "Support for serialization of combination of Enum flags.",
+      "image": "swebench/sweb.eval.x86_64.django_1776_django-15996:latest"
+    },
+    {
+      "id": "django__django-14017",
+      "repo": "django/django",
+      "version": "4.0",
+      "base_commit": "466920f6d726eee90d5566e0a9948e92b33a122e",
+      "problem_statement_sha256": "a9b1b917d84ea9f7230d9dd8a0e81fe9261b0a878979d52423fa24cbb574acba",
+      "issue_title": "Q(...) & Exists(...) raises a TypeError",
+      "image": "swebench/sweb.eval.x86_64.django_1776_django-14017:latest"
+    },
+    {
+      "id": "matplotlib__matplotlib-23476",
+      "repo": "matplotlib/matplotlib",
+      "version": "3.5",
+      "base_commit": "33a0599711d26dc2b79f851c6daed4947df7c167",
+      "problem_statement_sha256": "09f6a686f1cdc38099eeaf53b4f8d5d7f5ccc2587d792da3f5f5ac0ee5e94eab",
+      "issue_title": "[Bug]: DPI of a figure is doubled after unpickling on M1 Mac",
+      "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-23476:latest"
+    },
+    {
+      "id": "matplotlib__matplotlib-22711",
+      "repo": "matplotlib/matplotlib",
+      "version": "3.5",
+      "base_commit": "f670fe78795b18eb1118707721852209cd77ad51",
+      "problem_statement_sha256": "60c46390eeb09af9bdd52dfc1fe70f81de99fafb5eec07a4d94bc153858b46eb",
+      "issue_title": "[Bug]: cannot give init value for RangeSlider widget",
+      "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-22711:latest"
+    },
+    {
+      "id": "mwaskom__seaborn-3010",
+      "repo": "mwaskom/seaborn",
+      "version": "0.12",
+      "base_commit": "0f5a013e2cf43562deec3b879458e59a73853813",
+      "problem_statement_sha256": "71aa98ceff4d378b09f725df7802741eda6523061adade9ecf6931e23eec7092",
+      "issue_title": "PolyFit is not robust to missing data",
+      "image": "swebench/sweb.eval.x86_64.mwaskom_1776_seaborn-3010:latest"
+    },
+    {
+      "id": "pallets__flask-4045",
+      "repo": "pallets/flask",
+      "version": "2.0",
+      "base_commit": "d8c37f43724cd9fb0870f77877b7c4c7e38a19e0",
+      "problem_statement_sha256": "8a196755a30b6e9575830574d9ea5b392bbe7685ffd7fb91acba6d604f198fb0",
+      "issue_title": "Raise error when blueprint name contains a dot",
+      "image": "swebench/sweb.eval.x86_64.pallets_1776_flask-4045:latest"
+    },
+    {
+      "id": "psf__requests-2317",
+      "repo": "psf/requests",
+      "version": "2.4",
+      "base_commit": "091991be0da19de9108dbe5e3752917fea3d7fdc",
+      "problem_statement_sha256": "9fdbda259c2e75551a5282e979edf4ca93ba378bee22df393fe02998991cfd1a",
+      "issue_title": "method = builtin_str(method) problem",
+      "image": "swebench/sweb.eval.x86_64.psf_1776_requests-2317:latest"
+    },
+    {
+      "id": "psf__requests-2674",
+      "repo": "psf/requests",
+      "version": "2.7",
+      "base_commit": "0be38a0c37c59c4b66ce908731da15b401655113",
+      "problem_statement_sha256": "37b3690328acc2c93db22c582335e6bc6332a1a08b329670676102073ee110f9",
+      "issue_title": "urllib3 exceptions passing through requests API",
+      "image": "swebench/sweb.eval.x86_64.psf_1776_requests-2674:latest"
+    },
+    {
+      "id": "pydata__xarray-4248",
+      "repo": "pydata/xarray",
+      "version": "0.12",
+      "base_commit": "98dc1f4ea18738492e074e9e51ddfed5cd30ab94",
+      "problem_statement_sha256": "c3ed7e2a4bcf766f85ad8d923d929840f46121409ceae0a80412b840bfed69a4",
+      "issue_title": "Feature request: show units in dataset overview",
+      "image": "swebench/sweb.eval.x86_64.pydata_1776_xarray-4248:latest"
+    },
+    {
+      "id": "pylint-dev__pylint-5859",
+      "repo": "pylint-dev/pylint",
+      "version": "2.13",
+      "base_commit": "182cc539b8154c0710fcea7e522267e42eba8899",
+      "problem_statement_sha256": "1f37ee2e9591b5d55c68d3426fc3ae13e285d97f46ee3e0769373a4dfaa11a2f",
+      "issue_title": "\"--notes\" option ignores note tags that are entirely punctuation",
+      "image": "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-5859:latest"
+    },
+    {
+      "id": "pytest-dev__pytest-11143",
+      "repo": "pytest-dev/pytest",
+      "version": "8.0",
+      "base_commit": "6995257cf470d2143ad1683824962de4071c0eb7",
+      "problem_statement_sha256": "d9ed54b67e037ab7dd1c4fbd64a530251f98d8eac2cbbd9e41956232e2d1a15c",
+      "issue_title": "Rewrite fails when first expression of file is a number and mistaken as docstring ",
+      "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-11143:latest"
+    },
+    {
+      "id": "pytest-dev__pytest-5227",
+      "repo": "pytest-dev/pytest",
+      "version": "4.4",
+      "base_commit": "2051e30b9b596e944524ccb787ed20f9f5be93e3",
+      "problem_statement_sha256": "3a2ff514af781d2bbeeba733d6cc9ee99766a5c70718f731e0cd2ea4048ad26c",
+      "issue_title": "Improve default logging format",
+      "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5227:latest"
+    },
+    {
+      "id": "scikit-learn__scikit-learn-13584",
+      "repo": "scikit-learn/scikit-learn",
+      "version": "0.21",
+      "base_commit": "0e3c1879b06d839171b7d0a607d71bbb19a966a9",
+      "problem_statement_sha256": "f419fb2a4231e7f7526b63c6fc3531f55b32586f1acc24b43bc4489811af51ec",
+      "issue_title": "bug in print_changed_only in new repr: vector values",
+      "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-13584:latest"
+    },
+    {
+      "id": "scikit-learn__scikit-learn-13241",
+      "repo": "scikit-learn/scikit-learn",
+      "version": "0.21",
+      "base_commit": "f8b108d0c6f2f82b2dc4e32a6793f9d9ac9cf2f4",
+      "problem_statement_sha256": "d982428745afa785ccdf9fb7bbddb53595fc57f83a4450d0ce41a63b461f428b",
+      "issue_title": "Differences among the results of KernelPCA with rbf kernel",
+      "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-13241:latest"
+    },
+    {
+      "id": "sphinx-doc__sphinx-8435",
+      "repo": "sphinx-doc/sphinx",
+      "version": "3.4",
+      "base_commit": "5d8d6275a54f2c5fb72b82383b5712c22d337634",
+      "problem_statement_sha256": "4994548dd7aca4bd813d66128317c20b9539af07077bf2df85f98f2e741357e1",
+      "issue_title": "autodoc_type_aliases does not effect to variables and attributes",
+      "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-8435:latest"
+    },
+    {
+      "id": "sphinx-doc__sphinx-8506",
+      "repo": "sphinx-doc/sphinx",
+      "version": "3.4",
+      "base_commit": "e4bd3bd3ddd42c6642ff779a4f7381f219655c2c",
+      "problem_statement_sha256": "8ccc58a78f4c95e014b980473d1c0bff54567f19e06e1731a3c5a2f8858fa42c",
+      "issue_title": "Sphinx 3.2 complains about option:: syntax that earlier versions accepted",
+      "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-8506:latest"
+    },
+    {
+      "id": "sympy__sympy-18532",
+      "repo": "sympy/sympy",
+      "version": "1.6",
+      "base_commit": "74227f900b05009d4eed62e34a166228788a32ca",
+      "problem_statement_sha256": "ea8ba9c6ef25373f9d6955ab42298223c99634fa3d8a30ca115caf37564ed3a3",
+      "issue_title": "expr.atoms() should return objects with no args instead of subclasses of Atom",
+      "image": "swebench/sweb.eval.x86_64.sympy_1776_sympy-18532:latest"
+    },
+    {
+      "id": "sympy__sympy-20322",
+      "repo": "sympy/sympy",
+      "version": "1.8",
+      "base_commit": "ab864967e71c950a15771bb6c3723636026ba876",
+      "problem_statement_sha256": "5a69447265f953407032672d66a3aecc9d5bb108a32faf21cfb17c602ff0edbd",
+      "issue_title": "Inconsistent behavior for sympify/simplify with ceiling",
+      "image": "swebench/sweb.eval.x86_64.sympy_1776_sympy-20322:latest"
+    }
+  ]
+}
