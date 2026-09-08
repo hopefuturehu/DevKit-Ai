@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T19:00:43.410523+00:00",
+  "generated_at": "2026-09-08T19:08:40.156811+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -1048,6 +1048,38 @@
         "original_image_preserved": "sha256:4ca0b429596fd62b9fab0a787e276ee7ee3faf2761b56473232327218c462c56"
       }
     },
+    "original_vim_model_output_replay": {
+      "source": "diagnostics/native-vim/original-output-replay.result.json",
+      "result": {
+        "classification": "Replay of the frozen model-produced artifact in the original image; no model call; not the official reference solution",
+        "model_output_sha256": "7ab23c6585ed3497c60b1aaf426de53ff1926906aa3db09b9ddc9395d803fdc3",
+        "started_at": "2026-09-08T18:55:32.651578+00:00",
+        "argv": [
+          "/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/bin/harbor",
+          "run",
+          "--path",
+          "/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/diagnostics/native-vim/original-artifact-task",
+          "--agent",
+          "oracle",
+          "--n-concurrent",
+          "1",
+          "--n-attempts",
+          "1",
+          "--jobs-dir",
+          "/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/terminalbench",
+          "--job-name",
+          "large-scale-text-editing-original-output-replay-1",
+          "--quiet"
+        ],
+        "pid": 76829,
+        "returncode": 0,
+        "finished_at": "2026-09-08T19:07:21.690566+00:00",
+        "result_path": "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/result.json",
+        "result_sha256": "18d5a6631b2d5e9ce78df20f563783117a56779d2996c0c085a01c1c80bc17a3",
+        "reward": 0.0,
+        "exception": null
+      }
+    },
     "summary_usage_reconciliation": {
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
@@ -1339,6 +1371,7 @@
     "diagnostics/native-vim/model-result.json": "68d5a73010a39c6e3fdf2075dfc0e8c8945246606e0a8fb28930d3054c1ec084",
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
+    "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
     "diagnostics/summary-reconciliation.json": "a23b306d620f4b41158d6f4e78d4196f00cee4a9c5aaa4f9bab81fe969d86659",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/verifier/ctrf.json": "cfbd5650309229aae45696f6eaf5cfd1f1aa9629b1da869574c017c2b28ee83b",
     "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/verifier/ctrf.json": "fa747403edb7db3635f4433df4db0b1d43c071bf21413251abfab1c0cbb5498a",
@@ -1352,6 +1385,10 @@
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/result.json": "520274c3725418d61f82cd43b5283ea233fc9dbe160a8e92a1e394bcd7647dcc",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/events.jsonl": "94be146e4959f889d9c0c144b21ea8ebf74eb424e875f392c766f3c1037e3515",
     "diagnostics/native-vim/final-apply_macros.vim": "7ab23c6585ed3497c60b1aaf426de53ff1926906aa3db09b9ddc9395d803fdc3",
-    "diagnostics/source-snapshots/278d39a20533cf6f01778fc3e28db42ad9a24fbe3803ae5577d188d56b9677f0.py": "278d39a20533cf6f01778fc3e28db42ad9a24fbe3803ae5577d188d56b9677f0"
+    "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/result.json": "18d5a6631b2d5e9ce78df20f563783117a56779d2996c0c085a01c1c80bc17a3",
+    "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
+    "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
+    "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
+    "diagnostics/source-snapshots/0eef975347171d9f278b14483df8afb3d68ac277189b209c8e52a0e2f494ce39.py": "0eef975347171d9f278b14483df8afb3d68ac277189b209c8e52a0e2f494ce39"
   }
 }
