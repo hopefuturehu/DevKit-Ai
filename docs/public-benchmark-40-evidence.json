@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T22:36:07.930432+00:00",
+  "generated_at": "2026-09-08T22:44:57.722560+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
-    "pass": 6,
+    "pass": 7,
     "fail": 4,
-    "not_run": 29,
+    "not_run": 28,
     "error": 1
   },
   "baseline_scoring_counts": {
-    "pass": 6,
+    "pass": 7,
     "invalid_verifier": 1,
-    "not_run": 29,
+    "not_run": 28,
     "fail": 3,
     "error": 1
   },
@@ -245,6 +245,62 @@
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
       "input_tokens": 237555,
       "output_tokens": 12434
+    },
+    {
+      "id": "terminal-bench/constraints-scheduling",
+      "attempt": "1",
+      "verdict": "pass",
+      "record": "cases/terminalbench/constraints-scheduling/1/result.json",
+      "image_id": "sha256:65694556a87deb6f2c0f643841d4d4ff3fabd1e794999978694d891ccb24e703",
+      "agent_variant": "original",
+      "model_response_observed": true,
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_structure_event_title_attendees_duration_window",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_constraints_conflicts_business_hours",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_earliest_tiebreakers_and_carol_buffer",
+          "status": "passed"
+        }
+      ],
+      "verifier_health": {
+        "test_count": 3,
+        "test_statuses": {
+          "passed": 3
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "pass",
+      "output_capture_attempts": [
+        "cases/terminalbench/constraints-scheduling/1/output-capture-remaining.json"
+      ],
+      "observed_artifacts": [
+        "cases/terminalbench/constraints-scheduling/1/observed-app__alice_calendar.ics",
+        "cases/terminalbench/constraints-scheduling/1/observed-app__bob_calendar.ics",
+        "cases/terminalbench/constraints-scheduling/1/observed-app__carol_calendar.ics",
+        "cases/terminalbench/constraints-scheduling/1/observed-app__meeting_scheduled.ics"
+      ],
+      "run_status": "completed",
+      "steps": 7,
+      "error": null,
+      "input_tokens": 81678,
+      "output_tokens": 10847
     },
     {
       "id": "terminal-bench/count-dataset-tokens",
@@ -1592,7 +1648,7 @@
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
         "script_sha256": "20eec64f82b31343e473cf4fc7ec6bc17f3936c801b4c4df571620d1b341947c",
-        "completed_runs_checked": 16,
+        "completed_runs_checked": 17,
         "all_usage_totals_match": true,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
         "runs": [
@@ -1625,6 +1681,21 @@
               "output_tokens": 71948
             },
             "estimated_cost_usd": 0.09625576000000001
+          },
+          {
+            "agent_result": "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/agent/result.json",
+            "agent_result_sha256": "e1c6da1d8c5a4312b529891e78cc9074c881510aad211067ca62cbf05d83d0a9",
+            "events": "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/agent/events.jsonl",
+            "events_sha256": "dfd9b310fec127e5bb7fd22d6e50c578a2ff8151bb2a97fe2d209dc0d6dce948",
+            "expected": {
+              "input_tokens": 81678,
+              "output_tokens": 10847
+            },
+            "observed": {
+              "input_tokens": 81678,
+              "output_tokens": 10847
+            },
+            "estimated_cost_usd": 0.012395892000000002
           },
           {
             "agent_result": "terminalbench/count-dataset-tokens-baseline-1/cd0574ec8281f53854256acc93702ed1__74qM7YC/agent/result.json",
@@ -4117,6 +4188,138 @@
           "tests/test_outputs.py": "800fc762b0a107b197d17cc2c094858490f02f09f47af4e3ee84253594f97fa7"
         }
       }
+    },
+    "constraints_outcome_observations": {
+      "source": "diagnostics/constraints-outcome-observations.json",
+      "result": {
+        "id": "terminal-bench/constraints-scheduling",
+        "attempt": "1",
+        "at": "2026-09-08T22:44:57.040101+00:00",
+        "official_reward": 1,
+        "official_tests_passed": 3,
+        "agent_status": "completed",
+        "steps": 7,
+        "controls": {
+          "oracle": {
+            "reward": 1,
+            "finished_at": "2026-09-08T22:35:29.800350Z",
+            "exception": null
+          },
+          "nop": {
+            "reward": 0,
+            "finished_at": "2026-09-08T22:37:33.114246Z",
+            "exception": null
+          },
+          "baseline": {
+            "reward": 1,
+            "finished_at": "2026-09-08T22:42:32.294743Z",
+            "exception": null
+          }
+        },
+        "meeting_fields": {
+          "DTSTART": "20240117T110000Z",
+          "DTEND": "20240117T120000Z",
+          "SUMMARY": "Team Planning Meeting"
+        },
+        "inputs": {
+          "alice": {
+            "sha256": "5a5d45804bffd339c2479d49e76fe817b38244d14d389afe1de583443808ecbc",
+            "matches_official_input": true
+          },
+          "bob": {
+            "sha256": "c97e85dbcdd756758f8a80f4db5fd5c1dcacee79298e4d2262f46de5ff680b50",
+            "matches_official_input": true
+          },
+          "carol": {
+            "sha256": "32a0f8687637df0a12b8e5c56d49c4192bc3e790856943632d70f237c7c1363b",
+            "matches_official_input": true
+          }
+        },
+        "capture": {
+          "task": "terminal-bench/constraints-scheduling",
+          "attempt": "1",
+          "started_at": "2026-09-08T22:41:26.907423+00:00",
+          "container": "91dd6f87e1ee508328d5aafbd99a6bd1__hlbhxsr__env-main-1",
+          "capture_trigger": "worker_result",
+          "trigger_sha256": "e1c6da1d8c5a4312b529891e78cc9074c881510aad211067ca62cbf05d83d0a9",
+          "observer_sha256": "b126ea32d49781e34ca4402128327260fda0f6c19f70b3c26f62f60923486268",
+          "limitation": "Filesystem observation may overlap verifier execution. Timeout snapshots do not establish an immutable cutoff or graceful Worker termination. Missing optional paths are recorded as failed copies.",
+          "files": [
+            {
+              "container_path": "/app/meeting_scheduled.ics",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/constraints-scheduling/1/observed-app__meeting_scheduled.ics",
+              "sha256": "9d4491bde4a98189b79570312869db7d3b658eafae34f05dce7716c64c7e91f0",
+              "bytes": 454
+            },
+            {
+              "container_path": "/app/alice_calendar.ics",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/constraints-scheduling/1/observed-app__alice_calendar.ics",
+              "sha256": "5a5d45804bffd339c2479d49e76fe817b38244d14d389afe1de583443808ecbc",
+              "bytes": 1660
+            },
+            {
+              "container_path": "/app/bob_calendar.ics",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/constraints-scheduling/1/observed-app__bob_calendar.ics",
+              "sha256": "c97e85dbcdd756758f8a80f4db5fd5c1dcacee79298e4d2262f46de5ff680b50",
+              "bytes": 1209
+            },
+            {
+              "container_path": "/app/carol_calendar.ics",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/constraints-scheduling/1/observed-app__carol_calendar.ics",
+              "sha256": "32a0f8687637df0a12b8e5c56d49c4192bc3e790856943632d70f237c7c1363b",
+              "bytes": 1263
+            }
+          ],
+          "finished_at": "2026-09-08T22:41:27.048474+00:00"
+        },
+        "input_tokens": 81678,
+        "output_tokens": 10847,
+        "independent_usage_export_matches": true,
+        "cleanup_verified": {
+          "image_still_present": false,
+          "trial_containers_remaining": [],
+          "retained_images_missing": [],
+          "retained_image_count": 34
+        },
+        "source_sha256": {
+          "diagnostics/inspect_constraints_result.py": "b66fe88b6d20aae0422f5267d27923788d39c1d0e7900e53e56aa7e926baa5f7",
+          "cases/terminalbench/constraints-scheduling/1/result.json": "f6d4b6dcac5ca8b28c248ea65f9d2bc83cb4160771948fb9babd901261bfd617",
+          "cases/terminalbench/constraints-scheduling/1/output-capture-remaining.json": "624d1588fcb610c2d6f7f1d240b840eec0371a0342a05b03865ce7692c3f9dc0",
+          "cases/terminalbench/constraints-scheduling/1/observed-app__meeting_scheduled.ics": "9d4491bde4a98189b79570312869db7d3b658eafae34f05dce7716c64c7e91f0",
+          "cases/terminalbench/constraints-scheduling/1/observed-app__alice_calendar.ics": "5a5d45804bffd339c2479d49e76fe817b38244d14d389afe1de583443808ecbc",
+          "cases/terminalbench/constraints-scheduling/1/observed-app__bob_calendar.ics": "c97e85dbcdd756758f8a80f4db5fd5c1dcacee79298e4d2262f46de5ff680b50",
+          "cases/terminalbench/constraints-scheduling/1/observed-app__carol_calendar.ics": "32a0f8687637df0a12b8e5c56d49c4192bc3e790856943632d70f237c7c1363b",
+          "terminalbench/constraints-scheduling-oracle-1/91dd6f87e1ee508328d5aafbd99a6bd1__xfCksTq/result.json": "adf7678c985fc4ee4645570568df20b491428cfb8edd78e5f2afe132edecf6d4",
+          "terminalbench/constraints-scheduling-oracle-1/91dd6f87e1ee508328d5aafbd99a6bd1__xfCksTq/verifier/test-stdout.txt": "af09abe84782156efa05b2cb6163ec60b0c194fc5c8a0e3986188dc4c449d81a",
+          "terminalbench/constraints-scheduling-oracle-1/91dd6f87e1ee508328d5aafbd99a6bd1__xfCksTq/verifier/ctrf.json": "71a52cd0339f45e6d5df202ba18b296dab0ed07f63b8563e09b6390015923c35",
+          "terminalbench/constraints-scheduling-nop-1/91dd6f87e1ee508328d5aafbd99a6bd1__TeJKvPm/result.json": "fdb355173d873dd28eb0f1e9fe55b88d74e0d1b485193ca8dd842d7f25ac610f",
+          "terminalbench/constraints-scheduling-nop-1/91dd6f87e1ee508328d5aafbd99a6bd1__TeJKvPm/verifier/test-stdout.txt": "d3365d88d72b13c5c8ab0659208d0252c0f0f4baf1d5f9c5b62bedef916a4715",
+          "terminalbench/constraints-scheduling-nop-1/91dd6f87e1ee508328d5aafbd99a6bd1__TeJKvPm/verifier/ctrf.json": "c82916218ffb9bc0fe4c131b52c04d09413e06b8b6ef2ce8af7b638bbc83af26",
+          "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/result.json": "a8cc10f9311c359f137ec982822853f04a2ed4bf76e8c6ad9bb4bb8d61270080",
+          "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/verifier/test-stdout.txt": "0a3de34ca62c531843044721f9d91587f1c5fd2503dc6e50e7d6bc499e0ac319",
+          "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/verifier/ctrf.json": "35bddc43cf4378ebad0b7ceb665774c2efacd84d1db938c4f299f63bb1ae4e69",
+          "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/agent/result.json": "e1c6da1d8c5a4312b529891e78cc9074c881510aad211067ca62cbf05d83d0a9",
+          "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/agent/events.jsonl": "dfd9b310fec127e5bb7fd22d6e50c578a2ff8151bb2a97fe2d209dc0d6dce948"
+        },
+        "official_input_sha256": {
+          "environment/inputs/carol_calendar.ics": "32a0f8687637df0a12b8e5c56d49c4192bc3e790856943632d70f237c7c1363b",
+          "environment/inputs/bob_calendar.ics": "c97e85dbcdd756758f8a80f4db5fd5c1dcacee79298e4d2262f46de5ff680b50",
+          "environment/inputs/alice_calendar.ics": "5a5d45804bffd339c2479d49e76fe817b38244d14d389afe1de583443808ecbc"
+        },
+        "task_source_sha256": {
+          "instruction.md": "342def78177f9bc41bea4d11af679bc385a9dda2ac8a1e425be384a5b7f937b6",
+          "task.toml": "7b9842de16d74e8faf8c7c0aa03b0b81145941cb12dd322d81ae23fc48607250",
+          "tests/test_outputs.py": "1422b345ba3aacdfc4184e962811b6379988435896c50d8cf62903e70990c5d1"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -4153,12 +4356,13 @@
     }
   ],
   "model_coverage": {
-    "distinct_tasks_with_completed_model_run": 12,
+    "distinct_tasks_with_completed_model_run": 13,
     "completed_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
       "sympy__sympy-18532",
       "terminal-bench/chess-best-move",
+      "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
       "terminal-bench/custom-memory-heap-crash",
       "terminal-bench/large-scale-text-editing",
@@ -4191,19 +4395,19 @@
       "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
       "terminal-bench/compile-compcert",
-      "terminal-bench/constraints-scheduling",
       "terminal-bench/dna-insert",
       "terminal-bench/git-multibranch",
       "terminal-bench/largest-eigenval",
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
     ],
-    "distinct_tasks_with_model_execution_and_official_result": 13,
+    "distinct_tasks_with_model_execution_and_official_result": 14,
     "tested_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
       "sympy__sympy-18532",
       "terminal-bench/chess-best-move",
+      "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
       "terminal-bench/custom-memory-heap-crash",
       "terminal-bench/large-scale-text-editing",
@@ -4237,7 +4441,6 @@
       "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
       "terminal-bench/compile-compcert",
-      "terminal-bench/constraints-scheduling",
       "terminal-bench/dna-insert",
       "terminal-bench/git-multibranch",
       "terminal-bench/rstan-to-pystan",
@@ -4308,6 +4511,24 @@
     "terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/verifier/ctrf.json": "e35f4f3c66a72943719f1a80ae9d18eaa5f5733a7c336ec11d477239b8f07ccc",
     "terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/verifier/test-stdout.txt": "cba1217ace865a9eb859b9fa72fdae50b414be24439a3d75ab85d29fbd14becc",
     "cases/terminalbench/chess-best-move/4/output-capture.json": "abc155ad7fb093c4c65570e3da5010a823fe4b0f3ccd91ed30bce47629c78fe0",
+    "cases/terminalbench/constraints-scheduling/1/result.json": "f6d4b6dcac5ca8b28c248ea65f9d2bc83cb4160771948fb9babd901261bfd617",
+    "terminalbench/constraints-scheduling-oracle-1/91dd6f87e1ee508328d5aafbd99a6bd1__xfCksTq/result.json": "adf7678c985fc4ee4645570568df20b491428cfb8edd78e5f2afe132edecf6d4",
+    "terminalbench/constraints-scheduling-oracle-1/91dd6f87e1ee508328d5aafbd99a6bd1__xfCksTq/verifier/ctrf.json": "71a52cd0339f45e6d5df202ba18b296dab0ed07f63b8563e09b6390015923c35",
+    "terminalbench/constraints-scheduling-oracle-1/91dd6f87e1ee508328d5aafbd99a6bd1__xfCksTq/verifier/test-stdout.txt": "af09abe84782156efa05b2cb6163ec60b0c194fc5c8a0e3986188dc4c449d81a",
+    "terminalbench/constraints-scheduling-oracle-1/91dd6f87e1ee508328d5aafbd99a6bd1__xfCksTq/agent/oracle.txt": "26807329ec14484903014412984d398c1b2e9220a6b9140443b72c4fd717303d",
+    "terminalbench/constraints-scheduling-nop-1/91dd6f87e1ee508328d5aafbd99a6bd1__TeJKvPm/result.json": "fdb355173d873dd28eb0f1e9fe55b88d74e0d1b485193ca8dd842d7f25ac610f",
+    "terminalbench/constraints-scheduling-nop-1/91dd6f87e1ee508328d5aafbd99a6bd1__TeJKvPm/verifier/ctrf.json": "c82916218ffb9bc0fe4c131b52c04d09413e06b8b6ef2ce8af7b638bbc83af26",
+    "terminalbench/constraints-scheduling-nop-1/91dd6f87e1ee508328d5aafbd99a6bd1__TeJKvPm/verifier/test-stdout.txt": "d3365d88d72b13c5c8ab0659208d0252c0f0f4baf1d5f9c5b62bedef916a4715",
+    "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/result.json": "a8cc10f9311c359f137ec982822853f04a2ed4bf76e8c6ad9bb4bb8d61270080",
+    "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/agent/result.json": "e1c6da1d8c5a4312b529891e78cc9074c881510aad211067ca62cbf05d83d0a9",
+    "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/agent/events.jsonl": "dfd9b310fec127e5bb7fd22d6e50c578a2ff8151bb2a97fe2d209dc0d6dce948",
+    "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/verifier/ctrf.json": "35bddc43cf4378ebad0b7ceb665774c2efacd84d1db938c4f299f63bb1ae4e69",
+    "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/verifier/test-stdout.txt": "0a3de34ca62c531843044721f9d91587f1c5fd2503dc6e50e7d6bc499e0ac319",
+    "cases/terminalbench/constraints-scheduling/1/output-capture-remaining.json": "624d1588fcb610c2d6f7f1d240b840eec0371a0342a05b03865ce7692c3f9dc0",
+    "cases/terminalbench/constraints-scheduling/1/observed-app__alice_calendar.ics": "5a5d45804bffd339c2479d49e76fe817b38244d14d389afe1de583443808ecbc",
+    "cases/terminalbench/constraints-scheduling/1/observed-app__bob_calendar.ics": "c97e85dbcdd756758f8a80f4db5fd5c1dcacee79298e4d2262f46de5ff680b50",
+    "cases/terminalbench/constraints-scheduling/1/observed-app__carol_calendar.ics": "32a0f8687637df0a12b8e5c56d49c4192bc3e790856943632d70f237c7c1363b",
+    "cases/terminalbench/constraints-scheduling/1/observed-app__meeting_scheduled.ics": "9d4491bde4a98189b79570312869db7d3b658eafae34f05dce7716c64c7e91f0",
     "cases/terminalbench/count-dataset-tokens/1/result.json": "b84b5060a26d93e24e77bb64d045dc0946a87d92c628621511a772d3751eb6f1",
     "terminalbench/count-dataset-tokens-oracle-1/cd0574ec8281f53854256acc93702ed1__hfo3K9c/result.json": "addf85cdbc6a8b7e18d0b755614d84eef7fceb1d684735e5139426e0c87e6ed2",
     "terminalbench/count-dataset-tokens-oracle-1/cd0574ec8281f53854256acc93702ed1__hfo3K9c/verifier/ctrf.json": "63987098867a5cbc8cad0acfb6a5c30c8c6b97bb55a79c08d4bc9fbcb83a3ba7",
@@ -4484,7 +4705,7 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "2ed992c7b51ee8a8c141bcf1ea9f8ddba1e7f9982e766cd6b33e1559dac4c3fa",
+    "diagnostics/summary-reconciliation.json": "acaece5f008d904e204dcbd2da41f357251697a363db4708d628f5d122bf04a5",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
     "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
     "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
@@ -4515,6 +4736,7 @@
     "diagnostics/protocol-crosscase/result.json": "031bf35cb69dd264a0f21ef41ca3b4b25f33451efa76e478019a5f9f9117dea2",
     "diagnostics/live-summary-observer/manifest.json": "af13809cc88ed7369f9bcdf564641cac613258ea9c28658930b0cffc186b11b0",
     "diagnostics/portfolio-observations/result.json": "aa3cee669dc645a6adb1ed807093f8f98d490e32c682dfa15f8416e31792a1d9",
+    "diagnostics/constraints-outcome-observations.json": "d90eb710e6d13459694295a9f79aac6137c40c9a61b4880e5ef6cc919830dc61",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -4610,6 +4832,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/cba29c1ca15521cc49beeffc72562c64a57a627f73737e18a058317d51c0c052.py": "cba29c1ca15521cc49beeffc72562c64a57a627f73737e18a058317d51c0c052"
+    "diagnostics/source-snapshots/be0f5282dafd387b4aa7df6656edc3116b49de0a6e7b802845f63bb84a4e2805.py": "be0f5282dafd387b4aa7df6656edc3116b49de0a6e7b802845f63bb84a4e2805"
   }
 }
