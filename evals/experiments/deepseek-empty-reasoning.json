@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "deepseek-empty-reasoning-counterfactual",
+  "base_source_commit": "578f660",
+  "model": "deepseek-v4-flash",
+  "purpose": "Isolated diagnostic candidate, not applied to production source or the running baseline",
+  "changed_behavior": "Keep an empty reasoning string after a DeepSeek thinking-mode tool turn; retain disabled-mode/legacy missing-field fallback",
+  "unchanged": [
+    "model",
+    "prompts",
+    "task images",
+    "official verifiers",
+    "step limits",
+    "wall time limits",
+    "output token configuration"
+  ],
+  "patch_sha256": "7654799660e0e48ff7c2d37b166f23122bf81efde33b85606a9c5a38db713d08",
+  "wheel_sha256": "40cd485ea05616d442b7a8b588fc209d584c2a63f6e224106aa41d7da27a092a",
+  "local_artifacts": "artifacts/public-benchmark/20260909-flash/diagnostics/empty-reasoning-candidate",
+  "regression_tests": {
+    "baseline": {
+      "exit_code": 1,
+      "tests": 9,
+      "failures": 5,
+      "errors": 0,
+      "skipped": 0
+    },
+    "candidate": {
+      "exit_code": 0,
+      "tests": 62,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "full_task_result": "queued as attempt 4 after original-protocol attempt 3, with the same proxy route",
+  "evidence_sha256": {
+    "baseline-tests.xml": "027ade2e82e24250287f5ffad6fdf669a538e1929a9e6c253871b0c100e838c6",
+    "candidate-tests.xml": "90ba67da8549e529e4a4db08b5f9f00d7e0e6e904493b34c06bc334d7225b442",
+    "regression-tests.json": "78301b3f5eaddcf7c82b91df2746a79d06c11fbb42373cef57b0f21f235482b3"
+  }
+}

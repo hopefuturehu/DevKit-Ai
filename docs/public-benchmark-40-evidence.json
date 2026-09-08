@@ -1,14 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T17:27:41.705333+00:00",
+  "generated_at": "2026-09-08T17:39:36.808880+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
-    "not_run": 37,
+    "not_run": 36,
     "fail": 1,
-    "pass": 2
+    "pass": 2,
+    "running": 1
   },
   "completed_cases": [
     {
@@ -187,6 +188,30 @@
   ],
   "diagnostic_repeats": [],
   "environment_failures": [
+    {
+      "id": "terminal-bench/custom-memory-heap-crash",
+      "attempt": "2",
+      "verdict": "error",
+      "record": "cases/terminalbench/custom-memory-heap-crash/2/result.json",
+      "image_id": "sha256:7d4d46573a68e9463df7b9dd12cc791d94a310e6a5fa6ab318c368e258de3162",
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "model_started": false,
+      "exception": {
+        "exception_type": "NonZeroAgentExitCodeError",
+        "exception_message": "Command failed (exit 100): set -euo pipefail; if command -v curl >/dev/null 2>&1; then exit 0; fi; if command -v apt-get >/dev/null 2>&1; then export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y curl ca-certificates; elif command -v apk >/dev/null 2>&1; then apk add --no-cache curl ca-certificates; elif command -v dnf >/dev/null 2>&1; then dnf install -y curl ca-certificates; elif command -v yum >/dev/null 2>&1; then yum install -y curl ca-certificates; else echo 'curl is required to install uv' >&2; exit 1; fi\nstdout: Get:1 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]\nGet:2 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]\nGet:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]\nGet:4 http://archive.ubuntu.com/ubuntu n ... [1541 chars truncated] ... chive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nIgn:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\nErr:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nIgn:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\nErr:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nFetched 13.3 MB in 9min 8s (24.2 kB/s)\nReading package lists...\nE: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/noble/universe/binary-amd64/Packages  Connection failed [IP: 91.189.92.23 80]\nE: Some index files failed to download. They have been ignored, or old ones used instead.\n\nstderr: None",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 351, in run\n    await self._prepare()\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 389, in _prepare\n    await self._setup_agent()\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/trial/trial.py\", line 1180, in _setup_agent\n    await asyncio.wait_for(\n  File \"/Users/huyang/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 622, in setup\n    await self.install(environment)\n  File \"/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/source/src/bot/evals/harbor_agent.py\", line 68, in install\n    await self.exec_as_root(\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 579, in exec_as_root\n    return await self._exec(\n           ^^^^^^^^^^^^^^^^^\n  File \"/Users/huyang/.cache/uv/archive-v0/VmewQoD9c8OqVStd818MX/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 559, in _exec\n    raise self._classify_exec_error(command, result)\nharbor.agents.installed.base.NonZeroAgentExitCodeError: Command failed (exit 100): set -euo pipefail; if command -v curl >/dev/null 2>&1; then exit 0; fi; if command -v apt-get >/dev/null 2>&1; then export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y curl ca-certificates; elif command -v apk >/dev/null 2>&1; then apk add --no-cache curl ca-certificates; elif command -v dnf >/dev/null 2>&1; then dnf install -y curl ca-certificates; elif command -v yum >/dev/null 2>&1; then yum install -y curl ca-certificates; else echo 'curl is required to install uv' >&2; exit 1; fi\nstdout: Get:1 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]\nGet:2 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]\nGet:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]\nGet:4 http://archive.ubuntu.com/ubuntu n ... [1541 chars truncated] ... chive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nIgn:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\nErr:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nIgn:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\nErr:10 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages\n  Connection failed [IP: 91.189.92.23 80]\nFetched 13.3 MB in 9min 8s (24.2 kB/s)\nReading package lists...\nE: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/noble/universe/binary-amd64/Packages  Connection failed [IP: 91.189.92.23 80]\nE: Some index files failed to download. They have been ignored, or old ones used instead.\n\nstderr: None\n",
+        "occurred_at": "2026-09-09T01:35:30.347677"
+      }
+    },
     {
       "id": "terminal-bench/large-scale-text-editing",
       "attempt": "1",
@@ -422,6 +447,9 @@
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json": "0dd42b2bb2ec668b1f024ea68a98f4afda4ba33bfe855df8f5c21ffa51cfeed5",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/events.jsonl": "8f6548c42c2944ed0d36fb4824cebaca4caf9c54a93b641d26d787160867288c",
     "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/verifier/ctrf.json": "5560faa85b0e65e17471f4c33a9216c0569e2ff2685b247bdb9102528eaa4663",
+    "cases/terminalbench/custom-memory-heap-crash/2/result.json": "904b5b8f26db4058f9bbe36932549695c205da7b2de5ffa74e885a2b874f9402",
+    "terminalbench/custom-memory-heap-crash-baseline-2/61e021e0304c9818a9be2c9173c8a093__cSAEc9P/result.json": "c09b69aec0fccc0c96e23cedb0f902bb159dd9373de9ab7b6321c595d34d0973",
+    "terminalbench/custom-memory-heap-crash-baseline-2/61e021e0304c9818a9be2c9173c8a093__cSAEc9P/trial.log": "1928af3c18dfee99c13566c69cafaa25f4f915ddb7e27c8e78a4220cacf79cbf",
     "cases/terminalbench/large-scale-text-editing/1/result.json": "9c5a87945a3dcf38d990afe08149f4b4402ec77f5a31cdd894adaffbf563b8fc",
     "cases/terminalbench/openssl-selfsigned-cert/1/result.json": "017c3387a8ac86141262eef170c2ab11912c537d589f984abcac3d7f41fcc28c",
     "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/result.json": "63973d8246ed5c526fbd652b9437be14338db00f73c01719595add0744c01606",
@@ -440,6 +468,6 @@
     "diagnostics/heap-protocol-replay/preserve_empty-2.response.json": "c7f88a27f66bca1970e12d6728bc6be65a84605c844f8dd0605e893cb2b4b6a3",
     "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/test-stdout.txt": "1fe8fd4178fde316c94526be300db53edff6ebdce1415262fea4476b0b2da776",
     "diagnostics/replay_heap_protocol.py": "d9eda87a57b85d7b1621f8587d00603278f2eb5595647f1f81847c978d00bef4",
-    "diagnostics/record_evidence.py": "c3c19779adea0de1828e253879e7f8a5e7420aa1d3826a5960d2b43afb855c3f"
+    "diagnostics/source-snapshots/68ece26e883f3f06113a8a7523168ffd65779038b4ee43dd63910af78248a082.py": "68ece26e883f3f06113a8a7523168ffd65779038b4ee43dd63910af78248a082"
   }
 }

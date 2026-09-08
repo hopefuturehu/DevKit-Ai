@@ -1,8 +1,8 @@
 # 40 题公开基准结果与失败分析
 
-这是执行中的记录，不是最终报告。2026-09-09 01:28（Asia/Shanghai）快照：
-40 题中 3 题完成真实模型运行和官方判分，2 通过、1 未通过；
-37 题尚无模型判分结果，其中 1 题被失败的官方参考解控制实验阻断。
+这是执行中的记录，不是最终报告。2026-09-09 01:40（Asia/Shanghai）快照：
+40 题中 3 题完成真实模型运行和官方判分，2 通过、1 未通过；1 题正在运行模型；
+36 题尚未运行模型，其中 1 题被失败的官方参考解控制实验阻断。
 不能据此宣称 40 题已完成，也不能将 2/3 当作完整公开基准成绩。
 
 范围、冻结规则、版本与限制见 [执行约定](public-benchmark-40-execution.md)。
@@ -18,6 +18,7 @@
 | Terminal / custom-memory-heap-crash | oracle=1，nop=0，无异常 | reward=0；5 passed、1 failed | 第 9 步触发模型输出长度限制，尚未执行源码修复 |
 | Terminal / large-scale-text-editing | oracle=0，nop=0，无 harness 异常 | 尚未运行 Bot | 官方参考解在验收脚本内超时；不能按模型失败计分 |
 | SWE / astropy__astropy-12907 | gold resolved=true，negative resolved=false | resolved=true | 27 步完成；2 项 FAIL_TO_PASS、13 项 PASS_TO_PASS 均通过 |
+| SWE / django__django-14017 | gold resolved=true，negative resolved=false | 模型运行中 | 正反例均保留 147 项 PASS_TO_PASS；2 项 FAIL_TO_PASS 仅在 gold 通过 |
 
 其余题目保留在 [固定 20＋20 清单](../evals/public-regression-40-v1.json)，没有因缓存、耗时或失败而换题。
 批次使用独立 attempt、官方 run_id 和进程记录继续执行；实时汇总位于产物目录的 `summary.json`。
@@ -80,8 +81,26 @@ Astropy 的成功运行也经历了 reasoning 为空的工具轮次，说明这�
 当前归因是“协议兼容问题已确认；此次失败的直接成因仍需整题对照”，不是“纯模型能力不足”。
 后续需要保持模型、题面、源码其余部分和验收不变，分别重复原配置与仅修复字段回传的候选配置；
 原始失败会继续保留。是否提高输出上限应作为独立变量，避免一次改动多个因素后无法归因。
-同配置整题复测 attempt 2 已启动：复用首次通过的正反例控制，保持镜像 ID、冻结 wheel、配置、步数与时间限制一致。
-它与首次成绩分开记录；复测使用官方的 1 CPU / 2 GiB 资源上限，与主批次的 SWE 任务同时运行，需保留这一负载条件。
+同配置整题复测 attempt 2 在模型启动前因 Ubuntu 软件源连接失败而结束，没有产生新的模型成绩。
+安装日志显示 `apt-get update` 在 9 分 8 秒内仅下载 13.3 MB，随后 universe Packages 连接失败。
+临时容器经已有宿主机代理访问同一软件源得到 HTTP 200，读取 64 KiB 用时 1.6 秒，容器已退出清理。
+
+后续原版本 attempt 3 与候选版本 attempt 4 使用相同代理设置顺序执行，继续复用首次通过的正反例控制，
+保持镜像 ID、题面、模型、步数与时间限制一致。二者使用官方的 1 CPU / 2 GiB 资源上限，
+与主批次的 SWE 任务同时运行，需保留这一负载条件。候选只改变 reasoning 空值的协议处理，输出上限仍未调整。
+
+### 隔离候选的回归验证
+
+[诊断补丁](../evals/experiments/deepseek-empty-reasoning.patch) 和
+[实验清单](../evals/experiments/deepseek-empty-reasoning.json) 已保存；补丁未应用到主工作区的 `src/` 或正在执行的冻结基线。
+候选记录官方 DeepSeek 请求实际选择的 thinking 模式，仅在 thinking 模式的工具轮次中保留空 reasoning；
+对已关闭 thinking 或旧历史中缺失 reasoning 的情况继续使用原有兼容处理。
+
+- 新增 9 个参数化回归用例：冻结旧版 5 failed、4 passed，无测试环境错误。
+- 候选版本的 Provider 和 Agent loop 回归共 62 passed，无失败或跳过。
+- 验证了导入模块确实来自各自源码目录，wheel 中相关模块字节与候选源码一致，补丁能应用到基线。
+
+这些检查证明候选覆盖了已定位的协议缺陷。整题对照尚在执行，不能把上述单元/集成测试通过写成 benchmark 已通过。
 
 ## 阻断 1：large-scale-text-editing
 
