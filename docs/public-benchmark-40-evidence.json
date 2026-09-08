@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T20:50:26.978921+00:00",
+  "generated_at": "2026-09-08T20:55:39.477048+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -2329,6 +2329,125 @@
           "tests/test_outputs.py": "d740077bc8f6f9df7e81a1dd96f6c91cbbb86b04b556e803729a7a48a037acfc"
         }
       }
+    },
+    "chess_compaction_replay_manifest": {
+      "source": "diagnostics/chess-compaction-replay/manifest.json",
+      "result": {
+        "model": "deepseek-v4-flash",
+        "created_at": "2026-09-08T20:53:51.359160+00:00",
+        "scope": "API acceptance only; reconstruct persisted first checkpoint and positions 94-117 before failed step 52. No returned tools executed; no official score.",
+        "limitations": "Not the exact rejected outbound payload: runtime/environment notes and dynamic tool selection were not captured. Uses actual candidate checkpoint renderer, serializer and provider payload builder, core policy, full registered tools, nonstreaming and a 512-token probe limit. Explicit empty summary reasoning is a controlled field-presence counterfactual, not a validated production repair.",
+        "checkpoint_id": "b3e18d788a7f49789ba91309b8b3e86a",
+        "summary_message_index": 2,
+        "tail_positions": [
+          94,
+          117
+        ],
+        "message_count": 27,
+        "tool_count": 13,
+        "source_sha256": {
+          "terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/agent/state.db": "b5c6e97f7a4d91f3181a737af85567bb7fc0b047c28819f9fb5f3a73234e2b45",
+          "diagnostics/replay_chess_compaction.py": "fe0bea266f66532c2adf05d694f6bc750b7f05c848c05eacb15944925d777ca0",
+          "diagnostics/empty-reasoning-candidate/source/src/bot/compaction/service.py": "3a3f1a2dbc67cdfcabf3c4cb8539bf40bc5df440ed3ce15c3c46e5aa3ddd69c5",
+          "diagnostics/empty-reasoning-candidate/source/src/bot/core/models.py": "24aafbc7b83af82d1d69cad1e86880a3670c4e9138af0033bc3a8cc075982047",
+          "diagnostics/empty-reasoning-candidate/source/src/bot/providers/openai_compatible.py": "6c877738fb3b75e91b7757e3b245fc0968e05e002274c898b28e8eaa14d236d0"
+        },
+        "requests": {
+          "candidate_summary_missing": "11dddcc08c7acc87b5f95819312788c28c7493d210770f62cb9fd064d494daf0",
+          "summary_empty_counterfactual": "043282781d27b57578dff51a489cbe4584d00a047ea87fc86544900d5812f3cc"
+        }
+      }
+    },
+    "chess_compaction_replay_result": {
+      "source": "diagnostics/chess-compaction-replay/result.json",
+      "result": {
+        "scope": "API acceptance only; reconstruct persisted first checkpoint and positions 94-117 before failed step 52. No returned tools executed; no official score.",
+        "limitations": "Not the exact rejected outbound payload: runtime/environment notes and dynamic tool selection were not captured. Uses actual candidate checkpoint renderer, serializer and provider payload builder, core policy, full registered tools, nonstreaming and a 512-token probe limit. Explicit empty summary reasoning is a controlled field-presence counterfactual, not a validated production repair.",
+        "results": [
+          {
+            "variant": "candidate_summary_missing",
+            "repeat": 1,
+            "started_at": "2026-09-08T20:53:51.404909+00:00",
+            "finished_at": "2026-09-08T20:53:53.286053+00:00",
+            "http_status": 400,
+            "error": {
+              "message": "The `reasoning_content` in the thinking mode must be passed back to the API.",
+              "type": "invalid_request_error",
+              "param": null,
+              "code": "invalid_request_error"
+            },
+            "usage": null,
+            "finish_reason": null,
+            "native_tool_calls": 0,
+            "response_sha256": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194"
+          },
+          {
+            "variant": "summary_empty_counterfactual",
+            "repeat": 1,
+            "started_at": "2026-09-08T20:53:53.286770+00:00",
+            "finished_at": "2026-09-08T20:53:55.975695+00:00",
+            "http_status": 200,
+            "error": null,
+            "usage": {
+              "prompt_tokens": 27115,
+              "completion_tokens": 105,
+              "total_tokens": 27220,
+              "prompt_tokens_details": {
+                "cached_tokens": 768
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 54
+              },
+              "prompt_cache_hit_tokens": 768,
+              "prompt_cache_miss_tokens": 26347
+            },
+            "finish_reason": "tool_calls",
+            "native_tool_calls": 1,
+            "response_sha256": "d0e69283eb167c73a4b3b163ab25b6498ff66d8c981ce5d71580c2e65e77ea6f"
+          },
+          {
+            "variant": "candidate_summary_missing",
+            "repeat": 2,
+            "started_at": "2026-09-08T20:53:55.976237+00:00",
+            "finished_at": "2026-09-08T20:53:56.608152+00:00",
+            "http_status": 400,
+            "error": {
+              "message": "The `reasoning_content` in the thinking mode must be passed back to the API.",
+              "type": "invalid_request_error",
+              "param": null,
+              "code": "invalid_request_error"
+            },
+            "usage": null,
+            "finish_reason": null,
+            "native_tool_calls": 0,
+            "response_sha256": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194"
+          },
+          {
+            "variant": "summary_empty_counterfactual",
+            "repeat": 2,
+            "started_at": "2026-09-08T20:53:56.608852+00:00",
+            "finished_at": "2026-09-08T20:53:58.338888+00:00",
+            "http_status": 200,
+            "error": null,
+            "usage": {
+              "prompt_tokens": 27115,
+              "completion_tokens": 108,
+              "total_tokens": 27223,
+              "prompt_tokens_details": {
+                "cached_tokens": 27008
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 57
+              },
+              "prompt_cache_hit_tokens": 27008,
+              "prompt_cache_miss_tokens": 107
+            },
+            "finish_reason": "tool_calls",
+            "native_tool_calls": 1,
+            "response_sha256": "1d0b934525e6269e77df5d3b2c31ee28f5388109519a58ed77fecc707c7da49e"
+          }
+        ]
+      }
     }
   },
   "environment_model_runs": [
@@ -2607,6 +2726,8 @@
     "diagnostics/chess-protocol/candidate-observations.json": "498264f4154a2e6060b1a9cc2075ce0f95c466dfb0e7e601e69e90caee5ccae5",
     "diagnostics/isolated-vm-feasibility.json": "84ef8d2db0c99d7d3976a63ed7abdc4447568fe669ab6f981129ae16dc9140d1",
     "cases/terminalbench/rstan-to-pystan/2/manifest.json": "08f079bfc3844dbe67e72b50aab249760338c08f720142cd9ae9c8e3119e0756",
+    "diagnostics/chess-compaction-replay/manifest.json": "77ff2015f50a526a4ab3b74b73b7f7b5e23fd4da22c8d463c1f8c8ec75ccfa67",
+    "diagnostics/chess-compaction-replay/result.json": "b8b1d00d3f7fe040eafd2fb856d7ecf12f88e18e57c800781a26fd09d60afd3e",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -2635,6 +2756,13 @@
     "diagnostics/capture_terminal_output.py": "cbf9fcb92bc65675c29986e3be30ab8c787129dcb74acba9a683c72d632a6b63",
     "diagnostics/inspect_chess_candidate.py": "6966fb897c4fc5eeeddd8b4b3cf12ddad087e761f069c34efed7399a86667821",
     "diagnostics/recover_rstan_proxy.py": "a58f443d33820f6ab2fc985d700a07e989d86f59603b315a01dee794018637f4",
+    "diagnostics/replay_chess_compaction.py": "fe0bea266f66532c2adf05d694f6bc750b7f05c848c05eacb15944925d777ca0",
+    "diagnostics/chess-compaction-replay/candidate_summary_missing.request.json": "11dddcc08c7acc87b5f95819312788c28c7493d210770f62cb9fd064d494daf0",
+    "diagnostics/chess-compaction-replay/summary_empty_counterfactual.request.json": "043282781d27b57578dff51a489cbe4584d00a047ea87fc86544900d5812f3cc",
+    "diagnostics/chess-compaction-replay/candidate_summary_missing-1.response.json": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194",
+    "diagnostics/chess-compaction-replay/candidate_summary_missing-2.response.json": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194",
+    "diagnostics/chess-compaction-replay/summary_empty_counterfactual-1.response.json": "d0e69283eb167c73a4b3b163ab25b6498ff66d8c981ce5d71580c2e65e77ea6f",
+    "diagnostics/chess-compaction-replay/summary_empty_counterfactual-2.response.json": "1d0b934525e6269e77df5d3b2c31ee28f5388109519a58ed77fecc707c7da49e",
     "diagnostics/worker-activation-integration/copy-fixture.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "diagnostics/worker-activation-integration/create-bot-venv.log": "a1168872a0c90eac3b49c7816df1bac61e42e00abdf89090435ad42d9ad11cc3",
     "diagnostics/worker-activation-integration/create.log": "c1e46e81650dc0d857713a14c8f8dd9e66651bd577d7aac4fdee14f60d85254b",
@@ -2686,6 +2814,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/1746d8da0e3d02fc48bdcf7120fbe52caf2f49a6cb40ed6f87c0018da469f2e7.py": "1746d8da0e3d02fc48bdcf7120fbe52caf2f49a6cb40ed6f87c0018da469f2e7"
+    "diagnostics/source-snapshots/1d671566ce974cf83482074f72102edb71fc52123decbb4a84888ef4de6b3e53.py": "1d671566ce974cf83482074f72102edb71fc52123decbb4a84888ef4de6b3e53"
   }
 }
