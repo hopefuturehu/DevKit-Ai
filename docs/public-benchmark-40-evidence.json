@@ -1,24 +1,22 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T23:08:38.416148+00:00",
+  "generated_at": "2026-09-08T23:19:14.568788+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
     "pass": 7,
-    "fail": 5,
+    "fail": 6,
     "not_run": 26,
-    "error": 1,
-    "running": 1
+    "error": 1
   },
   "baseline_scoring_counts": {
     "pass": 7,
     "invalid_verifier": 1,
     "not_run": 26,
-    "fail": 4,
-    "error": 1,
-    "running": 1
+    "fail": 5,
+    "error": 1
   },
   "completed_cases": [
     {
@@ -247,6 +245,87 @@
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
       "input_tokens": 237555,
       "output_tokens": 12434
+    },
+    {
+      "id": "terminal-bench/bn-fit-modify",
+      "attempt": "1",
+      "verdict": "fail",
+      "record": "cases/terminalbench/bn-fit-modify/1/result.json",
+      "image_id": "sha256:e22baa862c29eb5076f82ba45527df74ce0b393a03ee6c08697279b852acd354",
+      "agent_variant": "original",
+      "model_response_observed": true,
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_bn_sample_exists",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_learned_dag_structure_exists",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_learned_dag_structure_csv_col_names",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_learned_dag_structure",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_intervened_dag_structure_exists",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_intervened_dag_structure_csv_col_names",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_intervened__data_structure",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_sampled_csv_col_names",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_sampled_data",
+          "status": "failed"
+        }
+      ],
+      "verifier_health": {
+        "test_count": 9,
+        "test_statuses": {
+          "failed": 9
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "fail",
+      "output_capture_attempts": [
+        "cases/terminalbench/bn-fit-modify/1/output-capture-remaining.json"
+      ],
+      "observed_artifacts": [],
+      "run_status": "failed",
+      "steps": 0,
+      "error": "runtime_error: [Errno 36] File name too long: '/app/python3 -c \"import pgmpy; print(pgmpy.__file__)\"; python3 -c \"from pgmpy.estimators import PC; print(\\'PC ok\\')\"; python3 -c \"from pgmpy.estimators import HillClimbSearch; print(\\'HC ok\\')\"; python3 -c \"import pgmpy.structure_score as ss; print([x for x in dir(ss) if \\'Bic\\' in x or \\'Score\\' in x])\" 2>&1'",
+      "input_tokens": 151607,
+      "output_tokens": 8177,
+      "agent_exported_usage": {
+        "input_tokens": 9028,
+        "output_tokens": 102
+      },
+      "usage_source": "per_response_events",
+      "usage_reconciliation": "mismatch; original Agent export is preserved"
     },
     {
       "id": "terminal-bench/constraints-scheduling",
@@ -1695,10 +1774,32 @@
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
         "script_sha256": "20eec64f82b31343e473cf4fc7ec6bc17f3936c801b4c4df571620d1b341947c",
-        "completed_runs_checked": 18,
-        "all_usage_totals_match": true,
+        "completed_runs_checked": 19,
+        "all_usage_totals_match": false,
+        "matching_runs": 18,
+        "mismatching_runs": 1,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
         "runs": [
+          {
+            "agent_result": "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/result.json",
+            "agent_result_sha256": "6787b29ef6bf33cc454e0d7b39773016a7526025d24f1a572badf5ab64a9a0be",
+            "events": "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/events.jsonl",
+            "events_sha256": "8a241f3011d38b1feb749bcab0e0069c0b6835cc4add14d3bd471c6945ac7177",
+            "expected": {
+              "input_tokens": 9028,
+              "output_tokens": 102
+            },
+            "observed": {
+              "input_tokens": 151607,
+              "output_tokens": 8177
+            },
+            "estimated_cost_usd": 0.013149463999999998,
+            "usage_totals_match": false,
+            "event_minus_export": {
+              "input_tokens": 142579,
+              "output_tokens": 8075
+            }
+          },
           {
             "agent_result": "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/result.json",
             "agent_result_sha256": "047b0178aaf70e4eaea20f6c7d2e8167086935161f1779fa46b19b48bd968438",
@@ -1712,7 +1813,8 @@
               "input_tokens": 715437,
               "output_tokens": 30361
             },
-            "estimated_cost_usd": 0.037433759999999996
+            "estimated_cost_usd": 0.037433759999999996,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/agent/result.json",
@@ -1727,7 +1829,8 @@
               "input_tokens": 2236120,
               "output_tokens": 71948
             },
-            "estimated_cost_usd": 0.09625576000000001
+            "estimated_cost_usd": 0.09625576000000001,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/constraints-scheduling-baseline-1/91dd6f87e1ee508328d5aafbd99a6bd1__hLbhXSR/agent/result.json",
@@ -1742,7 +1845,8 @@
               "input_tokens": 81678,
               "output_tokens": 10847
             },
-            "estimated_cost_usd": 0.012395892000000002
+            "estimated_cost_usd": 0.012395892000000002,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/count-dataset-tokens-baseline-1/cd0574ec8281f53854256acc93702ed1__74qM7YC/agent/result.json",
@@ -1757,7 +1861,8 @@
               "input_tokens": 784432,
               "output_tokens": 17169
             },
-            "estimated_cost_usd": 0.03381826
+            "estimated_cost_usd": 0.03381826,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json",
@@ -1772,7 +1877,8 @@
               "input_tokens": 121034,
               "output_tokens": 14881
             },
-            "estimated_cost_usd": 0.023989292
+            "estimated_cost_usd": 0.023989292,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/custom-memory-heap-crash-baseline-3/61e021e0304c9818a9be2c9173c8a093__Rr6cdg8/agent/result.json",
@@ -1787,7 +1893,8 @@
               "input_tokens": 362375,
               "output_tokens": 21550
             },
-            "estimated_cost_usd": 0.0257855
+            "estimated_cost_usd": 0.0257855,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/custom-memory-heap-crash-baseline-4/61e021e0304c9818a9be2c9173c8a093__Q3ypBXD/agent/result.json",
@@ -1802,7 +1909,8 @@
               "input_tokens": 532062,
               "output_tokens": 22101
             },
-            "estimated_cost_usd": 0.020975724
+            "estimated_cost_usd": 0.020975724,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/result.json",
@@ -1817,7 +1925,8 @@
               "input_tokens": 320488,
               "output_tokens": 22324
             },
-            "estimated_cost_usd": 0.025478512000000002
+            "estimated_cost_usd": 0.025478512000000002,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/result.json",
@@ -1832,7 +1941,8 @@
               "input_tokens": 405824,
               "output_tokens": 26600
             },
-            "estimated_cost_usd": 0.02400924800000001
+            "estimated_cost_usd": 0.02400924800000001,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/multi-source-data-merger-baseline-1/70367c38732e1beda7b229968a48d602__WxLQmRS/agent/result.json",
@@ -1847,7 +1957,8 @@
               "input_tokens": 147706,
               "output_tokens": 15623
             },
-            "estimated_cost_usd": 0.013743076
+            "estimated_cost_usd": 0.013743076,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/result.json",
@@ -1862,7 +1973,8 @@
               "input_tokens": 195334,
               "output_tokens": 5033
             },
-            "estimated_cost_usd": 0.012269788
+            "estimated_cost_usd": 0.012269788,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/portfolio-optimization-baseline-1/d112f8945600f18ec47bbbe76935dc05__YVF46Lm/agent/result.json",
@@ -1877,7 +1989,8 @@
               "input_tokens": 711242,
               "output_tokens": 12987
             },
-            "estimated_cost_usd": 0.03008786
+            "estimated_cost_usd": 0.03008786,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/sam-cell-seg-baseline-1/37c182b91df18b9c2ea2dceda47430bb__5b2BLXE/agent/result.json",
@@ -1892,7 +2005,8 @@
               "input_tokens": 3388507,
               "output_tokens": 31286
             },
-            "estimated_cost_usd": 0.08236644400000001
+            "estimated_cost_usd": 0.08236644400000001,
+            "usage_totals_match": true
           },
           {
             "agent_result": "terminalbench/sparql-university-baseline-1/02aeca67b6c5b0d2d72c91ab471beb51__Lor88Dp/agent/result.json",
@@ -1907,7 +2021,8 @@
               "input_tokens": 217734,
               "output_tokens": 22068
             },
-            "estimated_cost_usd": 0.020479800000000003
+            "estimated_cost_usd": 0.020479800000000003,
+            "usage_totals_match": true
           },
           {
             "agent_result": "cases/swebench/astropy__astropy-12907/1/prediction.result.json",
@@ -1922,7 +2037,8 @@
               "input_tokens": 395318,
               "output_tokens": 9382
             },
-            "estimated_cost_usd": 0.018322399999999996
+            "estimated_cost_usd": 0.018322399999999996,
+            "usage_totals_match": true
           },
           {
             "agent_result": "cases/swebench/django__django-14017/1/prediction.result.json",
@@ -1937,7 +2053,8 @@
               "input_tokens": 1100857,
               "output_tokens": 30533
             },
-            "estimated_cost_usd": 0.041065696
+            "estimated_cost_usd": 0.041065696,
+            "usage_totals_match": true
           },
           {
             "agent_result": "cases/swebench/sympy__sympy-18532/1/prediction.result.json",
@@ -1952,7 +2069,8 @@
               "input_tokens": 237555,
               "output_tokens": 12434
             },
-            "estimated_cost_usd": 0.0165735
+            "estimated_cost_usd": 0.0165735,
+            "usage_totals_match": true
           },
           {
             "agent_result": "cases/swebench/sympy__sympy-18532/2/prediction.result.json",
@@ -1967,7 +2085,8 @@
               "input_tokens": 6237427,
               "output_tokens": 93547
             },
-            "estimated_cost_usd": 0.17860408000000003
+            "estimated_cost_usd": 0.17860408000000003,
+            "usage_totals_match": true
           }
         ]
       }
@@ -4532,6 +4651,264 @@
           "tests/test_outputs.py": "5bf0651b48969968dea30956d4b0cf9e499af59d73cc6886af3ad7aa92934647"
         }
       }
+    },
+    "recovery_timeout_artifact_observer": {
+      "source": "diagnostics/recovery-timeout-capture/manifest.json",
+      "result": {
+        "pid": 31776,
+        "started_at": "2026-09-08T23:12:58.917651+00:00",
+        "source_sha256": "4edc76c72aac479fdf3f0507713d8efdccd00145675fa782b4b086273c3fdebb",
+        "watched_process_identities": {
+          "990": "Wed Sep  9 04:49:32 2026     /opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+          "3481": "Wed Sep  9 05:00:48 2026     /opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python"
+        },
+        "files": {
+          "rstan-to-pystan": [
+            "/app/pystan_analysis.py",
+            "/app/alpha_est.csv",
+            "/app/sigma_est.csv",
+            "/app/rho_est.csv",
+            "/app/beta_est.csv"
+          ],
+          "caffe-cifar-10": [
+            "/app/caffe/training_output.txt",
+            "/app/caffe/examples/cifar10/cifar10_quick_solver.prototxt",
+            "/app/caffe/examples/cifar10/cifar10_quick_train_test.prototxt",
+            "/app/caffe/examples/cifar10/cifar10_quick_iter_500.caffemodel",
+            "/app/caffe/Makefile.config",
+            "/app/caffe/build/CMakeCache.txt"
+          ]
+        },
+        "attempt": "2",
+        "policy": "Only baseline-2 AgentTimeoutError; explicit docker cp paths. No models, docker exec, task mutations, or additional containers.",
+        "limitation": "Timeout copies may overlap verifier execution and do not establish an immutable deadline cutoff. Failed copies do not prove files were never created."
+      }
+    },
+    "bn_policy_reproduction": {
+      "source": "diagnostics/bn-policy-probe/result.json",
+      "result": {
+        "python": "3.12.13 (main, Mar 25 2026, 03:16:06) [Clang 22.1.1 ]",
+        "scope": "Host Python 3.12 policy evaluation using the frozen source and captured tool arguments. No command/tool execution, network or model calls.",
+        "policy_module": "/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/source/src/bot/policy/engine.py",
+        "captured_request_at": "2026-09-08T23:12:41.878512Z",
+        "script_bytes": 298,
+        "host_ENAMETOOLONG": 63,
+        "original_container_errno": 36,
+        "script_sha256": "8139ef7cd97c85de9802075f8f31a6639dd5def93c511b1ea9bd37fa2d13df1e",
+        "results": {
+          "captured_bash_lc": {
+            "outcome": "exception",
+            "type": "OSError",
+            "errno": 63,
+            "traceback_frames": [
+              {
+                "file": "diagnostics/probe_bn_policy.py",
+                "line": 40,
+                "function": "<module>"
+              },
+              {
+                "file": "source/src/bot/policy/engine.py",
+                "line": 168,
+                "function": "evaluate"
+              },
+              {
+                "file": "source/src/bot/policy/engine.py",
+                "line": 353,
+                "function": "_evaluate_command"
+              },
+              {
+                "file": "source/src/bot/policy/engine.py",
+                "line": 394,
+                "function": "_check_command_paths"
+              },
+              {
+                "file": "pathlib.py",
+                "line": 860,
+                "function": "exists"
+              },
+              {
+                "file": "pathlib.py",
+                "line": 840,
+                "function": "stat"
+              }
+            ]
+          },
+          "same_script_explicit_c": {
+            "outcome": "decision",
+            "kind": "deny",
+            "reason": "run_command 禁止通过 shell -c 绕过策略，请显式使用 run_shell"
+          },
+          "same_script_run_shell": {
+            "outcome": "decision",
+            "kind": "allow",
+            "reason": "自动批准：Shell 脚本包含变量展开、命令替换或重定向"
+          },
+          "short_combined_flag": {
+            "outcome": "decision",
+            "kind": "allow",
+            "reason": "full-access 模式允许命令"
+          },
+          "synthetic_long_argument": {
+            "outcome": "exception",
+            "type": "OSError",
+            "errno": 63,
+            "traceback_frames": [
+              {
+                "file": "diagnostics/probe_bn_policy.py",
+                "line": 40,
+                "function": "<module>"
+              },
+              {
+                "file": "source/src/bot/policy/engine.py",
+                "line": 168,
+                "function": "evaluate"
+              },
+              {
+                "file": "source/src/bot/policy/engine.py",
+                "line": 353,
+                "function": "_evaluate_command"
+              },
+              {
+                "file": "source/src/bot/policy/engine.py",
+                "line": 394,
+                "function": "_check_command_paths"
+              },
+              {
+                "file": "pathlib.py",
+                "line": 860,
+                "function": "exists"
+              },
+              {
+                "file": "pathlib.py",
+                "line": 840,
+                "function": "stat"
+              }
+            ]
+          }
+        },
+        "temporary_directory_removed": true,
+        "limitation": "Reproduces ENAMETOOLONG in the exact frozen policy function on host Python 3.12, not the entire container Worker. Numeric errno differs by OS (macOS 63, Linux 36). Different Python pathlib versions may mask the same unhandled filesystem probe.",
+        "source_sha256": {
+          "diagnostics/probe_bn_policy.py": "57d87d0d8eee0586cf90212a0a1aa4a1e2cff02fa25a093725177ff30f7d8626",
+          "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/events.jsonl": "8a241f3011d38b1feb749bcab0e0069c0b6835cc4add14d3bd471c6945ac7177",
+          "source/src/bot/policy/engine.py": "f5744942837fbabcd21ba29064796a20cadace08dfce3b15c028eaacef1e7768",
+          "source/src/bot/core/agent.py": "17266a8852ca504b55101062dcd0076129285bb1ba4ba44524d409d1aef0814e"
+        }
+      }
+    },
+    "bn_outcome_observations": {
+      "source": "diagnostics/bn-outcome-observations.json",
+      "result": {
+        "id": "terminal-bench/bn-fit-modify",
+        "attempt": "1",
+        "at": "2026-09-08T23:18:01.995174+00:00",
+        "official_reward": 0,
+        "official_tests_failed": 9,
+        "controls": {
+          "oracle": {
+            "reward": 1,
+            "tests_passed": 9,
+            "tests_failed": 0,
+            "exception": null,
+            "finished_at": "2026-09-08T23:04:35.973612Z"
+          },
+          "nop": {
+            "reward": 0,
+            "tests_passed": 0,
+            "tests_failed": 9,
+            "exception": null,
+            "finished_at": "2026-09-08T23:06:58.533035Z"
+          },
+          "baseline": {
+            "reward": 0,
+            "tests_passed": 0,
+            "tests_failed": 9,
+            "exception": null,
+            "finished_at": "2026-09-08T23:15:07.083529Z"
+          }
+        },
+        "agent_status": "failed",
+        "exported_steps": 0,
+        "observed_normal_responses": 15,
+        "observed_max_model_step": 15,
+        "completed_tool_records": 19,
+        "termination_reason": "runtime_error",
+        "error_class": "ENAMETOOLONG",
+        "agent_exported_usage": {
+          "input_tokens": 9028,
+          "output_tokens": 102
+        },
+        "per_response_usage": {
+          "input_tokens": 151607,
+          "output_tokens": 8177
+        },
+        "missing_from_export": {
+          "input_tokens": 142579,
+          "output_tokens": 8075
+        },
+        "usage_export_matches": false,
+        "export_contains_only_finalizer_usage": true,
+        "length_or_compaction_failure_observed": false,
+        "output_capture": {
+          "task": "terminal-bench/bn-fit-modify",
+          "attempt": "1",
+          "started_at": "2026-09-08T23:12:45.366265+00:00",
+          "container": "b5f9644970c17ad9ddb46b7266f7bcd8__7c4mkjq__env-main-1",
+          "capture_trigger": "worker_result",
+          "trigger_sha256": "6787b29ef6bf33cc454e0d7b39773016a7526025d24f1a572badf5ab64a9a0be",
+          "observer_sha256": "b126ea32d49781e34ca4402128327260fda0f6c19f70b3c26f62f60923486268",
+          "limitation": "Filesystem observation may overlap verifier execution. Timeout snapshots do not establish an immutable cutoff or graceful Worker termination. Missing optional paths are recorded as failed copies.",
+          "files": [
+            {
+              "container_path": "/app/learned_dag.csv",
+              "returncode": 1,
+              "stderr": "Error response from daemon: Could not find the file /app/learned_dag.csv in container b5f9644970c17ad9ddb46b7266f7bcd8__7c4mkjq__env-main-1\n"
+            },
+            {
+              "container_path": "/app/intervened_dag.csv",
+              "returncode": 1,
+              "stderr": "Error response from daemon: Could not find the file /app/intervened_dag.csv in container b5f9644970c17ad9ddb46b7266f7bcd8__7c4mkjq__env-main-1\n"
+            },
+            {
+              "container_path": "/app/final_bn_sample.csv",
+              "returncode": 1,
+              "stderr": "Error response from daemon: Could not find the file /app/final_bn_sample.csv in container b5f9644970c17ad9ddb46b7266f7bcd8__7c4mkjq__env-main-1\n"
+            }
+          ],
+          "finished_at": "2026-09-08T23:12:45.474900+00:00"
+        },
+        "policy_reproduction": "diagnostics/bn-policy-probe/result.json",
+        "attribution": "Confirmed Agent policy robustness failure. The model used a shell wrapper that should be routed to run_shell; combined -lc bypassed the literal -c rejection, and a 298-byte command string caused an unhandled Path.exists ENAMETOOLONG. A recoverable tool-policy error became a fatal run error. The generic exception finalizer also reset step and token accounting. No valid generated DAG/sample artifact was evaluated, so statistical reasoning capability remains unmeasured; policy-only host probes do not establish that a corrected full task run would pass.",
+        "cleanup_verified": {
+          "image_still_present": false,
+          "trial_containers_remaining": [],
+          "retained_images_missing": [],
+          "retained_image_count": 34
+        },
+        "source_sha256": {
+          "diagnostics/inspect_bn_result.py": "bdf7900f1142b4a55ec60784b5206d6125369ff730bd1b0f2ea485e64283b2b4",
+          "cases/terminalbench/bn-fit-modify/1/result.json": "303392289389274a2fd15d8764b44dcc83d4c9efeab9c84aa7173700361c8c16",
+          "cases/terminalbench/bn-fit-modify/1/output-capture-remaining.json": "f5fcd12098ecb7610b3c11900a8d16ee8e2875fa50a8772f1f55080e622a63dc",
+          "diagnostics/bn-policy-probe/result.json": "7c0666ff376b27f1ac1d6fec3afdb856900b0e451837b508241eca5cfe917767",
+          "terminalbench/bn-fit-modify-oracle-1/b5f9644970c17ad9ddb46b7266f7bcd8__uZbvkVb/result.json": "61db77096491a54e28f3ba1a6d73bc86a6dafebcd5bb51eda9a9c1ac5fad2b7d",
+          "terminalbench/bn-fit-modify-oracle-1/b5f9644970c17ad9ddb46b7266f7bcd8__uZbvkVb/verifier/test-stdout.txt": "eecb955cdea06264a10cef4fbd35d3dc014143e922487458a081108ea8e23400",
+          "terminalbench/bn-fit-modify-oracle-1/b5f9644970c17ad9ddb46b7266f7bcd8__uZbvkVb/verifier/ctrf.json": "a0d4b982033e5f6095faf38faa9d520e252653e146d2eb626e5410955121b6cd",
+          "terminalbench/bn-fit-modify-nop-1/b5f9644970c17ad9ddb46b7266f7bcd8__TxRW36Z/result.json": "17212015588c74c78029eba10d1bc0d7a3dd155b47b1cee64f51efbabc894a41",
+          "terminalbench/bn-fit-modify-nop-1/b5f9644970c17ad9ddb46b7266f7bcd8__TxRW36Z/verifier/test-stdout.txt": "71bf55553e07b5e2ca79310911c41a7fbb648dac9493fcd969c2aa24f1731568",
+          "terminalbench/bn-fit-modify-nop-1/b5f9644970c17ad9ddb46b7266f7bcd8__TxRW36Z/verifier/ctrf.json": "01d6679dc146c929f2ed6cc07a4beda177b3e3d41e7a40a0f28861fa5e6c33fd",
+          "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/result.json": "a65363caeeebcd9a3a35e1671cc792e4c11b5596d54d7cd93bfcf0633ad23cdd",
+          "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/verifier/test-stdout.txt": "6400cfea1f8639ddfc842df89b6bd50694d20a056b8cac91a9b0c31517927285",
+          "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/verifier/ctrf.json": "60e8c1b3a7013d91dc22db1f14a0ce98cd104225ff6acf9c0b955a736e2622d3",
+          "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/result.json": "6787b29ef6bf33cc454e0d7b39773016a7526025d24f1a572badf5ab64a9a0be",
+          "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/events.jsonl": "8a241f3011d38b1feb749bcab0e0069c0b6835cc4add14d3bd471c6945ac7177",
+          "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/state.db": "ee52a479de83824d81c2aa11d4686779b32bc3101c0205c92442c7f49681f357"
+        },
+        "task_source_sha256": {
+          "instruction.md": "5f5207ce23c375270c26719fb66d89843bc88cf1d40671ed87c6b7bab4d394e5",
+          "task.toml": "6493f7162da424a4fd95da721bd3fd1ce7e5dd26e792132cb9c46db536b67090",
+          "tests/test_outputs.py": "364069f893e336a021c907dd0ac11ff4c9e7ca7b4fa7ab506c360166960e455b"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -4568,11 +4945,12 @@
     }
   ],
   "model_coverage": {
-    "distinct_tasks_with_completed_model_run": 14,
+    "distinct_tasks_with_completed_model_run": 15,
     "completed_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
       "sympy__sympy-18532",
+      "terminal-bench/bn-fit-modify",
       "terminal-bench/chess-best-move",
       "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
@@ -4603,7 +4981,6 @@
       "sphinx-doc__sphinx-8435",
       "sphinx-doc__sphinx-8506",
       "sympy__sympy-20322",
-      "terminal-bench/bn-fit-modify",
       "terminal-bench/caffe-cifar-10",
       "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
@@ -4613,11 +4990,12 @@
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
     ],
-    "distinct_tasks_with_model_execution_and_official_result": 15,
+    "distinct_tasks_with_model_execution_and_official_result": 16,
     "tested_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
       "sympy__sympy-18532",
+      "terminal-bench/bn-fit-modify",
       "terminal-bench/chess-best-move",
       "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
@@ -4649,7 +5027,6 @@
       "sphinx-doc__sphinx-8435",
       "sphinx-doc__sphinx-8506",
       "sympy__sympy-20322",
-      "terminal-bench/bn-fit-modify",
       "terminal-bench/caffe-cifar-10",
       "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
@@ -4683,6 +5060,20 @@
     "cases/swebench/sympy__sympy-18532/2/prediction.events.jsonl": "f48a766123d3a5ea0d1737bc072da14d4e9e1339ec48bb771b6ffacd93138d02",
     "cases/swebench/sympy__sympy-18532/2/prediction.jsonl": "10b5a048d22b453d39dfa96154f05d24e0c66382e6481046e13ec0794f99a04a",
     "logs/run_evaluation/flash40-sympy__sympy-18532-grade-2/deepseek-v4-flash/sympy__sympy-18532/report.json": "b7e3cebebc1b3b91574377f53788272731c5512639fe8e30f384aa87c4407beb",
+    "cases/terminalbench/bn-fit-modify/1/result.json": "303392289389274a2fd15d8764b44dcc83d4c9efeab9c84aa7173700361c8c16",
+    "terminalbench/bn-fit-modify-oracle-1/b5f9644970c17ad9ddb46b7266f7bcd8__uZbvkVb/result.json": "61db77096491a54e28f3ba1a6d73bc86a6dafebcd5bb51eda9a9c1ac5fad2b7d",
+    "terminalbench/bn-fit-modify-oracle-1/b5f9644970c17ad9ddb46b7266f7bcd8__uZbvkVb/verifier/ctrf.json": "a0d4b982033e5f6095faf38faa9d520e252653e146d2eb626e5410955121b6cd",
+    "terminalbench/bn-fit-modify-oracle-1/b5f9644970c17ad9ddb46b7266f7bcd8__uZbvkVb/verifier/test-stdout.txt": "eecb955cdea06264a10cef4fbd35d3dc014143e922487458a081108ea8e23400",
+    "terminalbench/bn-fit-modify-oracle-1/b5f9644970c17ad9ddb46b7266f7bcd8__uZbvkVb/agent/oracle.txt": "30226f02dbc791fb305e43b087010d0b31dc77c565090862a613d201ad49e2d6",
+    "terminalbench/bn-fit-modify-nop-1/b5f9644970c17ad9ddb46b7266f7bcd8__TxRW36Z/result.json": "17212015588c74c78029eba10d1bc0d7a3dd155b47b1cee64f51efbabc894a41",
+    "terminalbench/bn-fit-modify-nop-1/b5f9644970c17ad9ddb46b7266f7bcd8__TxRW36Z/verifier/ctrf.json": "01d6679dc146c929f2ed6cc07a4beda177b3e3d41e7a40a0f28861fa5e6c33fd",
+    "terminalbench/bn-fit-modify-nop-1/b5f9644970c17ad9ddb46b7266f7bcd8__TxRW36Z/verifier/test-stdout.txt": "71bf55553e07b5e2ca79310911c41a7fbb648dac9493fcd969c2aa24f1731568",
+    "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/result.json": "a65363caeeebcd9a3a35e1671cc792e4c11b5596d54d7cd93bfcf0633ad23cdd",
+    "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/result.json": "6787b29ef6bf33cc454e0d7b39773016a7526025d24f1a572badf5ab64a9a0be",
+    "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/agent/events.jsonl": "8a241f3011d38b1feb749bcab0e0069c0b6835cc4add14d3bd471c6945ac7177",
+    "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/verifier/ctrf.json": "60e8c1b3a7013d91dc22db1f14a0ce98cd104225ff6acf9c0b955a736e2622d3",
+    "terminalbench/bn-fit-modify-baseline-1/b5f9644970c17ad9ddb46b7266f7bcd8__7C4mKjq/verifier/test-stdout.txt": "6400cfea1f8639ddfc842df89b6bd50694d20a056b8cac91a9b0c31517927285",
+    "cases/terminalbench/bn-fit-modify/1/output-capture-remaining.json": "f5fcd12098ecb7610b3c11900a8d16ee8e2875fa50a8772f1f55080e622a63dc",
     "cases/terminalbench/caffe-cifar-10/1/result.json": "507a37609a9632cfe577847ca4e823a07fa09049b3fd4bf40e261b0a0dd4d15c",
     "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/result.json": "0d3aa6ef47ce6049b8ab50370f1eacd1e615822324bb5f41e95557285dee53a9",
     "terminalbench/caffe-cifar-10-oracle-1/7b0045106d7d5af724efe96b610ba64f__yNA6GNT/verifier/ctrf.json": "c5f817528367a3cc4807be5799e74edf59fc88b82704657bf5490fe1e216bfb6",
@@ -4932,7 +5323,7 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "d3e1b259531a05362e265cfb60022e4ebb46e4603c6d137dc63e7236d4b7a320",
+    "diagnostics/summary-reconciliation.json": "65b9ba560cc87a8bacb5c0ed51f62684b84d618eda96953ef31faa2cc59eafc8",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
     "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
     "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
@@ -4965,6 +5356,9 @@
     "diagnostics/portfolio-observations/result.json": "aa3cee669dc645a6adb1ed807093f8f98d490e32c682dfa15f8416e31792a1d9",
     "diagnostics/constraints-outcome-observations.json": "d90eb710e6d13459694295a9f79aac6137c40c9a61b4880e5ef6cc919830dc61",
     "diagnostics/dna-outcome-observations.json": "2de021cbe9a4fb1ba37ae331c3c58102f2e1f6f4ec6f2a3786b4d8f7cb1943dc",
+    "diagnostics/recovery-timeout-capture/manifest.json": "cad635993a4d444109eed9c03d445dfbf19c26a6f6d0e792eac9813253815acf",
+    "diagnostics/bn-policy-probe/result.json": "7c0666ff376b27f1ac1d6fec3afdb856900b0e451837b508241eca5cfe917767",
+    "diagnostics/bn-outcome-observations.json": "59f4809fcc5adcd3e0d7d488c6471cde69722ecd83ac6a309201e7bc2dc8f256",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -4974,7 +5368,7 @@
     "diagnostics/recover_chess_proxy.py": "295bc535218f377864d24136b2f4cbd364196a4775a7d550c14d1b87ea15abb4",
     "diagnostics/recover_chess_proxy_v2.py": "5e28cc1c987319e7dea022781f16299eb658a27eecc219d20ba48394c9b279ce",
     "diagnostics/apt-proxy.conf": "a13b187e9018fd61175082e77775d4592aa70c4d301ab51790c104f0f0693366",
-    "diagnostics/reconcile_summary.py": "5e70f59cc538f9020d20d0bbc970791cfa97742d08e6ef532a0513c0ec573f0e",
+    "diagnostics/reconcile_summary.py": "a851cc3fdcaa42a740b95695a85850daab41c6df7e3596081ab48f06747a8c9f",
     "diagnostics/probe_summary_reasoning.py": "77ffaa514e877061ba146f9b8cd436dce4ce60f4e7a8dfc6759d5da27a6c52b3",
     "cases/terminalbench/chess-best-move/2/apt-probe.log": "89abe4ecff4d599f745509d14ba5459254d76475c6240fd3ec3dc1a5d63ba81d",
     "diagnostics/summary-reasoning-probe/summary_reasoning_empty-1.request.json": "e8e0b901c79e87c51be6dc3186c29c8e3e87977cece27fe9536704951fabe080",
@@ -5060,6 +5454,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/6fa6a2db79b146bdbce3cd3ccc2cf3977fef105290dd222b791453623f73036b.py": "6fa6a2db79b146bdbce3cd3ccc2cf3977fef105290dd222b791453623f73036b"
+    "diagnostics/source-snapshots/bd4f4f8fdea0696588c32b8fc209a72ee95e47662c39adf357fd5c5e6c40af4b.py": "bd4f4f8fdea0696588c32b8fc209a72ee95e47662c39adf357fd5c5e6c40af4b"
   }
 }
