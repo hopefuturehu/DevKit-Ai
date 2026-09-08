@@ -31,4 +31,6 @@ SHA-256：`4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c`。
 来源：[模型与价格](https://api-docs.deepseek.com/quick_start/pricing/)、
 [Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode/)。
 
-原始产物目录：`artifacts/public-benchmark/20260909-flash/`。最终逐题成绩、失败分析和复测证据随执行补充。
+原始产物目录：`artifacts/public-benchmark/20260909-flash/`。
+执行中的成绩、失败分析和对照实验见 [结果记录](public-benchmark-40-results.md)，
+可核对的摘要与原始产物哈希见 [证据清单](public-benchmark-40-evidence.json)。

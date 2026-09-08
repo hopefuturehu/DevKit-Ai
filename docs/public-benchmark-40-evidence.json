@@ -1,0 +1,363 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-08T17:21:56.457548+00:00",
+  "status": "in_progress",
+  "source_commit": "578f660",
+  "model": "deepseek-v4-flash",
+  "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
+  "baseline_counts": {
+    "not_run": 37,
+    "fail": 1,
+    "pass": 1,
+    "running": 1
+  },
+  "completed_cases": [
+    {
+      "id": "terminal-bench/custom-memory-heap-crash",
+      "attempt": "1",
+      "verdict": "fail",
+      "record": "cases/terminalbench/custom-memory-heap-crash/1/result.json",
+      "image_id": "sha256:7d4d46573a68e9463df7b9dd12cc791d94a310e6a5fa6ab318c368e258de3162",
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "run_status": "limit_reached",
+      "steps": 9,
+      "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+      "input_tokens": 121034,
+      "output_tokens": 14881,
+      "tests": [
+        {
+          "name": "test_outputs.py::test_protected_files_not_modified",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_program_compiles_debug",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_program_compiles_release",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_debug_build_runs_without_crash",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_release_build_runs_without_crash",
+          "status": "failed"
+        },
+        {
+          "name": "test_outputs.py::test_no_memory_leaks_with_valgrind",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "id": "terminal-bench/openssl-selfsigned-cert",
+      "attempt": "1",
+      "verdict": "pass",
+      "record": "cases/terminalbench/openssl-selfsigned-cert/1/result.json",
+      "image_id": "sha256:7082de4dab44888b5b5e9c0f9de09b30bc8cd28b329edc6d153fb5ce3dca5f24",
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "run_status": "completed",
+      "steps": 23,
+      "error": null,
+      "input_tokens": 195334,
+      "output_tokens": 5033,
+      "tests": [
+        {
+          "name": "test_outputs.py::test_directory_structure",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_key_file",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_certificate_file",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_combined_pem_file",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_verification_file",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_python_verification_script",
+          "status": "passed"
+        }
+      ]
+    }
+  ],
+  "environment_failures": [
+    {
+      "id": "terminal-bench/large-scale-text-editing",
+      "attempt": "1",
+      "verdict": "error",
+      "record": "cases/terminalbench/large-scale-text-editing/1/result.json",
+      "image_id": "sha256:4ca0b429596fd62b9fab0a787e276ee7ee3faf2761b56473232327218c462c56",
+      "controls": {
+        "oracle": {
+          "reward": 0.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "error": "Official control did not produce its expected verdict"
+    }
+  ],
+  "swe_smoke_controls": [
+    {
+      "report": "logs/run_evaluation/flash40-astropy__astropy-12907-gold-1/control-gold/astropy__astropy-12907/report.json",
+      "resolved": true,
+      "patch_successfully_applied": true,
+      "tests": {
+        "FAIL_TO_PASS": {
+          "success": 2,
+          "failure": 0
+        },
+        "PASS_TO_PASS": {
+          "success": 13,
+          "failure": 0
+        },
+        "FAIL_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        },
+        "PASS_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        }
+      }
+    },
+    {
+      "report": "logs/run_evaluation/flash40-astropy__astropy-12907-negative-1/control-negative/astropy__astropy-12907/report.json",
+      "resolved": false,
+      "patch_successfully_applied": true,
+      "tests": {
+        "FAIL_TO_PASS": {
+          "success": 0,
+          "failure": 2
+        },
+        "PASS_TO_PASS": {
+          "success": 13,
+          "failure": 0
+        },
+        "FAIL_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        },
+        "PASS_TO_FAIL": {
+          "success": 0,
+          "failure": 0
+        }
+      }
+    }
+  ],
+  "empty_reasoning_api_probe": {
+    "source": "diagnostics/empty-reasoning-api-probe.json",
+    "results": [
+      {
+        "mode": "omitted",
+        "http_status": 400,
+        "seconds": 1.48,
+        "error": "The `reasoning_content` in the thinking mode must be passed back to the API."
+      },
+      {
+        "mode": "empty",
+        "http_status": 200,
+        "seconds": 1.71,
+        "finish_reason": "stop",
+        "tool_calls": 0,
+        "content_chars": 4,
+        "dsml_in_text": false,
+        "usage": {
+          "prompt_tokens": 419,
+          "completion_tokens": 3,
+          "total_tokens": 422,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 419
+        }
+      },
+      {
+        "mode": "disabled",
+        "http_status": 200,
+        "seconds": 1.92,
+        "finish_reason": "stop",
+        "tool_calls": 0,
+        "content_chars": 4,
+        "dsml_in_text": false,
+        "usage": {
+          "prompt_tokens": 340,
+          "completion_tokens": 2,
+          "total_tokens": 342,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 340
+        }
+      }
+    ]
+  },
+  "heap_protocol_replay": {
+    "source": "diagnostics/heap-protocol-replay/summary.json",
+    "results": [
+      {
+        "mode": "baseline_disabled",
+        "repetition": 1,
+        "http_status": 200,
+        "response_sha256": "0d9e3302acb02b8eb461bf3e1b7f2c9a88fc807993b687a1aeca8c7244eebcca",
+        "finish_reason": "tool_calls",
+        "response_id": "8527ce54-bb1a-4709-91aa-8615e5bd3505",
+        "content_chars": 8825,
+        "reasoning_chars": 0,
+        "native_tool_calls": 2,
+        "dsml_in_content": false,
+        "usage": {
+          "prompt_tokens": 13551,
+          "completion_tokens": 2424,
+          "total_tokens": 15975,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "prompt_cache_hit_tokens": 512,
+          "prompt_cache_miss_tokens": 13039
+        },
+        "seconds": 18.34
+      },
+      {
+        "mode": "preserve_empty",
+        "repetition": 1,
+        "http_status": 200,
+        "response_sha256": "2c40c826d150e4c30c2c2f915e57ab8eb5a2f5709c9c839101a1330e52e27d37",
+        "finish_reason": "tool_calls",
+        "response_id": "42482391-d975-460a-8330-5a3c4d48729b",
+        "content_chars": 239,
+        "reasoning_chars": 20103,
+        "native_tool_calls": 4,
+        "dsml_in_content": false,
+        "usage": {
+          "prompt_tokens": 18808,
+          "completion_tokens": 4933,
+          "total_tokens": 23741,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 4685
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 18808
+        },
+        "seconds": 42.79
+      },
+      {
+        "mode": "baseline_disabled",
+        "repetition": 2,
+        "http_status": 200,
+        "response_sha256": "6244d8460d0867ed738ffef3e6d02337a212f380c79fd3076a6223cfac89730e",
+        "finish_reason": "tool_calls",
+        "response_id": "2e30e905-99ce-40f9-8234-dc89ecfdfba6",
+        "content_chars": 17386,
+        "reasoning_chars": 0,
+        "native_tool_calls": 2,
+        "dsml_in_content": false,
+        "usage": {
+          "prompt_tokens": 13551,
+          "completion_tokens": 4570,
+          "total_tokens": 18121,
+          "prompt_tokens_details": {
+            "cached_tokens": 13440
+          },
+          "prompt_cache_hit_tokens": 13440,
+          "prompt_cache_miss_tokens": 111
+        },
+        "seconds": 30.94
+      },
+      {
+        "mode": "preserve_empty",
+        "repetition": 2,
+        "http_status": 200,
+        "response_sha256": "c7f88a27f66bca1970e12d6728bc6be65a84605c844f8dd0605e893cb2b4b6a3",
+        "finish_reason": "tool_calls",
+        "response_id": "b13de003-e474-49e5-8fc7-38adce922b20",
+        "content_chars": 256,
+        "reasoning_chars": 16305,
+        "native_tool_calls": 2,
+        "dsml_in_content": false,
+        "usage": {
+          "prompt_tokens": 18808,
+          "completion_tokens": 4169,
+          "total_tokens": 22977,
+          "prompt_tokens_details": {
+            "cached_tokens": 18688
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 3942
+          },
+          "prompt_cache_hit_tokens": 18688,
+          "prompt_cache_miss_tokens": 120
+        },
+        "seconds": 33.94
+      }
+    ],
+    "limitation": "Reconstructed transcript/core policy; no exact environment/runtime notes or dynamic tool schema snapshot. No returned tools executed; not an official task rerun."
+  },
+  "artifact_root": "artifacts/public-benchmark/20260909-flash",
+  "artifact_sha256": {
+    "cases/terminalbench/custom-memory-heap-crash/1/result.json": "f16e7a56902634aa63f741e2c883d07b747986a477dee76883c8b95240d6f58e",
+    "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/result.json": "02f4bd145f9e674feccb2d4263e600286d0c9018ac24b9c0290aba8ff63b71b9",
+    "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json": "0dd42b2bb2ec668b1f024ea68a98f4afda4ba33bfe855df8f5c21ffa51cfeed5",
+    "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/events.jsonl": "8f6548c42c2944ed0d36fb4824cebaca4caf9c54a93b641d26d787160867288c",
+    "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/verifier/ctrf.json": "5560faa85b0e65e17471f4c33a9216c0569e2ff2685b247bdb9102528eaa4663",
+    "cases/terminalbench/large-scale-text-editing/1/result.json": "9c5a87945a3dcf38d990afe08149f4b4402ec77f5a31cdd894adaffbf563b8fc",
+    "cases/terminalbench/openssl-selfsigned-cert/1/result.json": "017c3387a8ac86141262eef170c2ab11912c537d589f984abcac3d7f41fcc28c",
+    "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/result.json": "63973d8246ed5c526fbd652b9437be14338db00f73c01719595add0744c01606",
+    "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/result.json": "63f5066ea447a5927228e1bee1b813adf20b723a25f3c05a09297653e508f2b6",
+    "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/agent/events.jsonl": "16298e2f0aefea866d28584fe08d0b5b4ca2f718676d31c52fe37cdbc60fc8bf",
+    "terminalbench/openssl-selfsigned-cert-baseline-1/openssl-selfsigned-cert__bq3EssD/verifier/ctrf.json": "534f9144d2c6df4464d989fda8358d551bed13918754f392858455112a712301",
+    "logs/run_evaluation/flash40-astropy__astropy-12907-gold-1/control-gold/astropy__astropy-12907/report.json": "fe3f3bddc9631279d3babf7270913070d91e9207c3468bd947823aee3e7b1b86",
+    "logs/run_evaluation/flash40-astropy__astropy-12907-negative-1/control-negative/astropy__astropy-12907/report.json": "694d47ab10f881fae49f54c1d0d1776143e5d268ca6f0c3bc5dee7ebbb705361",
+    "diagnostics/empty-reasoning-api-probe.json": "4637d2e76398fdc9ebbe67a8d64e2e31c275fa6fdaf88b3865d646fbaff9e872",
+    "diagnostics/heap-protocol-replay/summary.json": "0341a5be5a797273ef1dd7480567f9261a1823544bd0d2c32f8217a0bab02384",
+    "diagnostics/heap-protocol-replay/baseline_disabled.request.json": "6a03cf00c91c60ea4b0cb801c8219f50bb5aa4ae1cda21702d493e3395f5b4ef",
+    "diagnostics/heap-protocol-replay/preserve_empty.request.json": "fbd5a5934b66a25cbb81dac905adef410606b1f4a8c18e7368706516f38674a7",
+    "diagnostics/heap-protocol-replay/baseline_disabled-1.response.json": "0d9e3302acb02b8eb461bf3e1b7f2c9a88fc807993b687a1aeca8c7244eebcca",
+    "diagnostics/heap-protocol-replay/baseline_disabled-2.response.json": "6244d8460d0867ed738ffef3e6d02337a212f380c79fd3076a6223cfac89730e",
+    "diagnostics/heap-protocol-replay/preserve_empty-1.response.json": "2c40c826d150e4c30c2c2f915e57ab8eb5a2f5709c9c839101a1330e52e27d37",
+    "diagnostics/heap-protocol-replay/preserve_empty-2.response.json": "c7f88a27f66bca1970e12d6728bc6be65a84605c844f8dd0605e893cb2b4b6a3",
+    "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/test-stdout.txt": "1fe8fd4178fde316c94526be300db53edff6ebdce1415262fea4476b0b2da776",
+    "diagnostics/replay_heap_protocol.py": "d9eda87a57b85d7b1621f8587d00603278f2eb5595647f1f81847c978d00bef4",
+    "diagnostics/record_evidence.py": "5ec21223132f18a282fc88e7543513b02478b0e8eed634a35ec925a98add4839"
+  }
+}
