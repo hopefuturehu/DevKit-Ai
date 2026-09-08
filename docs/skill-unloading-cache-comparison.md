@@ -121,6 +121,74 @@ DeepSeek Harness 的 [tool-skill/index.ts](../../deepseek-harness/packages/skill
 
 Nanobot 的 [context.py](../../nanobot/nanobot/agent/context.py) 把 always Skill 放 system，普通目录与 [skills.py](../../nanobot/nanobot/agent/skills.py) 引导模型按需读取。它还把运行时信息放在当前 user 的正文之后，有利于保留更早前缀；但这没有解决 always 正文增删后的后缀重用问题。
 
+### 4.6 运行中遇到压缩，与执行结束后的实际路径
+
+这里的“结束”统一指一次用户输入对应的 Agent 执行返回，不把它等同于业务任务验收通过，也不等同于整个 session 关闭。这些框架通常没有可独立观测的“Skill 正在执行 / 已执行完成”状态机；它们处理的是包含 Skill 手册的消息。
+
+#### Hermes
+
+**运行中：** `skill_view` 正文是历史 Tool Result。普通工具裁剪按近期加载、保留尾部和用户近期提及保护 Skill；极端压力下可以取消保护。完整摘要还会覆盖原来受保护、后来进入旧历史的正文，因此在摘要输入中收集将丢失的 Skill，并在摘要输出后确定性补回 `SKILL_PRUNED` 标记。这个实现提供明确的重读提示，不能等同于已经自动执行 `skill_view` 或建立了执行前恢复门禁。
+
+例如：读手册 → 执行多步 → 手册进入压缩中段 → 摘要保留任务进度，并补上“正文已丢失，请重读”。模型后续需要手册细节时仍需发起读取。大正文标记和近期保护是不同措施；不能因为有标记就声称全文始终保留。
+
+**执行结束后：** [turn_finalizer.py](../../hermes-agent/agent/turn_finalizer.py) 保存轨迹与会话，并调用任务资源清理；[cleanup_task_resources](../../hermes-agent/agent/chat_completion_helpers.py) 清理的是 VM / 浏览器等资源，不是删除 Skill 消息。可选 `micro_compact` 在正常结束后处理历史，但默认关闭；可选 Skill 后台复盘用于维护经验与手册，也不是卸载正文。未被压缩或裁剪的正文继续随历史存在，没有在此处按 Skill 完成信号逐份删除。
+
+#### OpenCode
+
+**运行中：** V1 的 `prune()` 对 `skill` 工具结果有明确豁免，普通 `read` 读取的参考文件不能仅因属于 Skill 目录就自动获得同样保护。完整 `processCompaction()` 则选择历史 head 生成摘要、保留近期尾部；Skill 消息落入 head 时仍可能只剩摘要。插件可以定制压缩上下文，但这是扩展能力，不是默认恢复保证。
+
+**执行结束后：** [V1 prompt.ts](../../opencode/packages/opencode/src/session/prompt.ts) 在 `runLoop` 结束、返回最后 Assistant 消息前，异步启动 `compaction.prune()`。所以这里确实存在结束后的历史清理，但它仍跳过 `skill`，不是“任务结束自动卸载 Skill”。之后继续会话，正文可能一直保留到更大的 compaction 边界。
+
+同一 checkout 的 [新 compaction.ts](../../opencode/packages/core/src/session/compaction.ts) 使用单独的摘要与 recent 表示。V1 的豁免列表只证明 V1 行为，不外推到新路径；两者都不能从加载工具本身推导出按任务关闭正文的机制。
+
+#### Codex
+
+**运行中：** 正文通过 Skill 注入片段或读取工具进入历史。普通本地 [compact.rs](../../codex/codex-rs/core/src/compact.rs) 生成摘要后，用有限的真实用户消息与摘要构建 replacement history；中途压缩会重新注入规范的初始上下文。这里有一个重要边界：[contextual_user_message.rs](../../codex/codex-rs/core/src/context/contextual_user_message.rs) 将 Skill 注入识别为合成上下文，[event_mapping.rs](../../codex/codex-rs/core/src/event_mapping.rs) 不把它当成真实用户消息，因此不能靠 user 角色推断整份手册被用户锚点机制保住。
+
+重新注入初始上下文会恢复相关目录和使用说明；所检查的 Skill `ContextContributor` 负责目录，而完整正文由 `TurnInputContributor` 在输入时加载，二者不同。没有在这些路径中发现“遍历此前已加载 Skill 并在每次 compaction 后自动恢复全部正文”的统一操作。
+
+所查 [compact_remote.rs](../../codex/codex-rs/core/src/compact_remote.rs) 也会过滤旧的合成上下文并重新注入当前初始上下文。远端原生 compaction item 的内部语义保留程度由服务端实现决定，不能仅凭本地代码宣称 Skill 原文被完整保留。以上区分普通本地路径、所查远端过滤路径，不把它们概括成所有模型都保留相同原文。
+
+**执行结束后：** 下一 turn 重新处理当前输入涉及的 Skill；Catalog 的“不跨 turn 沿用”是适用规则。已经记录的正文继续属于会话历史，所查路径未按 turn 完成事件将它逐条删除；同样没有一个可类比 `bot.SkillManager.active.clear()` 的统一正文关闭动作。完整重读仍取决于当前使用规则、模型调用或扩展机制。
+
+#### Pi
+
+**运行中：** 自动读取产生 Tool Result，`/skill:name` 展开成含手册的 user 消息。压缩按 `keepRecentTokens` 选择切点；在近期尾部的正文可保留，位于切点之前的则进入摘要。同一长 turn 也可能被拆分，较早的 turn prefix 单独摘要。`firstKeptEntryId` 是通用历史保留边界，不检查 Skill 是否仍适用。
+
+触发时机也要说准确：[agent-session.ts](../../pi-mono/packages/coding-agent/src/core/agent-session.ts) 的 `_checkCompaction()` 在 Agent 执行返回后与新 prompt 提交前检查。可恢复超限会压缩并允许一次继续重试；正常回答后达到阈值则压缩历史，后续等待用户或其他续接输入。不能将其描述成每个工具步骤都主动检测并保护活动 Skill。
+
+**执行结束后：** user / assistant / toolResult 已在 `message_end` 持久化；`_handlePostAgentRun()` 处理重试、压缩和排队输入。压缩成功后追加 compaction entry，重建 `agent.state.messages`。未见默认的 Skill 逐份卸载、专门的正文丢失标记或强制重读门禁。扩展可以通过 `session_before_compact` 自定义，但不能把扩展可能实现的行为归为默认能力。
+
+#### DeepSeek Harness
+
+**运行中：** [compaction-basic](../../deepseek-harness/packages/compaction/compaction-basic/src/index.ts) 在 `agent/pre-step` 检查压力，并处理 `agent/request-error` 的上下文超限。可选 pruner 遍历当前 surface 中的工具结果；默认对超过 8,192 Unicode code point 的文本保留头部 4,096、尾部 1,024，并插入通用中段裁剪标记。它不按 `skill` 工具名豁免，也没有近期活动 Skill 集合；因此大型 Skill Tool Result 也可能被裁短。
+
+显式命令注入的 user Skill 正文不属于 Tool Result pruner 的对象，但仍可进入通用摘要范围。裁剪后重新计量，仍超阈值才继续生成摘要；原事件留存，通过 surface replacement 改变模型视图。保存原事件有利于溯源，不等于正文已自动恢复。
+
+压缩后若原目录消息退出可见 surface，`catalogHistory()` 会使目录重新发布；这保障能力发现，不是重放所有已加载手册。
+
+**执行结束后：** 所查 `agent/status` 的 idle 回调清除 overflow 重试计数，不清除 Skill 正文。Skill 插件注册工具和输入注入器，未见按任务完成删除正文的回调；正文随 session surface 延续，直到后续裁剪、摘要或会话操作改变它。
+
+#### Nanobot
+
+**运行中：** 必须区分 always 和普通 Skill。always 正文每次构建 system 时从定义加载，不属于旧会话裁剪范围；普通 Skill 通过 `read_file` 进入历史，服从通用消息数 / token 尾部窗口与 consolidation，未见专属 Skill 豁免或丢失标记。always 可以继续被注入，但没有消除基础 system 本身过大的风险，也不代表运行中所有 Skill 都有这种待遇。
+
+**执行结束后：** [loop.py](../../nanobot/nanobot/agent/loop.py) 的 `_state_save()` 保存消息，执行文件容量检查，并为普通持久会话调度 `maybe_consolidate_by_tokens()`。因此结束后可能发生通用历史整理，但不识别某个 Skill 已完成。
+
+另有 [autocompact.py](../../nanobot/nanobot/agent/autocompact.py)：配置有效空闲 TTL 后，跳过正在执行的会话，对到期会话调度归档。[compact_idle_session()](../../nanobot/nanobot/agent/memory.py) 保留以 8 条消息为目标、可扩展到用户边界的合法尾部，将其他内容归档并保存摘要。它是会话空闲策略，不是 Skill 结束策略；普通 Skill 正文可能随历史移出，always 下次仍会进入 system。
+
+### 4.7 从实际行为能得出多强的保证
+
+| 问题 | 调研能支持的结论 |
+|---|---|
+| 是否知道某个 Skill 已完成？ | 所查主路径没有统一的 Skill 任务完成协议，不能把 turn / idle / session TTL 混为一谈 |
+| 是否保护正在使用的正文？ | Hermes 有近期与提及启发式保护；OpenCode V1 有工具名豁免；它们都不是业务使用依赖的完整跟踪 |
+| 正文被移出后是否明确告知？ | Hermes 的 `SKILL_PRUNED` 最明确；通用摘要或裁剪标记不等价于专属恢复契约 |
+| 是否自动重读并检查成功后再执行？ | 所查默认路径未发现跨框架通用的强制恢复闭环，不能将“提示重读”说成“已保障恢复” |
+| 结束后是否立即省掉 Skill token？ | 没有统一保证；多数仍随历史保留，有些在通用压缩、裁剪或空闲归档时才移出 |
+
+对 `bot` 的直接启发是：新方案若移除独立 Active Skill 全文层，就需要显式补上“活动正文的压缩保护、实际可见性检查、必要内容恢复与有界失败”这一闭环。不能认为其他框架都自动解决了它，也不宜为了保护 Skill 而无限 pin 全文。执行进度、当前操作所需原文和引用应分别管理；这些仍是本项目待实现的设计内容。
+
 ## 5. `bot` 应当改哪里
 
 ### 5.1 当前有三种可避免的扰动
