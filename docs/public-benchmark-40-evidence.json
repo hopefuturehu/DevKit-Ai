@@ -1,22 +1,24 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T22:44:57.722560+00:00",
+  "generated_at": "2026-09-08T23:08:38.416148+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
     "pass": 7,
-    "fail": 4,
-    "not_run": 28,
-    "error": 1
+    "fail": 5,
+    "not_run": 26,
+    "error": 1,
+    "running": 1
   },
   "baseline_scoring_counts": {
     "pass": 7,
     "invalid_verifier": 1,
-    "not_run": 28,
-    "fail": 3,
-    "error": 1
+    "not_run": 26,
+    "fail": 4,
+    "error": 1,
+    "running": 1
   },
   "completed_cases": [
     {
@@ -407,6 +409,51 @@
       "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
       "input_tokens": 121034,
       "output_tokens": 14881
+    },
+    {
+      "id": "terminal-bench/dna-insert",
+      "attempt": "1",
+      "verdict": "fail",
+      "record": "cases/terminalbench/dna-insert/1/result.json",
+      "image_id": "sha256:2e68029a49d11b454994967b2eddb94333ef321b688f865ada3c09a3b534c110",
+      "agent_variant": "original",
+      "model_response_observed": true,
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_primers",
+          "status": "failed"
+        }
+      ],
+      "verifier_health": {
+        "test_count": 1,
+        "test_statuses": {
+          "failed": 1
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "fail",
+      "output_capture_attempts": [
+        "cases/terminalbench/dna-insert/1/output-capture-remaining.json"
+      ],
+      "observed_artifacts": [
+        "cases/terminalbench/dna-insert/1/observed-app__sequences.fasta"
+      ],
+      "run_status": "limit_reached",
+      "steps": 24,
+      "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+      "input_tokens": 320488,
+      "output_tokens": 22324
     },
     {
       "id": "terminal-bench/multi-source-data-merger",
@@ -1648,7 +1695,7 @@
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
         "script_sha256": "20eec64f82b31343e473cf4fc7ec6bc17f3936c801b4c4df571620d1b341947c",
-        "completed_runs_checked": 17,
+        "completed_runs_checked": 18,
         "all_usage_totals_match": true,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
         "runs": [
@@ -1756,6 +1803,21 @@
               "output_tokens": 22101
             },
             "estimated_cost_usd": 0.020975724
+          },
+          {
+            "agent_result": "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/result.json",
+            "agent_result_sha256": "e548408f123958dcdf059a103c278ef5595dde807a39f68eedc6abcd7dc505f8",
+            "events": "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/events.jsonl",
+            "events_sha256": "a0b8020a4165c98bcd3d8166663f00acf14639f3143e312991fde1398c76e4a3",
+            "expected": {
+              "input_tokens": 320488,
+              "output_tokens": 22324
+            },
+            "observed": {
+              "input_tokens": 320488,
+              "output_tokens": 22324
+            },
+            "estimated_cost_usd": 0.025478512000000002
           },
           {
             "agent_result": "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/agent/result.json",
@@ -4320,6 +4382,156 @@
           "tests/test_outputs.py": "1422b345ba3aacdfc4184e962811b6379988435896c50d8cf62903e70990c5d1"
         }
       }
+    },
+    "dna_outcome_observations": {
+      "source": "diagnostics/dna-outcome-observations.json",
+      "result": {
+        "id": "terminal-bench/dna-insert",
+        "attempt": "1",
+        "at": "2026-09-08T23:07:40.352199+00:00",
+        "controls": {
+          "oracle": {
+            "reward": 1,
+            "tests_passed": 1,
+            "tests_failed": 0,
+            "finished_at": "2026-09-08T22:49:11.555034Z",
+            "exception": null,
+            "agent_execution": {
+              "started_at": "2026-09-08T22:42:36.649777Z",
+              "finished_at": "2026-09-08T22:47:34.265818Z"
+            }
+          },
+          "nop": {
+            "reward": 0,
+            "tests_passed": 0,
+            "tests_failed": 1,
+            "finished_at": "2026-09-08T22:51:34.638844Z",
+            "exception": null,
+            "agent_execution": {
+              "started_at": "2026-09-08T22:49:15.611495Z",
+              "finished_at": "2026-09-08T22:49:15.611540Z"
+            }
+          },
+          "baseline": {
+            "reward": 0,
+            "tests_passed": 0,
+            "tests_failed": 1,
+            "finished_at": "2026-09-08T22:59:08.466645Z",
+            "exception": null,
+            "agent_execution": {
+              "started_at": "2026-09-08T22:53:57.746786Z",
+              "finished_at": "2026-09-08T22:58:05.945530Z"
+            }
+          }
+        },
+        "official_reward": 0,
+        "official_tests_failed": 1,
+        "official_failure": "File /app/primers.fasta does not exist.",
+        "agent_status": "limit_reached",
+        "steps": 24,
+        "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+        "input_tokens": 320488,
+        "output_tokens": 22324,
+        "independent_usage_export_matches": true,
+        "last_normal_response": {
+          "at": "2026-09-08T22:57:58.519702Z",
+          "finish_reason": "length",
+          "completion_tokens": 8192,
+          "content_chars": 33164,
+          "native_tool_calls": 0,
+          "body_contains_DSML": false
+        },
+        "reasoning_observation": {
+          "zero_text_tool_steps": [
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "zero_text_tool_steps_with_field_observed": [
+            7
+          ],
+          "first_observed_zero_text_tool_stored_as_null": true,
+          "stream_limitation": "Observed field names do not distinguish null from an empty string. Baseline logs do not record actual outgoing thinking mode."
+        },
+        "compaction_observed": false,
+        "primers_path_in_executed_tool_arguments": false,
+        "python_and_primer3_install_completed": true,
+        "oligotm_probe_succeeded": true,
+        "input_matches_official_file": true,
+        "input_sha256": "aebe50fe8d43bb432925537aeb2be63abce3fcc259a1e04e0a37ce7af8da3da0",
+        "capture": {
+          "task": "terminal-bench/dna-insert",
+          "attempt": "1",
+          "started_at": "2026-09-08T22:58:05.302451+00:00",
+          "container": "37fc023970e3464c1acc31f43e04a0b4__armydjd__env-main-1",
+          "capture_trigger": "worker_result",
+          "trigger_sha256": "e548408f123958dcdf059a103c278ef5595dde807a39f68eedc6abcd7dc505f8",
+          "observer_sha256": "b126ea32d49781e34ca4402128327260fda0f6c19f70b3c26f62f60923486268",
+          "limitation": "Filesystem observation may overlap verifier execution. Timeout snapshots do not establish an immutable cutoff or graceful Worker termination. Missing optional paths are recorded as failed copies.",
+          "files": [
+            {
+              "container_path": "/app/primers.fasta",
+              "returncode": 1,
+              "stderr": "Error response from daemon: Could not find the file /app/primers.fasta in container 37fc023970e3464c1acc31f43e04a0b4__armydjd__env-main-1\n"
+            },
+            {
+              "container_path": "/app/sequences.fasta",
+              "returncode": 0,
+              "stderr": "",
+              "file": "cases/terminalbench/dna-insert/1/observed-app__sequences.fasta",
+              "sha256": "aebe50fe8d43bb432925537aeb2be63abce3fcc259a1e04e0a37ce7af8da3da0",
+              "bytes": 7238
+            }
+          ],
+          "finished_at": "2026-09-08T22:58:05.370893+00:00"
+        },
+        "cleanup_verified": {
+          "image_still_present": false,
+          "trial_containers_remaining": [],
+          "retained_images_missing": [],
+          "retained_image_count": 34
+        },
+        "attribution": "Output truncation ended the run before required artifact delivery. Official controls and actual test execution are valid; no verifier dependency failure explains this score. The earlier zero-text reasoning field was stored as null, matching the known baseline protocol fallback path, but this observational sequence is not proof that the fallback caused truncation or that the model cannot solve the task. No task-specific protocol-candidate rerun has been performed.",
+        "source_sha256": {
+          "diagnostics/inspect_dna_result.py": "f475a0bda69df8e54dd7284282a6189476f48a00a3af5707d72c9c073f6c7e2c",
+          "cases/terminalbench/dna-insert/1/result.json": "6eb8f388e75f218a5184b591af2d752018073f18c471da65d974f7fe765ea95d",
+          "cases/terminalbench/dna-insert/1/output-capture-remaining.json": "299c09da06ac1e34643f93fb28802f10990eb667cfd741682d4cd818a34f21e2",
+          "cases/terminalbench/dna-insert/1/observed-app__sequences.fasta": "aebe50fe8d43bb432925537aeb2be63abce3fcc259a1e04e0a37ce7af8da3da0",
+          "terminalbench/dna-insert-oracle-1/37fc023970e3464c1acc31f43e04a0b4__XJLcvfj/result.json": "602e4d245a8e21215bcf15e22f14945ca4b9ef92834d36c2c2c8917f64dfcc9f",
+          "terminalbench/dna-insert-oracle-1/37fc023970e3464c1acc31f43e04a0b4__XJLcvfj/verifier/test-stdout.txt": "0ec4d611c64fb477f6d644be0f15757bfaf105961d0dd6237bea35126365bc4a",
+          "terminalbench/dna-insert-oracle-1/37fc023970e3464c1acc31f43e04a0b4__XJLcvfj/verifier/ctrf.json": "232a46a442deed1d20eb0a4a63aeacc170084c1e6702e118e5396f9d156baf5b",
+          "terminalbench/dna-insert-nop-1/37fc023970e3464c1acc31f43e04a0b4__rQ6T49B/result.json": "0db63c78ab4701e61e2a350048a308546dd2cbd2add5b0d67e0799f72038b377",
+          "terminalbench/dna-insert-nop-1/37fc023970e3464c1acc31f43e04a0b4__rQ6T49B/verifier/test-stdout.txt": "594adb539862fb1e509e0808a5545a182ba3dc9b1fe63e9d791445fee8e2e947",
+          "terminalbench/dna-insert-nop-1/37fc023970e3464c1acc31f43e04a0b4__rQ6T49B/verifier/ctrf.json": "7cb427be1f79096aa622f0b97c4c7ab147959e03649c4e045f1fcac2ccac6be7",
+          "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/result.json": "0766b35186c088baa74833a2cd4cb0991f1a6dd64d154bcc78ff46272bca2154",
+          "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/verifier/test-stdout.txt": "03f3b4ff5680b49fb0dd3ed19c15dee23321106ed42c2f2ea523a7465d12b7d3",
+          "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/verifier/ctrf.json": "4fa57fe648f676b4d8a293d8ee5c3b6c5203ece501dfc44f3f4428e03c44583d",
+          "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/result.json": "e548408f123958dcdf059a103c278ef5595dde807a39f68eedc6abcd7dc505f8",
+          "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/events.jsonl": "a0b8020a4165c98bcd3d8166663f00acf14639f3143e312991fde1398c76e4a3",
+          "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/state.db": "da575ea5b8f1087873181767f0b54af89d8b3d83cb21bcb89769d57d27364457"
+        },
+        "task_source_sha256": {
+          "instruction.md": "49fce0ee8b73d7ccdf4b8476c6bb87cf362689fd1d77b21a0d8737d16019a473",
+          "task.toml": "1a9efd5c826d64d31c4874b395f1f9c488b2f26581b0c752fc4619ff177f25eb",
+          "environment/sequences.fasta": "aebe50fe8d43bb432925537aeb2be63abce3fcc259a1e04e0a37ce7af8da3da0",
+          "tests/test.sh": "355c3f627ad14243da1ec683ebdb120aca7921bb52656c5cb65b281b347ba68b",
+          "tests/test_outputs.py": "5bf0651b48969968dea30956d4b0cf9e499af59d73cc6886af3ad7aa92934647"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -4356,7 +4568,7 @@
     }
   ],
   "model_coverage": {
-    "distinct_tasks_with_completed_model_run": 13,
+    "distinct_tasks_with_completed_model_run": 14,
     "completed_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
@@ -4365,6 +4577,7 @@
       "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
       "terminal-bench/custom-memory-heap-crash",
+      "terminal-bench/dna-insert",
       "terminal-bench/large-scale-text-editing",
       "terminal-bench/multi-source-data-merger",
       "terminal-bench/openssl-selfsigned-cert",
@@ -4395,13 +4608,12 @@
       "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
       "terminal-bench/compile-compcert",
-      "terminal-bench/dna-insert",
       "terminal-bench/git-multibranch",
       "terminal-bench/largest-eigenval",
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
     ],
-    "distinct_tasks_with_model_execution_and_official_result": 14,
+    "distinct_tasks_with_model_execution_and_official_result": 15,
     "tested_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
@@ -4410,6 +4622,7 @@
       "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
       "terminal-bench/custom-memory-heap-crash",
+      "terminal-bench/dna-insert",
       "terminal-bench/large-scale-text-editing",
       "terminal-bench/largest-eigenval",
       "terminal-bench/multi-source-data-merger",
@@ -4441,7 +4654,6 @@
       "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
       "terminal-bench/compile-compcert",
-      "terminal-bench/dna-insert",
       "terminal-bench/git-multibranch",
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
@@ -4577,6 +4789,21 @@
     "terminalbench/custom-memory-heap-crash-baseline-4/61e021e0304c9818a9be2c9173c8a093__Q3ypBXD/verifier/test-stdout.txt": "dbb04ac50b60b22caceea500490e25e2527bc1f9656d5ef8b836a09d93fe7bae",
     "cases/terminalbench/custom-memory-heap-crash/4/output-capture.json": "889ed581db935aad55c1e0f07481923dedb62a4ed0cf1065ee1331960413253d",
     "cases/terminalbench/custom-memory-heap-crash/4/final-user.cpp": "5ee212b6bc82804b6a71f92922c24f26878671c75c10226c9179d1e834878be3",
+    "cases/terminalbench/dna-insert/1/result.json": "6eb8f388e75f218a5184b591af2d752018073f18c471da65d974f7fe765ea95d",
+    "terminalbench/dna-insert-oracle-1/37fc023970e3464c1acc31f43e04a0b4__XJLcvfj/result.json": "602e4d245a8e21215bcf15e22f14945ca4b9ef92834d36c2c2c8917f64dfcc9f",
+    "terminalbench/dna-insert-oracle-1/37fc023970e3464c1acc31f43e04a0b4__XJLcvfj/verifier/ctrf.json": "232a46a442deed1d20eb0a4a63aeacc170084c1e6702e118e5396f9d156baf5b",
+    "terminalbench/dna-insert-oracle-1/37fc023970e3464c1acc31f43e04a0b4__XJLcvfj/verifier/test-stdout.txt": "0ec4d611c64fb477f6d644be0f15757bfaf105961d0dd6237bea35126365bc4a",
+    "terminalbench/dna-insert-oracle-1/37fc023970e3464c1acc31f43e04a0b4__XJLcvfj/agent/oracle.txt": "61ca25d54debaba53f17ccfd4e85b46da606b96dc18a00bfd9b789b7fad89762",
+    "terminalbench/dna-insert-nop-1/37fc023970e3464c1acc31f43e04a0b4__rQ6T49B/result.json": "0db63c78ab4701e61e2a350048a308546dd2cbd2add5b0d67e0799f72038b377",
+    "terminalbench/dna-insert-nop-1/37fc023970e3464c1acc31f43e04a0b4__rQ6T49B/verifier/ctrf.json": "7cb427be1f79096aa622f0b97c4c7ab147959e03649c4e045f1fcac2ccac6be7",
+    "terminalbench/dna-insert-nop-1/37fc023970e3464c1acc31f43e04a0b4__rQ6T49B/verifier/test-stdout.txt": "594adb539862fb1e509e0808a5545a182ba3dc9b1fe63e9d791445fee8e2e947",
+    "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/result.json": "0766b35186c088baa74833a2cd4cb0991f1a6dd64d154bcc78ff46272bca2154",
+    "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/result.json": "e548408f123958dcdf059a103c278ef5595dde807a39f68eedc6abcd7dc505f8",
+    "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/agent/events.jsonl": "a0b8020a4165c98bcd3d8166663f00acf14639f3143e312991fde1398c76e4a3",
+    "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/verifier/ctrf.json": "4fa57fe648f676b4d8a293d8ee5c3b6c5203ece501dfc44f3f4428e03c44583d",
+    "terminalbench/dna-insert-baseline-1/37fc023970e3464c1acc31f43e04a0b4__ARMydJd/verifier/test-stdout.txt": "03f3b4ff5680b49fb0dd3ed19c15dee23321106ed42c2f2ea523a7465d12b7d3",
+    "cases/terminalbench/dna-insert/1/output-capture-remaining.json": "299c09da06ac1e34643f93fb28802f10990eb667cfd741682d4cd818a34f21e2",
+    "cases/terminalbench/dna-insert/1/observed-app__sequences.fasta": "aebe50fe8d43bb432925537aeb2be63abce3fcc259a1e04e0a37ce7af8da3da0",
     "cases/terminalbench/large-scale-text-editing/1/result.json": "9c5a87945a3dcf38d990afe08149f4b4402ec77f5a31cdd894adaffbf563b8fc",
     "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/result.json": "230107f3dfe5acbb8b7df3d832223ad384847c1a4b0f02e150cc5ed0c4bff37b",
     "terminalbench/large-scale-text-editing-oracle-1/1f1cddc3df15e452fe2d3c6928f6b1e5__S7wnYiR/verifier/ctrf.json": "6ab8eeb5c8d0eecaa6853a445705baaaa656e93d2724e4bb8e456b66fe467f77",
@@ -4705,7 +4932,7 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "acaece5f008d904e204dcbd2da41f357251697a363db4708d628f5d122bf04a5",
+    "diagnostics/summary-reconciliation.json": "d3e1b259531a05362e265cfb60022e4ebb46e4603c6d137dc63e7236d4b7a320",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
     "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
     "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
@@ -4737,6 +4964,7 @@
     "diagnostics/live-summary-observer/manifest.json": "af13809cc88ed7369f9bcdf564641cac613258ea9c28658930b0cffc186b11b0",
     "diagnostics/portfolio-observations/result.json": "aa3cee669dc645a6adb1ed807093f8f98d490e32c682dfa15f8416e31792a1d9",
     "diagnostics/constraints-outcome-observations.json": "d90eb710e6d13459694295a9f79aac6137c40c9a61b4880e5ef6cc919830dc61",
+    "diagnostics/dna-outcome-observations.json": "2de021cbe9a4fb1ba37ae331c3c58102f2e1f6f4ec6f2a3786b4d8f7cb1943dc",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -4832,6 +5060,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/be0f5282dafd387b4aa7df6656edc3116b49de0a6e7b802845f63bb84a4e2805.py": "be0f5282dafd387b4aa7df6656edc3116b49de0a6e7b802845f63bb84a4e2805"
+    "diagnostics/source-snapshots/6fa6a2db79b146bdbce3cd3ccc2cf3977fef105290dd222b791453623f73036b.py": "6fa6a2db79b146bdbce3cd3ccc2cf3977fef105290dd222b791453623f73036b"
   }
 }
