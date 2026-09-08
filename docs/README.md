@@ -43,6 +43,7 @@
 
 | 文档 | 状态与用途 |
 |---|---|
+| [Web 实时任务工作台设计](web-execution-workbench-design.md) | 尚未实现的提案与交互原型；执行进度、工具详情、补充要求和历史恢复 |
 | [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 尚未实现的提案；Run 隔离、正文交付、裁剪和恢复 |
 | [Skill 卸载与缓存复用调研](skill-unloading-cache-comparison.md) | 上述提案的源码依据与成本取舍；固定 checkout 调研 |
 | [历史会话裁剪容量分析](history-pruning-analysis.md) | 2026-09-08 的离线容量回放，支撑待实施设计；不代表生产裁剪收益 |

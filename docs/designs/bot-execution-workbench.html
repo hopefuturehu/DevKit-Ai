@@ -1,0 +1,342 @@
+<style>
+  #bot-execution-preview {
+    --be-bg: light-dark(#f6f7fb, #1a1a2e);
+    --be-panel: light-dark(#ffffff, #16213e);
+    --be-soft: light-dark(#edf0f8, #202d49);
+    --be-text: light-dark(#222d43, #eaeaea);
+    --be-muted: light-dark(#58647a, #aeb9cd);
+    --be-line: light-dark(#d8deea, #35415d);
+    --be-active: light-dark(#8f2440, #ffa6b6);
+    --be-select: light-dark(#fceaf0, #362942);
+    --be-green: light-dark(#166348, #74dfb9);
+    --be-amber: light-dark(#83520b, #f5c26c);
+    --be-red: light-dark(#af2a43, #ffa6b6);
+    color: var(--be-text);
+    background: var(--be-bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid var(--be-line);
+    border-radius: 12px;
+    overflow-wrap: anywhere;
+  }
+  #bot-execution-preview * { box-sizing: border-box; }
+  #bot-execution-preview h2, #bot-execution-preview h3, #bot-execution-preview p { margin: 0; }
+  #bot-execution-preview h2 { font-size: 18px; font-weight: 500; }
+  #bot-execution-preview h3 { font-size: 14px; font-weight: 500; }
+  #bot-execution-preview button, #bot-execution-preview select, #bot-execution-preview textarea {
+    font: inherit; color: var(--be-text); background: var(--be-panel);
+    border: 1px solid var(--be-line); border-radius: 6px;
+  }
+  #bot-execution-preview button { cursor: pointer; padding: 6px 10px; text-align: left; }
+  #bot-execution-preview button:hover { background: var(--be-soft); }
+  #bot-execution-preview button[aria-pressed="true"] { color: var(--be-active); background: var(--be-select); border-color: var(--be-active); }
+  #bot-execution-preview .be-chrome { padding: 14px 18px; background: var(--be-panel); border-bottom: 1px solid var(--be-line); border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #bot-execution-preview .be-brand { font-weight: 500; color: var(--be-active); }
+  #bot-execution-preview .be-demo { margin-left: auto; color: var(--be-muted); font-size: 12px; }
+  #bot-execution-preview .be-layout { display: grid; grid-template-columns: 168px minmax(0, 1fr) minmax(280px, 32%); }
+  #bot-execution-preview .be-queue { padding: 16px 10px; border-right: 1px solid var(--be-line); }
+  #bot-execution-preview .be-eyebrow { color: var(--be-muted); font-size: 12px; margin-bottom: 10px; }
+  #bot-execution-preview .be-run { display: block; width: 100%; margin: 8px 0; padding: 10px; }
+  #bot-execution-preview .be-run span { display: block; }
+  #bot-execution-preview .be-run-title { margin: 5px 0; }
+  #bot-execution-preview .be-small { font-size: 12px; color: var(--be-muted); }
+  #bot-execution-preview .be-main { padding: 18px; min-width: 0; }
+  #bot-execution-preview .be-meta { display: flex; gap: 8px 14px; flex-wrap: wrap; font-size: 12px; color: var(--be-muted); margin-top: 10px; }
+  #bot-execution-preview .be-statuses { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  #bot-execution-preview .be-status { font-size: 12px; padding: 3px 7px; background: var(--be-panel); border: 1px solid var(--be-line); border-radius: 5px; }
+  #bot-execution-preview .be-ok { color: var(--be-green); }
+  #bot-execution-preview .be-warn { color: var(--be-amber); }
+  #bot-execution-preview .be-error { color: var(--be-red); }
+  #bot-execution-preview .be-prompt { margin-top: 18px; padding: 12px; border-left: 2px solid var(--be-line); background: var(--be-panel); }
+  #bot-execution-preview .be-section-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin: 20px 0 10px; }
+  #bot-execution-preview .be-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  #bot-execution-preview .be-step { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 9px; align-items: start; width: 100%; padding: 10px; }
+  #bot-execution-preview .be-step-num { color: var(--be-muted); font-size: 12px; padding-top: 2px; }
+  #bot-execution-preview .be-step-name { display: block; font-weight: 500; }
+  #bot-execution-preview .be-step-summary { display: block; font-size: 12px; color: var(--be-muted); margin-top: 3px; }
+  #bot-execution-preview .be-step-state { font-size: 12px; text-align: right; }
+  #bot-execution-preview .be-step-time { display: block; font-size: 12px; color: var(--be-muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  #bot-execution-preview .be-final { margin-top: 14px; padding: 12px; border-top: 1px solid var(--be-line); }
+  #bot-execution-preview .be-detail { padding: 18px 14px; background: var(--be-panel); border-left: 1px solid var(--be-line); min-width: 0; }
+  #bot-execution-preview .be-detail-title { margin-bottom: 3px; }
+  #bot-execution-preview .be-facts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 12px 0; font-size: 12px; }
+  #bot-execution-preview .be-switch { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0 8px; }
+  #bot-execution-preview .be-switch button { font-size: 12px; padding: 5px 9px; }
+  #bot-execution-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; margin: 0; padding: 12px; border-radius: 6px; background: var(--be-bg); font: 12px/1.6 'SF Mono', Consolas, monospace; color: var(--be-text); }
+  #bot-execution-preview textarea, #bot-execution-preview select { width: 100%; min-width: 0; padding: 7px 8px; }
+  #bot-execution-preview textarea { resize: vertical; min-height: 74px; }
+  #bot-execution-preview .be-plan { margin-top: 16px; padding: 12px; background: var(--be-panel); border: 1px solid var(--be-line); border-radius: 6px; }
+  #bot-execution-preview summary { cursor: pointer; font-weight: 500; }
+  #bot-execution-preview .be-plan ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+  #bot-execution-preview .be-plan li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px; font-size: 12px; }
+  #bot-execution-preview .be-plan-state { color: var(--be-muted); }
+  #bot-execution-preview .be-composer { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--be-line); }
+  #bot-execution-preview .be-composer label { display: block; margin-bottom: 6px; }
+  #bot-execution-preview .be-compose-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  #bot-execution-preview .be-send { color: var(--be-active); background: var(--be-select); }
+  #bot-execution-preview button:disabled { cursor: default; opacity: 0.55; }
+  #bot-execution-preview .be-steer-message { padding: 10px; margin: 8px 0; border-left: 2px solid var(--be-active); background: var(--be-panel); }
+  #bot-execution-preview .be-feedback { margin-top: 8px; font-size: 12px; color: var(--be-muted); }
+  #bot-execution-preview .be-advanced { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--be-line); }
+  #bot-execution-preview .be-advanced pre { margin-top: 12px; }
+  #bot-execution-preview .be-context { margin-top: 18px; padding: 12px; background: var(--be-bg); border-radius: 6px; }
+  #bot-execution-preview .be-context p { margin-top: 6px; font-size: 12px; color: var(--be-muted); }
+  #bot-execution-preview .be-footer { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; border-top: 1px solid var(--be-line); padding: 10px 18px; font-size: 12px; color: var(--be-muted); }
+  @media (max-width: 850px) {
+    #bot-execution-preview .be-layout { grid-template-columns: minmax(0, 1fr) minmax(280px, 42%); }
+    #bot-execution-preview .be-queue { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--be-line); padding: 10px 14px; }
+    #bot-execution-preview .be-queue-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    #bot-execution-preview .be-run { margin: 0; }
+    #bot-execution-preview .be-queue .be-eyebrow { margin-bottom: 6px; }
+  }
+  @media (max-width: 600px) {
+    #bot-execution-preview .be-layout { display: block; }
+    #bot-execution-preview .be-main { padding: 16px 12px; }
+    #bot-execution-preview .be-detail { border-left: 0; border-top: 1px solid var(--be-line); padding: 16px 12px; }
+    #bot-execution-preview .be-demo { margin-left: 0; }
+    #bot-execution-preview .be-chrome { gap: 6px 12px; }
+    #bot-execution-preview .be-step { gap: 5px; grid-template-columns: 20px minmax(0, 1fr) auto; }
+  }
+  @media (pointer: coarse) {
+    #bot-execution-preview button, #bot-execution-preview select { min-height: 44px; }
+    #bot-execution-preview select, #bot-execution-preview textarea { font-size: 16px; }
+  }
+</style>
+
+<div id="bot-execution-preview" lang="zh-CN">
+  <header class="be-chrome">
+    <span class="be-brand">BOT / 工作台</span>
+    <span class="be-small">会话与执行过程</span>
+    <span class="be-demo">交互原型 · 示例数据</span>
+  </header>
+  <div class="be-layout">
+    <nav class="be-queue" aria-label="示例任务">
+      <div class="be-eyebrow">最近会话 / 2</div>
+      <div class="be-queue-items" data-runs></div>
+    </nav>
+    <main class="be-main">
+      <div class="be-eyebrow" data-run-id></div>
+      <h2 data-run-title></h2>
+      <div class="be-meta" data-run-metrics></div>
+      <div class="be-statuses" data-run-statuses aria-live="polite"></div>
+      <div class="be-prompt">
+        <div class="be-eyebrow">任务要求</div>
+        <p data-prompt></p>
+      </div>
+      <details class="be-plan" open><summary data-plan-title>任务计划</summary><ol data-plan></ol></details>
+      <div class="be-section-head"><h3>执行轨迹</h3><span class="be-small" data-call-count></span></div>
+      <ol class="be-list" data-timeline aria-label="选择工具调用查看证据"></ol>
+      <div class="be-final"><div class="be-eyebrow" data-final-label></div><p data-final></p></div>
+      <div data-steer-messages aria-live="polite"></div>
+      <div class="be-composer">
+        <label for="bot-steer-input" data-input-label>运行中也可以补充要求</label>
+        <textarea id="bot-steer-input" data-steer placeholder="例如：先只定位原因，不要修改文件。"></textarea>
+        <div class="be-compose-actions">
+          <button type="button" class="be-send" data-send>发送补充</button>
+          <button type="button" data-stop>停止任务</button>
+        </div>
+        <div class="be-feedback" role="status" data-action-status></div>
+      </div>
+    </main>
+    <aside class="be-detail" aria-label="工具调用详情">
+      <div class="be-eyebrow">工具详情 / 所选动作</div>
+      <h3 class="be-detail-title" data-tool-title></h3>
+      <div class="be-small" data-tool-id></div>
+      <div class="be-facts" data-tool-facts></div>
+      <div class="be-switch" aria-label="工具详情视图" data-views>
+        <button type="button" data-view="output" aria-pressed="true">输出</button>
+        <button type="button" data-view="arguments" aria-pressed="false">参数</button>
+      </div>
+      <div class="be-small be-eyebrow" data-evidence-label></div>
+      <pre data-evidence aria-label="所选调用的内容"></pre>
+      <div class="be-context"><h3 data-context-title></h3><p data-context></p></div>
+      <details class="be-advanced"><summary>高级 · 原始事件</summary><pre data-raw aria-label="原始调用事件"></pre></details>
+    </aside>
+  </div>
+  <footer class="be-footer"><span>示例交互，不会执行命令或发送真实消息</span><span data-footer-state>历史与实时共用同一条执行轨迹</span></footer>
+</div>
+
+<script>
+(() => {
+  const root = document.getElementById('bot-execution-preview');
+  const find = selector => root.querySelector(selector);
+  const element = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  // All content is illustrative. No tool, model or network calls are made.
+  const runs = [
+    {
+      id: 'demo-run-024', sessionId: 'demo-session-024', title: '修复 timeout 边界判断', state: '已完成',
+      metrics: ['耗时 48.2 s', '输入 8,240 / 输出 960 tokens'],
+      plan: [['定位边界问题', '已完成'], ['修复并补充测试', '已完成'], ['运行回归验证', '已完成']],
+      prompt: 'timeout=0 应立即超时。修复边界判断，补充测试并验证原有行为。',
+      final: '已修复 timeout=0 的边界判断，并补充回归测试；3 项测试通过。',
+      tools: [
+        {id: 'call-01', name: 'read_file', summary: '检查超时判断', duration: '0.1 s', state: '成功', success: true, status: 'completed', args: {path: 'src/timeout.py'}, output: 'def expired(elapsed, timeout):\n    return timeout and elapsed >= timeout', at: 2},
+        {id: 'call-02', name: 'run_command', summary: '复现 timeout=0 的失败用例', duration: '1.4 s', state: '退出 1', success: false, status: 'failed', code: 1, args: {argv: ['pytest', '-q', 'tests/test_timeout.py']}, output: 'FAILED test_zero_timeout\n\n> assert expired(0, timeout=0) is True\nE assert 0 is True\n\n1 failed, 2 passed in 1.4s', at: 6},
+        {id: 'call-03', name: 'apply_patch', summary: '将是否配置与数值大小分开判断', duration: '0.1 s', state: '成功', success: true, status: 'completed', args: {path: 'src/timeout.py', old_text: 'return timeout and elapsed >= timeout', new_text: 'return timeout is not None and elapsed >= timeout'}, output: '文件修改成功：src/timeout.py', at: 18},
+        {id: 'call-04', name: 'apply_patch', summary: '补充 timeout=None 的回归断言', duration: '0.1 s', state: '成功', success: true, status: 'completed', args: {path: 'tests/test_timeout.py', old_text: 'assert expired(0, timeout=0) is True', new_text: 'assert expired(0, timeout=0) is True\n    assert expired(0, timeout=None) is False'}, output: '文件修改成功：tests/test_timeout.py', at: 27},
+        {id: 'call-05', name: 'run_command', summary: '验证边界与原有行为', duration: '1.2 s', state: '退出 0', success: true, status: 'completed', code: 0, args: {argv: ['pytest', '-q', 'tests/test_timeout.py']}, output: '...                                      [100%]\n3 passed in 1.2s', at: 39}
+      ]
+    },
+    {
+      id: 'demo-run-025', sessionId: 'demo-session-025', title: '定位配置加载失败', state: '执行中',
+      metrics: ['已运行 16.0 s', '输入 2,310 / 输出 280 tokens'],
+      plan: [['检查配置加载逻辑', '已完成'], ['运行测试，确认触发条件', '进行中'], ['汇总原因与建议', '待开始']],
+      prompt: '定位配置文件在缺少可选字段时加载失败的原因，并运行相关测试。',
+      final: '测试进程仍在运行，等待后续 poll_process 结果。',
+      tools: [
+        {id: 'call-01', name: 'read_file', summary: '查看配置加载逻辑', duration: '0.2 s', state: '成功', success: true, status: 'completed', args: {path: 'src/config.py'}, output: 'def load_config(data):\n    return Config(retries=data["retries"])', at: 2},
+        {id: 'call-02', name: 'run_command', summary: '已启动测试，进程尚未结束', duration: '10.0 s', state: '进程运行中', success: true, status: 'running', process: 'proc-demo-7', args: {argv: ['pytest', '-q', 'tests/test_config.py'], wait_seconds: 10}, output: 'collected 24 items\ntests/test_config.py ........\n\nprocess_id: proc-demo-7\nstatus: running', at: 5}
+      ]
+    }
+  ];
+  const states = new Map(runs.map(run => [run.id, run.state]));
+  const messages = new Map(runs.map(run => [run.id, []]));
+  const composerDrafts = new Map();
+  const notices = new Map();
+  const selections = new Map(runs.map(run => [run.id, 1]));
+  let selectedRun = 1;
+  let view = 'output';
+  const currentRun = () => runs[selectedRun];
+  const currentTool = () => currentRun().tools[selections.get(currentRun().id)];
+  function renderRuns() {
+    find('[data-runs]').replaceChildren(...runs.map((run, index) => {
+      const button = element('button', 'be-run');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', String(index === selectedRun));
+      button.append(element('span', 'be-small', run.id.replace('demo-run-', '任务 / ')), element('span', 'be-run-title', run.title), element('span', 'be-small', states.get(run.id)));
+      button.addEventListener('click', () => { selectedRun = index; render(); });
+      return button;
+    }));
+  }
+  function renderStatuses() {
+    const run = currentRun();
+    find('[data-run-statuses]').replaceChildren(
+      element('span', 'be-status' + (states.get(run.id) === '执行中' ? ' be-warn' : ''), states.get(run.id)),
+      element('span', 'be-status', states.get(run.id) === '正在停止' ? '等待执行端确认' : states.get(run.id) === '等待启动' ? '新任务等待启动' : run.state === '执行中' ? '当前动作 · 等待测试进程' : '已交付 · 修复与测试结果')
+    );
+  }
+  function renderTimeline() {
+    const run = currentRun();
+    find('[data-timeline]').replaceChildren(...run.tools.map((tool, index) => {
+      const row = element('li');
+      const button = element('button', 'be-step');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', String(index === selections.get(run.id)));
+      const middle = element('span');
+      middle.append(element('span', 'be-step-name', tool.name), element('span', 'be-step-summary', tool.summary));
+      const statusClass = tool.status === 'running' ? 'be-warn' : tool.success ? 'be-ok' : 'be-error';
+      const state = element('span', 'be-step-state ' + statusClass, tool.state);
+      state.append(element('span', 'be-step-time', tool.duration));
+      button.append(element('span', 'be-step-num', String(index + 1).padStart(2, '0')), middle, state);
+      button.addEventListener('click', () => {
+        selections.set(run.id, index); renderTimeline(); renderDetail();
+      });
+      row.append(button);
+      return row;
+    }));
+  }
+  function rawEvents(tool) {
+    const sequence = (selections.get(currentRun().id) + 1) * 10;
+    const event = (type, payload, offset) => ({
+      id: currentRun().id + '-event-' + (sequence + offset), schema_version: 1,
+      type, session_id: currentRun().sessionId, run_id: currentRun().id,
+      sequence: sequence + offset,
+      timestamp: new Date(Date.UTC(2026, 8, 8, 2, 0, tool.at) + (offset > 1 ? Number.parseFloat(tool.duration) * 1000 : 0)).toISOString(),
+      payload: {tool_call_id: tool.id, name: tool.name, ...payload}
+    });
+    return [
+      event('tool.requested', {arguments: tool.args}, 0),
+      event('tool.started', {}, 1),
+      event('tool.completed', {success: tool.success, status: tool.status, output_excerpt: tool.output, truncated: false}, 2),
+      event('tool.result', {success: tool.success, status: tool.status, returncode: tool.code ?? null, process_id: tool.process ?? null}, 3)
+    ];
+  }
+  function renderEvidence() {
+    const tool = currentTool();
+    root.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+    find('[data-evidence-label]').textContent = view === 'arguments' ? '调用参数 · JSON' : tool.status === 'running' ? '当前已接收的输出' : '工具返回内容';
+    find('[data-evidence]').textContent = view === 'output' ? tool.output : JSON.stringify(tool.args, null, 2);
+    find('[data-raw]').textContent = JSON.stringify(rawEvents(tool), null, 2);
+  }
+  function renderDetail() {
+    const tool = currentTool();
+    find('[data-tool-title]').textContent = tool.name;
+    find('[data-tool-id]').textContent = tool.id + ' · ' + currentRun().id;
+    const facts = [tool.state, '调用耗时 ' + tool.duration];
+    if (tool.process) facts.push('关联进程 ' + tool.process);
+    find('[data-tool-facts]').replaceChildren(...facts.map(text => element('span', '', text)));
+    find('[data-context-title]').textContent = tool.status === 'running' ? '命令仍在执行' : tool.success ? '工具已返回' : '命令返回非零退出码';
+    find('[data-context]').textContent = tool.status === 'running'
+      ? '测试尚未结束。后续输出会继续显示在这里，结束后显示退出状态与结果。'
+      : tool.success ? '可以切换到参数查看 Bot 的具体操作，或选择其他步骤查看结果。'
+      : '查看错误输出和后续动作，可以确认 Bot 是否继续定位并处理了问题。';
+    renderEvidence();
+  }
+  function renderPlan() {
+    const plan = currentRun().plan;
+    find('[data-plan-title]').textContent = '任务计划 · ' + plan.filter(([, state]) => state === '已完成').length + '/' + plan.length + ' 完成';
+    find('[data-plan]').replaceChildren(...plan.map(([label, state]) => {
+      const row = element('li');
+      row.append(element('span', '', label), element('span', state === '进行中' ? 'be-warn' : 'be-plan-state', state));
+      return row;
+    }));
+  }
+  function renderComposer() {
+    const run = currentRun();
+    const state = states.get(run.id);
+    const pending = state === '正在停止' || state === '等待启动';
+    find('[data-steer]').value = composerDrafts.get(run.id) || '';
+    find('[data-steer]').disabled = pending;
+    find('[data-send]').disabled = pending;
+    find('[data-send]').textContent = run.state === '执行中' ? '发送补充' : '发送新任务';
+    find('[data-input-label]').textContent = run.state === '执行中' ? '运行中也可以补充要求' : '继续这个会话';
+    find('[data-stop]').disabled = state !== '执行中';
+    find('[data-stop]').textContent = state === '正在停止' ? '正在停止…' : '停止任务';
+    find('[data-action-status]').textContent = notices.get(run.id) || '';
+    find('[data-steer-messages]').replaceChildren(...messages.get(run.id).map(text => {
+      const item = element('div', 'be-steer-message');
+      item.append(element('div', 'be-eyebrow', '你 · 已发送，等待接收（演示）'), element('p', '', text));
+      return item;
+    }));
+  }
+  function render() {
+    const run = currentRun();
+    renderRuns(); renderStatuses(); renderTimeline(); renderDetail(); renderPlan(); renderComposer();
+    find('[data-run-id]').textContent = run.id;
+    find('[data-run-title]').textContent = run.title;
+    find('[data-run-metrics]').replaceChildren(...run.metrics.map(text => element('span', '', text)));
+    find('[data-prompt]').textContent = run.prompt;
+    find('[data-call-count]').textContent = run.tools.length + ' 次 Tool Call';
+    find('[data-final-label]').textContent = run.state === '已完成' ? 'Bot 最终回答' : 'Bot · 当前进展';
+    find('[data-final]').textContent = run.final;
+  }
+  root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => { view = button.dataset.view; renderEvidence(); }));
+  find('[data-steer]').addEventListener('input', () => composerDrafts.set(currentRun().id, find('[data-steer]').value));
+  find('[data-send]').addEventListener('click', () => {
+    const run = currentRun();
+    const text = find('[data-steer]').value.trim();
+    if (!text) {
+      notices.set(run.id, '请先填写任务要求');
+      renderComposer();
+      return;
+    }
+    messages.get(run.id).push(text);
+    composerDrafts.set(run.id, '');
+    notices.set(run.id, '等待 Bot 接收（演示）');
+    if (run.state === '已完成') states.set(run.id, '等待启动');
+    renderComposer(); renderRuns(); renderStatuses();
+  });
+  find('[data-stop]').addEventListener('click', () => {
+    states.set(currentRun().id, '正在停止');
+    notices.set(currentRun().id, '停止请求已发送，等待执行端确认（演示）');
+    renderComposer(); renderRuns(); renderStatuses();
+  });
+  render();
+})();
+</script>
