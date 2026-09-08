@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T23:35:10.777332+00:00",
+  "generated_at": "2026-09-08T23:50:21.541997+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
   "baseline_counts": {
     "pass": 7,
-    "fail": 7,
-    "not_run": 25,
+    "fail": 8,
+    "not_run": 24,
     "error": 1
   },
   "baseline_scoring_counts": {
     "pass": 7,
     "invalid_verifier": 1,
-    "not_run": 25,
-    "fail": 6,
+    "not_run": 24,
+    "fail": 7,
     "error": 1
   },
   "completed_cases": [
@@ -326,6 +326,63 @@
       },
       "usage_source": "per_response_events",
       "usage_reconciliation": "mismatch; original Agent export is preserved"
+    },
+    {
+      "id": "terminal-bench/cobol-modernization",
+      "attempt": "1",
+      "verdict": "fail",
+      "record": "cases/terminalbench/cobol-modernization/1/result.json",
+      "image_id": "sha256:14e6e693be70ee0c7f07105dfc0f3cae71fd495cc0106042dd530fc5fbd8e637",
+      "agent_variant": "original",
+      "model_response_observed": true,
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_required_files_exist",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_data_files_exist",
+          "status": "passed"
+        },
+        {
+          "name": "test_outputs.py::test_program_output",
+          "status": "failed"
+        }
+      ],
+      "verifier_health": {
+        "test_count": 3,
+        "test_statuses": {
+          "passed": 2,
+          "failed": 1
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "fail",
+      "output_capture_attempts": [
+        "cases/terminalbench/cobol-modernization/1/output-capture-remaining.json"
+      ],
+      "observed_artifacts": [
+        "cases/terminalbench/cobol-modernization/1/observed-app__data__ACCOUNTS.DAT",
+        "cases/terminalbench/cobol-modernization/1/observed-app__data__BOOKS.DAT",
+        "cases/terminalbench/cobol-modernization/1/observed-app__data__TRANSACTIONS.DAT",
+        "cases/terminalbench/cobol-modernization/1/observed-app__program.py"
+      ],
+      "run_status": "completed",
+      "steps": 30,
+      "error": null,
+      "input_tokens": 988698,
+      "output_tokens": 43912
     },
     {
       "id": "terminal-bench/code-from-image",
@@ -1823,9 +1880,9 @@
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
         "script_sha256": "20eec64f82b31343e473cf4fc7ec6bc17f3936c801b4c4df571620d1b341947c",
-        "completed_runs_checked": 20,
+        "completed_runs_checked": 21,
         "all_usage_totals_match": false,
-        "matching_runs": 19,
+        "matching_runs": 20,
         "mismatching_runs": 1,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
         "runs": [
@@ -1879,6 +1936,22 @@
               "output_tokens": 71948
             },
             "estimated_cost_usd": 0.09625576000000001,
+            "usage_totals_match": true
+          },
+          {
+            "agent_result": "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/agent/result.json",
+            "agent_result_sha256": "c9febd28d360f1b7575b8259e088dfc59480fdfb982d47dd7bf50ff3faa6e3b8",
+            "events": "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/agent/events.jsonl",
+            "events_sha256": "6a7fae3f554c1ea7617a008cfe4c1d66f3905826eeb9c5688df50610242509b0",
+            "expected": {
+              "input_tokens": 988698,
+              "output_tokens": 43912
+            },
+            "observed": {
+              "input_tokens": 988698,
+              "output_tokens": 43912
+            },
+            "estimated_cost_usd": 0.05921906400000001,
             "usage_totals_match": true
           },
           {
@@ -5431,6 +5504,196 @@
           "tests/test_outputs.py": "b9b7cb0033116df88a4807404bf309190f92d62a89df2ce64cdcbf732efe084a"
         }
       }
+    },
+    "cobol_return_value_replay": {
+      "source": "diagnostics/cobol-return-value-replay/result.json",
+      "result": {
+        "at": "2026-09-08T23:46:41.876751+00:00",
+        "id": "terminal-bench/cobol-modernization",
+        "original_attempt": "1",
+        "python": "3.14.5 (main, May 10 2026, 10:21:34) [Clang 21.0.0 (clang-2100.0.123.102)]",
+        "scope": "Local official test-function replay. Path bindings and subprocess executable/program paths are redirected to separate temporary directories. The captured program is unmodified; the diagnostic copy adds only return True after a successful transaction. No Docker, COBOL compiler or model calls.",
+        "diagnostic_change": "Add one success return; preserve explicit return False for the existing error branch.",
+        "results": {
+          "original": {
+            "tests": [
+              {
+                "name": "test_required_files_exist",
+                "status": "passed"
+              },
+              {
+                "name": "test_data_files_exist",
+                "status": "passed"
+              },
+              {
+                "name": "test_program_output",
+                "status": "failed",
+                "assertion": "Command failed"
+              }
+            ],
+            "subprocess_calls": [
+              {
+                "input": "U001U003B0030000000020",
+                "returncode": 1,
+                "stdout": " \n",
+                "stderr": "libcob: error: READ must be executed first (status = 43) for file ACCOUNTS-FILE\n",
+                "data_sha256": {
+                  "ACCOUNTS.DAT": "60b5a13803651eeedda907e822620640b29d97f729acaf9bb5d9ea045f3bca51",
+                  "BOOKS.DAT": "05deb4e760b38604d2fa80045814d2de0f4062190e1829543e6403678c6c753c",
+                  "TRANSACTIONS.DAT": "aa2198b442a71fdfc2eae27a5a2b5359a6743aa6786f2e604a555e709a66d993"
+                }
+              }
+            ],
+            "program_sha256": "66b8d67aa648ce01beecfba5893bb8fc9f427f536d5b002411ac791e6dd90ebe"
+          },
+          "return_true_candidate": {
+            "tests": [
+              {
+                "name": "test_required_files_exist",
+                "status": "passed"
+              },
+              {
+                "name": "test_data_files_exist",
+                "status": "passed"
+              },
+              {
+                "name": "test_program_output",
+                "status": "passed"
+              }
+            ],
+            "subprocess_calls": [
+              {
+                "input": "U001U003B0030000000020",
+                "returncode": 0,
+                "stdout": " \nTransaction completed successfully\n",
+                "stderr": "",
+                "data_sha256": {
+                  "ACCOUNTS.DAT": "60b5a13803651eeedda907e822620640b29d97f729acaf9bb5d9ea045f3bca51",
+                  "BOOKS.DAT": "05deb4e760b38604d2fa80045814d2de0f4062190e1829543e6403678c6c753c",
+                  "TRANSACTIONS.DAT": "aa2198b442a71fdfc2eae27a5a2b5359a6743aa6786f2e604a555e709a66d993"
+                }
+              },
+              {
+                "input": "U002U001B0030000000050",
+                "returncode": 0,
+                "stdout": " \nTransaction completed successfully\n",
+                "stderr": "",
+                "data_sha256": {
+                  "ACCOUNTS.DAT": "082a7532bcbf7797184aeb2a0ec175c0622c5dc599d5c8b7b5b1c18eb1cc99d5",
+                  "BOOKS.DAT": "445ff0ba68b9fb08c8af53c96dc9c3ffcbc550e935c8c6db39023150931951ae",
+                  "TRANSACTIONS.DAT": "139cd15cdff00cbacde1376bdf18f990ecb841da5e5c67222c03557671babba5"
+                }
+              },
+              {
+                "input": "U002U001B0010000000150",
+                "returncode": 0,
+                "stdout": " \nTransaction completed successfully\n",
+                "stderr": "",
+                "data_sha256": {
+                  "ACCOUNTS.DAT": "46f63eb29442ebc6716bcd8a0c36f4367910f2783f6b84a307ed9a61ccd1046e",
+                  "BOOKS.DAT": "db04da646207cd87f8e9c5b6f0b57d95953899f3eef22de1a81423f06ef4a9fd",
+                  "TRANSACTIONS.DAT": "1fa4cc5420ded94d585c563e8196b85166ebbae2bb8924b20014717fb2fb9ee3"
+                }
+              }
+            ],
+            "program_sha256": "0bc8bf7c4e9c05c68a3e04f1f36626f81d73f5fc01b4c389740daac7ab67be0f"
+          }
+        },
+        "first_transaction_data_identical_between_variants": true,
+        "temporary_directories_removed": true,
+        "interpretation": "The original computes the first transaction file changes but exits 1 because successful process_transaction returns None. A one-line return True fixes the official three-transaction test. This isolates a model-generated control-flow regression; it does not prove all COBOL edge cases correct and does not replace the original official failure.",
+        "source_sha256": {
+          "diagnostics/replay_cobol_return_value.py": "b13e20e91b37b566e5d9a298ceedaf44a8459a485530dab1d5ef12af80031432",
+          "cases/terminalbench/cobol-modernization/1/observed-app__program.py": "66b8d67aa648ce01beecfba5893bb8fc9f427f536d5b002411ac791e6dd90ebe",
+          "diagnostics/cobol-return-value-replay/program-return-true.py": "0bc8bf7c4e9c05c68a3e04f1f36626f81d73f5fc01b4c389740daac7ab67be0f",
+          "diagnostics/cobol-return-value-replay/return-success.patch": "3568cc95ee326fad62d85bfff69010993fdee2e2e3c0e4a462af7d2459ce2880"
+        },
+        "official_verifier_sha256": "009180a7092583fc8143bb3ffc3957923aa0d61d0aac3a471f76eeb4aae54a88"
+      }
+    },
+    "cobol_outcome_observations": {
+      "source": "diagnostics/cobol-outcome-observations.json",
+      "result": {
+        "at": "2026-09-08T23:48:57.351944+00:00",
+        "id": "terminal-bench/cobol-modernization",
+        "attempt": "1",
+        "official_reward": 0,
+        "official_tests_passed": 2,
+        "official_tests_failed": 1,
+        "controls": {
+          "oracle": {
+            "reward": 1,
+            "tests_passed": 3,
+            "tests_failed": 0,
+            "finished_at": "2026-09-08T23:31:39.485489Z",
+            "exception": null
+          },
+          "nop": {
+            "reward": 0,
+            "tests_passed": 1,
+            "tests_failed": 2,
+            "finished_at": "2026-09-08T23:32:51.732020Z",
+            "exception": null
+          },
+          "baseline": {
+            "reward": 0,
+            "tests_passed": 2,
+            "tests_failed": 1,
+            "finished_at": "2026-09-08T23:42:06.979053Z",
+            "exception": null
+          }
+        },
+        "agent_status": "completed",
+        "steps": 30,
+        "input_tokens": 988698,
+        "output_tokens": 43912,
+        "independent_usage_export_matches": true,
+        "zero_text_tool_responses": 0,
+        "max_normal_completion_tokens": 9562,
+        "length_or_compaction_failure_observed": false,
+        "program_sha256": "66b8d67aa648ce01beecfba5893bb8fc9f427f536d5b002411ac791e6dd90ebe",
+        "native_requested_patches_equal_executed_arguments": true,
+        "literal_patch_reconstruction_matches_captured_program": true,
+        "self_test_files_only_scenarios_reported_matching_after_final_patch": 13,
+        "self_tests_discard_subprocess_stderr_and_do_not_check_returncodes": true,
+        "final_explicit_exit_check_exercised_validation_failure_branch": true,
+        "counterfactual_replay": "diagnostics/cobol-return-value-replay/result.json",
+        "attribution": "Confirmed model-authored implementation regression and self-test coverage gap. The last model patch made the caller test the transaction return value and added an explicit False branch, but omitted True on success. Native tool arguments reproduce the exact captured source, ruling out patch-application loss here. Self-tests checked file bytes while ignoring return codes and suppressing stderr; the official verifier correctly rejected exit 1. The one-line local diagnostic passes the official transaction sequence, not an exhaustive equivalence proof.",
+        "cleanup_verified": {
+          "image_still_present": false,
+          "trial_containers_remaining": [],
+          "retained_images_missing": [],
+          "retained_image_count": 34
+        },
+        "source_sha256": {
+          "diagnostics/inspect_cobol_result.py": "f2238e1549544f1c0223d1a2e3a55ff242edfa3e87290b8675f71df7ed8c78d8",
+          "cases/terminalbench/cobol-modernization/1/result.json": "babc5f80d92568916268e1cf4b039791471559e4c6d9b06c234988b5066641aa",
+          "cases/terminalbench/cobol-modernization/1/output-capture-remaining.json": "80cd9b304dd64d7000a6d5571ded23af5d9ef2bf4b5d076cf952c387b566a29a",
+          "diagnostics/cobol-return-value-replay/result.json": "5d04ccab4ee621dd5c5162d24bea4ccca974cfa32396af6958f2dd6cd86acc1d",
+          "cases/terminalbench/cobol-modernization/1/observed-app__program.py": "66b8d67aa648ce01beecfba5893bb8fc9f427f536d5b002411ac791e6dd90ebe",
+          "cases/terminalbench/cobol-modernization/1/observed-app__data__ACCOUNTS.DAT": "46f63eb29442ebc6716bcd8a0c36f4367910f2783f6b84a307ed9a61ccd1046e",
+          "cases/terminalbench/cobol-modernization/1/observed-app__data__BOOKS.DAT": "db04da646207cd87f8e9c5b6f0b57d95953899f3eef22de1a81423f06ef4a9fd",
+          "cases/terminalbench/cobol-modernization/1/observed-app__data__TRANSACTIONS.DAT": "1fa4cc5420ded94d585c563e8196b85166ebbae2bb8924b20014717fb2fb9ee3",
+          "terminalbench/cobol-modernization-oracle-1/e03aa03965eee48c9f772d566ff9bcd7__nhRYuU7/result.json": "110dc3ab3655619771de4126f9a450295f060f735b401480af58e397e44d47f9",
+          "terminalbench/cobol-modernization-oracle-1/e03aa03965eee48c9f772d566ff9bcd7__nhRYuU7/verifier/test-stdout.txt": "c70c51d31895a6dae9af4cf541dd1d4fd1b047b07d6164f6b41f17aa18c9365c",
+          "terminalbench/cobol-modernization-oracle-1/e03aa03965eee48c9f772d566ff9bcd7__nhRYuU7/verifier/ctrf.json": "86927c5c017b99e32426b2abdb1b8066a00a26ba9fe336d7b5d8f263b7749a22",
+          "terminalbench/cobol-modernization-nop-1/e03aa03965eee48c9f772d566ff9bcd7__82FiHZk/result.json": "9b99122f4a0613ad55727afb59020a01af52a992e3e90f1aff81f55f45c5d4e2",
+          "terminalbench/cobol-modernization-nop-1/e03aa03965eee48c9f772d566ff9bcd7__82FiHZk/verifier/test-stdout.txt": "8bc74a80548c610c02d9aea8b68eed03836e68a5542a638e9cf042d327a88cf7",
+          "terminalbench/cobol-modernization-nop-1/e03aa03965eee48c9f772d566ff9bcd7__82FiHZk/verifier/ctrf.json": "76c233725848f77f2adf7cd9a1a470518fecb02068dd7b2fca7b65aa599703ce",
+          "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/result.json": "2786bc6fabd22070a928b92a056720c3dbe99cead6fbfae6c8327a367a4358b2",
+          "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/verifier/test-stdout.txt": "89552293ffac883ac2a12f8bdf8784fb643ae06ecccd24e9a89fc551bc567b44",
+          "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/verifier/ctrf.json": "0751b9879cfe6a90515d82ea89d4cfc6e8f2ac7c2a53e6ffca56c374936fa0ac",
+          "diagnostics/cobol-return-value-replay/selected-model-tool-records.json": "bed19d182d96c33fa0b459a70f2cb65ce7d1d40deaf294d6163ab044483f51e2",
+          "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/agent/result.json": "c9febd28d360f1b7575b8259e088dfc59480fdfb982d47dd7bf50ff3faa6e3b8",
+          "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/agent/events.jsonl": "6a7fae3f554c1ea7617a008cfe4c1d66f3905826eeb9c5688df50610242509b0",
+          "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/agent/state.db": "607573937e664248a756b6338aaeebfe1d553e323511b4cdb07d6c33c0b1a508"
+        },
+        "task_source_sha256": {
+          "instruction.md": "a87074f1141b7345394cd88053d0debb0dc8f7de95308882c6538ee9a3b359da",
+          "task.toml": "4b620211dc3d6b1b989f0210c5ecd2f606974581c8bce27bd78659d48cf0cfbd",
+          "tests/test_outputs.py": "009180a7092583fc8143bb3ffc3957923aa0d61d0aac3a471f76eeb4aae54a88"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -5467,13 +5730,14 @@
     }
   ],
   "model_coverage": {
-    "distinct_tasks_with_completed_model_run": 16,
+    "distinct_tasks_with_completed_model_run": 17,
     "completed_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
       "sympy__sympy-18532",
       "terminal-bench/bn-fit-modify",
       "terminal-bench/chess-best-move",
+      "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
       "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
@@ -5505,20 +5769,20 @@
       "sphinx-doc__sphinx-8506",
       "sympy__sympy-20322",
       "terminal-bench/caffe-cifar-10",
-      "terminal-bench/cobol-modernization",
       "terminal-bench/compile-compcert",
       "terminal-bench/git-multibranch",
       "terminal-bench/largest-eigenval",
       "terminal-bench/rstan-to-pystan",
       "terminal-bench/video-processing"
     ],
-    "distinct_tasks_with_model_execution_and_official_result": 17,
+    "distinct_tasks_with_model_execution_and_official_result": 18,
     "tested_task_ids": [
       "astropy__astropy-12907",
       "django__django-14017",
       "sympy__sympy-18532",
       "terminal-bench/bn-fit-modify",
       "terminal-bench/chess-best-move",
+      "terminal-bench/cobol-modernization",
       "terminal-bench/code-from-image",
       "terminal-bench/constraints-scheduling",
       "terminal-bench/count-dataset-tokens",
@@ -5551,7 +5815,6 @@
       "sphinx-doc__sphinx-8506",
       "sympy__sympy-20322",
       "terminal-bench/caffe-cifar-10",
-      "terminal-bench/cobol-modernization",
       "terminal-bench/compile-compcert",
       "terminal-bench/git-multibranch",
       "terminal-bench/rstan-to-pystan",
@@ -5636,6 +5899,24 @@
     "terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/verifier/ctrf.json": "e35f4f3c66a72943719f1a80ae9d18eaa5f5733a7c336ec11d477239b8f07ccc",
     "terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/verifier/test-stdout.txt": "cba1217ace865a9eb859b9fa72fdae50b414be24439a3d75ab85d29fbd14becc",
     "cases/terminalbench/chess-best-move/4/output-capture.json": "abc155ad7fb093c4c65570e3da5010a823fe4b0f3ccd91ed30bce47629c78fe0",
+    "cases/terminalbench/cobol-modernization/1/result.json": "babc5f80d92568916268e1cf4b039791471559e4c6d9b06c234988b5066641aa",
+    "terminalbench/cobol-modernization-oracle-1/e03aa03965eee48c9f772d566ff9bcd7__nhRYuU7/result.json": "110dc3ab3655619771de4126f9a450295f060f735b401480af58e397e44d47f9",
+    "terminalbench/cobol-modernization-oracle-1/e03aa03965eee48c9f772d566ff9bcd7__nhRYuU7/verifier/ctrf.json": "86927c5c017b99e32426b2abdb1b8066a00a26ba9fe336d7b5d8f263b7749a22",
+    "terminalbench/cobol-modernization-oracle-1/e03aa03965eee48c9f772d566ff9bcd7__nhRYuU7/verifier/test-stdout.txt": "c70c51d31895a6dae9af4cf541dd1d4fd1b047b07d6164f6b41f17aa18c9365c",
+    "terminalbench/cobol-modernization-oracle-1/e03aa03965eee48c9f772d566ff9bcd7__nhRYuU7/agent/oracle.txt": "b92ffa5c829e93e1cb44422c5ed39fa1a3fd8281b60fda844ed6081428eb400c",
+    "terminalbench/cobol-modernization-nop-1/e03aa03965eee48c9f772d566ff9bcd7__82FiHZk/result.json": "9b99122f4a0613ad55727afb59020a01af52a992e3e90f1aff81f55f45c5d4e2",
+    "terminalbench/cobol-modernization-nop-1/e03aa03965eee48c9f772d566ff9bcd7__82FiHZk/verifier/ctrf.json": "76c233725848f77f2adf7cd9a1a470518fecb02068dd7b2fca7b65aa599703ce",
+    "terminalbench/cobol-modernization-nop-1/e03aa03965eee48c9f772d566ff9bcd7__82FiHZk/verifier/test-stdout.txt": "8bc74a80548c610c02d9aea8b68eed03836e68a5542a638e9cf042d327a88cf7",
+    "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/result.json": "2786bc6fabd22070a928b92a056720c3dbe99cead6fbfae6c8327a367a4358b2",
+    "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/agent/result.json": "c9febd28d360f1b7575b8259e088dfc59480fdfb982d47dd7bf50ff3faa6e3b8",
+    "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/agent/events.jsonl": "6a7fae3f554c1ea7617a008cfe4c1d66f3905826eeb9c5688df50610242509b0",
+    "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/verifier/ctrf.json": "0751b9879cfe6a90515d82ea89d4cfc6e8f2ac7c2a53e6ffca56c374936fa0ac",
+    "terminalbench/cobol-modernization-baseline-1/e03aa03965eee48c9f772d566ff9bcd7__xpZrCfa/verifier/test-stdout.txt": "89552293ffac883ac2a12f8bdf8784fb643ae06ecccd24e9a89fc551bc567b44",
+    "cases/terminalbench/cobol-modernization/1/output-capture-remaining.json": "80cd9b304dd64d7000a6d5571ded23af5d9ef2bf4b5d076cf952c387b566a29a",
+    "cases/terminalbench/cobol-modernization/1/observed-app__data__ACCOUNTS.DAT": "46f63eb29442ebc6716bcd8a0c36f4367910f2783f6b84a307ed9a61ccd1046e",
+    "cases/terminalbench/cobol-modernization/1/observed-app__data__BOOKS.DAT": "db04da646207cd87f8e9c5b6f0b57d95953899f3eef22de1a81423f06ef4a9fd",
+    "cases/terminalbench/cobol-modernization/1/observed-app__data__TRANSACTIONS.DAT": "1fa4cc5420ded94d585c563e8196b85166ebbae2bb8924b20014717fb2fb9ee3",
+    "cases/terminalbench/cobol-modernization/1/observed-app__program.py": "66b8d67aa648ce01beecfba5893bb8fc9f427f536d5b002411ac791e6dd90ebe",
     "cases/terminalbench/code-from-image/1/result.json": "96aae5940b77c4871dc0a9053f23897cb9cff30c36ef62cdb2e88f597e02eee0",
     "terminalbench/code-from-image-oracle-1/ef2907bb300d9b3352410c2a75dbf831__hw68gft/result.json": "8a91083e8a8ff92bb784f273aa4785a2f23aec41f1d9dc488ad3081fed7d1fba",
     "terminalbench/code-from-image-oracle-1/ef2907bb300d9b3352410c2a75dbf831__hw68gft/verifier/ctrf.json": "cbac358013a923bc9bd8154b05e01285d69dcbf42110a5d29b3eb5727b59775e",
@@ -5860,7 +6141,7 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "43f96fc370897f8b74be2dcd2bfcea92e3549433c7d8f85f662a8e43f28a6211",
+    "diagnostics/summary-reconciliation.json": "80788180661d8d86a5f408b5550cf9f9f87fb4ed497c9140de42afa5704b83db",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
     "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
     "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
@@ -5899,6 +6180,8 @@
     "diagnostics/native-arm-feasibility/result.json": "f0343c0310b8ca36fc4cde921e12b9c2ab6ade7958f205cf7da6cbea5ca54f0d",
     "diagnostics/code-image-finalizer-replay/result.json": "64f65fb664785f86c4603b39a1ba3f1af4c5e1a1802b0d2eda7f40353f8f2cd8",
     "diagnostics/code-image-outcome-observations.json": "14522169e97aa2e341e0ac0945a5d087ca56719425ad537b0bb241d87a397f13",
+    "diagnostics/cobol-return-value-replay/result.json": "5d04ccab4ee621dd5c5162d24bea4ccca974cfa32396af6958f2dd6cd86acc1d",
+    "diagnostics/cobol-outcome-observations.json": "ac09bf53c772ec19e15b352fcdc6a57b98abd53002efdac0735c7dc1f1496a1d",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -5994,6 +6277,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/2ca37a9decb647f362227d039c97a2dbebc12d61197e1bd00af2248c9761c9fb.py": "2ca37a9decb647f362227d039c97a2dbebc12d61197e1bd00af2248c9761c9fb"
+    "diagnostics/source-snapshots/4bc503ac57b5c32373a5bd82b91922b9f6ff8693bd6c68c95ecf304c11e68c8e.py": "4bc503ac57b5c32373a5bd82b91922b9f6ff8693bd6c68c95ecf304c11e68c8e"
   }
 }
