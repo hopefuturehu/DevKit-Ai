@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T20:08:56.363286+00:00",
+  "generated_at": "2026-09-08T20:29:04.402734+00:00",
   "status": "in_progress",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
@@ -560,6 +560,49 @@
       "error": "provider_error: 模型 API 返回 HTTP 400: {\"error\":{\"message\":\"The `reasoning_content` in the thinking mode must be passed back to the API.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
       "input_tokens": 6237427,
       "output_tokens": 93547
+    },
+    {
+      "id": "terminal-bench/chess-best-move",
+      "attempt": "3",
+      "verdict": "fail",
+      "record": "cases/terminalbench/chess-best-move/3/result.json",
+      "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
+      "agent_variant": "original",
+      "controls": {
+        "oracle": {
+          "reward": 1.0,
+          "exception": null
+        },
+        "nop": {
+          "reward": 0.0,
+          "exception": null
+        }
+      },
+      "tests": [
+        {
+          "name": "test_outputs.py::test_move_correct",
+          "status": "failed"
+        }
+      ],
+      "verifier_health": {
+        "test_count": 1,
+        "test_statuses": {
+          "failed": 1
+        },
+        "status": "valid",
+        "scope": "nonempty structured verifier run"
+      },
+      "scoring_status": "fail",
+      "output_capture": "cases/terminalbench/chess-best-move/3/output-capture.json",
+      "output_capture_attempts": [
+        "cases/terminalbench/chess-best-move/3/output-capture-corrected.json",
+        "cases/terminalbench/chess-best-move/3/output-capture.json"
+      ],
+      "run_status": "limit_reached",
+      "steps": 35,
+      "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+      "input_tokens": 715437,
+      "output_tokens": 30361
     },
     {
       "id": "terminal-bench/custom-memory-heap-crash",
@@ -1259,10 +1302,25 @@
       "source": "diagnostics/summary-reconciliation.json",
       "result": {
         "script_sha256": "14d651110a32a0bc0af4b424bc9118f797f0c91e230261fbf54cc9c41f62d5ad",
-        "completed_runs_checked": 12,
+        "completed_runs_checked": 13,
         "all_usage_totals_match": true,
         "scope": "Completed Bot runs only; independent API probes are not included in these per-run totals. Estimates are not invoices.",
         "runs": [
+          {
+            "agent_result": "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/result.json",
+            "agent_result_sha256": "047b0178aaf70e4eaea20f6c7d2e8167086935161f1779fa46b19b48bd968438",
+            "events": "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/events.jsonl",
+            "events_sha256": "3650d6ec98d8f765314da03ac0fa07d5c43bdccef55166b1b7789c91bd049109",
+            "expected": {
+              "input_tokens": 715437,
+              "output_tokens": 30361
+            },
+            "observed": {
+              "input_tokens": 715437,
+              "output_tokens": 30361
+            },
+            "estimated_cost_usd": 0.037433759999999996
+          },
           {
             "agent_result": "terminalbench/custom-memory-heap-crash-baseline-1/61e021e0304c9818a9be2c9173c8a093__7dENKcm/agent/result.json",
             "agent_result_sha256": "0dd42b2bb2ec668b1f024ea68a98f4afda4ba33bfe855df8f5c21ffa51cfeed5",
@@ -1763,6 +1821,250 @@
           "diagnostics/empty-reasoning-candidate/source/src/bot/compaction/service.py": "3a3f1a2dbc67cdfcabf3c4cb8539bf40bc5df440ed3ce15c3c46e5aa3ddd69c5"
         }
       }
+    },
+    "worker_activation_integration_draft": {
+      "source": "diagnostics/worker-activation-integration/result.json",
+      "result": {
+        "started_at": "2026-09-08T20:17:10.232750+00:00",
+        "image_id": "sha256:009b2459034ca58c95c12171e6149f2ca786ba0f533e5769e0cd4c94582c9f8a",
+        "container": "kunpeng-worker-activation-d14effaa7d",
+        "scope": "Real frozen Worker -> runtime -> Agent -> local execution target -> project Python -> SQLite backup and same Git patch export commands. Deterministic provider replaces only model inference.",
+        "limitation": "Uses existing cached SymPy 20590 image as an integration fixture, not a selected benchmark prediction and not the failed SymPy 18532 instance. Does not exercise the host run_container_instance setup orchestration as one function.",
+        "source_commit": "578f660",
+        "fixture_sha256": "ce31ef4261b1a943c9150942201eae421c0132da255bc9ded581d22459ad29b3",
+        "status": "error",
+        "error_type": "AssertionError",
+        "error": "default failed; see log",
+        "cleanup_returncode": 0,
+        "container_remaining": false,
+        "retained_image_preserved": true,
+        "finished_at": "2026-09-08T20:18:44.834843+00:00"
+      }
+    },
+    "worker_activation_integration": {
+      "source": "diagnostics/worker-activation-integration-v2/result.json",
+      "result": {
+        "started_at": "2026-09-08T20:20:51.833201+00:00",
+        "image_id": "sha256:009b2459034ca58c95c12171e6149f2ca786ba0f533e5769e0cd4c94582c9f8a",
+        "container": "kunpeng-worker-activation-bae861513a",
+        "scope": "Real frozen Worker -> runtime -> Agent -> local execution target -> project Python -> SQLite backup and same Git patch export commands. Deterministic provider replaces only model inference.",
+        "limitation": "Uses existing cached SymPy 20590 image as an integration fixture, not a selected benchmark prediction and not the failed SymPy 18532 instance. Does not exercise the host run_container_instance setup orchestration as one function.",
+        "source_commit": "578f660",
+        "fixture_sha256": "f45051adc38aad3e8ae14a295240276e057f899150b40bb71fe86de78bf827b3",
+        "worker_commands": {
+          "default": [
+            "docker",
+            "exec",
+            "kunpeng-worker-activation-bae861513a",
+            "/opt/kunpeng-bot-venv/bin/python",
+            "/tmp/worker_activation_fixture_v2.py",
+            "default"
+          ],
+          "activated": [
+            "docker",
+            "exec",
+            "kunpeng-worker-activation-bae861513a",
+            "bash",
+            "--noprofile",
+            "--norc",
+            "-c",
+            "source /opt/miniconda3/etc/profile.d/conda.sh; conda activate testbed; exec /opt/kunpeng-bot-venv/bin/python /tmp/worker_activation_fixture_v2.py activated"
+          ]
+        },
+        "status": "verified",
+        "default": {
+          "mode": "default",
+          "bot_python": "/opt/kunpeng-bot-venv/bin/python",
+          "bot_python_version": "3.12.14",
+          "worker_source_sha256": "1e7a096b2c0020ccc16de9a96977bbc930a7558cd3c07baef75ec7c63be1b13f",
+          "provider": "deterministic local fixture; no network calls or model inference",
+          "worker_returncode": 0,
+          "probe_exists": true,
+          "project_tool_result": {
+            "python": "/opt/miniconda3/bin/python",
+            "version": "3.11.5",
+            "mpmath": {
+              "error": "ModuleNotFoundError: No module named 'mpmath'"
+            },
+            "sympy": {
+              "error": "ImportError: SymPy now depends on mpmath as an external library. See https://docs.sympy.org/latest/install.html#mpmath for more information."
+            }
+          }
+        },
+        "activated": {
+          "mode": "activated",
+          "bot_python": "/opt/kunpeng-bot-venv/bin/python",
+          "bot_python_version": "3.12.14",
+          "worker_source_sha256": "1e7a096b2c0020ccc16de9a96977bbc930a7558cd3c07baef75ec7c63be1b13f",
+          "provider": "deterministic local fixture; no network calls or model inference",
+          "worker_returncode": 0,
+          "probe_exists": true,
+          "project_tool_result": {
+            "python": "/opt/miniconda3/envs/testbed/bin/python",
+            "version": "3.9.20",
+            "mpmath": {
+              "version": "1.3.0",
+              "file": "/opt/miniconda3/envs/testbed/lib/python3.9/site-packages/mpmath/__init__.py"
+            },
+            "sympy": {
+              "version": "1.7.1",
+              "file": "/testbed/sympy/__init__.py"
+            }
+          }
+        },
+        "cleanup_returncode": 0,
+        "container_remaining": false,
+        "retained_image_preserved": true,
+        "finished_at": "2026-09-08T20:22:28.732642+00:00"
+      }
+    },
+    "chess_protocol_candidate_manifest": {
+      "source": "cases/terminalbench/chess-best-move/4/manifest.json",
+      "result": {
+        "id": "terminal-bench/chess-best-move",
+        "kind": "terminalbench",
+        "attempt": "4",
+        "source_commit": "578f660",
+        "agent_variant": "empty-reasoning-candidate",
+        "image_id": "sha256:0977c69064c0e9d25a2267d99794290653e3683349a52e974c6f171e4293828f",
+        "started_at": "2026-09-08T20:24:04.601247+00:00",
+        "experiment": "Same task/image/proxy/output settings as attempt 3; isolated empty-reasoning protocol candidate only",
+        "proxy_config_sha256": "a13b187e9018fd61175082e77775d4592aa70c4d301ab51790c104f0f0693366",
+        "concurrent_work": "Wait for Worker integration container cleanup; official 1 CPU / 2 GiB task quota; main serial batch continues. CPU contention remains possible.",
+        "wheel_sha256": "40cd485ea05616d442b7a8b588fc209d584c2a63f6e224106aa41d7da27a092a",
+        "original_task_files_sha256": {
+          "README.md": "bdf339ea1848c81e884f0f811803ecdeaa3dc741e997bda53841f2816fbafd18",
+          "environment/Dockerfile": "d5697e7a11399e45f105bf43f40e5c95746d6a8601965ea6935a52b59bbbfa2b",
+          "environment/make.py": "46b95008df62fac7ca7fd7260baf36519de5718b91a4bde485c8d9b7d37f17c1",
+          "instruction.md": "6ba25be4e291a4ad04ae42b2dddefcdaef67ca45ca9d5dce661a2e517b19ce7a",
+          "solution/solve.sh": "53b5c5e2278ca915b0930eedfd44565ca84ef21c7346fd6601434484cf76151f",
+          "task.toml": "d8f01d3c84ed5836edbb49c6c3b3cc7b5b96d951cf01a0987467c9206fb22f9e",
+          "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+          "tests/test_outputs.py": "a540714e0156fc14564badedcb48d1f7b69a4b457d876036535439b30cb8f286"
+        }
+      }
+    },
+    "chess_original_protocol_observations": {
+      "source": "diagnostics/chess-protocol/original-observations.json",
+      "result": {
+        "id": "terminal-bench/chess-best-move",
+        "attempt": "3",
+        "model": "deepseek-v4-flash",
+        "agent_result": {
+          "session_id": "f1f0717cef74435182ddfb6a87507072",
+          "status": "limit_reached",
+          "final_text": "基于已有分析，我已完成以下工作：\n\n**已完成：**\n1. 分析了棋盘图像（640x640，8x8格，每格80x80）\n2. 识别出所有棋子位置和类型\n3. 构建了FEN：`r1bq1r2/1p3pp1/p1n1p3/3nPkbP/8/P1N5/1P2QPP1/R1B1K2R w - - 0 1`\n4. 使用Stockfish引擎分析，发现白方有**一步杀**（Mate in 1）\n\n**关键发现：**\n- Stockfish给出两个一步杀着法：**g2g4** 和 **e2e4**（均验证为将杀）\n- 任务要求\"如果有多个获胜着法，全部打印，每行一个\"\n\n**未完成：**\n- 尚未将结果写入 `/app/move.txt`\n\n**终止原因：** 模型输出达到长度限制。\n\n**恢复所需最小下一步：** 运行命令将 `g2g4` 和 `e2e4` 写入 `/app/move.txt`（每行一个）。",
+          "steps": 35,
+          "error": "model_output_limit: 模型输出达到长度限制，答案可能不完整",
+          "input_tokens": 715437,
+          "output_tokens": 30361,
+          "cost_usd": 0.35486880000000004,
+          "termination_reason": "model_output_limit"
+        },
+        "official_reward": 0.0,
+        "failure": "Official test_move_correct failed with FileNotFoundError for /app/move.txt",
+        "empty_reasoning_tool_steps": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34
+        ],
+        "final_normal_response": {
+          "step": 35,
+          "finish_reason": "length",
+          "content_chars": 37715,
+          "reasoning_chars": 0,
+          "tool_call_count": 0,
+          "empty": false,
+          "turn_usage": {
+            "prompt_tokens": 40451,
+            "completion_tokens": 8192,
+            "total_tokens": 48643,
+            "prompt_tokens_details": {
+              "cached_tokens": 40320
+            },
+            "prompt_cache_hit_tokens": 40320,
+            "prompt_cache_miss_tokens": 131
+          },
+          "provider_metadata": {
+            "provider": "openai_compatible",
+            "request_id": null,
+            "response_id": "dcfee2b9-0262-4f05-addc-aa17fb36e5fa",
+            "model": "deepseek-v4-flash",
+            "system_fingerprint": "a26a7955944dc5c60445bff77fac9c8e",
+            "choice_index": 0,
+            "chunk_count": 8194,
+            "content_chars": 37715,
+            "reasoning_chars": 0,
+            "tool_call_chunks": 0,
+            "observed_delta_fields": [
+              "content",
+              "role"
+            ],
+            "unhandled_delta_samples": [],
+            "finish_choice_fields": [
+              "delta",
+              "finish_reason",
+              "index",
+              "logprobs"
+            ]
+          },
+          "provider_retry_count": 0
+        },
+        "final_normal_output_chars": 37715,
+        "final_output_contains_dsml": false,
+        "move_txt_tool_requests": [],
+        "successful_chess_tool_evidence": [
+          {
+            "tool_call_id": "call_00_RUC5sySpulMqVWnwUV9e8565",
+            "timestamp": "2026-09-08T20:17:59.879619Z",
+            "output": "Score: PovScore(Mate(+1), WHITE)\nBest move: g2g4\n  1. g2g4  score=PovScore(Mate(+1), WHITE)\n  2. e2e4  score=PovScore(Mate(+1), WHITE)\n  3. f2f3  score=PovScore(Cp(+262), WHITE)\n  4. c1g5  score=PovScore(Cp(+139), WHITE)\n  5. h5h6  score=PovScore(Cp(+49), WHITE)\n\n\n[完整内容已持久化；context_ref=blob:7fd43e4e467bc61508654a79287df1bb26c919299cb46c329935875c6a36399c; 可调用 load_context_reference 分块读取]"
+          },
+          {
+            "tool_call_id": "call_00_1uaYDaqZMqjTYxwXsO776285",
+            "timestamp": "2026-09-08T20:18:20.260827Z",
+            "output": "After g2g4:\nr . b q . r . .\n. p . . . p p .\np . n . p . . .\n. . . n P k b P\n. . . . . . P .\nP . N . . . . .\n. P . . Q P . .\nR . B . K . . R\n\nIs checkmate: True\nIs check: True\nIs game over: True\n\n\n[完整内容已持久化；context_ref=blob:353117a9088d7df080a5bca0b237a26deac37e5bbdbafbb461ea0479cdd17371; 可调用 load_context_reference 分块读取]"
+          },
+          {
+            "tool_call_id": "call_00_KgesITZIAFNT6Nb0HdeM8013",
+            "timestamp": "2026-09-08T20:18:31.951841Z",
+            "output": "After e2e4:\nr . b q . r . .\n. p . . . p p .\np . n . p . . .\n. . . n P k b P\n. . . . Q . . .\nP . N . . . . .\n. P . . . P P .\nR . B . K . . R\n\nIs checkmate: True\nIs check: True\n\n\n[完整内容已持久化；context_ref=blob:0c06807d77af43227ad573f4443c78f6e2b9eb27174d901c8bc1ac35cc815bed; 可调用 load_context_reference 分块读取]"
+          }
+        ],
+        "attribution": "Correct moves observed in tools, output not delivered; single-response output limit. Known empty-reasoning compatibility defect may contribute; whole-task protocol candidate pending.",
+        "source_sha256": {
+          "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/events.jsonl": "3650d6ec98d8f765314da03ac0fa07d5c43bdccef55166b1b7789c91bd049109",
+          "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/result.json": "047b0178aaf70e4eaea20f6c7d2e8167086935161f1779fa46b19b48bd968438",
+          "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/result.json": "1fb9425ccb7967c41f856fe5687645df6df20d37adbb9427345f88c80335e336",
+          "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/verifier/ctrf.json": "7ed60bd174e83dac63ca2b6568c1feb68ea0fb53f61b6131e8dc7ca77baa61a3",
+          "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/verifier/test-stdout.txt": "90f02d245864a14caf6da102fe55e040ad0a837cf5826ff5ba16baddffb47a18"
+        }
+      }
     }
   },
   "environment_model_runs": [
@@ -1798,6 +2100,54 @@
       ]
     }
   ],
+  "model_coverage": {
+    "distinct_tasks_with_completed_model_run": 10,
+    "completed_task_ids": [
+      "astropy__astropy-12907",
+      "django__django-14017",
+      "sympy__sympy-18532",
+      "terminal-bench/chess-best-move",
+      "terminal-bench/custom-memory-heap-crash",
+      "terminal-bench/large-scale-text-editing",
+      "terminal-bench/multi-source-data-merger",
+      "terminal-bench/openssl-selfsigned-cert",
+      "terminal-bench/sam-cell-seg",
+      "terminal-bench/sparql-university"
+    ],
+    "tasks_without_completed_model_run": [
+      "astropy__astropy-14182",
+      "django__django-15996",
+      "matplotlib__matplotlib-22711",
+      "matplotlib__matplotlib-23476",
+      "mwaskom__seaborn-3010",
+      "pallets__flask-4045",
+      "psf__requests-2317",
+      "psf__requests-2674",
+      "pydata__xarray-4248",
+      "pylint-dev__pylint-5859",
+      "pytest-dev__pytest-11143",
+      "pytest-dev__pytest-5227",
+      "scikit-learn__scikit-learn-13241",
+      "scikit-learn__scikit-learn-13584",
+      "sphinx-doc__sphinx-8435",
+      "sphinx-doc__sphinx-8506",
+      "sympy__sympy-20322",
+      "terminal-bench/bn-fit-modify",
+      "terminal-bench/caffe-cifar-10",
+      "terminal-bench/cobol-modernization",
+      "terminal-bench/code-from-image",
+      "terminal-bench/compile-compcert",
+      "terminal-bench/constraints-scheduling",
+      "terminal-bench/count-dataset-tokens",
+      "terminal-bench/dna-insert",
+      "terminal-bench/git-multibranch",
+      "terminal-bench/largest-eigenval",
+      "terminal-bench/portfolio-optimization",
+      "terminal-bench/rstan-to-pystan",
+      "terminal-bench/video-processing"
+    ],
+    "scope": "Task coverage only, including separately labelled environment variants and repeated attempts; not a combined baseline score. Artifact-only replays add no model run."
+  },
   "artifact_root": "artifacts/public-benchmark/20260909-flash",
   "artifact_sha256": {
     "cases/swebench/astropy__astropy-12907/1/result.json": "9e51198c126f1c1b5dffd9ec95b7ab8d66d2d3ae566f3b582d672bfacb2ed0b1",
@@ -1830,6 +2180,21 @@
     "terminalbench/chess-best-move-nop-1/9ab8e4b3674282e751edafbd9b5bd551__HFrm2ke/verifier/test-stdout.txt": "c4f9e9e1ac9e12ba96a0bbf90b409cc06edeaf0662d6ad581ff04ae70078e100",
     "cases/terminalbench/chess-best-move/2/result.json": "18e4144227455a306542098b0a71ab12aa1db475a5441d2b66682a4820fdd278",
     "terminalbench/chess-best-move-oracle-2/9ab8e4b3674282e751edafbd9b5bd551__xYcLGSx/result.json": "37a4b57f00253f99dd1e1232a2d316aa013f9422987fbf0ff198806b318c6bf5",
+    "cases/terminalbench/chess-best-move/3/result.json": "27fa851e46d930090109ec2ba51577d45e836bf15f83992bcb384ee1526cf857",
+    "terminalbench/chess-best-move-oracle-3/9ab8e4b3674282e751edafbd9b5bd551__HwaqBTJ/result.json": "3cc9afc27bfe3c32fad1d63c1786c7aa1eb3a1bb707f995a494e7b15ff31622a",
+    "terminalbench/chess-best-move-oracle-3/9ab8e4b3674282e751edafbd9b5bd551__HwaqBTJ/verifier/ctrf.json": "73a6f37797d8054c3a2794b14b2c8854787e48d7a05827126e4efb63fd9a3ed2",
+    "terminalbench/chess-best-move-oracle-3/9ab8e4b3674282e751edafbd9b5bd551__HwaqBTJ/verifier/test-stdout.txt": "6f303e727888df6d5b91bd186bb54cfef098b69f5f181311d7461896d549aae7",
+    "terminalbench/chess-best-move-oracle-3/9ab8e4b3674282e751edafbd9b5bd551__HwaqBTJ/agent/oracle.txt": "98999b217eeb6d440b66c8d766a948309a49b1d67e025d69621478267a15c04e",
+    "terminalbench/chess-best-move-nop-3/9ab8e4b3674282e751edafbd9b5bd551__6J8TEuG/result.json": "9cc1cd5f9fd6b08d90f7f35595639a3e8aa38541ff79100fed3e0f6ba8172d11",
+    "terminalbench/chess-best-move-nop-3/9ab8e4b3674282e751edafbd9b5bd551__6J8TEuG/verifier/ctrf.json": "40b5bd507bebe979d9a24767fdb1491c2b3c484495f7a78c8124ad372fd53670",
+    "terminalbench/chess-best-move-nop-3/9ab8e4b3674282e751edafbd9b5bd551__6J8TEuG/verifier/test-stdout.txt": "9f106b7a88d78aa5b8bd4e97496ed3b2bb1631368d98ba355b58fbaaa5fc8a4a",
+    "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/result.json": "1fb9425ccb7967c41f856fe5687645df6df20d37adbb9427345f88c80335e336",
+    "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/result.json": "047b0178aaf70e4eaea20f6c7d2e8167086935161f1779fa46b19b48bd968438",
+    "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/agent/events.jsonl": "3650d6ec98d8f765314da03ac0fa07d5c43bdccef55166b1b7789c91bd049109",
+    "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/verifier/ctrf.json": "7ed60bd174e83dac63ca2b6568c1feb68ea0fb53f61b6131e8dc7ca77baa61a3",
+    "terminalbench/chess-best-move-baseline-3/9ab8e4b3674282e751edafbd9b5bd551__UbyJSAG/verifier/test-stdout.txt": "90f02d245864a14caf6da102fe55e040ad0a837cf5826ff5ba16baddffb47a18",
+    "cases/terminalbench/chess-best-move/3/output-capture.json": "521ef3e1fa427c64d817ea073add1cc4b15a733bf7681db03ea1e2aafd35a86b",
+    "cases/terminalbench/chess-best-move/3/output-capture-corrected.json": "f5a01507cadcfcc714366d6f1a2a17a5fef34eb14f8727d7b9799c46695e5dd3",
     "cases/terminalbench/custom-memory-heap-crash/1/result.json": "f16e7a56902634aa63f741e2c883d07b747986a477dee76883c8b95240d6f58e",
     "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/result.json": "76fa196bed90b0c8ed03b3ea95cf5d08d77be7dc201a1c55e48dec530ac93407",
     "terminalbench/custom-memory-heap-crash-oracle-1/61e021e0304c9818a9be2c9173c8a093__QUqavfg/verifier/ctrf.json": "d8ef2384f9630c91b5f84b34f76a40745a0ab3dda7291781a5fe7230ba4b65a5",
@@ -1955,7 +2320,7 @@
     "diagnostics/native-vim/output-capture.json": "96d8d93050e6fa9472ecd567e5da213d0a0d0c8e0c688f28919bfc6794344545",
     "diagnostics/native-vim/cleanup.json": "4f3a2bd488ada42af7fa431799d0d28cc14f08d82218fed042f0a4dd4f6b8e3e",
     "diagnostics/native-vim/original-output-replay.result.json": "13f052cd396680282a94b498ceddd9ca40c3c78756a2ad012282a9876908ee81",
-    "diagnostics/summary-reconciliation.json": "5cd00082e8352f6876d175f7ec382b722709cb773b402cea6bf51861d760b24d",
+    "diagnostics/summary-reconciliation.json": "ed2e780720490ac97b87a61a6f6e37781ac541fdc720b389a0b36e009b7f3eed",
     "diagnostics/sam-verifier-replay/manifest.json": "2b4701234fda36d7687be254cf58028b27470bdd2ab3aae26b3cc79061865a48",
     "diagnostics/sam-verifier-replay/result.json": "8b4f7d1f0ceaf4bc7b20a0e491761db704c990c84382df5a2cd2444a05da4f77",
     "diagnostics/sam-verifier-replay/cleanup.json": "78793de9959d71025a3e440a85b88b56c75e8200fbf5ac04802284e23873d072",
@@ -1964,6 +2329,10 @@
     "cases/terminalbench/chess-best-move/2/apt-probe.phase.json": "ae325a43c577856ca3e1d98c4c714549fa440347801ac8943fefef224b76a98d",
     "diagnostics/summary-reasoning-probe/result.json": "c5ab010db1bbaa17969b096c76795fd72adfbc3aa07ca0ecc56915f7538826ee",
     "diagnostics/summary-reasoning-probe/serializer-observation.json": "a35612b6652723cb82bcce210fe7f719291e48905b9b88c21a347c5814ef84db",
+    "diagnostics/worker-activation-integration/result.json": "447accf59d9a165095ae5d7c1b233687840346ab436961f40dbb3aa0b3ed1882",
+    "diagnostics/worker-activation-integration-v2/result.json": "d3e1c0ba1ef2b4e8a05e58c2739c5e2136ccbfe833495218d7903fa331153c0c",
+    "cases/terminalbench/chess-best-move/4/manifest.json": "bae6e37e6a60ac5b7be9c864642b1ed2f1cea15be568b7d79e3e426619d39989",
+    "diagnostics/chess-protocol/original-observations.json": "5900dd545aca771729102f043508d9a0c560f8742c546c872f3a5616a19f8826",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/result.json": "8322890a31cf4379984d51a3943a354020fe5c2e2b901c0a7a080a4d3e4bf23c",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/ctrf.json": "6e9c24fe4edffbf0995c2ee9bc6ea29c7c7e244b569308c616065fff5977b9b2",
     "terminalbench/sam-cell-seg-artifact-replay-1/task__ryDgy8W/verifier/test-stdout.txt": "b1b6713a04e176d71f44412ac2067a4e324f4491af991e671c18c4357dc0d8a2",
@@ -1984,6 +2353,45 @@
     "diagnostics/summary-reasoning-probe/summary_reasoning_empty-2.response.json": "25f4263c595e873625a0211d183aa24e710339fc647488ba99d35e19ea0fd688",
     "diagnostics/summary-reasoning-probe/summary_reasoning_missing-1.response.json": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194",
     "diagnostics/summary-reasoning-probe/summary_reasoning_missing-2.response.json": "7d37f6cbc3d0c569a1d63cd6f8771c2b455375f6b0bd80b831f71ac2c74d7194",
+    "diagnostics/probe_worker_activation.py": "9a24d8003ab40115d7a206c0721d47242e4e3980430832e5e8211abd6162418b",
+    "diagnostics/probe_worker_activation_v2.py": "a5a595ebfc8c51a7df6141e01e488c541fe6914ef07b96e495c0c1b8e74c7e68",
+    "diagnostics/worker_activation_fixture.py": "ce31ef4261b1a943c9150942201eae421c0132da255bc9ded581d22459ad29b3",
+    "diagnostics/worker_activation_fixture_v2.py": "f45051adc38aad3e8ae14a295240276e057f899150b40bb71fe86de78bf827b3",
+    "diagnostics/compare_chess_protocol.py": "b449b5960953241a3a53fb103d4d4917a82631171dfcf1d45d78721be6d66c1d",
+    "diagnostics/capture_terminal_output.py": "cbf9fcb92bc65675c29986e3be30ab8c787129dcb74acba9a683c72d632a6b63",
+    "diagnostics/worker-activation-integration/copy-fixture.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration/create-bot-venv.log": "a1168872a0c90eac3b49c7816df1bac61e42e00abdf89090435ad42d9ad11cc3",
+    "diagnostics/worker-activation-integration/create.log": "c1e46e81650dc0d857713a14c8f8dd9e66651bd577d7aac4fdee14f60d85254b",
+    "diagnostics/worker-activation-integration/default.log": "e7d9dfaa931f351b00bca9ca3764e8b004a412b01446e40e6e241c4dcb11a28c",
+    "diagnostics/worker-activation-integration/disconnect-bridge.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration/install-bot.log": "2e5cbbf2e2a441720939793c3f092d2d8c60a9b17a29bded84ef71d89cd0a5ac",
+    "diagnostics/worker-activation-integration/install-uv.log": "05eb12db2bede007eb40a71352a037275bb31c985a81a867b1f1d83904ff47fb",
+    "diagnostics/worker-activation-integration/manifest.json": "f073a91e6ea256ac1776437d9f68043cc3e82a638da01f4b306194a44eb15312",
+    "diagnostics/worker-activation-integration-v2/activated/observation.json": "65174dc37f8a806bd47c8538f73e5700d5b281e2879922a4ea19fd0e068efaf2",
+    "diagnostics/worker-activation-integration-v2/activated/result.json": "165e56cd43ae3785fa979a65c859dd5aaaf505bd5445cb6be62e8abfe803842c",
+    "diagnostics/worker-activation-integration-v2/activated/trace-state.db": "c3757c63eb401471df0b5bb034e92dc547394e4858d868205888eb277a810695",
+    "diagnostics/worker-activation-integration-v2/activated-copy.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/activated-git-add.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/activated-remove-fixture.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/activated-reset-fixture.log": "2b0da1ec705dee0b87d55f2ef24e694f927a5609bbe69cbf741dfc2f46d1b846",
+    "diagnostics/worker-activation-integration-v2/activated.log": "18d88bc8f5fe165c3949a1c00fcb76af61239bd2f8cf72ce8bcc3531fc46bb50",
+    "diagnostics/worker-activation-integration-v2/activated.patch": "f07dccc50bbba494d5ad4159b935f52291eb39dae2e758827d659986acb9418b",
+    "diagnostics/worker-activation-integration-v2/copy-fixture.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/create-bot-venv.log": "a1168872a0c90eac3b49c7816df1bac61e42e00abdf89090435ad42d9ad11cc3",
+    "diagnostics/worker-activation-integration-v2/create.log": "0ef14d453840f33afd19154edda4b5cd17c54b673cc3455f1bc83f592b835e13",
+    "diagnostics/worker-activation-integration-v2/default/observation.json": "957bf0c2134cbf6e71ef2f1a052ca5d064f5c9150da23c9fd190323de5deb67c",
+    "diagnostics/worker-activation-integration-v2/default/result.json": "95492e2bd915855a73f6613b00cb06a809067a0a40d759fac63b4689be3f25b5",
+    "diagnostics/worker-activation-integration-v2/default/trace-state.db": "9011359bc1c4eb4e12b247ad48e78c8c0ec6ba5d05e0282798f7c9f98a016e2c",
+    "diagnostics/worker-activation-integration-v2/default-copy.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/default-git-add.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/default-remove-fixture.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/default-reset-fixture.log": "2b0da1ec705dee0b87d55f2ef24e694f927a5609bbe69cbf741dfc2f46d1b846",
+    "diagnostics/worker-activation-integration-v2/default.log": "5fac8902515dc70b8efa16a5a026494ab5c2cc395984b642d71aacd1b142446b",
+    "diagnostics/worker-activation-integration-v2/default.patch": "7720730cfbb074e09d9bf70bde39d854612883e9315e85a3cbc917f6c0cd72de",
+    "diagnostics/worker-activation-integration-v2/disconnect-bridge.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/worker-activation-integration-v2/install-bot.log": "d21fac76375874e305080f6548b3b4eac10f8f83828ce44877c012f6e7fb79dd",
+    "diagnostics/worker-activation-integration-v2/install-uv.log": "bb8b44723ac6635bd906aac889553b5a5fcda6fa5fcd3c25940bfd740352ae6d",
+    "diagnostics/worker-activation-integration-v2/manifest.json": "3d42b8bb65d9bbeeae6b9e1ff3c26c004801244613143fe3de3aaf8fbab8e50e",
     "terminalbench/large-scale-text-editing-native-baseline-1/task__AUSvQnL/verifier/ctrf.json": "cfbd5650309229aae45696f6eaf5cfd1f1aa9629b1da869574c017c2b28ee83b",
     "terminalbench/large-scale-text-editing-native-nop-1/task__jZq8k2z/verifier/ctrf.json": "fa747403edb7db3635f4433df4db0b1d43c071bf21413251abfab1c0cbb5498a",
     "terminalbench/large-scale-text-editing-native-oracle-1/task__wm94UWc/verifier/ctrf.json": "e9aee3fdb91131a62f0677ebd635c8bf210fb10ddea0861301dc756cc3b20a2c",
@@ -2002,6 +2410,6 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/64065108abd437cbf192d8c4152a5d62819763886710bcf7a30f4158f1ab7b31.py": "64065108abd437cbf192d8c4152a5d62819763886710bcf7a30f4158f1ab7b31"
+    "diagnostics/source-snapshots/e3dc8613220bc578a8f3df81dd4cff54f28cb1abdb4dd0c589c3714534d2a707.py": "e3dc8613220bc578a8f3df81dd4cff54f28cb1abdb4dd0c589c3714534d2a707"
   }
 }
