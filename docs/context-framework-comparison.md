@@ -25,6 +25,9 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 字段与正文文本的区别；两次真实压缩区间全量加入 reasoning 后，估算输入分别增加 103.13%
 和 108.41%，超过当前单次压缩输入预算。该结果衡量输入规模，尚不证明摘要质量的变化。
 
+超限动作补充见[超大上下文的摘要输入预算与恢复](oversized-context-compaction.md)：区分
+单次输入限制、滚动/递归摘要、首尾裁剪和摘要自身超限停止，并补充 Aider 的覆盖边界。
+
 ## 1. 结论摘要
 
 1. 这些框架并不是都把 reasoning 当作普通 assistant 文本原样回传。Codex、Pi 和 DeepSeek
