@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "snapshot_metrics_sha256": "e8e345a6e65f15823df97d9f14eb641faf8fce28298a2b16a4947473bcfdd891",
+  "source_files_sha256": {
+    "src/bot/compaction/service.py": "3a3f1a2dbc67cdfcabf3c4cb8539bf40bc5df440ed3ce15c3c46e5aa3ddd69c5",
+    "src/bot/config/models.py": "c54918379bfd91f389610f8484947e65abfda34d3ffa857fc38c63cb279f3e45",
+    "src/bot/core/context.py": "14d228c61f24c228f73b643312b09c322fb7eaaf7ff6582c845c9ec878b27518",
+    "src/bot/core/models.py": "65828156ac8a48dab47aa0293e501e79ce21bcf74ef5620ddb6fca197c48fc72",
+    "src/bot/providers/openai_compatible.py": "096cdb7d129cc09fffda8ab8e5720c63d4a57c492b322182a3eb25ee4b61a626"
+  },
+  "measurement": "Fixed source ranges; current default renderer; estimated full input adds nonempty reasoning as historical_reasoning inside user JSON; no model calls; no claims about quality or measured API savings.",
+  "serialization_probe": {
+    "native_marker_in_http_payload": false,
+    "inline_marker_in_http_payload": true,
+    "tools_in_http_payload": false,
+    "http_roles": [
+      "system",
+      "user"
+    ],
+    "thinking": "disabled"
+  },
+  "runs": [
+    {
+      "task": "terminal-bench/chess-best-move",
+      "scope": "supplemental",
+      "compaction_id": "b3e18d788a7f49789ba91309b8b3e86a",
+      "covered_range": [
+        1,
+        93
+      ],
+      "state_path": "artifacts/public-benchmark/20260909-flash/terminalbench/chess-best-move-baseline-4/9ab8e4b3674282e751edafbd9b5bd551__24iR7LC/agent/trace/state.db",
+      "state_sha256": "b5c6e97f7a4d91f3181a737af85567bb7fc0b047c28819f9fb5f3a73234e2b45",
+      "state_wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_messages": 93,
+      "messages_with_nonempty_reasoning": 39,
+      "historical_reasoning_chars": 152193,
+      "rendered_source_chars": 146643,
+      "actual_api_input_tokens": 37674,
+      "baseline_estimated_input_tokens": 37786,
+      "full_reasoning_estimated_input_tokens": 76753,
+      "added_estimated_input_tokens": 38967,
+      "estimated_input_increase_ratio": 1.0312549621552956,
+      "configured_input_limit": 60000,
+      "planning_limit": 48000
+    },
+    {
+      "task": "sympy__sympy-18532",
+      "scope": "supplemental",
+      "compaction_id": "13672e517a3d414bad9e70b2470197af",
+      "covered_range": [
+        1,
+        143
+      ],
+      "state_path": "artifacts/public-benchmark/20260909-flash/cases/swebench/sympy__sympy-18532/2/prediction.trace/state.db",
+      "state_sha256": "9317bd32c7473d9a81c9580764c103ba1a280a32bcf03c29f903b01294efed55",
+      "state_wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_messages": 143,
+      "messages_with_nonempty_reasoning": 58,
+      "historical_reasoning_chars": 154883,
+      "rendered_source_chars": 140997,
+      "actual_api_input_tokens": 47876,
+      "baseline_estimated_input_tokens": 36722,
+      "full_reasoning_estimated_input_tokens": 76531,
+      "added_estimated_input_tokens": 39809,
+      "estimated_input_increase_ratio": 1.084064048799085,
+      "configured_input_limit": 60000,
+      "planning_limit": 48000
+    }
+  ]
+}

@@ -21,6 +21,10 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 摘要输入包含历史 reasoning、辅助输出被保存、reasoning 被回传是三个不同维度；空字符串不是
 通用协议要求，之前的 Flash 空值对照也不代表所有 DeepSeek 模型的接受行为。
 
+同日输入侧补充：[历史 reasoning 是否进入压缩输入](compaction-reasoning-input.md)核对原生
+字段与正文文本的区别；两次真实压缩区间全量加入 reasoning 后，估算输入分别增加 103.13%
+和 108.41%，超过当前单次压缩输入预算。该结果衡量输入规模，尚不证明摘要质量的变化。
+
 ## 1. 结论摘要
 
 1. 这些框架并不是都把 reasoning 当作普通 assistant 文本原样回传。Codex、Pi 和 DeepSeek
