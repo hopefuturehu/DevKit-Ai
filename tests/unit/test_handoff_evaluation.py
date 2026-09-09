@@ -31,6 +31,17 @@ def test_score_requires_values_not_only_markers_or_claimed_success():
     assert not score_answer("all facts preserved", expected)["passed"]
 
 
+def test_semantic_answer_and_strict_format_are_scored_separately():
+    wrapped = '记录确认如下。\n```json\n{"verified": false}\n```'
+    result = score_answer(wrapped, {"verified": False})
+    assert result["passed"] and not result["format_ok"]
+    conflicting = '{"verified":false}\n更正：{"verified":true}'
+    assert not score_answer(conflicting, {"verified": False})["passed"]
+    wrong_type = '{"failure": ["memory_limit"]}'
+    assert not score_answer(wrong_type, {"failure": "memory_limit"})["passed"]
+    assert score_answer('{"failure":"out_of_memory"}', {"failure": "memory_limit"})["passed"]
+
+
 def test_fixture_latest_correction_and_oracle_are_separate():
     checkpoint = synthetic_checkpoint("correction", 5, 3, correction=True)
     assert checkpoint.probes[1]["expected"] == {"retry_limit": 11}

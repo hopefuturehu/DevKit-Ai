@@ -59,6 +59,8 @@ def freeze(directory):
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     manifest = {
         "schema_version": 1,
+        "rubric_version": 2,
+        "warmup": "unmodified source prefix twice; outputs discarded, usage included",
         "commit": commit,
         "source_hashes": source_hashes(),
         "scope": "L0/L1 controlled continuation; not autonomous handoff or public-task completion",
@@ -157,6 +159,7 @@ def analyze(directory):
             "published": sum(r.get("published", False) for r in selected),
             "all_probes_passed": sum(r["all_probes_passed"] for r in selected),
             "passed_probes": sum(r["passed_probes"] for r in selected),
+            "strict_format_probes": sum(r.get("strict_format_probes", 0) for r in selected),
             "expected_probes": 8 * len(selected),
             "first_tool_roundtrip_ok": sum(r["first_tool_roundtrip_ok"] for r in selected),
             "transcript_immutable": sum(r["transcript_immutable"] for r in selected),
@@ -176,10 +179,16 @@ def analyze(directory):
         "results": results,
     }
     (directory / "comparison.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
-    print(
-        json.dumps({"segments": len(results), "by_strategy": by_strategy}, ensure_ascii=False),
-        flush=True,
-    )
+    brief = {
+        name: {
+            "segments": row["segments"],
+            "published": row["published"],
+            "passed_probes": row["passed_probes"],
+            "cost_usd": row["metrics_all"]["cost_usd_at_start_rate"],
+        }
+        for name, row in by_strategy.items()
+    }
+    print(json.dumps({"segments": len(results), "groups": brief}, ensure_ascii=False), flush=True)
     return report
 
 

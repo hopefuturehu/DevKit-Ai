@@ -277,18 +277,34 @@ def build_checkpoints(root: Path) -> list[Checkpoint]:
 
 def score_answer(text: str, expected: dict) -> dict:
     raw = text.strip()
-    if raw.startswith("```"):
-        raw = "\n".join(raw.splitlines()[1:-1])
+    format_ok = True
     try:
         answer = json.loads(raw)
     except ValueError:
-        return {"format_ok": False, "passed": False, "fields": {key: False for key in expected}}
+        format_ok = False
+        # Keep format compliance separate from the factual content. Exactly one
+        # complete object is required, so conflicting answers remain failures.
+        objects = []
+        offset = 0
+        decoder = json.JSONDecoder()
+        while (start := raw.find("{", offset)) >= 0:
+            try:
+                value, end = decoder.raw_decode(raw[start:])
+            except ValueError:
+                offset = start + 1
+                continue
+            objects.append(value)
+            offset = start + end
+        if len(objects) != 1:
+            return {
+                "format_ok": False,
+                "passed": False,
+                "semantic_evaluable": False,
+                "fields": {key: False for key in expected},
+            }
+        answer = objects[0]
     if not isinstance(answer, dict):
         return {"format_ok": False, "passed": False, "fields": {key: False for key in expected}}
-    fields = {
-        key: type(answer.get(key)) is type(value) and answer.get(key) == value
-        for key, value in expected.items()
-    }
     exact_fields = {
         key: type(answer.get(key)) is type(value) and answer.get(key) == value
         for key, value in expected.items()
@@ -310,8 +326,13 @@ def score_answer(text: str, expected: dict) -> dict:
         answer["failure"] = "memory_limit"
     if isinstance(answer.get("failing_test"), str):
         answer["failing_test"] = answer["failing_test"].removeprefix("sympy.core.tests.")
+    fields = {
+        key: type(answer.get(key)) is type(value) and answer.get(key) == value
+        for key, value in expected.items()
+    }
     return {
-        "format_ok": True,
+        "format_ok": format_ok,
+        "semantic_evaluable": True,
         "passed": all(fields.values()),
         "fields": fields,
         "exact_fields": exact_fields,

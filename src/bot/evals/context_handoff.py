@@ -279,12 +279,12 @@ async def run_segment(
     try:
         recording.phase = "warmup"
         warm = request.model_copy(deep=True)
-        warm.messages.append(
-            ChatMessage(role=Role.USER, content="这是前缀预热；只回复 CHECKPOINT_READY。")
-        )
         warm.max_output_tokens = 32
-        async for _ in recording.stream(warm):
-            pass
+        # Persist the unmodified source prefix. These bounded completions are
+        # discarded; any generated tool call is not executed or added to history.
+        for _ in range(2):
+            async for _ in recording.stream(warm):
+                pass
         recording.phase = "current_compaction" if strategy == "CURRENT" else f"handoff_{strategy}"
         if strategy == "CURRENT":
             compacted = await compactor.compact(
@@ -389,6 +389,7 @@ async def run_segment(
             for phase in sorted({r["phase"] for r in recording.rows})
         }
         result["passed_probes"] = sum(row["passed"] for row in result["probes"])
+        result["strict_format_probes"] = sum(row["score"]["format_ok"] for row in result["probes"])
         result["all_probes_passed"] = len(result["probes"]) == 8 and result["passed_probes"] == 8
         result["first_tool_roundtrip_ok"] = bool(
             result["probes"]
