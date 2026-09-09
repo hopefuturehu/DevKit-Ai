@@ -53,8 +53,8 @@
 | [开源 Agent 框架上下文管理对比](context-framework-comparison.md) | 固定本地源码快照的跨框架研究；本项目当前行为参照模块说明 |
 | [Claude Code 压缩机制调研](claude-code-compaction.md) | 官方资料核对；摘要请求、缓存、thinking、上下文恢复及失败边界，区分本机版本与在线文档 |
 | [上下文压缩重设计候选](context-compaction-redesign-options.md) | 四类候选及 A+D 优先组合；有评测原型，生产默认入口尚未接入 |
-| [A+D 交接收益测试方案](context-handoff-evaluation-plan.md) | L0 完成、L1 部分执行；固定状态与整题实验、缓存计费、质量门禁和统计判据 |
-| [A+D 交接 L0/L1 量化结果](context-handoff-l0-l1-results.md) | L0 37/37；L1 有效完成 10/36，配齐子集的缓存、费用、质量和中断账目 |
+| [A+D 交接收益测试方案](context-handoff-evaluation-plan.md) | L0/L1 已执行，L2/L3 待验证；固定状态与整题实验、缓存计费、质量门禁和统计判据 |
+| [A+D 交接 L0/L1 量化结果](context-handoff-l0-l1-results.md) | L0 37/37；L1 36/36，完整样本的容量、缓存、费用、质量及失败归因 |
 
 ## 面试与历史资料
 
