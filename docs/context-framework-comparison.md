@@ -28,6 +28,10 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 超限动作补充见[超大上下文的摘要输入预算与恢复](oversized-context-compaction.md)：区分
 单次输入限制、滚动/递归摘要、首尾裁剪和摘要自身超限停止，并补充 Aider 的覆盖边界。
 
+该补充还区分 Codex 原生压缩与 local fallback：272K 模型目录窗口、自动触发阈值及压缩后
+原文保留预算是不同概念；公开客户端未采用本项目额外的 60K 摘要输入上限，远端服务内部
+生成方式和用户具体界面上的压缩输入量则不能仅凭本地源码确认。
+
 ## 1. 结论摘要
 
 1. 这些框架并不是都把 reasoning 当作普通 assistant 文本原样回传。Codex、Pi 和 DeepSeek

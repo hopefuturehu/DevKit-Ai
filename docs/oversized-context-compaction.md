@@ -77,6 +77,60 @@
 以下比较固定提交中的指定路径，不声称覆盖插件扩展或最新主分支。它们普遍有上下文预算，
 但不全有本项目这种独立的 60K 摘要输入参数，也不全实现任意长度的递归分块。
 
+### Codex：接近整个活动窗口的原生压缩，没有独立的 60K 输入预算
+
+补充核对本地 `openai/codex` 提交 `41ece455b7fa7166f4fc38522952afdaa2604e18`，以及当前
+OpenAI 官方 Compaction 和配置说明。源码快照不能直接等同于用户当前桌面客户端或后端版本。
+
+官方 standalone `/responses/compact` 接收完整活动窗口并返回替换窗口，要求输入仍在所选
+模型上下文窗口以内；结果可包含保留消息，以及承载先前状态和 reasoning 的加密 compaction
+item。它不是必须可读的 Markdown 摘要。后端内部如何生成该状态、是否内部拆分，不在公开
+客户端代码中，不能凭 UI 的“272K → 几 K”推断服务端一定只进行了一次普通摘要生成。
+[官方 Compaction 说明](https://developers.openai.com/api/docs/guides/compaction#standalone-compact-endpoint)。
+
+客户端的几条路径必须分开：
+
+| 路径 | 压缩输入 | 过大时的客户端处理 |
+|---|---|---|
+| remote V1 | 当前 `history.for_prompt()`、基础指令与 tools，调用专用 compact endpoint | 发送前按有效模型窗口估算；只尝试改写历史末尾连续、可改写的工具输出；不是按 60K 选旧块 |
+| remote V2 | 同样取活动历史，追加 `CompactionTrigger`，经 Responses 流取得 compaction item | 共用 V1 的发送前工具输出改写；未见本项目式按小输入预算递归切块 |
+| local fallback | 当前历史加摘要指令，使用普通模型流生成文本 | 实际 context overflow 后逐个移除最老 history item，再发请求 |
+
+远端改写只在估算超出窗口时发生；从末尾向前扫描，遇到非支持类型就停止，不能保证修复所有
+超限输入。常规工具输出在进入活动历史时也可能已被截断，因此“活动窗口”不能等同于完整
+原始工具输出档案。local 路径被移出的旧 item 不会进入那次成功摘要请求。
+
+这些行为对应 `codex-rs/core/src/compact_remote_request.rs`、
+`compact_remote_v2_attempt.rs`、`compact_remote.rs::trim_function_call_history_to_fit_context_window`
+和 `compact.rs`。路由在 `tasks/compact.rs` 按 Provider 能力和 feature 选择；另有
+`TokenBudget` 特殊模式会直接开启新窗口、跳过模型/服务端摘要，不能把所有同名 UI 事件都
+推断成完全相同的调用。
+
+272K 也不是通用的压缩触发常数。这份本地模型目录的多个条目配置 `context_window=272000`；
+在没有覆盖、采用默认总量计数与默认比例时：
+
+| 数值 | 该快照示例 | 含义 |
+|---|---:|---|
+| 模型目录窗口 | 272,000 | 客户端模型元数据中的窗口值 |
+| 有效窗口 | 258,400 | `context_window × 95%`，留出客户端余量 |
+| 自动压缩阈值 | 244,800 | 默认 `context_window × 90%`，可被较低配置阈值覆盖 |
+
+分别见 `models-manager/models.json`、`core/src/session/turn_context.rs`、
+`protocol/src/openai_models.rs::auto_compact_token_limit()`。当前官方配置还支持
+`model_context_window`、`model_auto_compact_token_limit` 和计数范围选择；服务器下发模型信息
+及配置覆盖都可能改变实际值。未读取该用户具体压缩事件的请求 trace，不能确认其界面上的
+272K 究竟是容量显示、触发前总量，还是实际压缩输入 usage。
+[官方配置说明](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml)。
+
+“压到几 K”也不是客户端固定保证：local 压缩后保留的真实 user 文本预算为 20K，再追加摘要；
+remote V2 的保留消息总预算为 64K，再追加 compaction item。这些是**压缩后的保留预算**，
+不是压缩输入上限；V1 的返回窗口由 endpoint 提供，客户端还有类型过滤与上下文重建。
+旧执行链被替换、保留原文较少时，活动占用可以显著下降，但不能由此证明全部细节都被保存。
+
+对本项目的直接启示是：6 万不是摘要必须遵守的通用界限。若摘要目标模型容量和实测计数
+允许，可以提高单次输入预算，用一次调用处理更大范围；需要独立比较调用成本、延迟及继续
+任务质量。原生 compaction 与普通文本摘要不是相同接口，不能直接假定两者同等保真或压缩率。
+
 ### Hermes：批量路径裁剪输入；另有可选逐次合并
 
 普通批量路径对消息正文和工具参数先做有界序列化，再把历史文本块限制为 **160,000 字符**。
@@ -195,7 +249,7 @@ S3 = summarize(S2 + 下一块历史)
 4. 每个块记录覆盖范围与省略量，维护关键事实、待办和验证状态；最终校验所有应处理范围都已
    覆盖，不能将裁掉的消息声称为已总结。重复摘要仍会丢细节，保留原文查询与版本回退能力。
 
-分层方案是建议，并非上述五个项目都已实现的共同能力。滚动合并和分层合并都要通过固定任务
+分层方案是建议，并非上述项目都已实现的共同能力。滚动合并和分层合并都要通过固定任务
 验证事实保留、错误假设纠正、后续产物通过率，以及全部辅助调用的成本；不能只看摘要生成成功。
 
 ## 5. 本轮验证与证据边界
