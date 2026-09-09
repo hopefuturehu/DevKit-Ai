@@ -133,6 +133,32 @@ summary 变大时单独重新凝练它，每轮一次辅助调用。这更接近
 恢复又是另一层，默认一次，不能当作摘要请求的无限缩块重试。配置 `maxTokens=8192` 是输出
 预算。[生成调用](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/compaction/compaction-basic/src/summarizer.ts#L121)。
 
+**“成功但压力仍高”的精确定义：摘要输出限长与主请求总压力是两个条件。**
+默认 `maxTokens=8192` 会传到 DeepSeek wire 的 `max_tokens`；输出因 token cap 结束时，
+`finishError()` 返回 `MAX_TOKENS`，不会把截断候选当作成功摘要进入这个循环。
+成功替换还要求带包装 checkpoint 的估算大小小于被替换范围，但这不等于整个主请求已低于
+`contextWindow × thresholdRatio`。前者是局部缩小，后者检查摘要、保留历史、system 和
+工具定义等组成的请求。`tokenMeter` 可以使用 Provider usage 锚点加历史变化量来估算，
+并非只量摘要正文。
+[截断判定](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/compaction/compaction-basic/src/summarizer.ts#L198)、
+[总压力计量](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/llm/token-meter/src/index.ts#L116)。
+
+16% 是选择尾部的保留目标，不是严格的最大值：代码从末尾累计到目标后，还要向前对齐工具
+调用/结果边界；单条大消息或原子组可能使实际尾部远超目标。举一个假设规模：窗口 100K、
+阈值 80K，第一次有效压缩把 20K 旧历史变成带包装的 5K 摘要，但仍有 66K 不可拆尾部和
+10K system/tools，则总量仍是 81K。摘要符合输出预算，总压力检查仍不通过。这个算例不是
+真实运行数据，也没有计量误差；实际判断以 meter 为准。
+
+循环会在**已被 checkpoint 替换的当前历史**上重新选范围，而不是重新发送被移出的原始
+历史。它可能只重新总结刚生成的 checkpoint；若下一次缩到 3K，上例总量可降至 79K。
+代码不会自动把第二次的 `maxTokens` 调小，仍使用相同的摘要配置。默认
+`compactionRetries=1` 表示最多两轮；若无法继续有效缩小或仍高于阈值，就失败。若压力主要
+来自无法压缩的固定头部或保留原子组，重复摘要不保证解决问题。
+
+因此这是局部压缩成功后的整体预算检查及有限恢复分支，不是“没有摘要长度限制”，也不是
+“每次通常需要反复压缩”的实测结论。在摘要、正常尾部和固定头部合计已经低于阈值时，
+第一次成功后就立即返回。
+
 ### Aider：有递归重压缩，但不保证每条历史都被模型读到
 
 `ChatSummary` 把历史分为旧 head 和近期 tail，先总结 head；如果摘要加 tail 仍超过历史目标
