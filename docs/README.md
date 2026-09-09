@@ -51,6 +51,7 @@
 | [历史会话裁剪容量分析](history-pruning-analysis.md) | 2026-09-08 的离线容量回放，支撑待实施设计；不代表生产裁剪收益 |
 | [裁剪容量统计数据](data/history-pruning-summary.json) | 上述分析的参数、统计和逐压缩结果 |
 | [开源 Agent 框架上下文管理对比](context-framework-comparison.md) | 固定本地源码快照的跨框架研究；本项目当前行为参照模块说明 |
+| [Claude Code 压缩机制调研](claude-code-compaction.md) | 官方资料核对；摘要请求、缓存、thinking、上下文恢复及失败边界，区分本机版本与在线文档 |
 
 ## 面试与历史资料
 

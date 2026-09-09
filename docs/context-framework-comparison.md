@@ -32,6 +32,9 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 原文保留预算是不同概念；公开客户端未采用本项目额外的 60K 摘要输入上限，远端服务内部
 生成方式和用户具体界面上的压缩输入量则不能仅凭本地源码确认。
 
+Claude Code 另见[官方资料调研](claude-code-compaction.md)：同前缀摘要调用、压缩后内容恢复、
+thinking 的版本差异和无进展熔断。该补充基于官方文档及发布记录，不属于本文固定源码快照。
+
 ## 1. 结论摘要
 
 1. 这些框架并不是都把 reasoning 当作普通 assistant 文本原样回传。Codex、Pi 和 DeepSeek
