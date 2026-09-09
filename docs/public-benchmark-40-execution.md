@@ -3,6 +3,10 @@
 用户已授权使用 `deepseek-v4-flash` 运行 Terminal-Bench 2.1 的 20 题与 SWE-bench Lite 的 20 题，
 分析失败并记录文档，总费用不设上限。此授权取代预检时的零生成预算。
 
+2026-09-09 08:10（Asia/Shanghai）按用户要求停止本轮执行，实际覆盖 18/40 个不同题目
+（Terminal 15、SWE 3）。剩余任务及排队恢复没有继续运行；已有结果和失败分析见
+[部分结果报告](public-benchmark-40-results.md)。
+
 ## 冻结范围
 
 任务清单：[public-regression-40-v1.json](../evals/public-regression-40-v1.json)。

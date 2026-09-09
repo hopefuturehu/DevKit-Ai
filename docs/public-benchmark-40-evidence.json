@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T23:50:21.541997+00:00",
-  "status": "in_progress",
+  "generated_at": "2026-09-09T00:10:35.467488+00:00",
+  "status": "stopped_by_user",
   "source_commit": "578f660",
   "model": "deepseek-v4-flash",
   "suite_sha256": "4cc70058f018ab0dc66b5401be1be28345751e10895d720389fab711368e2d1c",
@@ -5694,6 +5694,288 @@
           "tests/test_outputs.py": "009180a7092583fc8143bb3ffc3957923aa0d61d0aac3a471f76eeb4aae54a88"
         }
       }
+    },
+    "user_requested_stop": {
+      "source": "diagnostics/user-stop-20260909/manifest.json",
+      "result": {
+        "requested_at": "2026-09-09T00:08:20.156518+00:00",
+        "reason": "User requested stopping the batch and a report of completed task count and analysis locations.",
+        "current_phase": {
+          "folder": "/Users/huyang/codespace/bot/artifacts/public-benchmark/20260909-flash/cases/terminalbench/compile-compcert/1",
+          "phase": "oracle",
+          "pid": 38523,
+          "started_at": "2026-09-08T23:42:10.236468+00:00"
+        },
+        "signalled": [
+          {
+            "pid": 63396,
+            "signal": "SIGINT",
+            "at": "2026-09-09T00:08:20.158785+00:00"
+          },
+          {
+            "pid": 81284,
+            "signal": "SIGINT",
+            "at": "2026-09-09T00:08:20.160934+00:00"
+          },
+          {
+            "pid": 990,
+            "signal": "SIGINT",
+            "at": "2026-09-09T00:08:20.163113+00:00"
+          },
+          {
+            "pid": 3481,
+            "signal": "SIGINT",
+            "at": "2026-09-09T00:08:20.166522+00:00"
+          },
+          {
+            "pid": 48973,
+            "signal": "SIGINT",
+            "at": "2026-09-09T00:08:20.169926+00:00"
+          }
+        ],
+        "state": "stopped_by_user",
+        "policy": "Stop only this benchmark main driver, queued recoveries and its observers; retain all existing results and frozen source. User interruption is not a model failure.",
+        "stopped_at": "2026-09-09T00:10:34.783048+00:00",
+        "watched_pids_absent": [
+          48973,
+          38523,
+          63396,
+          81284,
+          990,
+          3481,
+          14587,
+          22103,
+          31776
+        ],
+        "running_docker_container_count": 0,
+        "retained_image_count": 34,
+        "all_retained_images_present": true,
+        "new_image_ids_remaining": [],
+        "image_cleanup": {
+          "image": "alexgshaw/git-multibranch:20251031",
+          "expected_id": "sha256:ec6eeb02cecf35faf5badd75646ab0dd2e02cab484638b413ccd4606a2e2ef7d",
+          "reason": "Unused next-task image downloaded by this batch prefetcher",
+          "returncode": 0,
+          "stdout": "Untagged: alexgshaw/git-multibranch:20251031\nUntagged: alexgshaw/git-multibranch@sha256:5bc449921c138295f6ddd8dca2977319fee2ce523811dbe56cec4ca663385fb5\nDeleted: sha256:ec6eeb02cecf35faf5badd75646ab0dd2e02cab484638b413ccd4606a2e2ef7d\nDeleted: sha256:7e3fa76200470833b0e6d53ddff41d18c44ac43dad943d0aeeada5171b75351a\nDeleted: sha256:7680d2ee653c078b758f157959923ea024a96659d632e9dfb366afa6c92e0690\nDeleted: sha256:56c3ac1bed0dde931c8fac3c5f80364420ba828526b7ddf145844bd37e543b43\nDeleted: sha256:65d61e09acaf36206117b7610a8bacf831d88b898f2b3fc19f1528a7fa12c677\nDeleted: sha256:4377d435c8dc35089a2c90205f2437d534337bd19217055265363802f3c5aafe\n",
+          "stderr": ""
+        },
+        "interrupted_task": {
+          "id": "terminal-bench/compile-compcert",
+          "attempt": "1",
+          "phase": "oracle",
+          "classification": "stopped_by_user_before_model_run",
+          "official_exception": "CancelledError",
+          "official_reward": null,
+          "phase_returncode": 130,
+          "not_a_model_failure": true,
+          "record": "terminalbench/compile-compcert-oracle-1/22bde2a73d62fa46f5ab96f710561a72__2kNxXLH/result.json"
+        },
+        "cancelled_queued_recoveries": [
+          "terminal-bench/rstan-to-pystan:attempt-2",
+          "terminal-bench/caffe-cifar-10:attempt-2"
+        ],
+        "original_case_records_preserved": true,
+        "model_task_coverage": {
+          "total": 18,
+          "terminalbench": 15,
+          "swebench": 3,
+          "planned_total": 40,
+          "remaining": 22
+        }
+      }
+    },
+    "interrupted_compcert_build_snapshots": {
+      "snapshots": [
+        {
+          "source": "diagnostics/compcert-build-snapshots/20260908T235512Z/snapshot.json",
+          "result": {
+            "at": "2026-09-08T23:55:12.405211+00:00",
+            "task": "terminal-bench/compile-compcert",
+            "phase": "oracle",
+            "attempt": "1",
+            "harbor_pid": 38523,
+            "container": "22bde2a73d62fa46f5ab96f710561a72__2knxxlh__env-main-1",
+            "files": [
+              {
+                "container_path": "/root/.opam/log/log-9047-4d055d.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260908T235512Z/log-9047-4d055d.info",
+                "bytes": 6447,
+                "sha256": "6da1c87f1518ff5bcc3b0464f976f88a959c2586fd46503a06457c6a13157784"
+              },
+              {
+                "container_path": "/root/.opam/log/log-9047-4d055d.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260908T235512Z/log-9047-4d055d.out",
+                "bytes": 22274,
+                "sha256": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05"
+              },
+              {
+                "container_path": "/root/.opam/log/ocaml-base-compiler-9047-6715d9.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260908T235512Z/ocaml-base-compiler-9047-6715d9.info",
+                "bytes": 387,
+                "sha256": "389c8bb18e115b2c3a51310c9a48a13d9319ea3f172bd582071cc20061061f4f"
+              },
+              {
+                "container_path": "/root/.opam/log/ocaml-base-compiler-9047-6715d9.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260908T235512Z/ocaml-base-compiler-9047-6715d9.out",
+                "bytes": 253609,
+                "sha256": "4fd60a83e68be7685cfe6b5d8eff938639dda43179eb32702e0aa6bb8b42a544"
+              }
+            ],
+            "scope": "Read-only process/filesystem observation and selected OPAM build stdout/info copies. No model calls, task modifications, new containers, or environment-file capture.",
+            "limitation": "Build files may grow or disappear during copying; this is a timestamped observation, not a terminal outcome or atomic filesystem snapshot.",
+            "source_sha256": {
+              "diagnostics/capture_compcert_build_state.py": "92e900c7e5550fc89d8b22b565da8e0a31105e44c0216df0c399955bc98e0402",
+              "diagnostics/compcert-build-snapshots/20260908T235512Z/processes.txt": "dc6ddee6509182a5aee4e0d38e86f27837aaa9a586a5e9a2fba6421a05d86571",
+              "diagnostics/compcert-build-snapshots/20260908T235512Z/filesystem.txt": "a40ee645beae25ecbf7a89a99aac51931dcb7e6818e6853288d96f6293a5b0dd"
+            }
+          }
+        },
+        {
+          "source": "diagnostics/compcert-build-snapshots/20260909T000514Z/snapshot.json",
+          "result": {
+            "at": "2026-09-09T00:05:14.536392+00:00",
+            "task": "terminal-bench/compile-compcert",
+            "phase": "oracle",
+            "attempt": "1",
+            "harbor_pid": 38523,
+            "container": "22bde2a73d62fa46f5ab96f710561a72__2knxxlh__env-main-1",
+            "files": [
+              {
+                "container_path": "/root/.opam/log/log-9047-4d055d.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000514Z/log-9047-4d055d.info",
+                "bytes": 6447,
+                "sha256": "6da1c87f1518ff5bcc3b0464f976f88a959c2586fd46503a06457c6a13157784"
+              },
+              {
+                "container_path": "/root/.opam/log/log-9047-4d055d.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000514Z/log-9047-4d055d.out",
+                "bytes": 22274,
+                "sha256": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05"
+              },
+              {
+                "container_path": "/root/.opam/log/ocaml-base-compiler-9047-6715d9.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000514Z/ocaml-base-compiler-9047-6715d9.info",
+                "bytes": 387,
+                "sha256": "389c8bb18e115b2c3a51310c9a48a13d9319ea3f172bd582071cc20061061f4f"
+              },
+              {
+                "container_path": "/root/.opam/log/ocaml-base-compiler-9047-6715d9.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000514Z/ocaml-base-compiler-9047-6715d9.out",
+                "bytes": 748165,
+                "sha256": "c10034d7d67c6215772d2f75a125ba0e177e5ed345d6837af7dda33552401359"
+              }
+            ],
+            "scope": "Read-only process/filesystem observation and selected OPAM build stdout/info copies. No model calls, task modifications, new containers, or environment-file capture.",
+            "limitation": "Build files may grow or disappear during copying; this is a timestamped observation, not a terminal outcome or atomic filesystem snapshot.",
+            "source_sha256": {
+              "diagnostics/capture_compcert_build_state.py": "92e900c7e5550fc89d8b22b565da8e0a31105e44c0216df0c399955bc98e0402",
+              "diagnostics/compcert-build-snapshots/20260909T000514Z/processes.txt": "18470cc30f3246f6729c0449963f5b31b2d95d0ec8ecdf238a9ff3e1f60adc33",
+              "diagnostics/compcert-build-snapshots/20260909T000514Z/filesystem.txt": "510b1cb2cafb00eec4c54465806dc74db50dda7b4cf0078894e5c50e85e3cd1f"
+            }
+          }
+        },
+        {
+          "source": "diagnostics/compcert-build-snapshots/20260909T000819Z/snapshot.json",
+          "result": {
+            "at": "2026-09-09T00:08:20.108019+00:00",
+            "task": "terminal-bench/compile-compcert",
+            "phase": "oracle",
+            "attempt": "1",
+            "harbor_pid": 38523,
+            "container": "22bde2a73d62fa46f5ab96f710561a72__2knxxlh__env-main-1",
+            "files": [
+              {
+                "container_path": "/root/.opam/log/dune-37334-b678d2.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/dune-37334-b678d2.info",
+                "bytes": 407,
+                "sha256": "6ba5ecacfc7c73e9ef3d972eae5e98b84a28042a2bb68493ae5c5d15e9374abf"
+              },
+              {
+                "container_path": "/root/.opam/log/dune-37334-b678d2.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/dune-37334-b678d2.out",
+                "bytes": 1975,
+                "sha256": "0007c4aadf72d5d15a3b65a4a9cd39bb7dfa67bb6ebc8097974ff20906762187"
+              },
+              {
+                "container_path": "/root/.opam/log/log-37242-58b2cc.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37242-58b2cc.info",
+                "bytes": 352,
+                "sha256": "d6b7f4823e49ae646c4b91021fe0230779b3c386816eb6b1672ea47f0243d5e6"
+              },
+              {
+                "container_path": "/root/.opam/log/log-37242-58b2cc.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37242-58b2cc.out",
+                "bytes": 801,
+                "sha256": "88dded8ee989ba2ddb05293e054c643af73f58c94a4afd66cf3be0f9043cab21"
+              },
+              {
+                "container_path": "/root/.opam/log/log-37334-87fe69.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37334-87fe69.info",
+                "bytes": 6450,
+                "sha256": "3b384108f746609f2677d47ef7793362cae8ba0c0deab6d9650d1adf5675d275"
+              },
+              {
+                "container_path": "/root/.opam/log/log-37334-87fe69.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37334-87fe69.out",
+                "bytes": 22274,
+                "sha256": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05"
+              },
+              {
+                "container_path": "/root/.opam/log/log-9047-4d055d.info",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/log-9047-4d055d.info",
+                "bytes": 6447,
+                "sha256": "6da1c87f1518ff5bcc3b0464f976f88a959c2586fd46503a06457c6a13157784"
+              },
+              {
+                "container_path": "/root/.opam/log/log-9047-4d055d.out",
+                "returncode": 0,
+                "stderr": "",
+                "file": "diagnostics/compcert-build-snapshots/20260909T000819Z/log-9047-4d055d.out",
+                "bytes": 22274,
+                "sha256": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05"
+              }
+            ],
+            "scope": "Read-only process/filesystem observation and selected OPAM build stdout/info copies. No model calls, task modifications, new containers, or environment-file capture.",
+            "limitation": "Build files may grow or disappear during copying; this is a timestamped observation, not a terminal outcome or atomic filesystem snapshot.",
+            "source_sha256": {
+              "diagnostics/capture_compcert_build_state.py": "92e900c7e5550fc89d8b22b565da8e0a31105e44c0216df0c399955bc98e0402",
+              "diagnostics/compcert-build-snapshots/20260909T000819Z/processes.txt": "fb92dd914ada83fba3fce50a67a341abd3864bca015dcae0acd309e16977d038",
+              "diagnostics/compcert-build-snapshots/20260909T000819Z/filesystem.txt": "8b1d56b532afb41dc6f5b571289c8db6876c661c71140c5c3bf77f5245472b49"
+            }
+          }
+        }
+      ],
+      "classification": "Read-only observations before user cancellation; no completed reference-control or model verdict"
     }
   },
   "environment_model_runs": [
@@ -6277,6 +6559,40 @@
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/ctrf.json": "fae3f5de8056d7eb1317c99822b62ef462a36c0191cde75c1b0f160e2b61f55f",
     "terminalbench/large-scale-text-editing-original-output-replay-1/original-artifact-task__iMgRoTe/verifier/test-stdout.txt": "f2d7ff7daa4c1d08f114741ebb465cec1436302e0a27a1552c6816e7973ca971",
     "diagnostics/native-vim/original-artifact-task/solution/solve.sh": "61fef7d5c99169a651d02d64e20c0c832ee7b30381f2cfa0649312ae74c08531",
-    "diagnostics/source-snapshots/4bc503ac57b5c32373a5bd82b91922b9f6ff8693bd6c68c95ecf304c11e68c8e.py": "4bc503ac57b5c32373a5bd82b91922b9f6ff8693bd6c68c95ecf304c11e68c8e"
+    "diagnostics/source-snapshots/4bc503ac57b5c32373a5bd82b91922b9f6ff8693bd6c68c95ecf304c11e68c8e.py": "4bc503ac57b5c32373a5bd82b91922b9f6ff8693bd6c68c95ecf304c11e68c8e",
+    "diagnostics/finalize_user_stop.py": "3d84b723991338c44a35e0c250067fbfb757fa33404b86d1c3db8fcc6cac181b",
+    "diagnostics/capture_compcert_build_state.py": "92e900c7e5550fc89d8b22b565da8e0a31105e44c0216df0c399955bc98e0402",
+    "terminalbench/compile-compcert-oracle-1/22bde2a73d62fa46f5ab96f710561a72__2kNxXLH/result.json": "b90e14e3a305d7027d4ece0d17948da7841471a67d958e0c612dead7ccf236d6",
+    "cases/terminalbench/compile-compcert/1/result.json": "fdfcccbc9ac98212c9a16bd393cae12be30c53a360dbdbcee74a4be96157249a",
+    "cases/terminalbench/compile-compcert/1/oracle.phase.json": "f5f76cefcc9487533d8c36331f7a4ae9ef596849d76941a9dae91afbaa429531",
+    "diagnostics/user-stop-20260909/processes-before.txt": "948def61372327bf2de01bd71c05ca338793c36be40530a51dd64d1906bbb92c",
+    "diagnostics/user-stop-20260909/processes-after.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostics/user-stop-20260909/live-before-stop.json": "b1e855cf94b45e3288c1ee847ba9f21a85e4746d67bb282f7b594b8c8cf5aa4a",
+    "diagnostics/user-stop-20260909/manifest.json": "3b7ac255b5f09095db006ad6c59172aaa187bfc334a9943f95c0dd93860f6fe2",
+    "diagnostics/compcert-build-snapshots/20260909T000514Z/filesystem.txt": "510b1cb2cafb00eec4c54465806dc74db50dda7b4cf0078894e5c50e85e3cd1f",
+    "diagnostics/compcert-build-snapshots/20260909T000514Z/snapshot.json": "72bfbed6acab86b95092aa6ff5948d5f30b5032211939868369066591bee9496",
+    "diagnostics/compcert-build-snapshots/20260909T000514Z/log-9047-4d055d.info": "6da1c87f1518ff5bcc3b0464f976f88a959c2586fd46503a06457c6a13157784",
+    "diagnostics/compcert-build-snapshots/20260909T000514Z/processes.txt": "18470cc30f3246f6729c0449963f5b31b2d95d0ec8ecdf238a9ff3e1f60adc33",
+    "diagnostics/compcert-build-snapshots/20260909T000514Z/ocaml-base-compiler-9047-6715d9.out": "c10034d7d67c6215772d2f75a125ba0e177e5ed345d6837af7dda33552401359",
+    "diagnostics/compcert-build-snapshots/20260909T000514Z/ocaml-base-compiler-9047-6715d9.info": "389c8bb18e115b2c3a51310c9a48a13d9319ea3f172bd582071cc20061061f4f",
+    "diagnostics/compcert-build-snapshots/20260909T000514Z/log-9047-4d055d.out": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05",
+    "diagnostics/compcert-build-snapshots/20260908T235512Z/filesystem.txt": "a40ee645beae25ecbf7a89a99aac51931dcb7e6818e6853288d96f6293a5b0dd",
+    "diagnostics/compcert-build-snapshots/20260908T235512Z/snapshot.json": "ee7bc35c07411221ec31cd5664e94f78e6154d35867c8dc1c8a2128f8ce3f1a7",
+    "diagnostics/compcert-build-snapshots/20260908T235512Z/log-9047-4d055d.info": "6da1c87f1518ff5bcc3b0464f976f88a959c2586fd46503a06457c6a13157784",
+    "diagnostics/compcert-build-snapshots/20260908T235512Z/processes.txt": "dc6ddee6509182a5aee4e0d38e86f27837aaa9a586a5e9a2fba6421a05d86571",
+    "diagnostics/compcert-build-snapshots/20260908T235512Z/ocaml-base-compiler-9047-6715d9.out": "4fd60a83e68be7685cfe6b5d8eff938639dda43179eb32702e0aa6bb8b42a544",
+    "diagnostics/compcert-build-snapshots/20260908T235512Z/ocaml-base-compiler-9047-6715d9.info": "389c8bb18e115b2c3a51310c9a48a13d9319ea3f172bd582071cc20061061f4f",
+    "diagnostics/compcert-build-snapshots/20260908T235512Z/log-9047-4d055d.out": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37242-58b2cc.out": "88dded8ee989ba2ddb05293e054c643af73f58c94a4afd66cf3be0f9043cab21",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/filesystem.txt": "8b1d56b532afb41dc6f5b571289c8db6876c661c71140c5c3bf77f5245472b49",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/dune-37334-b678d2.out": "0007c4aadf72d5d15a3b65a4a9cd39bb7dfa67bb6ebc8097974ff20906762187",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37334-87fe69.out": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37334-87fe69.info": "3b384108f746609f2677d47ef7793362cae8ba0c0deab6d9650d1adf5675d275",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/snapshot.json": "af797a6818c9a9459b768e84300fd9d3c8c6da761c95da0ca27c515dd71bd960",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/log-9047-4d055d.info": "6da1c87f1518ff5bcc3b0464f976f88a959c2586fd46503a06457c6a13157784",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/processes.txt": "fb92dd914ada83fba3fce50a67a341abd3864bca015dcae0acd309e16977d038",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/log-9047-4d055d.out": "7b348c437e1f6db03a12a6b8d29293e9ededc4b333a421a1660a72d33dbfba05",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/dune-37334-b678d2.info": "6ba5ecacfc7c73e9ef3d972eae5e98b84a28042a2bb68493ae5c5d15e9374abf",
+    "diagnostics/compcert-build-snapshots/20260909T000819Z/log-37242-58b2cc.info": "d6b7f4823e49ae646c4b91021fe0230779b3c386816eb6b1672ea47f0243d5e6"
   }
 }
