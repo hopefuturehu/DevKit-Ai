@@ -155,3 +155,8 @@ payload 的逐字节副本，不能计作整题恢复成功。SymPy 先成功返
 完整口径和原始文件哈希见[18 题上下文分析](public-benchmark-context-analysis.md)与
 [结构化指标](data/public-benchmark-context-metrics.json)；协议对照见
 [Chess 请求重建结果](../artifacts/public-benchmark/20260909-flash/diagnostics/chess-compaction-replay/result.json)。
+
+该 Flash 对照只证明这组重建请求接受显式空字符串，不意味着压缩 reasoning 不能回传或所有
+端点都应使用空字符串。OpenCode 存在保留摘要响应 reasoning 的路径；Hermes 使用单空格补位，
+Pi/Harness 则以 user checkpoint 回放纯文本。具体条件与验证方案见
+[压缩 reasoning 的保存与回放](compaction-reasoning-replay.md)。

@@ -16,6 +16,11 @@ Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如
 [长会话上下文压缩问题](archive/context-compaction-failure-analysis.md)；本项目自身的请求层顺序见
 [模型上下文分块与组装顺序](context-assembly.md)。
 
+2026-09-09 补充：[压缩 reasoning 的保存与回放](compaction-reasoning-replay.md)专门核对摘要
+调用自身的推理、OpenCode 保留路径、Pi/Harness 的 user checkpoint，以及 Hermes 单空格补位。
+摘要输入包含历史 reasoning、辅助输出被保存、reasoning 被回传是三个不同维度；空字符串不是
+通用协议要求，之前的 Flash 空值对照也不代表所有 DeepSeek 模型的接受行为。
+
 ## 1. 结论摘要
 
 1. 这些框架并不是都把 reasoning 当作普通 assistant 文本原样回传。Codex、Pi 和 DeepSeek
