@@ -7,8 +7,10 @@
 
 ## 目的
 
-待实施的 A+D 重设计采用单独的[交接收益测试方案](context-handoff-evaluation-plan.md)，覆盖
+A+D 重设计采用单独的[交接收益测试方案](context-handoff-evaluation-plan.md)，覆盖
 模型自主触发和整题交付；本文现有 `a0/a1/a2a/a2b/hybrid-*` 脚本变体不等同于新方案的 A/D/AD。
+2026-09-09 的[新方案量化结果](context-handoff-l0-l1-results.md)已包含 L0 和部分 L1，
+与下文历史基线分开统计；自主交接及整题收益尚未验证。
 
 该评测把压缩正确性和 Provider 表现分开验证。普通 pytest 使用确定性 Provider 覆盖错误分流、
 版本安全、事实保留和近期尾部；真实模型评测必须显式开启，只回放压缩请求，不执行 Agent Tool。
