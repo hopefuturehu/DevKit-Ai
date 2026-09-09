@@ -232,3 +232,34 @@ Live 模式不做固定比例断言（真实模型存在采样波动），只对
   只启用压缩、仍全量内联 Tool Result。
 - 同 seed（默认 19）下 workload 和指标应完全可复现；集成测试
   `test_context_efficiency_case_is_repeatable_for_the_same_seed` 守护这一点。
+
+## 11. 真实任务中的削减结果（2026-09-09）
+
+本节使用 40 题计划停止时已覆盖的 18 题主样本，基线 `578f660`，包括 16 个原始 attempt 1、
+Chess attempt 3 环境恢复和大文本编辑 `native-1` 环境变体。以下是持久消息的实际表示大小，
+每条只计一次；token 使用冻结实现的 `TokenEstimator` 估算。它们不是本页 `raw/current`
+受控变体之间的累计 API 用量差，不能填写为 `effects.current_input_tokens_saved_vs_raw`。
+
+| 普通工具结果范围 | 条数 | 原始字符 → 内联字符（含引用说明） | 字符净削减 | 估算 token 净削减 |
+|---|---:|---:|---:|---:|
+| 发生内容缩短的大结果 | 23 | 920,592 → 187,643 | 732,949（79.62%） | 183,031 |
+| 未缩短的小结果 | 695 | 483,003 → 571,268 | −88,265 | −30,427 |
+| 合计 | 718 | 1,403,595 → 758,911 | 644,684（45.93%） | 152,604（42.89%） |
+
+9/18 题发生大结果缩短；23/23 条均通过保存 blob 的 SHA-256 与内联 head/tail 对照。
+小结果的引用说明平均增加约 43.8 估算 tokens；逐消息一次计数时，12/18 题普通工具消息的
+内联表示净增加。`count-dataset-tokens` 一题贡献全部普通工具消息净估算节省的 89.32%，
+收益分布不均，不能只报告大结果的削减率而省略小结果开销。
+
+另有 3 次引用回读，成功 **3/3**，均以 offset/limit 读取，query 使用次数为 **0**。
+其交付响应共 11,616 字符、估算 2,906 tokens；持久短回执共 785 字符、估算 315 tokens，
+表示替换减少 2,591 估算 tokens。缺少每次出站请求全文，实际 `replayed_reference_tokens`
+未知；不能把 3 条回执当作“实测零回放”，也不能从 0 次 query 推导查询收益。
+
+工具源头 `truncated=true` 有 3 次，均来自 `search_text`，未保存完整未限量规模，削减率未知。
+`context.packed/context.retry/context.limit_reached` 均为 0；memory 路由为 18/18 次 `none`，
+候选均为空。Tool schema 只有 1 次激活证据，没有逐请求清单来量化卸载；这些路径没有收益对照。
+
+数据和重算脚本入口见[18 题上下文分析](public-benchmark-context-analysis.md)与
+[结构化指标](data/public-benchmark-context-metrics.json)。真实缓存用量与摘要结果分别补充在
+[缓存评测](context-cache-benchmark.md)和[压缩有效性评测](context-compaction-effectiveness.md)。

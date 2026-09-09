@@ -152,6 +152,24 @@ RUN_MEMORY_ROUTING_LIVE=1 \
 成对差值和脱敏 JSON 见 [Memory Router 设计与验收](memory-routing.md#2026-08-29-真实-canary-结果)。
 这证明固定 fixture 的生产协议和 trade-off 方向，不替代每桶至少 30 个语义样本的总体错误率实验。
 
+## 6. 公开任务停止快照（2026-09-09）
+
+40 题计划已覆盖 18 个不同题目，另有 4 次复跑/协议候选；它们补充真实任务运行证据，
+不替代上面的固定工作负载 A/B。主样本为 16 个原始 attempt 1、Chess attempt 3 环境恢复和
+大文本编辑 `native-1` 环境变体。各专题已记录同一快照的量化结果：
+
+| 方向 | 本批结果 | 详细口径 |
+|---|---|---|
+| Provider 缓存 | 604 次响应，整体 91.52%；常规推理 92.87%，异常收尾 1.73% | [缓存评测](context-cache-benchmark.md) |
+| 摘要压缩 | 主样本 0 次；补充运行摘要安装 2/2，下一主请求成功 1/2 | [压缩有效性](context-compaction-effectiveness.md) |
+| 工具结果削减 | 23 条大结果字符减少 79.62%；含小结果开销后，718 条普通结果净减少 45.93% | [效率指标](context-efficiency-benchmark-metrics.md) |
+| 引用回读 | 3/3 次读取成功，3 条短回执，query 0 次；累计回放量未测 | [效率指标](context-efficiency-benchmark-metrics.md) |
+| 输出截断 | 6/18 题出现，其中 1 题在官方停止后才返回；截断后恢复工具调用 0/6 | [输出截断恢复](output-truncation-recovery.md) |
+
+完整逐题数据、样本选择、计量缺口与重算命令见
+[18 题上下文分析](public-benchmark-context-analysis.md)。局部表示缩短不能替代累计 API 节省，
+摘要安装不能替代后续运行和产物验收；尚未实施的优化，其恢复率与通过率增量保持 N/A。
+
 ## 指标如何拿到
 
 | 指标方向 | 原始来源 | 典型指标 |

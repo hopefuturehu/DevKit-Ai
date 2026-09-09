@@ -230,3 +230,10 @@ heap、SymPy、chess、DNA、code-from-image、largest-eigenval。
 22 个运行中，21 个有独立结果文件，其中 20 个 input/output 与日志一致；
 BN 导出漏掉了 142,579 输入和 8,075 输出 tokens，本文使用逐响应数据并保留差异。
 剩余 eigenval 没有独立结果文件，其 `run.finished` 用量与逐响应总和一致。
+
+同一快照的结果也已补入[缓存评测](context-cache-benchmark.md)、
+[压缩有效性评测](context-compaction-effectiveness.md)、
+[效率指标口径](context-efficiency-benchmark-metrics.md)和
+[输出截断恢复方案](output-truncation-recovery.md)，由[整体测试矩阵](context-evaluation-matrix.md)
+统一索引。各专题保留主样本与补充候选的边界；其中输出截断方案的恢复率、通过率提升及新增
+费用仍为待测，不用既有协议候选或本地程序诊断替代新方案的整题对照。
