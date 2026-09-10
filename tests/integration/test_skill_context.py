@@ -427,7 +427,7 @@ async def test_resource_and_body_survive_provider_overflow_retry(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_finalizer_recovers_body_without_a_model_read_call(tmp_path):
+async def test_finalizer_reuses_visible_body_after_compaction_without_restoring_it(tmp_path):
     write_skill(tmp_path)
     (tmp_path / "evidence.txt").write_text("done")
     provider = SkillProvider(
@@ -451,12 +451,72 @@ async def test_finalizer_recovers_body_without_a_model_read_call(tmp_path):
         result = await runner.run(RunRequest(prompt="analyze", explicit_skills=["analysis"]))
         assert result.status == "limit_reached"
         assert len(provider.requests) == 2
-        assert provider.requests[-1].tools == []
+        assert provider.requests[-1].tools == provider.requests[0].tools
+        assert provider.requests[-1].tool_choice == "none"
+        assert provider.requests[-1].messages[: len(provider.requests[0].messages)] == (
+            provider.requests[0].messages
+        )
         assert any("UNIQUE_SKILL_RULE" in (m.content or "") for m in provider.requests[-1].messages)
-        assert any(
+        assert not any(
             e.skill_delivery and e.skill_delivery.kind == "restored_body"
             for e in store.load_positioned_messages(result.session_id)
         )
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["history", "legacy"])
+async def test_finalizer_includes_skill_activated_after_last_main_request(tmp_path, mode):
+    write_skill(tmp_path)
+    provider = SkillProvider(
+        [
+            calls(("activate", "activate_skill", {"name": "analysis", "reason": "analyze"})),
+            finish("activation summary"),
+        ]
+    )
+    runner, store = make_runner(
+        tmp_path, provider, agent={"max_steps": 1}, skills={"context_mode": mode}
+    )
+    try:
+        result = await runner.run(RunRequest(prompt="analyze"))
+        assert result.final_text == "activation summary"
+        main, final = provider.requests
+        assert "UNIQUE_SKILL_RULE" not in str(main.messages)
+        assert "UNIQUE_SKILL_RULE" in str(final.messages)
+        assert final.tools == main.tools and final.tool_choice == "none"
+        if mode == "history":
+            assert final.messages[: len(main.messages)] == main.messages
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_finalizer_delivers_pending_skill_resource_after_last_main_request(tmp_path):
+    write_skill(tmp_path)
+    resource = tmp_path / "skills" / "analysis" / "references" / "evidence.txt"
+    resource.parent.mkdir()
+    resource.write_text("PENDING_SKILL_RESOURCE")
+    provider = SkillProvider(
+        [
+            calls(
+                (
+                    "resource",
+                    "load_skill_resource",
+                    {"skill": "analysis", "path": "references/evidence.txt"},
+                )
+            ),
+            finish("resource summary"),
+        ]
+    )
+    runner, store = make_runner(tmp_path, provider, agent={"max_steps": 1})
+    try:
+        result = await runner.run(RunRequest(prompt="analyze", explicit_skills=["analysis"]))
+        assert result.final_text == "resource summary"
+        main, final = provider.requests
+        assert final.messages[: len(main.messages)] == main.messages
+        assert "PENDING_SKILL_RESOURCE" in str(final.messages)
+        assert "UNIQUE_SKILL_RULE" in str(final.messages)
     finally:
         store.close()
 

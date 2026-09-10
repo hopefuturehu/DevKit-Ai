@@ -79,6 +79,15 @@ class _ConsolidationOutcome:
 
 
 @dataclass
+class _FinalizationFrame:
+    request: ModelRequest
+    through_position: int
+    conversation: list[PositionedMessage]
+    sent: bool = False
+    reusable: bool = True
+
+
+@dataclass
 class _MemoryRoutingState:
     result: MemoryRoutingResult
     search_completed: bool = False
@@ -238,6 +247,7 @@ class AgentRunner:
         self._activated_tools: dict[str, set[str]] = {}
         self._run_skill_states: dict[str, RunSkillState] = {}
         self._run_compaction_strategies: dict[str, StrategyCompactor] = {}
+        self._finalization_frames: dict[str, _FinalizationFrame] = {}
         self._last_context_reports: dict[str, dict[str, object]] = {}
         self._token_estimator = TokenEstimator()
         context_window = config.model.context_window_tokens
@@ -433,6 +443,7 @@ class AgentRunner:
             finally:
                 skill_state.close()
                 self._run_compaction_strategies.pop(session_id, None)
+                self._finalization_frames.pop(run_id, None)
                 self._run_skill_states.pop(session_id, None)
                 self._steering_queues.pop(session_id, None)
                 idle_event.set()
@@ -1084,6 +1095,11 @@ class AgentRunner:
                 for position in disposable_tool_results
                 if f"message:{position}" not in dropped_ids
             }
+            self._finalization_frames[run_id] = _FinalizationFrame(
+                request=model_request.model_copy(deep=True),
+                through_position=self.store.latest_message_position(session_id),
+                conversation=conversation,
+            )
             try:
                 model_turn = await self._request_model_with_retries(
                     model_request,
@@ -1263,6 +1279,10 @@ class AgentRunner:
                 disposable_tool_results,
                 positions=disposable_positions_sent,
             )
+            frame = self._finalization_frames[run_id]
+            frame.conversation = conversation
+            # One-shot retrieval bodies must not be replayed after consumption.
+            frame.reusable = not disposable_positions_sent
 
             if not assistant_text.strip() and not tool_calls:
                 consecutive_empty_responses += 1
@@ -1951,44 +1971,22 @@ class AgentRunner:
         model_attempted = False
         if self.config.agent.finalization.enabled and termination.model_finalizer:
             try:
-                context_items = await self._termination_context_items(
+                finalizer_request, reused_prefix = await self._termination_request(
                     session_id=session_id,
                     run_id=run_id,
                     skill_state=skill_state,
                     reason=reason,
                     status=termination.status,
-                )
-                context_pack = self._context_planner.pack(
-                    context_items,
-                    [],
-                    exact_counter=self._exact_context_tokens,
-                    input_counter=self._estimate_context_tokens,
-                )
-                finalizer_request = ModelRequest(
-                    model=self.config.model.name,
-                    messages=await self._prepare_model_messages(
-                        context_pack.messages,
-                        session_id=session_id,
-                        run_id=run_id,
-                        phase="finalizing",
-                        step=step,
-                    ),
-                    tools=[],
-                    temperature=self.config.model.temperature,
-                    max_output_tokens=self.config.model.max_output_tokens,
-                    thinking=self.config.model.thinking,
+                    step=step,
                 )
                 skill_state.check_request(finalizer_request, self.provider)
-                estimate = estimate_input_tokens(self.provider, finalizer_request)
-                if (
-                    estimate is not None
-                    and estimate.budget_tokens > self._token_budget.hard_input_limit
-                ):
+                if not self._finalizer_fits(finalizer_request):
                     raise SkillContextError("skill_context_budget_exceeded", "收尾请求超出预算")
                 model_attempted = True
                 text_parts: list[str] = []
                 finalizer_finish_reason: str | None = None
                 finalizer_metadata: dict[str, Any] = {}
+                finalizer_tool_indexes: set[int] = set()
 
                 async def consume_finalizer() -> None:
                     nonlocal input_tokens, output_tokens, cost_usd
@@ -2006,6 +2004,9 @@ class AgentRunner:
                                     "text": event.text,
                                 },
                             )
+                        elif event.kind == ModelEventKind.TOOL_CALL_DELTA:
+                            # Even a noncompliant provider cannot execute tools here.
+                            finalizer_tool_indexes.add(event.tool_index or 0)
                         elif event.kind == ModelEventKind.USAGE:
                             input_tokens += event.input_tokens or 0
                             output_tokens += event.output_tokens or 0
@@ -2043,12 +2044,16 @@ class AgentRunner:
                         "phase": "finalizing",
                         "finish_reason": finalizer_finish_reason,
                         "content_chars": len(final_text),
-                        "tool_call_count": 0,
+                        "tool_call_count": len(finalizer_tool_indexes),
                         "empty": not final_text,
+                        "reused_request_prefix": reused_prefix,
                         "provider_metadata": finalizer_metadata,
                     },
                 )
-                if not final_text:
+                if finalizer_tool_indexes or finalizer_finish_reason == "tool_calls":
+                    final_text = ""
+                    finalization_error = "收尾模型违反禁用工具约束，已忽略工具调用"
+                elif not final_text:
                     finalization_error = "收尾模型没有返回正文"
             except Exception as exc:
                 finalization_error = str(exc)
@@ -2122,6 +2127,102 @@ class AgentRunner:
             termination_reason=termination.reason_code,
         )
 
+    def _finalizer_fits(self, request: ModelRequest) -> bool:
+        estimate = estimate_input_tokens(self.provider, request)
+        tokens = (
+            estimate.budget_tokens
+            if estimate is not None
+            else self._token_estimator.request(request.messages, request.tools)
+        )
+        return tokens <= self._token_budget.hard_input_limit
+
+    async def _termination_request(
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        skill_state: RunSkillState,
+        reason: str,
+        status: str,
+        step: int,
+    ) -> tuple[ModelRequest, bool]:
+        frame = self._finalization_frames.get(run_id)
+        if frame is not None and frame.sent and frame.reusable:
+            # Legacy activation changes an earlier instruction layer. Rebuild it
+            # if a tool activated a Skill after the last request was prepared.
+            legacy_changed = skill_state.mode == "legacy" and not skill_state.request_ready
+            if not legacy_changed:
+                known = {entry.position: entry for entry in frame.conversation}
+                for entry in self.store.load_positioned_messages(
+                    session_id, after_position=frame.through_position
+                ):
+                    known.setdefault(entry.position, entry)
+                history = skill_state.prepare_history(list(known.values()), cursor=0)
+                suffix = [
+                    entry
+                    for entry in history
+                    if entry.position > frame.through_position
+                    and entry.message.assistant_payload_error() is None
+                ]
+                notes = await self._termination_notes(session_id, reason=reason, status=status)
+                items = self._build_context_items(
+                    base_items=[],
+                    memory_items=[],
+                    compaction_items=[],
+                    conversation=suffix,
+                    runtime_notes=[],
+                )
+                tail = await self._prepare_model_messages(
+                    [item.message for item in [*items, *notes]],
+                    session_id=session_id,
+                    run_id=run_id,
+                    phase="finalizing",
+                    step=step,
+                )
+                candidate = frame.request.model_copy(deep=True)
+                candidate.messages.extend(tail)
+                candidate.tool_choice = "none"
+                try:
+                    skill_state.check_request(candidate, self.provider)
+                except SkillContextError:
+                    pass  # Rebuild below to restore any missing Skill dependency.
+                else:
+                    if self._finalizer_fits(candidate):
+                        return candidate, True
+
+        # No valid snapshot, expired one-shot content, missing dependencies, or
+        # insufficient headroom: retain the existing packing/validation fallback.
+        items = await self._termination_context_items(
+            session_id=session_id,
+            run_id=run_id,
+            skill_state=skill_state,
+            reason=reason,
+            status=status,
+        )
+        tools = frame.request.tools if frame is not None else []
+        pack = self._context_planner.pack(
+            items,
+            tools,
+            exact_counter=self._exact_context_tokens,
+            input_counter=self._estimate_context_tokens,
+        )
+        messages = await self._prepare_model_messages(
+            pack.messages,
+            session_id=session_id,
+            run_id=run_id,
+            phase="finalizing",
+            step=step,
+        )
+        return ModelRequest(
+            model=self.config.model.name,
+            messages=messages,
+            tools=tools,
+            tool_choice="none",
+            temperature=self.config.model.temperature,
+            max_output_tokens=self.config.model.max_output_tokens,
+            thinking=self.config.model.thinking,
+        ), False
+
     async def _termination_context_items(
         self,
         *,
@@ -2156,7 +2257,30 @@ class AgentRunner:
             )
             if entry.message.assistant_payload_error() is None
         ]
+        frame = self._finalization_frames.get(run_id)
+        if frame is not None:
+            # Preserve results that have been executed but not yet delivered to
+            # a model, including one-shot retrieval bodies absent from SQLite.
+            pending = {
+                entry.position: entry
+                for entry in frame.conversation
+                if entry.position > frame.through_position
+            }
+            conversation = [pending.get(entry.position, entry) for entry in conversation]
         conversation = skill_state.prepare_history(conversation, cursor=cursor)
+        runtime_notes = await self._termination_notes(session_id, reason=reason, status=status)
+        return self._build_context_items(
+            base_items=base_items,
+            memory_items=self._memory_context_items(),
+            skill_state=skill_state,
+            compaction_items=self._compaction_context_items(projection, run_id=run_id),
+            conversation=conversation,
+            runtime_notes=runtime_notes,
+        )
+
+    async def _termination_notes(
+        self, session_id: str, *, reason: str, status: str
+    ) -> list[ContextItem]:
         runtime_notes: list[ContextItem] = []
         await self._refresh_managed_process_note(runtime_notes)
         self._refresh_plan_note(runtime_notes, session_id)
@@ -2171,14 +2295,7 @@ class AgentRunner:
             priority=1_000,
             source="termination-controller",
         )
-        return self._build_context_items(
-            base_items=base_items,
-            memory_items=self._memory_context_items(),
-            skill_state=skill_state,
-            compaction_items=self._compaction_context_items(projection, run_id=run_id),
-            conversation=conversation,
-            runtime_notes=runtime_notes,
-        )
+        return runtime_notes
 
     @staticmethod
     def _replace_runtime_note(
@@ -2670,6 +2787,9 @@ class AgentRunner:
                         f"{self._token_budget.hard_input_limit}",
                         kind=ProviderErrorKind.CONTEXT_LENGTH,
                     )
+                frame = self._finalization_frames.get(run_id)
+                if frame is not None:
+                    frame.sent = True
                 async for event in self.provider.stream(request):
                     if event.kind == ModelEventKind.TEXT_DELTA and event.text:
                         text_parts.append(event.text)

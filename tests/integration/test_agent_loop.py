@@ -1121,7 +1121,8 @@ async def test_provider_error_preserves_step_and_usage_for_finalization(tmp_path
     assert result.input_tokens == 12
     assert result.output_tokens == 3
     assert result.final_text == "provider failure summary"
-    assert provider.requests[-1].tools == []
+    assert provider.requests[-1].tools == provider.requests[-2].tools
+    assert provider.requests[-1].tool_choice == "none"
     assert not any(
         event["type"] == EventType.MODEL_REQUEST_RETRY.value
         for event in store.list_events(result.session_id)
@@ -1259,6 +1260,163 @@ async def test_agent_does_not_retry_provider_error_after_cost_limit(tmp_path: Pa
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [RuntimeError, ProviderError])
+async def test_finalizer_reuses_wire_prefix_after_partial_stream_failure(tmp_path, failure):
+    class InterruptedProvider(ScriptedProvider):
+        async def stream(self, request):
+            self.requests.append(request)
+            if len(self.requests) == 1:
+                yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="incomplete response")
+                yield ModelEvent(
+                    kind=ModelEventKind.TOOL_CALL_DELTA,
+                    tool_call_id="broken-call",
+                    tool_name="read_file",
+                    arguments_delta='{"path":',
+                )
+                raise failure("connection interrupted")
+            yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="interrupted summary")
+            yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+    provider = InterruptedProvider([])
+    runner, store = make_test_runner(tmp_path, provider, tools=[ReadFileTool()])
+    try:
+        result = await runner.run(RunRequest(prompt="read evidence"))
+        assert result.final_text == "interrupted summary"
+        main, final = provider.requests
+        original_wire = provider.serialized_messages(main)
+        assert provider.serialized_messages(final)[: len(original_wire)] == original_wire
+        assert final.tools == main.tools and final.tools
+        assert final.tool_choice == "none"
+        assert "incomplete response" not in str(final.messages)
+        assert "broken-call" not in str(final.messages)
+        assert not runner._finalization_frames
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_finalizer_repacking_keeps_schemas_when_appended_tail_exceeds_budget(tmp_path):
+    class BudgetProvider(ScriptedProvider):
+        def count_tokens(self, request):
+            # The frozen old prefix fits; adding the finalizer exceeds the limit.
+            text = "\n".join(m.content or "" for m in request.messages)
+            return 6_000 if "OLD_PREFIX" in text and "终止判定" in text else 200
+
+    provider = BudgetProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="partial"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="length"),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="bounded summary"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        tools=[ReadFileTool()],
+        context_config={"max_input_tokens": 5_000},
+    )
+    session = store.create_session(tmp_path)
+    store.start_run(session, "seed")
+    store.append_message(session, "seed", ChatMessage(role=Role.ASSISTANT, content="OLD_PREFIX"))
+    store.finish_run("seed", "completed")
+    try:
+        result = await runner.run(RunRequest(prompt="continue", session_id=session))
+        assert result.final_text == "bounded summary"
+        main, final = provider.requests
+        assert "OLD_PREFIX" in str(main.messages)
+        assert "OLD_PREFIX" not in str(final.messages)
+        assert final.tools == main.tools and final.tool_choice == "none"
+        assert provider.count_tokens(final) <= runner._token_budget.hard_input_limit
+        response = next(
+            e
+            for e in store.list_events(session)
+            if e["type"] == EventType.MODEL_RESPONSE.value
+            and e["payload"].get("phase") == "finalizing"
+        )
+        assert response["payload"]["reused_request_prefix"] is False
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("consumed", [False, True])
+async def test_finalizer_respects_one_shot_retrieval_lifetime(tmp_path, consumed):
+    provider = ScriptedProvider([])
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        agent_config={"max_steps": 2 if consumed else 1},
+    )
+    session = store.create_session(tmp_path)
+    body = "ONCE_ONLY_EVIDENCE" * 500
+    reference = store.put_context_blob(session_id=session, run_id="seed", content=body)
+    provider.turns = [
+        tool_turn("one-shot", "load_context_reference", json.dumps({"reference": reference}))
+    ]
+    if consumed:
+        provider.turns.append(
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="partial"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="length"),
+            ]
+        )
+    provider.turns.append(
+        [
+            ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="retrieval summary"),
+            ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+        ]
+    )
+    try:
+        result = await runner.run(RunRequest(prompt="read evidence", session_id=session))
+        assert result.final_text == "retrieval summary"
+        final = provider.requests[-1]
+        message = next(m for m in final.messages if m.tool_call_id == "one-shot")
+        assert (body in message.content) is not consumed
+        if consumed:
+            assert "disposable_context_delivery" in message.content
+        else:
+            main = provider.requests[0]
+            assert final.messages[: len(main.messages)] == main.messages
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_finalizer_never_executes_an_unexpected_tool_call(tmp_path):
+    tool = DestructiveTestTool()
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="partial"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="length"),
+            ],
+            tool_turn("must-not-execute", tool.name, "{}"),
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider, tools=[tool])
+    try:
+        result = await runner.run(RunRequest(prompt="summarize"))
+        assert tool.executions == 0
+        assert "任务尚未完整完成" in result.final_text
+        assert provider.requests[-1].tool_choice == "none"
+        final_event = next(
+            e
+            for e in store.list_events(result.session_id)
+            if e["type"] == EventType.ASSISTANT_MESSAGE.value
+            and e["payload"].get("phase") == "finalizing"
+        )
+        assert final_event["payload"]["fallback"] is True
+        assert "禁用工具" in final_event["payload"]["finalization_error"]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_finalizer_synthesizes_unexecuted_tool_result_after_batch_limit(
     tmp_path: Path,
 ) -> None:
@@ -1368,7 +1526,8 @@ async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
     assert result.final_text == "blocked summary"
     assert result.termination_reason == "tool_cycle_after_recovery"
     assert len(provider.requests) == 7
-    assert provider.requests[-1].tools == []
+    assert provider.requests[-1].tools == provider.requests[-2].tools
+    assert provider.requests[-1].tool_choice == "none"
     event_types = [event.type for event in memory.events]
     assert EventType.RUN_STALL_WARNING in event_types
     assert EventType.RUN_RECOVERY_STARTED in event_types
@@ -1467,7 +1626,15 @@ async def test_agent_preserves_explicit_step_limit(tmp_path: Path) -> None:
     assert result.termination_reason == "max_steps"
     assert result.final_text == "step limit summary"
     assert len(provider.requests) == 3
-    assert provider.requests[-1].tools == []
+    main_request, final_request = provider.requests[-2:]
+    assert final_request.tools == main_request.tools
+    assert final_request.tool_choice == "none"
+    assert final_request.messages[: len(main_request.messages)] == main_request.messages
+    tail = final_request.messages[len(main_request.messages) :]
+    assert tail[0].tool_calls[0].id == "read-2"
+    assert tail[1].tool_call_id == "read-2" and "value" in tail[1].content
+    assert "max_steps" in tail[-1].content
+    assert not runner._finalization_frames
     store.close()
 
 
@@ -1521,7 +1688,8 @@ async def test_agent_treats_length_finish_as_limit(tmp_path: Path) -> None:
 
     assert result.status == "limit_reached"
     assert result.final_text == "length limit summary"
-    assert provider.requests[-1].tools == []
+    assert provider.requests[-1].tools == provider.requests[-2].tools
+    assert provider.requests[-1].tool_choice == "none"
     store.close()
 
 

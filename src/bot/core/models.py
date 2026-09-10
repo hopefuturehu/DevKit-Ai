@@ -93,7 +93,7 @@ class ModelRequest(BaseModel):
     model: str
     messages: list[ChatMessage]
     tools: list[ToolDefinition] = Field(default_factory=list)
-    tool_choice: Literal["auto", "required"] | dict[str, Any] | None = None
+    tool_choice: Literal["none", "auto", "required"] | dict[str, Any] | None = None
     temperature: float = 0.2
     max_output_tokens: int | None = None
     thinking: Literal["enabled", "disabled"] | None = None

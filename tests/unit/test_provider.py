@@ -120,6 +120,25 @@ def test_provider_round_trips_reasoning_for_tool_calls_and_rejects_empty_assista
         provider._payload(ModelRequest(model="test", messages=[ChatMessage(role=Role.ASSISTANT)]))
 
 
+@pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
+def test_provider_disables_tools_without_removing_their_schema(thinking) -> None:
+    provider = OpenAICompatibleProvider(base_url="https://api.deepseek.com", api_key="test")
+    request = ModelRequest(
+        model="deepseek-v4-pro",
+        messages=[ChatMessage(role=Role.USER, content="summarize")],
+        tools=[ToolDefinition(name="read_file", description="Read", input_schema={})],
+        thinking=thinking,
+    )
+    original = provider._payload(request)
+    request.tool_choice = "none"
+    finalizer = provider._payload(request)
+    assert original["tool_choice"] == "auto"
+    assert finalizer["tool_choice"] == "none"
+    assert {k: v for k, v in finalizer.items() if k != "tool_choice"} == {
+        k: v for k, v in original.items() if k != "tool_choice"
+    }
+
+
 def test_provider_preserves_named_tool_choice() -> None:
     provider = OpenAICompatibleProvider(base_url="https://example.test/v1", api_key="secret")
     choice = {"type": "function", "function": {"name": "search_memory"}}
