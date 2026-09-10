@@ -1,0 +1,521 @@
+{
+  "date": "2026-09-11",
+  "task": "path-tracing-reverse",
+  "method": {
+    "cache_rate": "sum(hit) / sum(input); only complete raw usage",
+    "summary": "All auxiliary compaction phases, including failed candidates and unused B leaves.",
+    "first_after_compaction": "First main usage after context.compaction.completed.",
+    "after_repacking": "First main usage after context.packed; takes priority if both markers occur.",
+    "other_main": "All remaining main usage; includes new content, cold starts and unexplained misses.",
+    "limits": [
+      "Event association does not prove all misses in that group were caused by the event.",
+      "Excluding a group is descriptive stratification, not a measured optimization result.",
+      "Full outbound request snapshots are absent; exact reusable-prefix loss cannot be reconstructed.",
+      "Unknown usage is excluded from input denominators and is not assigned zero cost."
+    ]
+  },
+  "runs": {
+    "current_8k": {
+      "events_path": "artifacts/context-strategy-path-20260910/pilot-v3/jobs/current/035880d7ef5554b217e53a75ce5e87e4__GPPP9o7/agent/events.jsonl",
+      "events_sha256": "4afd2d3079094559ed8405e3ce171ea14944ff03474dfbedb05ee9cc4f849bb7",
+      "all_usage_totals": {
+        "input": 7462884,
+        "hit": 6733824,
+        "miss": 729060
+      },
+      "all_cache_hit_rate": 0.9023085445251461,
+      "main_cache_hit_rate": 0.9182039839336044,
+      "groups": {
+        "other_main": {
+          "requests_with_usage": 110,
+          "input": 7067548,
+          "hit": 6674176,
+          "miss": 393372,
+          "cache_hit_rate": 0.944341092554306,
+          "share_of_all_known_miss": 0.539560529997531
+        },
+        "summary": {
+          "requests_with_usage": 4,
+          "input": 176869,
+          "hit": 43776,
+          "miss": 133093,
+          "cache_hit_rate": 0.24750521572463235,
+          "share_of_all_known_miss": 0.18255424793569802
+        },
+        "first_after_compaction": {
+          "requests_with_usage": 4,
+          "input": 218467,
+          "hit": 15872,
+          "miss": 202595,
+          "cache_hit_rate": 0.07265170483413971,
+          "share_of_all_known_miss": 0.2778852220667709
+        }
+      },
+      "unknown_requests_by_phase": {
+        "generate": 1,
+        "main": 2
+      },
+      "main_requests_above_10k_below_80pct_hit": [
+        {
+          "event_id": "3866d7687f434ee085d76e34899ba7e5",
+          "step": 4,
+          "timestamp": "2026-09-10T13:25:15.550571Z",
+          "group": "other_main",
+          "input": 10050,
+          "hit": 4608,
+          "miss": 5442
+        },
+        {
+          "event_id": "2295db45858a41a4a783f0400bd68226",
+          "step": 5,
+          "timestamp": "2026-09-10T13:25:21.574083Z",
+          "group": "other_main",
+          "input": 17778,
+          "hit": 10112,
+          "miss": 7666
+        },
+        {
+          "event_id": "08e8816a90be4b8689716d47bb23ce47",
+          "step": 13,
+          "timestamp": "2026-09-10T13:26:03.634866Z",
+          "group": "other_main",
+          "input": 41930,
+          "hit": 32512,
+          "miss": 9418
+        },
+        {
+          "event_id": "5c1346033ce649e3b8971b758e6fe916",
+          "step": 45,
+          "timestamp": "2026-09-10T13:35:40.404705Z",
+          "group": "first_after_compaction",
+          "input": 55256,
+          "hit": 3968,
+          "miss": 51288
+        },
+        {
+          "event_id": "8156a6f7b0884ead98ed25d2461b878b",
+          "step": 68,
+          "timestamp": "2026-09-10T13:39:24.993718Z",
+          "group": "first_after_compaction",
+          "input": 53672,
+          "hit": 3968,
+          "miss": 49704
+        },
+        {
+          "event_id": "a8b85d19c46e4f6e9f6e51c2deeed4bc",
+          "step": 90,
+          "timestamp": "2026-09-10T13:43:45.682465Z",
+          "group": "first_after_compaction",
+          "input": 54532,
+          "hit": 3968,
+          "miss": 50564
+        },
+        {
+          "event_id": "e20cb65b75384b1e8ba4c506de847647",
+          "step": 114,
+          "timestamp": "2026-09-10T14:05:33.366126Z",
+          "group": "first_after_compaction",
+          "input": 55007,
+          "hit": 3968,
+          "miss": 51039
+        }
+      ]
+    },
+    "a_8k": {
+      "events_path": "artifacts/context-strategy-path-20260910/pilot-v3/jobs/a/035880d7ef5554b217e53a75ce5e87e4__fDtbKvk/agent/events.jsonl",
+      "events_sha256": "873f5b5f7bfc1348450c07dc3ccf54312083711df99daa0f095ec8f108591a8e",
+      "all_usage_totals": {
+        "input": 2402656,
+        "hit": 2095872,
+        "miss": 306784
+      },
+      "all_cache_hit_rate": 0.8723146384667635,
+      "main_cache_hit_rate": 0.8924614745339083,
+      "groups": {
+        "other_main": {
+          "requests_with_usage": 43,
+          "input": 2224120,
+          "hit": 2002176,
+          "miss": 221944,
+          "cache_hit_rate": 0.9002104203010629,
+          "share_of_all_known_miss": 0.7234536351309064
+        },
+        "summary": {
+          "requests_with_usage": 1,
+          "input": 92664,
+          "hit": 89088,
+          "miss": 3576,
+          "cache_hit_rate": 0.9614089614089614,
+          "share_of_all_known_miss": 0.011656409721497861
+        },
+        "first_after_compaction": {
+          "requests_with_usage": 1,
+          "input": 23614,
+          "hit": 3840,
+          "miss": 19774,
+          "cache_hit_rate": 0.16261539764546457,
+          "share_of_all_known_miss": 0.06445577344320434
+        },
+        "finalizing": {
+          "requests_with_usage": 1,
+          "input": 62258,
+          "hit": 768,
+          "miss": 61490,
+          "cache_hit_rate": 0.012335764078511998,
+          "share_of_all_known_miss": 0.20043418170439137
+        }
+      },
+      "unknown_requests_by_phase": {},
+      "main_requests_above_10k_below_80pct_hit": [
+        {
+          "event_id": "fda1c8dfd40f439ab3417f85d4d7519c",
+          "step": 4,
+          "timestamp": "2026-09-10T13:13:17.697111Z",
+          "group": "other_main",
+          "input": 13770,
+          "hit": 8448,
+          "miss": 5322
+        },
+        {
+          "event_id": "fc7715ab659641799a0d7233594d0999",
+          "step": 6,
+          "timestamp": "2026-09-10T13:13:25.750633Z",
+          "group": "other_main",
+          "input": 19977,
+          "hit": 14592,
+          "miss": 5385
+        },
+        {
+          "event_id": "7519e2e5f5be4f30813bd3b7a058bfee",
+          "step": 8,
+          "timestamp": "2026-09-10T13:14:26.840608Z",
+          "group": "other_main",
+          "input": 31614,
+          "hit": 23296,
+          "miss": 8318
+        },
+        {
+          "event_id": "a5ba07a66dbc4f6ca696bd3e690f8ee6",
+          "step": 31,
+          "timestamp": "2026-09-10T13:17:51.103501Z",
+          "group": "first_after_compaction",
+          "input": 23614,
+          "hit": 3840,
+          "miss": 19774
+        },
+        {
+          "event_id": "4467e6a5ced9447e9a4371ba9efd2587",
+          "step": 32,
+          "timestamp": "2026-09-10T13:18:02.546719Z",
+          "group": "other_main",
+          "input": 30261,
+          "hit": 15232,
+          "miss": 15029
+        },
+        {
+          "event_id": "8c2f5b52693d41a5bb7b0b2bb19d55fb",
+          "step": 33,
+          "timestamp": "2026-09-10T13:18:16.093140Z",
+          "group": "other_main",
+          "input": 37185,
+          "hit": 23296,
+          "miss": 13889
+        }
+      ]
+    },
+    "b_8k": {
+      "events_path": "artifacts/context-strategy-path-20260910/pilot-v3/jobs/b/035880d7ef5554b217e53a75ce5e87e4__LeKhcHx/agent/events.jsonl",
+      "events_sha256": "a26bcb695e073a6437a9b5755ed4184ba2f335b668665904829c552ffa416e4f",
+      "all_usage_totals": {
+        "input": 2020330,
+        "hit": 1733376,
+        "miss": 286954
+      },
+      "all_cache_hit_rate": 0.8579667678052595,
+      "main_cache_hit_rate": 0.9369070511161375,
+      "groups": {
+        "other_main": {
+          "requests_with_usage": 42,
+          "input": 1801433,
+          "hit": 1715584,
+          "miss": 85849,
+          "cache_hit_rate": 0.9523440505419852,
+          "share_of_all_known_miss": 0.29917338667521626
+        },
+        "summary": {
+          "requests_with_usage": 7,
+          "input": 113192,
+          "hit": 13440,
+          "miss": 99752,
+          "cache_hit_rate": 0.11873630645275285,
+          "share_of_all_known_miss": 0.34762366093520214
+        },
+        "first_after_compaction": {
+          "requests_with_usage": 1,
+          "input": 33780,
+          "hit": 3840,
+          "miss": 29940,
+          "cache_hit_rate": 0.11367673179396093,
+          "share_of_all_known_miss": 0.10433728053973808
+        },
+        "finalizing": {
+          "requests_with_usage": 1,
+          "input": 71925,
+          "hit": 512,
+          "miss": 71413,
+          "cache_hit_rate": 0.0071185262426138336,
+          "share_of_all_known_miss": 0.24886567184984354
+        }
+      },
+      "unknown_requests_by_phase": {},
+      "main_requests_above_10k_below_80pct_hit": [
+        {
+          "event_id": "4ecf207b465d4eb0bf9c5f8e4b7be5f1",
+          "step": 5,
+          "timestamp": "2026-09-10T12:59:25.769969Z",
+          "group": "other_main",
+          "input": 13821,
+          "hit": 8576,
+          "miss": 5245
+        },
+        {
+          "event_id": "dfeea50a331b45c4bffe981f8fdb4e45",
+          "step": 7,
+          "timestamp": "2026-09-10T12:59:44.233509Z",
+          "group": "other_main",
+          "input": 18768,
+          "hit": 14464,
+          "miss": 4304
+        },
+        {
+          "event_id": "879f1c30b1044b18b11b5d0e063528d4",
+          "step": 34,
+          "timestamp": "2026-09-10T13:05:38.152998Z",
+          "group": "first_after_compaction",
+          "input": 33780,
+          "hit": 3840,
+          "miss": 29940
+        }
+      ]
+    },
+    "a_32k": {
+      "events_path": "artifacts/context-strategy-path-20260910/a-output-32k/jobs/a/035880d7ef5554b217e53a75ce5e87e4__CTqXzEk/agent/events.jsonl",
+      "events_sha256": "8fcaa299b03f379cc69589394ae8c3da0b119c590b4ccf75126019da083f54bf",
+      "all_usage_totals": {
+        "input": 5442330,
+        "hit": 4636288,
+        "miss": 806042
+      },
+      "all_cache_hit_rate": 0.8518939498339866,
+      "main_cache_hit_rate": 0.8489642951119161,
+      "groups": {
+        "other_main": {
+          "requests_with_usage": 80,
+          "input": 4312970,
+          "hit": 4046848,
+          "miss": 266122,
+          "cache_hit_rate": 0.9382972754273737,
+          "share_of_all_known_miss": 0.33015897434624997
+        },
+        "summary": {
+          "requests_with_usage": 5,
+          "input": 427940,
+          "hit": 405760,
+          "miss": 22180,
+          "cache_hit_rate": 0.9481703042482591,
+          "share_of_all_known_miss": 0.027517176524300222
+        },
+        "after_repacking": {
+          "requests_with_usage": 7,
+          "input": 607111,
+          "hit": 174976,
+          "miss": 432135,
+          "cache_hit_rate": 0.28821088730067485,
+          "share_of_all_known_miss": 0.5361197059210314
+        },
+        "first_after_compaction": {
+          "requests_with_usage": 2,
+          "input": 62178,
+          "hit": 7936,
+          "miss": 54242,
+          "cache_hit_rate": 0.1276335681430731,
+          "share_of_all_known_miss": 0.0672942601005903
+        },
+        "finalizing": {
+          "requests_with_usage": 1,
+          "input": 32131,
+          "hit": 768,
+          "miss": 31363,
+          "cache_hit_rate": 0.02390215057109956,
+          "share_of_all_known_miss": 0.03890988310782813
+        }
+      },
+      "unknown_requests_by_phase": {
+        "main": 1
+      },
+      "main_requests_above_10k_below_80pct_hit": [
+        {
+          "event_id": "1df58e54bbaf4470a4475930b43830d5",
+          "step": 4,
+          "timestamp": "2026-09-10T15:09:52.218500Z",
+          "group": "other_main",
+          "input": 12330,
+          "hit": 4224,
+          "miss": 8106
+        },
+        {
+          "event_id": "ec94ac00ee904ba596a72294dc1ce12b",
+          "step": 5,
+          "timestamp": "2026-09-10T15:09:57.173057Z",
+          "group": "other_main",
+          "input": 13445,
+          "hit": 4480,
+          "miss": 8965
+        },
+        {
+          "event_id": "938986024af8491abdf47322315c5d7c",
+          "step": 7,
+          "timestamp": "2026-09-10T15:10:10.264855Z",
+          "group": "other_main",
+          "input": 16867,
+          "hit": 13312,
+          "miss": 3555
+        },
+        {
+          "event_id": "2068c8a8e57149bbadc1527def3e5ef2",
+          "step": 8,
+          "timestamp": "2026-09-10T15:10:15.617188Z",
+          "group": "other_main",
+          "input": 21218,
+          "hit": 16768,
+          "miss": 4450
+        },
+        {
+          "event_id": "c2bda63179e64af694dde6a8894a2bac",
+          "step": 10,
+          "timestamp": "2026-09-10T15:10:32.732316Z",
+          "group": "other_main",
+          "input": 30494,
+          "hit": 21120,
+          "miss": 9374
+        },
+        {
+          "event_id": "b46db935d2a94fb5adaf473c5a2ae00e",
+          "step": 11,
+          "timestamp": "2026-09-10T15:10:40.313040Z",
+          "group": "other_main",
+          "input": 35238,
+          "hit": 25472,
+          "miss": 9766
+        },
+        {
+          "event_id": "e1ffc911e20d47fda4315ebf66146237",
+          "step": 46,
+          "timestamp": "2026-09-10T15:16:34.924426Z",
+          "group": "after_repacking",
+          "input": 89646,
+          "hit": 3840,
+          "miss": 85806
+        },
+        {
+          "event_id": "7f4f47c7121742adbbb30142a31c216b",
+          "step": 47,
+          "timestamp": "2026-09-10T15:16:54.476813Z",
+          "group": "after_repacking",
+          "input": 82264,
+          "hit": 3840,
+          "miss": 78424
+        },
+        {
+          "event_id": "c4f8f46d00724d43ab403a741fc2a77c",
+          "step": 50,
+          "timestamp": "2026-09-10T15:18:02.742393Z",
+          "group": "after_repacking",
+          "input": 88661,
+          "hit": 3840,
+          "miss": 84821
+        },
+        {
+          "event_id": "df83d058927941688fd65d1ade3fc8b5",
+          "step": 51,
+          "timestamp": "2026-09-10T15:18:28.867881Z",
+          "group": "after_repacking",
+          "input": 89436,
+          "hit": 3840,
+          "miss": 85596
+        },
+        {
+          "event_id": "10c2322747e6471dafe5a16926a884fe",
+          "step": 52,
+          "timestamp": "2026-09-10T15:19:09.985662Z",
+          "group": "after_repacking",
+          "input": 89511,
+          "hit": 3840,
+          "miss": 85671
+        },
+        {
+          "event_id": "4d61750bbd164263baf34a18d4468bbf",
+          "step": 53,
+          "timestamp": "2026-09-10T15:20:14.694671Z",
+          "group": "first_after_compaction",
+          "input": 30962,
+          "hit": 3968,
+          "miss": 26994
+        },
+        {
+          "event_id": "45c1c90094d9451fafca7b8a9e57eaa8",
+          "step": 54,
+          "timestamp": "2026-09-10T15:20:26.445217Z",
+          "group": "other_main",
+          "input": 31398,
+          "hit": 22656,
+          "miss": 8742
+        },
+        {
+          "event_id": "6c0cce9ed9774e55868823e6085f2b76",
+          "step": 87,
+          "timestamp": "2026-09-10T15:27:19.776035Z",
+          "group": "first_after_compaction",
+          "input": 31216,
+          "hit": 3968,
+          "miss": 27248
+        },
+        {
+          "event_id": "83db7de6f00543b9bb3e2239269e4007",
+          "step": 88,
+          "timestamp": "2026-09-10T15:27:26.834896Z",
+          "group": "other_main",
+          "input": 31581,
+          "hit": 22912,
+          "miss": 8669
+        }
+      ]
+    }
+  },
+  "open_source_revisions": [
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "branch": "master",
+      "sha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "date": "2026-09-10T14:17:09Z"
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "branch": "main",
+      "sha": "110736c0bc9fd249f1ce7f7ca5d353040f640be6",
+      "date": "2026-09-10T15:26:17Z"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "branch": "dev",
+      "sha": "b3f1a96c6dd7adeb28b36dd11add1998fc84d67b",
+      "date": "2026-09-10T09:25:59Z"
+    },
+    {
+      "repo": "badlogic/pi-mono",
+      "branch": "main",
+      "sha": "08dc60bc52d89d6823a9738cc90b1916e5e446e5",
+      "date": "2026-09-10T14:31:15Z"
+    }
+  ]
+}
