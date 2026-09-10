@@ -25,8 +25,18 @@ def is_peak(value: str) -> bool:
 def request_rows(events: list[dict]) -> list[dict]:
     rows = []
     pending = {}
+    pending_streams = {}
     for event in events:
         kind, payload = event["type"], event["payload"]
+        stream_key = (event.get("run_id"), payload.get("phase", "main"), payload.get("step"))
+        if kind == "assistant.delta":
+            pending_streams.setdefault(stream_key, event)
+            continue
+        if kind == "model.request.retry" or (
+            kind == "model.usage" and payload.get("phase") != "compaction"
+        ):
+            # A retry already contributes its own unpriced request row below.
+            pending_streams.pop(stream_key, None)
         if kind.startswith("context.compaction.request."):
             key = (
                 payload.get("compaction_id"),
@@ -90,6 +100,17 @@ def request_rows(events: list[dict]) -> list[dict]:
                 "raw_usage": {},
             }
         )
+    for event in pending_streams.values():
+        rows.append(
+            {
+                "event_id": event["id"],
+                "timestamp": event["timestamp"],
+                "phase": event["payload"].get("phase", "main"),
+                "step": event["payload"].get("step"),
+                "status": "stream_without_terminal_usage",
+                "raw_usage": {},
+            }
+        )
     return rows
 
 
@@ -142,11 +163,12 @@ def analyze_events(events: list[dict], pricing: dict) -> dict:
     rows = request_rows(events)
     kinds = Counter(e["type"] for e in events)
     totals = aggregate(rows, pricing)
-    # A cancelled main stream has no terminal-usage event to count as a row.
+    # Interruptions can omit usage, including before the first streamed delta.
     # Keep the measured subtotal, and expose this accounting uncertainty.
     totals["interruption_or_retry_may_hide_usage"] = bool(
         kinds["run.cancelled"]
         or kinds["model.request.retry"]
+        or any(r["status"] == "stream_without_terminal_usage" for r in rows)
         or any(
             e["payload"].get("termination_reason") == "max_wall_time_seconds"
             or e["payload"].get("finalization_error")

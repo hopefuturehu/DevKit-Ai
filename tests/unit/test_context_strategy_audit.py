@@ -135,6 +135,55 @@ def test_audit_main_transport_retry_is_an_unpriced_attempt():
     assert report["totals"]["cost_is_lower_bound"]
 
 
+@pytest.mark.parametrize("finalizer_step", [89, 90])
+def test_audit_runtime_stream_failure_is_not_hidden_by_successful_finalizer(finalizer_step):
+    report = analyze_events(
+        [
+            event("assistant.delta", {"step": 90, "text": "partial"}),
+            event("assistant.delta", {"step": 90, "text": " output"}, 1),
+            event("run.finalizing", {"reason_code": "runtime_error"}, 2),
+            event(
+                "assistant.delta",
+                {"step": finalizer_step, "phase": "finalizing", "text": "done"},
+                3,
+            ),
+            event(
+                "model.usage",
+                {
+                    "step": finalizer_step,
+                    "phase": "finalizing",
+                    "provider_metadata": {"raw_usage": RAW},
+                },
+                4,
+            ),
+        ],
+        PRICING,
+    )
+    assert report["totals"]["requests"] == 2
+    assert report["totals"]["usage_missing"] == 1
+    assert report["totals"]["input"] == 100
+    assert report["totals"]["cost_is_lower_bound"]
+    missing = [r for r in report["requests"] if not r["raw_usage"]]
+    assert report["totals"]["interruption_or_retry_may_hide_usage"]
+    assert [(r["phase"], r["step"]) for r in missing] == [("main", 90)]
+
+
+def test_audit_streamed_retry_is_counted_once_and_completed_stream_is_priced():
+    report = analyze_events(
+        [
+            event("assistant.delta", {"step": 9, "text": "partial"}),
+            event("model.request.retry", {"step": 9, "failed_attempt": 1}, 1),
+            event("assistant.delta", {"step": 9, "text": "retried"}, 2),
+            event("model.usage", {"step": 9, "provider_metadata": {"raw_usage": RAW}}, 3),
+        ],
+        PRICING,
+    )
+    assert report["totals"]["requests"] == 2
+    assert report["totals"]["usage_missing"] == 1
+    assert report["totals"]["input"] == 100
+    assert all(r["status"] != "stream_without_terminal_usage" for r in report["requests"])
+
+
 @pytest.mark.parametrize("tamper", [None, "asset", "task", "config_diff", "strategy"])
 def test_manifest_audit_checks_files_and_comparison_controls(tmp_path, tamper):
     def asset(name, content):

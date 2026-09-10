@@ -9,6 +9,10 @@
 [量化结果与逐请求 usage](data/context-strategy-path-results.json)已纳入版本管理。
 前两轮诊断、旧 L1 证据问答和本轮完整任务分别报告，不合并成绩。
 
+追加的 [A 主输出额度 8K→32K 补测](context-strategy-a-output-32k-evaluation.md)已完成：
+最终文件通过官方 3/3 验收，Agent 因 SSL 断流退出；完整主输出未超过旧 8K 上限，
+不能把这次通过直接归因于提高额度。以下表格继续保留原始三组的冻结结果。
+
 ## 本轮结果
 
 | 指标 | CURRENT | A | B |
