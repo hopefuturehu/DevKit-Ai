@@ -1923,10 +1923,15 @@ class AgentRunner:
     ) -> RunResult:
         skill_state.status = "finalizing"
         reason = f"{termination.reason_code}: {termination.message}"
-        step = termination.steps
-        input_tokens = termination.input_tokens
-        output_tokens = termination.output_tokens
-        cost_usd = termination.cost_usd
+        # Unexpected runtime errors/timeouts do not carry the loop's locals.
+        # Preserve already recorded usage before charging the finalizer.
+        recorded = self.store.latest_run_usage(run_id)
+        step = max(termination.steps, int(recorded.get("step") or 0))
+        input_tokens = max(termination.input_tokens, int(recorded.get("input_tokens") or 0))
+        output_tokens = max(termination.output_tokens, int(recorded.get("output_tokens") or 0))
+        cost_usd = self._calculate_cost(input_tokens, output_tokens)
+        if cost_usd is None:
+            cost_usd = termination.cost_usd
         await self.event_bus.emit(
             EventType.RUN_FINALIZING,
             session_id=session_id,

@@ -1130,6 +1130,31 @@ async def test_provider_error_preserves_step_and_usage_for_finalization(tmp_path
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("exception", [RuntimeError, TimeoutError])
+async def test_unexpected_failure_preserves_usage_before_finalizer(tmp_path, exception):
+    class CrashingProvider(ScriptedProvider):
+        async def stream(self, request):
+            self.requests.append(request)
+            if len(self.requests) == 1:
+                yield ModelEvent(kind=ModelEventKind.USAGE, input_tokens=12, output_tokens=3)
+                raise exception("unexpected failure after billed response")
+            yield ModelEvent(kind=ModelEventKind.USAGE, input_tokens=5, output_tokens=2)
+            yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="partial report")
+            yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+    provider = CrashingProvider([])
+    runner, store = make_test_runner(tmp_path, provider)
+    try:
+        result = await runner.run(RunRequest(prompt="preserve billed usage"))
+        assert result.status == "failed"
+        assert result.input_tokens == 17 and result.output_tokens == 5
+        assert result.steps == 1
+        assert result.final_text == "partial report"
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_agent_retries_transient_provider_error_and_discards_partial_turn(
     tmp_path: Path,
 ) -> None:

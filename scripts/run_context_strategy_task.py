@@ -136,6 +136,9 @@ def run(root: Path, output: Path) -> None:
     if uvx is None:
         raise ValueError("uvx missing")
     for strategy in manifest["order"]:
+        if (output / "STOP").exists():
+            print("STOP present: no further trials will start.", flush=True)
+            return
         status_path = output / f"{strategy}-status.json"
         if status_path.exists():
             if json.loads(status_path.read_text()).get("ended_at"):

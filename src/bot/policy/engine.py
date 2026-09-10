@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import re
@@ -299,9 +300,15 @@ class DefaultPolicyEngine:
 
     def _check_paths(self, arguments: dict[str, Any]) -> PolicyDecision | None:
         for value in self._iter_path_values(arguments):
-            raw = Path(value).expanduser()
-            candidate = raw if raw.is_absolute() else self.workspace / raw
-            resolved = candidate.resolve(strict=False)
+            try:
+                raw = Path(value).expanduser()
+                candidate = raw if raw.is_absolute() else self.workspace / raw
+                resolved = candidate.resolve(strict=False)
+            except (OSError, RuntimeError, ValueError) as exc:
+                return PolicyDecision(
+                    kind=PolicyDecisionKind.DENY,
+                    reason=f"无法安全解析路径: {type(exc).__name__}",
+                )
             lowered = resolved.as_posix().lower()
             path_parts = {part.lower() for part in resolved.parts}
             sensitive = any(
@@ -387,12 +394,16 @@ class DefaultPolicyEngine:
                 continue
             raw = Path(value).expanduser()
             candidate = raw if raw.is_absolute() else self.workspace / raw
-            looks_like_path = (
-                raw.is_absolute()
-                or value.startswith((".", "~"))
-                or "/" in value
-                or candidate.exists()
-            )
+            looks_like_path = raw.is_absolute() or value.startswith((".", "~")) or "/" in value
+            if not looks_like_path:
+                try:
+                    looks_like_path = candidate.exists()
+                except OSError as exc:
+                    # Python 3.12 raises for a long regex/literal operand;
+                    # Python 3.14 returns False. Such a basename cannot name
+                    # an existing file. Explicit paths still fail closed above.
+                    if exc.errno != errno.ENAMETOOLONG:
+                        raise
             if not looks_like_path:
                 continue
             decision = self._check_paths({"path": value})

@@ -1,4 +1,5 @@
 import asyncio
+import errno
 import os
 import signal
 from pathlib import Path
@@ -571,6 +572,46 @@ def test_policy_requires_approval_for_unknown_command_and_denies_escape(tmp_path
     assert policy.evaluate(sensitive).kind == PolicyDecisionKind.DENY
 
 
+@pytest.mark.parametrize("shell", [False, True])
+def test_policy_accepts_long_regex_without_stat_crash(tmp_path, monkeypatch, shell):
+    pattern = "symbol|" * 500 + "last"
+    original = Path.exists
+
+    def exists(path, *args, **kwargs):
+        if path.name == pattern:
+            raise OSError(errno.ENAMETOOLONG, "File name too long")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", exists)
+    policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
+    action = ToolAction(
+        tool_name="run_shell" if shell else "run_command",
+        arguments={"script": f"grep -Ev '{pattern}' symbols.txt"}
+        if shell
+        else {"argv": ["grep", "-Ev", pattern, "symbols.txt"]},
+        annotations=RunShellTool.annotations if shell else RunCommandTool.annotations,
+    )
+    assert policy.evaluate(action).kind == PolicyDecisionKind.ALLOW
+    action.arguments = {"path": ".env"}
+    assert policy.evaluate(action).kind == PolicyDecisionKind.DENY
+
+
+def test_policy_denies_unresolvable_explicit_path_without_crashing(tmp_path, monkeypatch):
+    policy = DefaultPolicyEngine(PermissionsConfig(), tmp_path)
+    original = Path.resolve
+
+    def resolve(path, *args, **kwargs):
+        if path.name == "invalid":
+            raise OSError(errno.ENAMETOOLONG, "File name too long")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", resolve)
+    action = ToolAction(
+        tool_name="read_file", arguments={"path": "invalid"}, annotations=ReadFileTool.annotations
+    )
+    assert policy.evaluate(action).kind == PolicyDecisionKind.DENY
+
+
 def test_policy_auto_approves_all_ask_decisions_but_keeps_deny(tmp_path: Path) -> None:
     policy = DefaultPolicyEngine(PermissionsConfig(auto_approve=True), tmp_path)
     unknown_command = ToolAction(
@@ -701,9 +742,7 @@ def test_policy_reuses_read_only_sqlite_queries_but_not_mutations(tmp_path: Path
     select_b = policy.approval_pattern(action("SELECT status FROM runs"))
     update = policy.approval_pattern(action("UPDATE runs SET status='failed'"))
     shell_escape = policy.approval_pattern(action("SELECT writefile('/tmp/x','x')"))
-    spaced_shell_escape = policy.approval_pattern(
-        action("SELECT writefile ('/tmp/x','x')")
-    )
+    spaced_shell_escape = policy.approval_pattern(action("SELECT writefile ('/tmp/x','x')"))
 
     assert select_a.kind.value == "command_prefix"
     assert select_a.fingerprint() == select_b.fingerprint()
