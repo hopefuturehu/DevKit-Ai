@@ -1,0 +1,2538 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "ed9f23e8fd80d1fad7c17502384bfe08b8ea4e07",
+  "scope": "All locally reachable Git commits at collection time; dates are Git metadata, not employment dates. No authorship inference.",
+  "head_commit_count": 145,
+  "all_ref_commit_count": 146,
+  "commits": [
+    {
+      "commit": "a235f829f4f0ac26c8de1d3fbe01f7dce4eacaeb",
+      "short_commit": "a235f82",
+      "author_date": "2026-07-17T15:30:44+08:00",
+      "commit_date": "2026-07-17T15:30:44+08:00",
+      "subject": "docs: establish CLI agent design baseline",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        ".gitignore",
+        "docs/design.md"
+      ]
+    },
+    {
+      "commit": "ce73791214fba57e305e32d140fd0b808bdf0e3c",
+      "short_commit": "ce73791",
+      "author_date": "2026-07-17T16:06:38+08:00",
+      "commit_date": "2026-07-17T16:06:38+08:00",
+      "subject": "feat: implement runnable CLI agent core",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "pyproject.toml",
+        "src/bot/__init__.py",
+        "src/bot/__main__.py",
+        "src/bot/cli/__init__.py",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/__init__.py",
+        "src/bot/config/loader.py",
+        "src/bot/config/models.py",
+        "src/bot/core/__init__.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/approval.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/execution/__init__.py",
+        "src/bot/execution/base.py",
+        "src/bot/execution/local.py",
+        "src/bot/policy/__init__.py",
+        "src/bot/policy/engine.py",
+        "src/bot/providers/__init__.py",
+        "src/bot/providers/base.py",
+        "src/bot/providers/openai_compatible.py",
+        "src/bot/sessions/__init__.py",
+        "src/bot/sessions/store.py",
+        "src/bot/skills/__init__.py",
+        "src/bot/skills/catalog.py",
+        "src/bot/skills/models.py",
+        "src/bot/tools/__init__.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/builtins.py",
+        "src/bot/tools/kunpeng/__init__.py",
+        "src/bot/tools/kunpeng/ksys.py",
+        "src/bot/tools/kunpeng/tuner.py",
+        "src/bot/tools/registry.py",
+        "src/bot/tools/subprocess_adapter.py",
+        "tests/fixtures/skills/sample_skill/SKILL.md",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_provider.py",
+        "tests/unit/test_session_store.py",
+        "tests/unit/test_skills.py"
+      ]
+    },
+    {
+      "commit": "dbaf9dd7620fa946e5b20312c442f476465edcc1",
+      "short_commit": "dbaf9dd",
+      "author_date": "2026-07-17T16:20:06+08:00",
+      "commit_date": "2026-07-17T16:20:06+08:00",
+      "subject": "feat: add durable sessions and safety controls",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "pyproject.toml",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/__init__.py",
+        "src/bot/config/models.py",
+        "src/bot/config/writer.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/approval.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/observability/__init__.py",
+        "src/bot/observability/redaction.py",
+        "src/bot/policy/engine.py",
+        "src/bot/sessions/store.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/kunpeng/ksys.py",
+        "src/bot/tools/kunpeng/tuner.py",
+        "src/bot/tools/subprocess_adapter.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_context_redaction.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "89bdd92f811bb83a1a4e2fd5f4204972931efcf6",
+      "short_commit": "89bdd92",
+      "author_date": "2026-07-17T16:36:44+08:00",
+      "commit_date": "2026-07-17T16:36:44+08:00",
+      "subject": "feat: add agent steering and Kunpeng skill",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "pyproject.toml",
+        "skills/kunpeng-performance-analysis/SKILL.md",
+        "skills/kunpeng-performance-analysis/references/tool-selection.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/policy/engine.py",
+        "src/bot/sessions/store.py",
+        "src/bot/skills/catalog.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/builtins.py",
+        "src/bot/tools/kunpeng/ksys.py",
+        "src/bot/tools/kunpeng/tuner.py",
+        "src/bot/tools/subprocess_adapter.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_cli_e2e.py",
+        "tests/unit/test_approval.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_skills.py"
+      ]
+    },
+    {
+      "commit": "8b57596de723f54cc043b8b2e34e95861997e97b",
+      "short_commit": "8b57596",
+      "author_date": "2026-07-17T16:49:01+08:00",
+      "commit_date": "2026-07-17T16:49:01+08:00",
+      "subject": "fix: harden tool execution and audit events",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/policy/engine.py",
+        "src/bot/tools/builtins.py",
+        "tests/unit/test_execution_tools_policy.py"
+      ]
+    },
+    {
+      "commit": "4e9d94a9fc1797d20b642cf8ffb6e0313858119a",
+      "short_commit": "4e9d94a",
+      "author_date": "2026-07-17T16:49:06+08:00",
+      "commit_date": "2026-07-17T16:49:06+08:00",
+      "subject": "feat: add reproducible evaluation harness",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "evals/generic.jsonl",
+        "evals/kunpeng.jsonl",
+        "src/bot/cli/app.py",
+        "src/bot/evals/__init__.py",
+        "src/bot/evals/models.py",
+        "src/bot/evals/runner.py",
+        "tests/unit/test_evals.py"
+      ]
+    },
+    {
+      "commit": "c302bbd197705d1a402f54f1dafec6fcfbd6ac68",
+      "short_commit": "c302bbd",
+      "author_date": "2026-07-17T16:59:29+08:00",
+      "commit_date": "2026-07-17T16:59:29+08:00",
+      "subject": "feat: close runtime safety and packaging gaps",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "pyproject.toml",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/models.py",
+        "src/bot/policy/engine.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_context_redaction.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "ddda8b25bb6997ce7d3ee517f07997c7595d1e48",
+      "short_commit": "ddda8b2",
+      "author_date": "2026-07-17T17:02:30+08:00",
+      "commit_date": "2026-07-17T17:02:30+08:00",
+      "subject": "test: verify MVP requirements and document status",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "src/bot/evals/runner.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_evals.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "9df98c0b43702430f7768bd6595e6a921ab8117c",
+      "short_commit": "9df98c0",
+      "author_date": "2026-07-20T15:52:04+08:00",
+      "commit_date": "2026-07-20T15:52:04+08:00",
+      "subject": "feat: add durable subagents and context management",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        ".gitignore",
+        "README.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/__init__.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/evals/runner.py",
+        "src/bot/sessions/store.py",
+        "src/bot/subagents/__init__.py",
+        "src/bot/subagents/base.py",
+        "src/bot/subagents/models.py",
+        "src/bot/subagents/pool.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/builtins.py",
+        "src/bot/tools/registry.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_subagent_integration.py",
+        "tests/integration/test_subagent_worktree.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_context_management.py",
+        "tests/unit/test_context_redaction.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_session_store.py",
+        "tests/unit/test_subagent_pool.py",
+        "tests/unit/test_subagent_store.py"
+      ]
+    },
+    {
+      "commit": "aba45d4ea9d655a92455b33bab8b7c652293c8ce",
+      "short_commit": "aba45d4",
+      "author_date": "2026-07-20T23:55:24+08:00",
+      "commit_date": "2026-07-20T23:55:24+08:00",
+      "subject": "feat: add containerized SWE-bench evaluation",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/swebench-evaluation.md",
+        "pyproject.toml",
+        "scripts/run_swebench_container.py",
+        "scripts/run_swebench_instance.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/core/agent.py",
+        "src/bot/evals/connect_proxy.py",
+        "src/bot/evals/swebench.py",
+        "src/bot/evals/swebench_worker.py",
+        "src/bot/providers/openai_compatible.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_provider.py",
+        "tests/unit/test_swebench_adapter.py"
+      ]
+    },
+    {
+      "commit": "bbbedaddc8f585b83a8ed4b22fe11980508a3a90",
+      "short_commit": "bbbedad",
+      "author_date": "2026-07-22T10:59:05+08:00",
+      "commit_date": "2026-07-22T10:59:05+08:00",
+      "subject": "feat: add live SWE-bench traces and worker budgets",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/swebench-evaluation.md",
+        "scripts/run_swebench_container.py",
+        "src/bot/cli/app.py",
+        "src/bot/evals/swebench.py",
+        "src/bot/evals/swebench_worker.py",
+        "src/bot/observability/__init__.py",
+        "src/bot/observability/trace.py",
+        "tests/unit/test_swebench_adapter.py",
+        "tests/unit/test_trace_export.py"
+      ]
+    },
+    {
+      "commit": "49343997cb6ca39425378c72fe599dbe6a79102c",
+      "short_commit": "4934399",
+      "author_date": "2026-07-22T16:49:36+08:00",
+      "commit_date": "2026-07-22T16:49:36+08:00",
+      "subject": "fix: preserve reasoning and reject empty assistant turns",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/design.md",
+        "docs/swebench-evaluation.md",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/observability/trace.py",
+        "src/bot/providers/openai_compatible.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_provider.py",
+        "tests/unit/test_session_store.py",
+        "tests/unit/test_trace_export.py"
+      ]
+    },
+    {
+      "commit": "8830a6f7dcd31a227b137be93faa1659b07fc011",
+      "short_commit": "8830a6f",
+      "author_date": "2026-07-24T21:56:06+08:00",
+      "commit_date": "2026-07-24T21:56:06+08:00",
+      "subject": "feat: add LLM memory consolidation pipeline",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/memory/__init__.py",
+        "src/bot/memory/models.py",
+        "src/bot/memory/retrieval.py",
+        "src/bot/memory/service.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_memory_consolidation.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "4f70b9c1cac210bfc52fbadba02f8482de4872a4",
+      "short_commit": "4f70b9c",
+      "author_date": "2026-07-24T22:31:19+08:00",
+      "commit_date": "2026-07-24T22:31:19+08:00",
+      "subject": "feat: complete episode-based memory consolidation",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/memory-consolidation.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/memory/__init__.py",
+        "src/bot/memory/models.py",
+        "src/bot/memory/retrieval.py",
+        "src/bot/memory/service.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_memory_consolidation.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "7ddabfbdc9d390745a8dfa9d3e84b082d9e6613a",
+      "short_commit": "7ddabfb",
+      "author_date": "2026-07-24T22:36:29+08:00",
+      "commit_date": "2026-07-24T22:36:29+08:00",
+      "subject": "feat: improve CLI rendering and document context options",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-management-solutions.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "tests/unit/test_cli_render.py"
+      ]
+    },
+    {
+      "commit": "3052acc0fac712f2b3faec2bb9d594b6014dc9b1",
+      "short_commit": "3052acc",
+      "author_date": "2026-07-24T23:39:24+08:00",
+      "commit_date": "2026-07-24T23:39:24+08:00",
+      "subject": "test: add long-context memory consolidation benchmark",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-memory-benchmark.md",
+        "docs/memory-consolidation.md",
+        "scripts/run_context_memory_benchmark.py",
+        "src/bot/evals/context_memory.py",
+        "src/bot/memory/service.py",
+        "tests/integration/test_context_memory_benchmark.py"
+      ]
+    },
+    {
+      "commit": "14822302dbfbdb9aab4e3c7122d7a9bd1ffa88da",
+      "short_commit": "1482230",
+      "author_date": "2026-07-25T17:19:45+08:00",
+      "commit_date": "2026-07-25T17:19:45+08:00",
+      "subject": "docs: 刷新文档中的过时内容",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-management-solutions.md",
+        "docs/design.md"
+      ]
+    },
+    {
+      "commit": "4b0741f978dfaf243cf7df92134f4012a0fd8359",
+      "short_commit": "4b0741f",
+      "author_date": "2026-07-28T16:09:09+08:00",
+      "commit_date": "2026-07-28T16:09:09+08:00",
+      "subject": "perf: 将 memory cards 和 episode 摘要移到对话历史之后注入",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "src/bot/core/context.py"
+      ]
+    },
+    {
+      "commit": "73c13d465a6be8f55b275ebefa678612be2bfde6",
+      "short_commit": "73c13d4",
+      "author_date": "2026-07-30T11:01:52+08:00",
+      "commit_date": "2026-07-30T11:01:52+08:00",
+      "subject": "feat: add recoverable context compaction",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-management-solutions.md",
+        "docs/context-memory-benchmark.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/memory-consolidation.md",
+        "docs/recoverable-context-compaction.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/compaction/__init__.py",
+        "src/bot/compaction/models.py",
+        "src/bot/compaction/service.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_context_memory_benchmark.py",
+        "tests/unit/test_context_compaction.py"
+      ]
+    },
+    {
+      "commit": "a2e3b87ecf0a01325d76ad033ac0f58042a2f889",
+      "short_commit": "a2e3b87",
+      "author_date": "2026-07-30T17:08:45+08:00",
+      "commit_date": "2026-07-30T17:08:45+08:00",
+      "subject": "feat: add Terminal-Bench 2.1 Harbor adapter",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        ".gitignore",
+        "README.md",
+        "docs/terminalbench-evaluation.md",
+        "scripts/run_terminalbench.py",
+        "src/bot/evals/harbor_agent.py",
+        "src/bot/evals/terminalbench.py",
+        "src/bot/evals/terminalbench_worker.py",
+        "tests/unit/test_terminalbench_adapter.py"
+      ]
+    },
+    {
+      "commit": "868490be868aa893649203cda7717f22806ab3f8",
+      "short_commit": "868490b",
+      "author_date": "2026-07-30T17:37:35+08:00",
+      "commit_date": "2026-07-30T17:37:35+08:00",
+      "subject": "feat: archive Terminal-Bench diagnostics",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/terminalbench-evaluation.md",
+        "scripts/archive_terminalbench_result.py",
+        "src/bot/evals/terminalbench_archive.py",
+        "tests/unit/test_terminalbench_archive.py"
+      ]
+    },
+    {
+      "commit": "0d2323cc11c1bb09ffef5825d70e6feeca832190",
+      "short_commit": "0d2323c",
+      "author_date": "2026-07-31T14:34:17+08:00",
+      "commit_date": "2026-07-31T14:34:17+08:00",
+      "subject": "fix: catch Terminal-Bench harness failures early",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/terminalbench-evaluation.md",
+        "src/bot/evals/terminalbench.py",
+        "src/bot/evals/terminalbench_archive.py",
+        "tests/unit/test_terminalbench_adapter.py",
+        "tests/unit/test_terminalbench_archive.py"
+      ]
+    },
+    {
+      "commit": "20eec4de5e0894e82c1d4338554ccc86ceb29fa3",
+      "short_commit": "20eec4d",
+      "author_date": "2026-07-31T17:08:10+08:00",
+      "commit_date": "2026-07-31T17:08:10+08:00",
+      "subject": "feat: add managed command lifecycle",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/execution/__init__.py",
+        "src/bot/execution/base.py",
+        "src/bot/execution/local.py",
+        "src/bot/observability/trace.py",
+        "src/bot/tools/__init__.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/builtins.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_trace_export.py"
+      ]
+    },
+    {
+      "commit": "377285e65b0d1dc1f7ea85f42c22c9bc479cd068",
+      "short_commit": "377285e",
+      "author_date": "2026-08-02T15:57:04+08:00",
+      "commit_date": "2026-08-02T15:57:04+08:00",
+      "subject": "perf: stabilize managed process context",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/design.md",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/execution/local.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_context_management.py",
+        "tests/unit/test_execution_tools_policy.py"
+      ]
+    },
+    {
+      "commit": "b8a5e1aa85a3942cf2da54fccd3234d6b56b6ffa",
+      "short_commit": "b8a5e1a",
+      "author_date": "2026-08-02T18:40:04+08:00",
+      "commit_date": "2026-08-02T18:40:04+08:00",
+      "subject": "fix: prevent orphaned subprocess groups",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/evals/swebench.py",
+        "src/bot/evals/terminalbench.py",
+        "src/bot/execution/local.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_runtime_cleanup.py",
+        "tests/unit/test_swebench_adapter.py",
+        "tests/unit/test_terminalbench_adapter.py"
+      ]
+    },
+    {
+      "commit": "4191028f4aa8d54e2cfd7794918344e7739a6eef",
+      "short_commit": "4191028",
+      "author_date": "2026-08-04T16:15:08+08:00",
+      "commit_date": "2026-08-04T16:15:08+08:00",
+      "subject": "Remove legacy episode and memory card subsystem",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-memory-benchmark.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/memory-consolidation.md",
+        "docs/recoverable-context-compaction.md",
+        "scripts/run_context_memory_benchmark.py",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/evals/context_memory.py",
+        "src/bot/memory/__init__.py",
+        "src/bot/memory/models.py",
+        "src/bot/memory/retrieval.py",
+        "src/bot/memory/service.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_context_compaction_benchmark.py",
+        "tests/integration/test_context_memory_benchmark.py",
+        "tests/unit/test_context_compaction.py",
+        "tests/unit/test_memory_consolidation.py",
+        "tests/unit/test_runtime_cleanup.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "404320d36ac58c72dd2237d167b32d555626f96c",
+      "short_commit": "404320d",
+      "author_date": "2026-08-06T16:45:22+08:00",
+      "commit_date": "2026-08-06T16:45:22+08:00",
+      "subject": "Add Markdown-backed automatic memory extraction",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-management-solutions.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/markdown-memory.md",
+        "docs/recoverable-context-compaction.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/loader.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/memory/__init__.py",
+        "src/bot/memory/models.py",
+        "src/bot/memory/service.py",
+        "src/bot/memory/store.py",
+        "src/bot/sessions/store.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_markdown_memory.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "b0f004504cb7e0afe30e5e3a98b36fd88123dcd0",
+      "short_commit": "b0f0045",
+      "author_date": "2026-08-12T16:28:18+08:00",
+      "commit_date": "2026-08-12T16:28:18+08:00",
+      "subject": "feat: replace fixed agent limits with progress termination",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/termination.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/core/termination/__init__.py",
+        "src/bot/core/termination/controller.py",
+        "src/bot/evals/models.py",
+        "src/bot/execution/base.py",
+        "src/bot/execution/local.py",
+        "src/bot/sessions/store.py",
+        "src/bot/subagents/models.py",
+        "src/bot/subagents/pool.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/builtins.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_cli_render.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_progress_termination.py",
+        "tests/unit/test_subagent_store.py"
+      ]
+    },
+    {
+      "commit": "07665758fcb5cea29b9fdadf7e4d1a72998cec93",
+      "short_commit": "0766575",
+      "author_date": "2026-08-12T16:55:49+08:00",
+      "commit_date": "2026-08-12T16:55:49+08:00",
+      "subject": "feat: persist progress and unify run termination",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/termination.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/core/progress.py",
+        "src/bot/core/termination/__init__.py",
+        "src/bot/core/termination/controller.py",
+        "src/bot/sessions/store.py",
+        "src/bot/subagents/pool.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/builtins.py",
+        "src/bot/tools/subprocess_adapter.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_cli_render.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_execution_tools_policy.py",
+        "tests/unit/test_progress_termination.py",
+        "tests/unit/test_session_store.py"
+      ]
+    },
+    {
+      "commit": "6f615fcab4108585b6665f6a3c8111b093f3dd56",
+      "short_commit": "6f615fc",
+      "author_date": "2026-08-13T09:31:41+08:00",
+      "commit_date": "2026-08-13T09:31:41+08:00",
+      "subject": "fix: preserve atomic tool message turns",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_context_management.py"
+      ]
+    },
+    {
+      "commit": "de57a4189aed1c69d94d5d43dfe041158951d3d5",
+      "short_commit": "de57a41",
+      "author_date": "2026-08-13T10:11:00+08:00",
+      "commit_date": "2026-08-13T10:11:00+08:00",
+      "subject": "feat: reuse approvals for safe command families",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "src/bot/cli/render.py",
+        "src/bot/core/agent.py",
+        "src/bot/policy/__init__.py",
+        "src/bot/policy/engine.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_approval.py",
+        "tests/unit/test_execution_tools_policy.py"
+      ]
+    },
+    {
+      "commit": "5614ca644692e0195331f64b4335d6184ee4cc60",
+      "short_commit": "5614ca6",
+      "author_date": "2026-08-13T22:25:20+08:00",
+      "commit_date": "2026-08-13T22:25:20+08:00",
+      "subject": "feat(web): add FastAPI web UI and fix startup/approval bugs",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "pyproject.toml",
+        "src/bot/cli/app.py",
+        "src/bot/web/__init__.py",
+        "src/bot/web/server.py",
+        "src/bot/web/sink.py",
+        "src/bot/web/static/index.html",
+        "tests/unit/test_web_server.py"
+      ]
+    },
+    {
+      "commit": "0711168ec9cdaca3bd799c18479ccd69198966fd",
+      "short_commit": "0711168",
+      "author_date": "2026-08-13T22:44:49+08:00",
+      "commit_date": "2026-08-13T22:44:49+08:00",
+      "subject": "feat(config): load model API key from dotenv",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        ".env.example",
+        ".gitignore",
+        "README.md",
+        "docs/design.md",
+        "pyproject.toml",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/loader.py",
+        "src/bot/config/models.py",
+        "tests/integration/test_cli_e2e.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_markdown_memory.py"
+      ]
+    },
+    {
+      "commit": "5e5227caf36f6a4f0c4e33c3099db80dadbbb854",
+      "short_commit": "5e5227c",
+      "author_date": "2026-08-14T22:53:02+08:00",
+      "commit_date": "2026-08-14T22:53:02+08:00",
+      "subject": "fix(config): preserve API key source compatibility",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "src/bot/cli/app.py",
+        "src/bot/config/__init__.py",
+        "src/bot/config/loader.py",
+        "src/bot/config/models.py",
+        "src/bot/evals/swebench.py",
+        "src/bot/evals/terminalbench.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_swebench_adapter.py",
+        "tests/unit/test_terminalbench_adapter.py"
+      ]
+    },
+    {
+      "commit": "2e45b8df2306e24e48f6465c2d9c07c67db24ec2",
+      "short_commit": "2e45b8d",
+      "author_date": "2026-08-14T23:41:19+08:00",
+      "commit_date": "2026-08-14T23:41:19+08:00",
+      "subject": "test(web): cover real websocket transport",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "tests/integration/test_websocket_transport.py"
+      ]
+    },
+    {
+      "commit": "7e7b9daded1d4593393f166a6fdbf8078b30795d",
+      "short_commit": "7e7b9da",
+      "author_date": "2026-08-16T10:09:30+08:00",
+      "commit_date": "2026-08-16T10:09:30+08:00",
+      "subject": "fix(context): recover compaction past interrupted tools",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "src/bot/compaction/service.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/sessions/store.py",
+        "tests/unit/test_context_compaction.py",
+        "tests/unit/test_context_management.py"
+      ]
+    },
+    {
+      "commit": "f78d9114867e5f9133b2910cb98f8b1c8e53671f",
+      "short_commit": "f78d911",
+      "author_date": "2026-08-18T14:29:49+08:00",
+      "commit_date": "2026-08-18T14:29:49+08:00",
+      "subject": "fix(context): bound and recover compaction backlog",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "docs/recoverable-context-compaction.md",
+        "src/bot/compaction/models.py",
+        "src/bot/compaction/service.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_context_compaction_benchmark.py",
+        "tests/unit/test_context_compaction.py"
+      ]
+    },
+    {
+      "commit": "5ef7a7e8dac335d5130f98c8c791ce65aea34022",
+      "short_commit": "5ef7a7e",
+      "author_date": "2026-08-18T17:34:55+08:00",
+      "commit_date": "2026-08-18T17:34:55+08:00",
+      "subject": "docs(context): document compaction failure analysis",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-compaction-failure-analysis.md"
+      ]
+    },
+    {
+      "commit": "11ea7b66c8b02cc1a35c17f62e1c672785b97144",
+      "short_commit": "11ea7b6",
+      "author_date": "2026-08-19T10:14:06+08:00",
+      "commit_date": "2026-08-19T10:14:06+08:00",
+      "subject": "feat(config): support direct model API keys",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/__init__.py",
+        "src/bot/config/loader.py",
+        "src/bot/config/models.py",
+        "src/bot/config/writer.py",
+        "src/bot/evals/swebench.py",
+        "src/bot/evals/terminalbench.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_swebench_adapter.py"
+      ]
+    },
+    {
+      "commit": "169a2443363491f4606f189188563fb26dfb4cf0",
+      "short_commit": "169a244",
+      "author_date": "2026-08-19T10:34:11+08:00",
+      "commit_date": "2026-08-19T10:34:11+08:00",
+      "subject": "docs(context): explain prompt cache regression",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-compaction-failure-analysis.md"
+      ]
+    },
+    {
+      "commit": "965e94964028a566e1d4dbecdb3df778fef31fb4",
+      "short_commit": "965e949",
+      "author_date": "2026-08-21T17:06:56+08:00",
+      "commit_date": "2026-08-21T17:06:56+08:00",
+      "subject": "test: add long-context cache benchmark suites",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-cache-benchmark.md",
+        "docs/recoverable-context-compaction.md",
+        "scripts/run_context_cache_benchmark.py",
+        "src/bot/evals/context_cache.py",
+        "tests/integration/test_long_context_cache_benchmark.py",
+        "tests/soak/test_context_cache_soak.py",
+        "tests/unit/test_context_cache_benchmark.py"
+      ]
+    },
+    {
+      "commit": "d1656d7439bae63e93011728c20ffdb0e837f6a1",
+      "short_commit": "d1656d7",
+      "author_date": "2026-08-23T00:34:09+08:00",
+      "commit_date": "2026-08-23T00:34:09+08:00",
+      "subject": "feat(context): stabilize prompt prefix ordering",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "scripts/run_context_cache_benchmark.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/evals/context_cache.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_long_context_cache_benchmark.py",
+        "tests/unit/test_context_management.py"
+      ]
+    },
+    {
+      "commit": "cb911b18494b0546f585af1ca47f78edef67eded",
+      "short_commit": "cb911b1",
+      "author_date": "2026-08-23T00:39:04+08:00",
+      "commit_date": "2026-08-23T00:39:04+08:00",
+      "subject": "test(context): record legacy prompt order baseline",
+      "reachable_from_baseline": false,
+      "changed_files": [
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_context_management.py"
+      ]
+    },
+    {
+      "commit": "d16b203be1f7be98b2a356684083e0bba64fe662",
+      "short_commit": "d16b203",
+      "author_date": "2026-08-23T00:41:32+08:00",
+      "commit_date": "2026-08-23T00:41:32+08:00",
+      "subject": "test(context): keep cache workloads repeatable",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "src/bot/evals/context_cache.py",
+        "tests/integration/test_long_context_cache_benchmark.py",
+        "tests/unit/test_markdown_memory.py"
+      ]
+    },
+    {
+      "commit": "f930a19e47e758af8e8fc3f69be7da7d01129c5a",
+      "short_commit": "f930a19",
+      "author_date": "2026-08-23T00:44:51+08:00",
+      "commit_date": "2026-08-23T00:44:51+08:00",
+      "subject": "docs(context): record assembly order cache experiment",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md",
+        "docs/context-cache-benchmark.md",
+        "docs/design.md"
+      ]
+    },
+    {
+      "commit": "3dfae7b284525f3567e39c56c05168cf274f7174",
+      "short_commit": "3dfae7b",
+      "author_date": "2026-08-25T11:37:36+08:00",
+      "commit_date": "2026-08-25T11:37:36+08:00",
+      "subject": "docs(context): document compaction failure state",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-compaction-current-state.md"
+      ]
+    },
+    {
+      "commit": "cff6338b71a0fc88d64ce208b77a26986be48958",
+      "short_commit": "cff6338",
+      "author_date": "2026-08-25T14:25:17+08:00",
+      "commit_date": "2026-08-25T14:25:17+08:00",
+      "subject": "feat: make context compaction bounded and measurable",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/design.md",
+        "docs/recoverable-context-compaction.md",
+        "scripts/run_compaction_effectiveness.py",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/compaction/__init__.py",
+        "src/bot/compaction/models.py",
+        "src/bot/compaction/service.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/evals/compaction_effectiveness.py",
+        "src/bot/evals/context_cache.py",
+        "src/bot/providers/__init__.py",
+        "src/bot/providers/base.py",
+        "src/bot/providers/openai_compatible.py",
+        "tests/integration/test_compaction_effectiveness.py",
+        "tests/integration/test_context_compaction_benchmark.py",
+        "tests/unit/test_cli_render.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_context_compaction.py",
+        "tests/unit/test_provider.py"
+      ]
+    },
+    {
+      "commit": "62f36392a94532e070199ccd3f6352a3ca32f0c8",
+      "short_commit": "62f3639",
+      "author_date": "2026-08-25T14:52:36+08:00",
+      "commit_date": "2026-08-25T14:52:36+08:00",
+      "subject": "docs: record context compaction validation",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-compaction-current-state.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-compaction-failure-analysis.md"
+      ]
+    },
+    {
+      "commit": "1da3614091b657090846262003e799be281000a7",
+      "short_commit": "1da3614",
+      "author_date": "2026-08-25T21:01:12+08:00",
+      "commit_date": "2026-08-25T21:01:12+08:00",
+      "subject": "docs: compare agent context management frameworks",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-assembly.md",
+        "docs/context-compaction-current-state.md",
+        "docs/context-compaction-failure-analysis.md",
+        "docs/context-framework-comparison.md"
+      ]
+    },
+    {
+      "commit": "03dafe9f896a8707cfeac84c15fa6e52004602bc",
+      "short_commit": "03dafe9",
+      "author_date": "2026-08-26T17:05:32+08:00",
+      "commit_date": "2026-08-26T17:05:32+08:00",
+      "subject": "docs: align context lifecycle with implementation",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-assembly.md",
+        "docs/context-compaction-current-state.md",
+        "docs/context-compaction-failure-analysis.md",
+        "docs/context-framework-comparison.md",
+        "docs/design.md",
+        "docs/recoverable-context-compaction.md"
+      ]
+    },
+    {
+      "commit": "3330dace6bfe65181417c84f032dcd17920db3ad",
+      "short_commit": "3330dac",
+      "author_date": "2026-08-27T11:50:42+08:00",
+      "commit_date": "2026-08-27T11:50:42+08:00",
+      "subject": "docs: document non-LLM context reduction strategies",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md"
+      ]
+    },
+    {
+      "commit": "02020ffc56f9b7c4579b6306c368b7b4dd8f7050",
+      "short_commit": "02020ff",
+      "author_date": "2026-08-27T15:26:58+08:00",
+      "commit_date": "2026-08-27T15:26:58+08:00",
+      "subject": "fix: avoid replaying rehydrated context results",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/sessions/store.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_subagent_integration.py",
+        "tests/unit/test_context_management.py"
+      ]
+    },
+    {
+      "commit": "12d2df018625974abb08c4d071d5aba541adeafd",
+      "short_commit": "12d2df0",
+      "author_date": "2026-08-27T22:42:07+08:00",
+      "commit_date": "2026-08-27T22:42:07+08:00",
+      "subject": "test: add comprehensive context efficiency benchmark",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md",
+        "scripts/run_context_efficiency_benchmark.py",
+        "src/bot/evals/context_efficiency.py",
+        "tests/integration/test_context_efficiency_benchmark.py",
+        "tests/unit/test_context_efficiency_cli.py"
+      ]
+    },
+    {
+      "commit": "98ca32fb54034a7b2fdbea22bd104762a63725b6",
+      "short_commit": "98ca32f",
+      "author_date": "2026-08-27T23:12:34+08:00",
+      "commit_date": "2026-08-27T23:12:34+08:00",
+      "subject": "docs: add context efficiency benchmark metrics reference",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-efficiency-benchmark-metrics.md"
+      ]
+    },
+    {
+      "commit": "d405b4611aecf090957df81595b89efbace6b95e",
+      "short_commit": "d405b46",
+      "author_date": "2026-08-28T09:40:22+08:00",
+      "commit_date": "2026-08-28T09:40:22+08:00",
+      "subject": "fix(web): add websockets dependency for WebSocket upgrade",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "pyproject.toml"
+      ]
+    },
+    {
+      "commit": "806b187bd078d814f22432c708cee0ac02be3a68",
+      "short_commit": "806b187",
+      "author_date": "2026-08-28T10:54:21+08:00",
+      "commit_date": "2026-08-28T10:54:21+08:00",
+      "subject": "docs: add interview Q&A notes",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/interview-qa.md"
+      ]
+    },
+    {
+      "commit": "d41f39c77abe5af0068e37f87415a6ecfc8782a6",
+      "short_commit": "d41f39c",
+      "author_date": "2026-08-28T15:26:28+08:00",
+      "commit_date": "2026-08-28T15:26:28+08:00",
+      "subject": "docs: record prompt composition interview answer",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/interview-qa.md"
+      ]
+    },
+    {
+      "commit": "8c81d7ee6c274503cc770fa11a0870e46f69ad38",
+      "short_commit": "8c81d7e",
+      "author_date": "2026-08-28T16:11:01+08:00",
+      "commit_date": "2026-08-28T16:11:01+08:00",
+      "subject": "test: add comprehensive context evaluation cases",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md",
+        "docs/context-efficiency-benchmark-metrics.md",
+        "docs/context-evaluation-matrix.md",
+        "scripts/run_context_blob_scale.py",
+        "scripts/run_context_efficiency_benchmark.py",
+        "scripts/run_context_full_stack_soak.py",
+        "scripts/run_context_retrieval_behavior.py",
+        "src/bot/evals/context_blob_scale.py",
+        "src/bot/evals/context_efficiency.py",
+        "src/bot/evals/context_full_stack_soak.py",
+        "src/bot/evals/context_retrieval_behavior.py",
+        "tests/integration/test_context_blob_scale_benchmark.py",
+        "tests/integration/test_context_efficiency_benchmark.py",
+        "tests/integration/test_context_full_stack_soak.py",
+        "tests/integration/test_context_retrieval_behavior.py",
+        "tests/soak/test_context_blob_scale_soak.py",
+        "tests/soak/test_context_full_stack_production_soak.py",
+        "tests/unit/test_context_blob_scale_cli.py",
+        "tests/unit/test_context_efficiency_cli.py",
+        "tests/unit/test_context_full_stack_soak_cli.py",
+        "tests/unit/test_context_retrieval_behavior_cli.py"
+      ]
+    },
+    {
+      "commit": "db347644c1c762018bed9b7ad482a60ed5916a08",
+      "short_commit": "db34764",
+      "author_date": "2026-08-28T17:34:12+08:00",
+      "commit_date": "2026-08-28T17:34:12+08:00",
+      "subject": "docs: add chat completions context example",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "artifacts/memory-diagnostics/client-chat-completions-create-example.py"
+      ]
+    },
+    {
+      "commit": "839d0f6fec54bc121dadb12f97119557ee8d311f",
+      "short_commit": "839d0f6",
+      "author_date": "2026-08-29T11:56:43+08:00",
+      "commit_date": "2026-08-29T11:56:43+08:00",
+      "subject": "docs: compare context role assembly",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md",
+        "docs/context-framework-comparison.md",
+        "docs/markdown-memory.md"
+      ]
+    },
+    {
+      "commit": "e625b252fd82d07ff2726cea5f17bda0e7e8ca64",
+      "short_commit": "e625b25",
+      "author_date": "2026-08-29T18:46:33+08:00",
+      "commit_date": "2026-08-29T18:46:33+08:00",
+      "subject": "fix(memory): route automatic memory on demand",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "artifacts/memory-diagnostics/client-chat-completions-create-example.py",
+        "docs/context-assembly.md",
+        "docs/context-cache-benchmark.md",
+        "docs/context-evaluation-matrix.md",
+        "docs/context-framework-comparison.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/interview-qa.md",
+        "docs/markdown-memory.md",
+        "docs/memory-routing.md",
+        "docs/recoverable-context-compaction.md",
+        "src/bot/compaction/service.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/memory/__init__.py",
+        "src/bot/memory/routing.py",
+        "src/bot/memory/service.py",
+        "src/bot/memory/store.py",
+        "src/bot/providers/openai_compatible.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_context_management.py",
+        "tests/unit/test_markdown_memory.py",
+        "tests/unit/test_provider.py"
+      ]
+    },
+    {
+      "commit": "af8f4e1b640c48cd5d53b1f1824861604471ed1e",
+      "short_commit": "af8f4e1",
+      "author_date": "2026-08-29T23:42:56+08:00",
+      "commit_date": "2026-08-29T23:42:56+08:00",
+      "subject": "test(memory): add live router trade-off benchmark",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-evaluation-matrix.md",
+        "docs/context-framework-comparison.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/markdown-memory.md",
+        "docs/memory-routing-live-canary-2026-08-29.json",
+        "docs/memory-routing.md",
+        "scripts/run_memory_routing_behavior.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/models.py",
+        "src/bot/evals/memory_routing_behavior.py",
+        "src/bot/providers/openai_compatible.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_memory_routing_behavior.py",
+        "tests/unit/test_memory_routing_behavior_cli.py",
+        "tests/unit/test_provider.py"
+      ]
+    },
+    {
+      "commit": "f5e922d1d31d1f39207ce52b2b082b84c99b59b1",
+      "short_commit": "f5e922d",
+      "author_date": "2026-08-30T00:27:47+08:00",
+      "commit_date": "2026-08-30T00:27:47+08:00",
+      "subject": "docs: compare automatic memory architectures",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-framework-comparison.md"
+      ]
+    },
+    {
+      "commit": "9221454079d61160c55a1fe0c303d939deef8e8c",
+      "short_commit": "9221454",
+      "author_date": "2026-08-30T00:40:31+08:00",
+      "commit_date": "2026-08-30T00:40:31+08:00",
+      "subject": "docs: compare manual context compaction",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-framework-comparison.md"
+      ]
+    },
+    {
+      "commit": "356a4e9de87580845ff48b61556a4563e02824e4",
+      "short_commit": "356a4e9",
+      "author_date": "2026-08-30T14:55:37+08:00",
+      "commit_date": "2026-08-30T14:55:37+08:00",
+      "subject": "eval: add medium Terminal-Bench context suite",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/terminalbench-context-medium-six-results.md",
+        "docs/terminalbench-evaluation.md",
+        "src/bot/evals/terminalbench.py",
+        "src/bot/evals/terminalbench_archive.py",
+        "tests/unit/test_terminalbench_adapter.py",
+        "tests/unit/test_terminalbench_archive.py"
+      ]
+    },
+    {
+      "commit": "4ec4e7f42c843e1820bcd11687f6aa0b820c41a3",
+      "short_commit": "4ec4e7f",
+      "author_date": "2026-08-30T19:06:49+08:00",
+      "commit_date": "2026-08-30T19:06:49+08:00",
+      "subject": "fix: retry transient model provider failures",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_cli_render.py",
+        "tests/unit/test_config.py"
+      ]
+    },
+    {
+      "commit": "02874d5b92fe05fee1ef4492a57fc74027df093e",
+      "short_commit": "02874d5",
+      "author_date": "2026-08-30T19:47:35+08:00",
+      "commit_date": "2026-08-30T19:47:35+08:00",
+      "subject": "docs: record deepseek pro benchmark rerun",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/terminalbench-context-medium-six-results.md"
+      ]
+    },
+    {
+      "commit": "cb5416b529d00380b35ac504db5116241f251d4d",
+      "short_commit": "cb5416b",
+      "author_date": "2026-08-30T19:55:35+08:00",
+      "commit_date": "2026-08-30T19:55:35+08:00",
+      "subject": "evals: remove default Terminal-Bench cost cap",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/terminalbench-evaluation.md",
+        "src/bot/evals/harbor_agent.py",
+        "src/bot/evals/terminalbench.py",
+        "src/bot/evals/terminalbench_worker.py",
+        "tests/unit/test_terminalbench_adapter.py"
+      ]
+    },
+    {
+      "commit": "1f4808c9b780925133df973b5f881582c896f713",
+      "short_commit": "1f4808c",
+      "author_date": "2026-08-31T00:14:17+08:00",
+      "commit_date": "2026-08-31T00:14:17+08:00",
+      "subject": "docs: compare user-turn retention during compaction",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-framework-comparison.md"
+      ]
+    },
+    {
+      "commit": "203579537b5282e577c677aa8d9b258679e14aaf",
+      "short_commit": "2035795",
+      "author_date": "2026-08-31T00:42:23+08:00",
+      "commit_date": "2026-08-31T00:42:23+08:00",
+      "subject": "fix(context): bound tails and preserve user anchors",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "artifacts/memory-diagnostics/client-chat-completions-create-example.py",
+        "docs/context-assembly.md",
+        "docs/context-compaction-current-state.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-compaction-failure-analysis.md",
+        "docs/context-framework-comparison.md",
+        "docs/design.md",
+        "docs/recoverable-context-compaction.md",
+        "src/bot/cli/app.py",
+        "src/bot/compaction/service.py",
+        "src/bot/core/agent.py",
+        "src/bot/evals/compaction_effectiveness.py",
+        "tests/integration/test_context_compaction_benchmark.py",
+        "tests/unit/test_context_compaction.py",
+        "tests/unit/test_markdown_memory.py"
+      ]
+    },
+    {
+      "commit": "b5098b9305587fa794327880a3910f0607270d34",
+      "short_commit": "b5098b9",
+      "author_date": "2026-08-31T10:35:32+08:00",
+      "commit_date": "2026-08-31T10:35:32+08:00",
+      "subject": "docs(context): align documentation with current compaction",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/context-assembly.md",
+        "docs/context-compaction-current-state.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-compaction-failure-analysis.md",
+        "docs/context-framework-comparison.md",
+        "docs/design.md",
+        "docs/recoverable-context-compaction.md",
+        "src/bot/cli/app.py"
+      ]
+    },
+    {
+      "commit": "e5f58fe7c53df3f8ea9a136cc48183d0dca0346e",
+      "short_commit": "e5f58fe",
+      "author_date": "2026-08-31T17:16:29+08:00",
+      "commit_date": "2026-08-31T17:16:29+08:00",
+      "subject": "feat(policy): add explicit auto-approve mode",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/design.md",
+        "src/bot/cli/app.py",
+        "src/bot/config/loader.py",
+        "src/bot/config/models.py",
+        "src/bot/policy/engine.py",
+        "src/bot/web/server.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_execution_tools_policy.py"
+      ]
+    },
+    {
+      "commit": "ef60740d5d8851b06357c408ae96624b6396fb67",
+      "short_commit": "ef60740",
+      "author_date": "2026-09-02T14:14:59+08:00",
+      "commit_date": "2026-09-02T14:14:59+08:00",
+      "subject": "refactor context role boundaries",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md",
+        "docs/context-framework-comparison.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_context_management.py",
+        "tests/unit/test_context_redaction.py"
+      ]
+    },
+    {
+      "commit": "5bc4d79faf1ac8e0a72177c804fdc314662425d1",
+      "short_commit": "5bc4d79",
+      "author_date": "2026-09-03T15:45:38+08:00",
+      "commit_date": "2026-09-03T15:45:38+08:00",
+      "subject": "feat: add markdown-defined agent task protocol",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/custom-agents.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "src/bot/assets/agents/coder.md",
+        "src/bot/assets/agents/explorer.md",
+        "src/bot/assets/agents/reviewer.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/cli/runtime.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/sessions/store.py",
+        "src/bot/subagents/__init__.py",
+        "src/bot/subagents/base.py",
+        "src/bot/subagents/catalog.py",
+        "src/bot/subagents/models.py",
+        "src/bot/subagents/pool.py",
+        "tests/integration/test_agent_task_interaction.py",
+        "tests/integration/test_subagent_integration.py",
+        "tests/integration/test_subagent_worktree.py",
+        "tests/unit/test_agent_auto_resume.py",
+        "tests/unit/test_agent_catalog.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_session_store.py",
+        "tests/unit/test_subagent_store.py"
+      ]
+    },
+    {
+      "commit": "ae623172aef5dad15192a15d7c133267a7111864",
+      "short_commit": "ae62317",
+      "author_date": "2026-09-03T21:24:29+08:00",
+      "commit_date": "2026-09-03T21:24:29+08:00",
+      "subject": "docs: add project mind map",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/project-mindmap.xmind"
+      ]
+    },
+    {
+      "commit": "9f9dfa279b130f3999af213c4ce47ae6c86aa639",
+      "short_commit": "9f9dfa2",
+      "author_date": "2026-09-03T22:07:51+08:00",
+      "commit_date": "2026-09-03T22:07:51+08:00",
+      "subject": "docs: map project modules and responsibilities",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/project-mindmap.xmind"
+      ]
+    },
+    {
+      "commit": "51907334511de87e6406f3e8a96437ff3b113366",
+      "short_commit": "5190733",
+      "author_date": "2026-09-03T22:26:12+08:00",
+      "commit_date": "2026-09-03T22:26:12+08:00",
+      "subject": "docs: expand agent loop coordination map",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/project-mindmap.xmind"
+      ]
+    },
+    {
+      "commit": "a5458885047a3fffd39616fc0d6e61ab6fead95c",
+      "short_commit": "a545888",
+      "author_date": "2026-09-03T23:08:25+08:00",
+      "commit_date": "2026-09-03T23:08:25+08:00",
+      "subject": "docs: expand context planning mind map",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/project-mindmap.xmind"
+      ]
+    },
+    {
+      "commit": "5ed983dcbba9fb59376bfe237060b9c7b7d1dabf",
+      "short_commit": "5ed983d",
+      "author_date": "2026-09-04T10:10:46+08:00",
+      "commit_date": "2026-09-04T10:10:46+08:00",
+      "subject": "feat: add persistent session todo plans",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/implementation-status.md",
+        "src/bot/cli/app.py",
+        "src/bot/cli/render.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/events.py",
+        "src/bot/core/plan.py",
+        "src/bot/sessions/store.py",
+        "src/bot/tools/__init__.py",
+        "src/bot/tools/builtins.py",
+        "src/bot/tools/plan.py",
+        "src/bot/web/server.py",
+        "src/bot/web/static/index.html",
+        "tests/integration/test_agent_loop.py",
+        "tests/unit/test_cli_render.py",
+        "tests/unit/test_plan_tool.py",
+        "tests/unit/test_session_store.py",
+        "tests/unit/test_web_server.py"
+      ]
+    },
+    {
+      "commit": "33011482b1be1c8d50e95e9512179697c95add34",
+      "short_commit": "3301148",
+      "author_date": "2026-09-07T23:48:38+08:00",
+      "commit_date": "2026-09-07T23:48:38+08:00",
+      "subject": "docs: add context management interview guide",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-management-interview-guide.md"
+      ]
+    },
+    {
+      "commit": "1c9e6e98c720d62a62ddc116d5c517163bf690b9",
+      "short_commit": "1c9e6e9",
+      "author_date": "2026-09-08T00:09:43+08:00",
+      "commit_date": "2026-09-08T00:09:43+08:00",
+      "subject": "docs: design run-scoped skill lifecycle and release",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/skill-run-lifecycle-design.md"
+      ]
+    },
+    {
+      "commit": "aa76f12f06b62bc63c70b5d1ea69562a05e775bf",
+      "short_commit": "aa76f12",
+      "author_date": "2026-09-08T10:01:49+08:00",
+      "commit_date": "2026-09-08T10:01:49+08:00",
+      "subject": "docs: compare skill unloading and cache-aware lifecycle strategies",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/skill-run-lifecycle-design.md",
+        "docs/skill-unloading-cache-comparison.md"
+      ]
+    },
+    {
+      "commit": "bee9e6d8f1152873c913810e0fabfde9ea6d698d",
+      "short_commit": "bee9e6d",
+      "author_date": "2026-09-08T10:23:06+08:00",
+      "commit_date": "2026-09-08T10:23:06+08:00",
+      "subject": "docs: detail skill behavior during compaction and after turns",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/skill-unloading-cache-comparison.md"
+      ]
+    },
+    {
+      "commit": "1615c7851c6dcdd6e09ab6eed5c93334cb644bd3",
+      "short_commit": "1615c78",
+      "author_date": "2026-09-08T11:11:47+08:00",
+      "commit_date": "2026-09-08T11:11:47+08:00",
+      "subject": "docs: compare pre-summary tool result pruning priorities",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/skill-unloading-cache-comparison.md"
+      ]
+    },
+    {
+      "commit": "d5656cb26a7e9ff9b9d263476bb29e54d8100931",
+      "short_commit": "d5656cb",
+      "author_date": "2026-09-08T14:16:18+08:00",
+      "commit_date": "2026-09-08T14:16:18+08:00",
+      "subject": "docs: consolidate skill context lifecycle and recovery design",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/skill-run-lifecycle-design.md"
+      ]
+    },
+    {
+      "commit": "a12a9f09dc0ddcc4e5adc453e177682008fd78ab",
+      "short_commit": "a12a9f0",
+      "author_date": "2026-09-08T19:59:39+08:00",
+      "commit_date": "2026-09-08T19:59:39+08:00",
+      "subject": "eval: measure tool result pruning capacity in historical conversations",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/data/history-pruning-summary.json",
+        "docs/history-pruning-analysis.md",
+        "docs/skill-run-lifecycle-design.md",
+        "scripts/analyze_history_pruning.py",
+        "tests/unit/test_history_pruning_analysis.py"
+      ]
+    },
+    {
+      "commit": "50ed076b6ad0ddd4caf2f5bf677c7dfb15a9ffc4",
+      "short_commit": "50ed076",
+      "author_date": "2026-09-08T20:16:07+08:00",
+      "commit_date": "2026-09-08T20:16:07+08:00",
+      "subject": "docs: organize documentation index and archive historical materials",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/README.md",
+        "docs/archive/README.md",
+        "docs/archive/context-compaction-current-state.md",
+        "docs/archive/context-compaction-failure-analysis.md",
+        "docs/archive/context-management-solutions.md",
+        "docs/archive/interview-qa.md",
+        "docs/archive/memory-routing-live-canary-2026-08-29.json",
+        "docs/archive/terminalbench-context-medium-six-results.md",
+        "docs/context-compaction-current-state.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-compaction-failure-analysis.md",
+        "docs/context-framework-comparison.md",
+        "docs/context-management-interview-guide.md",
+        "docs/context-management-solutions.md",
+        "docs/interview-qa.md",
+        "docs/memory-routing-live-canary-2026-08-29.json",
+        "docs/memory-routing.md",
+        "docs/terminalbench-context-medium-six-results.md",
+        "docs/terminalbench-evaluation.md"
+      ]
+    },
+    {
+      "commit": "8d7d5c27df968794e1f170ad89b4bc8ef7beaa1b",
+      "short_commit": "8d7d5c2",
+      "author_date": "2026-09-08T22:06:48+08:00",
+      "commit_date": "2026-09-08T22:06:48+08:00",
+      "subject": "feat(evals): isolate task runs and add independent verification",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/README.md",
+        "docs/evaluation.md",
+        "docs/implementation-status.md",
+        "evals/artifacts.jsonl",
+        "evals/fixtures/report/values.json",
+        "evals/generic.jsonl",
+        "src/bot/cli/app.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/evals/__init__.py",
+        "src/bot/evals/isolation.py",
+        "src/bot/evals/models.py",
+        "src/bot/evals/runner.py",
+        "src/bot/evals/verification.py",
+        "tests/integration/test_eval_verification.py",
+        "tests/unit/test_evals.py"
+      ]
+    },
+    {
+      "commit": "434dae7fbf7389ab1a77c1a7623a478f2d30e462",
+      "short_commit": "434dae7",
+      "author_date": "2026-09-08T22:33:36+08:00",
+      "commit_date": "2026-09-08T22:33:36+08:00",
+      "subject": "docs: design user-facing web execution workbench",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/designs/bot-execution-workbench.html",
+        "docs/web-execution-workbench-design.md"
+      ]
+    },
+    {
+      "commit": "f65bffe985ea21f28913d9aa405d5b05a75c683f",
+      "short_commit": "f65bffe",
+      "author_date": "2026-09-08T23:49:21+08:00",
+      "commit_date": "2026-09-08T23:49:21+08:00",
+      "subject": "feat(web): implement live execution workbench with durable task recovery",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        ".gitignore",
+        "README.md",
+        "docs/README.md",
+        "docs/implementation-status.md",
+        "docs/web-execution-workbench-design.md",
+        "docs/web-workbench.md",
+        "package-lock.json",
+        "package.json",
+        "playwright.config.mjs",
+        "src/bot/cli/runtime.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/events.py",
+        "src/bot/core/models.py",
+        "src/bot/execution/base.py",
+        "src/bot/execution/local.py",
+        "src/bot/policy/engine.py",
+        "src/bot/sessions/store.py",
+        "src/bot/subagents/pool.py",
+        "src/bot/tools/base.py",
+        "src/bot/tools/builtins.py",
+        "src/bot/web/artifacts.py",
+        "src/bot/web/queries.py",
+        "src/bot/web/server.py",
+        "src/bot/web/sink.py",
+        "src/bot/web/static/app.mjs",
+        "src/bot/web/static/index.html",
+        "src/bot/web/static/markdown.mjs",
+        "src/bot/web/static/trace-model.mjs",
+        "src/bot/web/static/workbench.css",
+        "src/bot/web/workbench.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_cli_e2e.py",
+        "tests/integration/test_web_workbench.py",
+        "tests/unit/test_web_queries_artifacts.py",
+        "tests/unit/test_web_server.py",
+        "tests/web/serve_fixture.py",
+        "tests/web/trace-model.test.mjs",
+        "tests/web/workbench.spec.mjs"
+      ]
+    },
+    {
+      "commit": "1448f769d73d3ef555f1c99ab3c5decbb2b9e227",
+      "short_commit": "1448f76",
+      "author_date": "2026-09-09T00:29:35+08:00",
+      "commit_date": "2026-09-09T00:29:35+08:00",
+      "subject": "docs(evals): record benchmark scope and unattended preflight evidence",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/benchmark-preflight-2026-09-09.json",
+        "docs/benchmark-preflight-2026-09-09.md"
+      ]
+    },
+    {
+      "commit": "578f660f928706a6510f1f51e5b3f70333d42dfe",
+      "short_commit": "578f660",
+      "author_date": "2026-09-09T00:38:55+08:00",
+      "commit_date": "2026-09-09T00:38:55+08:00",
+      "subject": "feat(evals): freeze 40 public tasks and support uncapped SWE runs",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-execution.md",
+        "docs/swebench-evaluation.md",
+        "evals/public-regression-40-v1.json",
+        "scripts/freeze_public_benchmark_suite.py",
+        "scripts/run_swebench_container.py",
+        "src/bot/evals/swebench.py",
+        "src/bot/evals/swebench_worker.py",
+        "tests/unit/test_swebench_adapter.py"
+      ]
+    },
+    {
+      "commit": "0298a9321ae5118e738d7dc92065cd354d17bd1d",
+      "short_commit": "0298a93",
+      "author_date": "2026-09-09T00:47:19+08:00",
+      "commit_date": "2026-09-09T00:47:19+08:00",
+      "subject": "feat(evals): add resumable official benchmark execution driver",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "scripts/run_public_benchmarks.py"
+      ]
+    },
+    {
+      "commit": "1cc4be71387c4bbc63462a7420240ab0239e82c9",
+      "short_commit": "1cc4be7",
+      "author_date": "2026-09-09T00:54:18+08:00",
+      "commit_date": "2026-09-09T00:54:18+08:00",
+      "subject": "feat(evals): summarize official outcomes and cache-aware usage",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "scripts/summarize_public_benchmarks.py"
+      ]
+    },
+    {
+      "commit": "d8c2ee830c3f04e682f5a966e9985ff91bf11413",
+      "short_commit": "d8c2ee8",
+      "author_date": "2026-09-09T01:22:11+08:00",
+      "commit_date": "2026-09-09T01:22:11+08:00",
+      "subject": "docs(evals): record initial outcomes and bounded failure attribution",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-execution.md",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "124f91cfce56dd9a5f85e2438263e4cc5cdcfe0a",
+      "short_commit": "124f91c",
+      "author_date": "2026-09-09T01:29:03+08:00",
+      "commit_date": "2026-09-09T01:29:03+08:00",
+      "subject": "docs(evals): record first SWE resolution and protocol counterexample",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "cb073ab93f789e81d37ddd742d571ab997b076b8",
+      "short_commit": "cb073ab",
+      "author_date": "2026-09-09T01:42:04+08:00",
+      "commit_date": "2026-09-09T01:42:04+08:00",
+      "subject": "test(evals): prepare isolated DeepSeek protocol counterfactual",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md",
+        "evals/experiments/deepseek-empty-reasoning.json",
+        "evals/experiments/deepseek-empty-reasoning.patch"
+      ]
+    },
+    {
+      "commit": "a1a506824bfeacc7b526dea171550545b88e169e",
+      "short_commit": "a1a5068",
+      "author_date": "2026-09-09T02:09:28+08:00",
+      "commit_date": "2026-09-09T02:09:28+08:00",
+      "subject": "docs(evals): record five initial outcomes and empty-patch failure",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "54e201f3c754cce9c6f582c19f1a27b4360fbd1f",
+      "short_commit": "54e201f",
+      "author_date": "2026-09-09T02:23:04+08:00",
+      "commit_date": "2026-09-09T02:23:04+08:00",
+      "subject": "docs(evals): verify protocol counterfactual and SWE environment mismatch",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md",
+        "evals/experiments/deepseek-empty-reasoning.json"
+      ]
+    },
+    {
+      "commit": "4d5304a93a20b00f1994c38a9a46080e2f102da0",
+      "short_commit": "4d5304a",
+      "author_date": "2026-09-09T02:45:49+08:00",
+      "commit_date": "2026-09-09T02:45:49+08:00",
+      "subject": "docs(evals): record SymPy counterfactual and native Vim control results",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md",
+        "evals/experiments/deepseek-empty-reasoning.json"
+      ]
+    },
+    {
+      "commit": "b2a241547fc6186a1f076da15248414761fa060b",
+      "short_commit": "b2a2415",
+      "author_date": "2026-09-09T03:02:04+08:00",
+      "commit_date": "2026-09-09T03:02:04+08:00",
+      "subject": "fix(evals): reconcile benchmark usage and preserve incomplete run evidence",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md",
+        "scripts/summarize_public_benchmarks.py",
+        "tests/unit/test_public_benchmark_summary.py"
+      ]
+    },
+    {
+      "commit": "7f58b6bd8f63ffe397363b63930c48b2154c509f",
+      "short_commit": "7f58b6b",
+      "author_date": "2026-09-09T03:09:00+08:00",
+      "commit_date": "2026-09-09T03:09:00+08:00",
+      "subject": "docs(evals): confirm original Vim timeout with identical model artifact",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "2c79eb5e54e995ffd72a2aa98226e5ba4214c9a4",
+      "short_commit": "2c79eb5",
+      "author_date": "2026-09-09T03:25:57+08:00",
+      "commit_date": "2026-09-09T03:25:57+08:00",
+      "subject": "docs(evals): audit SWE Git history and preserve attribution limits",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "c159b6d60401e0ad8f78b2d99fed3bcafed20e6b",
+      "short_commit": "c159b6d",
+      "author_date": "2026-09-09T03:57:57+08:00",
+      "commit_date": "2026-09-09T03:57:57+08:00",
+      "subject": "fix(evals): distinguish invalid verifier runs from model failures",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md",
+        "scripts/summarize_public_benchmarks.py",
+        "tests/unit/test_public_benchmark_summary.py"
+      ]
+    },
+    {
+      "commit": "244f4361be88d41c409078cdb6f07821b595ae4b",
+      "short_commit": "244f436",
+      "author_date": "2026-09-09T04:10:01+08:00",
+      "commit_date": "2026-09-09T04:10:01+08:00",
+      "subject": "docs(evals): confirm SAM verifier fault and extend protocol evidence",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "3d17245065db799c15e1bb2c4215d708b75ffb0d",
+      "short_commit": "3d17245",
+      "author_date": "2026-09-09T04:33:43+08:00",
+      "commit_date": "2026-09-09T04:33:43+08:00",
+      "subject": "docs(evals): record chess delivery failure and Worker activation control",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "c28ada9fd2e4566fbaa81b62ee67321f273bc648",
+      "short_commit": "c28ada9",
+      "author_date": "2026-09-09T04:34:58+08:00",
+      "commit_date": "2026-09-09T04:34:58+08:00",
+      "subject": "docs(evals): record resource limits for isolated Rosetta recovery",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "dc498045474528f3fae8fbcd4703b39586d82769",
+      "short_commit": "dc49804",
+      "author_date": "2026-09-09T04:46:56+08:00",
+      "commit_date": "2026-09-09T04:46:56+08:00",
+      "subject": "docs(evals): record chess candidate protocol failure after compaction",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "760431accdd9c053ebd7328dfece8d1530dc1720",
+      "short_commit": "760431a",
+      "author_date": "2026-09-09T04:50:46+08:00",
+      "commit_date": "2026-09-09T04:50:46+08:00",
+      "subject": "docs(evals): record queued RStan environment recovery",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "4047e3dfcb874a8ded0c24508d649531dd90b1f1",
+      "short_commit": "4047e3d",
+      "author_date": "2026-09-09T04:56:23+08:00",
+      "commit_date": "2026-09-09T04:56:23+08:00",
+      "subject": "docs(evals): isolate chess checkpoint reasoning rejection",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "c4069fea0c0fab22046fbb4ad5ea857573d34f3c",
+      "short_commit": "c4069fe",
+      "author_date": "2026-09-09T05:05:05+08:00",
+      "commit_date": "2026-09-09T05:05:05+08:00",
+      "subject": "docs(evals): classify Caffe reference timeout and queue recovery",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "bd981b4334a6231cff12ea171633ef78fa15b052",
+      "short_commit": "bd981b4",
+      "author_date": "2026-09-09T05:10:58+08:00",
+      "commit_date": "2026-09-09T05:10:58+08:00",
+      "subject": "docs(evals): distinguish parameter cases from CTRF groups",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "10ed27ef0d99b884bd4440a2798ef30bb67058b5",
+      "short_commit": "10ed27e",
+      "author_date": "2026-09-09T05:45:37+08:00",
+      "commit_date": "2026-09-09T05:45:37+08:00",
+      "subject": "fix(evals): preserve artifact passes and late terminal events on timeout",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md",
+        "scripts/summarize_public_benchmarks.py",
+        "tests/unit/test_public_benchmark_summary.py"
+      ]
+    },
+    {
+      "commit": "33261d21221296264b94170280302f60bca8a474",
+      "short_commit": "33261d2",
+      "author_date": "2026-09-09T05:50:28+08:00",
+      "commit_date": "2026-09-09T05:50:28+08:00",
+      "subject": "docs(evals): trace token counting failure to interpretation and verifier gaps",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "6a449ee645f2ee40861c401f0a34129c94e00788",
+      "short_commit": "6a449ee",
+      "author_date": "2026-09-09T05:55:18+08:00",
+      "commit_date": "2026-09-09T05:55:18+08:00",
+      "subject": "docs(evals): record remaining Terminal artifact capture configuration",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json"
+      ]
+    },
+    {
+      "commit": "7cd677e11090547c104b0058ffef5cb1df5c51e9",
+      "short_commit": "7cd677e",
+      "author_date": "2026-09-09T06:01:16+08:00",
+      "commit_date": "2026-09-09T06:01:16+08:00",
+      "subject": "docs(evals): verify frozen inputs model identities and retained images",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "77afa0b0639dc631b05a8597dbebda9cdad9b2b0",
+      "short_commit": "77afa0b",
+      "author_date": "2026-09-09T06:14:39+08:00",
+      "commit_date": "2026-09-09T06:14:39+08:00",
+      "subject": "docs(evals): bound protocol attribution with passing task counterexamples",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "cd1ee773b0decff31b53bf0fb06df446b18001f4",
+      "short_commit": "cd1ee77",
+      "author_date": "2026-09-09T06:38:27+08:00",
+      "commit_date": "2026-09-09T06:38:27+08:00",
+      "subject": "docs(evals): record portfolio pass and continuous result summaries",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "35116ba6c7f2a3c7690e5e3f4ce7236992259c30",
+      "short_commit": "35116ba",
+      "author_date": "2026-09-09T06:47:33+08:00",
+      "commit_date": "2026-09-09T06:47:33+08:00",
+      "subject": "docs(evals): record scheduling pass and calendar input integrity",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "8bc40c5fd3bbc620fd1c56311f421343e9a5dd42",
+      "short_commit": "8bc40c5",
+      "author_date": "2026-09-09T07:09:20+08:00",
+      "commit_date": "2026-09-09T07:09:20+08:00",
+      "subject": "docs(evals): record DNA output truncation and missing artifact",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "d7061ac2d2a5cb2a18960ab6a0808224acafdbbd",
+      "short_commit": "d7061ac",
+      "author_date": "2026-09-09T07:20:51+08:00",
+      "commit_date": "2026-09-09T07:20:51+08:00",
+      "subject": "docs(evals): trace BN policy crash and lost usage accounting",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "0150df82fb8c0a95b02350643b3f51d5ebbd7f82",
+      "short_commit": "0150df8",
+      "author_date": "2026-09-09T07:36:24+08:00",
+      "commit_date": "2026-09-09T07:36:24+08:00",
+      "subject": "docs(evals): verify image-task finalizer code and ARM recovery options",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "5f4c167acf7e27c22e1d94be406fb05228829e26",
+      "short_commit": "5f4c167",
+      "author_date": "2026-09-09T07:52:01+08:00",
+      "commit_date": "2026-09-09T07:52:01+08:00",
+      "subject": "docs(evals): isolate COBOL return-value regression and self-test gap",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "cf8b911134f5c7de100865f1c8ce0eee83221c34",
+      "short_commit": "cf8b911",
+      "author_date": "2026-09-09T08:12:01+08:00",
+      "commit_date": "2026-09-09T08:12:01+08:00",
+      "subject": "docs(evals): record user-requested stop at 18 tasks and summarize attribution",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/public-benchmark-40-evidence.json",
+        "docs/public-benchmark-40-execution.md",
+        "docs/public-benchmark-40-results.md"
+      ]
+    },
+    {
+      "commit": "e3aee83dd1a660919c2aa8569c4668cf76015d2f",
+      "short_commit": "e3aee83",
+      "author_date": "2026-09-09T10:28:36+08:00",
+      "commit_date": "2026-09-09T10:28:36+08:00",
+      "subject": "docs: analyze context management in 18 public benchmark cases",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/data/public-benchmark-context-metrics.json",
+        "docs/public-benchmark-context-analysis.md",
+        "scripts/analyze_public_benchmark_context.py"
+      ]
+    },
+    {
+      "commit": "d0d0082e5bedcbe96331bfe4ca4ca96e118f3b9d",
+      "short_commit": "d0d0082",
+      "author_date": "2026-09-09T11:12:48+08:00",
+      "commit_date": "2026-09-09T11:12:48+08:00",
+      "subject": "docs: propose bounded recovery for output truncation",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/output-truncation-recovery.md"
+      ]
+    },
+    {
+      "commit": "47734c7a667a9e5e61af20448441449266c7adfc",
+      "short_commit": "47734c7",
+      "author_date": "2026-09-09T11:26:41+08:00",
+      "commit_date": "2026-09-09T11:26:41+08:00",
+      "subject": "docs: record measured context and truncation benchmark results",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-cache-benchmark.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-efficiency-benchmark-metrics.md",
+        "docs/context-evaluation-matrix.md",
+        "docs/output-truncation-recovery.md",
+        "docs/public-benchmark-context-analysis.md"
+      ]
+    },
+    {
+      "commit": "c91a956d9f80168d995b8c96e5013238b35fc89f",
+      "short_commit": "c91a956",
+      "author_date": "2026-09-09T11:49:35+08:00",
+      "commit_date": "2026-09-09T11:49:35+08:00",
+      "subject": "docs: compare compaction reasoning replay strategies",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/compaction-reasoning-replay.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-framework-comparison.md"
+      ]
+    },
+    {
+      "commit": "64503eda0481bcc0280b8b3f6e6bd8fdee7b20ec",
+      "short_commit": "64503ed",
+      "author_date": "2026-09-09T14:08:32+08:00",
+      "commit_date": "2026-09-09T14:08:32+08:00",
+      "subject": "docs: audit historical reasoning input in compaction",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/compaction-reasoning-input.md",
+        "docs/compaction-reasoning-replay.md",
+        "docs/context-framework-comparison.md",
+        "docs/data/compaction-reasoning-input.json",
+        "scripts/analyze_compaction_reasoning_input.py"
+      ]
+    },
+    {
+      "commit": "09b9f410d6e45fc159df043b927a6a4a8e691b51",
+      "short_commit": "09b9f41",
+      "author_date": "2026-09-09T14:22:06+08:00",
+      "commit_date": "2026-09-09T14:22:06+08:00",
+      "subject": "docs: explain oversized context compaction budgets and recovery",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/compaction-reasoning-input.md",
+        "docs/context-framework-comparison.md",
+        "docs/oversized-context-compaction.md"
+      ]
+    },
+    {
+      "commit": "82fde6fd129682d6a2116fbed264189995821208",
+      "short_commit": "82fde6f",
+      "author_date": "2026-09-09T14:29:50+08:00",
+      "commit_date": "2026-09-09T14:29:50+08:00",
+      "subject": "docs: clarify harness summary cap and context pressure retry",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/oversized-context-compaction.md"
+      ]
+    },
+    {
+      "commit": "7f36b6ae9518b6ba6dab83547f1fd5e1efc8fbdd",
+      "short_commit": "7f36b6a",
+      "author_date": "2026-09-09T14:35:57+08:00",
+      "commit_date": "2026-09-09T14:35:57+08:00",
+      "subject": "docs: compare Codex native compaction input and retention limits",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-framework-comparison.md",
+        "docs/oversized-context-compaction.md"
+      ]
+    },
+    {
+      "commit": "47568c1e82f551ed2c3bad0dfeeaec47cce8d034",
+      "short_commit": "47568c1",
+      "author_date": "2026-09-09T14:48:23+08:00",
+      "commit_date": "2026-09-09T14:48:23+08:00",
+      "subject": "docs: research Claude Code compaction and recovery mechanisms",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/claude-code-compaction.md",
+        "docs/context-framework-comparison.md",
+        "docs/oversized-context-compaction.md"
+      ]
+    },
+    {
+      "commit": "9e394b4b18b44a8fa059e96f965432ed6abb60d8",
+      "short_commit": "9e394b4",
+      "author_date": "2026-09-09T16:07:11+08:00",
+      "commit_date": "2026-09-09T16:07:11+08:00",
+      "subject": "docs: propose context compaction redesign architectures",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/context-compaction-redesign-options.md",
+        "docs/oversized-context-compaction.md"
+      ]
+    },
+    {
+      "commit": "1d7d4e3b2a5935abacbc7161aa2007429939132e",
+      "short_commit": "1d7d4e3",
+      "author_date": "2026-09-09T16:26:22+08:00",
+      "commit_date": "2026-09-09T16:26:22+08:00",
+      "subject": "docs: combine proactive handoff with capacity compaction fallback",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/context-compaction-redesign-options.md"
+      ]
+    },
+    {
+      "commit": "b2b8845d2797ef6750f49c19d5123d7edcecedf5",
+      "short_commit": "b2b8845",
+      "author_date": "2026-09-09T16:35:43+08:00",
+      "commit_date": "2026-09-09T16:35:43+08:00",
+      "subject": "docs: define A+D handoff benefit evaluation plan",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-compaction-redesign-options.md",
+        "docs/context-handoff-evaluation-plan.md"
+      ]
+    },
+    {
+      "commit": "7f18d5efcff91118c6db15cd0a0dc86ba0e54bc6",
+      "short_commit": "7f18d5e",
+      "author_date": "2026-09-09T17:20:38+08:00",
+      "commit_date": "2026-09-09T17:20:38+08:00",
+      "subject": "feat: add opt-in handoff engine and controlled L0 L1 evaluation",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "scripts/run_context_handoff.py",
+        "src/bot/compaction/handoff.py",
+        "src/bot/evals/context_handoff.py",
+        "src/bot/evals/handoff_fixtures.py",
+        "src/bot/evals/handoff_recording.py",
+        "tests/integration/test_context_handoff.py",
+        "tests/integration/test_handoff_l1_runner.py",
+        "tests/unit/test_handoff_evaluation.py"
+      ]
+    },
+    {
+      "commit": "1521543186fe81b511ed923ffedf9cf57153aa1a",
+      "short_commit": "1521543",
+      "author_date": "2026-09-09T17:26:13+08:00",
+      "commit_date": "2026-09-09T17:26:13+08:00",
+      "subject": "fix: separate handoff factual scoring and freeze source-prefix warmup",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "scripts/run_context_handoff.py",
+        "src/bot/evals/context_handoff.py",
+        "src/bot/evals/handoff_fixtures.py",
+        "tests/unit/test_handoff_evaluation.py"
+      ]
+    },
+    {
+      "commit": "c9e14abf50add52d9f7875786a56b80bced9912c",
+      "short_commit": "c9e14ab",
+      "author_date": "2026-09-09T23:53:45+08:00",
+      "commit_date": "2026-09-09T23:53:45+08:00",
+      "subject": "docs: record L0 and partial L1 handoff results with audited costs",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-compaction-redesign-options.md",
+        "docs/context-handoff-evaluation-plan.md",
+        "docs/context-handoff-l0-l1-results.md",
+        "docs/data/context-handoff-l0-l1-results.json",
+        "scripts/analyze_handoff_l0_l1.py"
+      ]
+    },
+    {
+      "commit": "dcdd47493b0ae851bee14ae4083e6fa0727658f6",
+      "short_commit": "dcdd474",
+      "author_date": "2026-09-10T00:55:25+08:00",
+      "commit_date": "2026-09-10T00:55:25+08:00",
+      "subject": "test: complete L1 handoff evaluation and audit full results",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/context-compaction-effectiveness.md",
+        "docs/context-compaction-redesign-options.md",
+        "docs/context-handoff-evaluation-plan.md",
+        "docs/context-handoff-l0-l1-results.md",
+        "docs/data/context-handoff-l0-l1-results.json",
+        "scripts/analyze_handoff_l0_l1.py",
+        "tests/unit/test_handoff_audit.py"
+      ]
+    },
+    {
+      "commit": "523430dc009e5441bae430962d02afed3d8ad970",
+      "short_commit": "523430d",
+      "author_date": "2026-09-10T10:53:12+08:00",
+      "commit_date": "2026-09-10T10:53:12+08:00",
+      "subject": "docs: align context assembly with current runtime and handoff paths",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/context-assembly.md"
+      ]
+    },
+    {
+      "commit": "9ea981f0bb6f095a1aa68d4c0590efec03fb200e",
+      "short_commit": "9ea981f",
+      "author_date": "2026-09-10T11:18:44+08:00",
+      "commit_date": "2026-09-10T11:18:44+08:00",
+      "subject": "docs: plan removal of the standalone active skill context layer",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/active-skill-layer-removal-plan.md",
+        "docs/skill-run-lifecycle-design.md"
+      ]
+    },
+    {
+      "commit": "b2ee251dfc20a00e589b405877637b2a79f6b8b2",
+      "short_commit": "b2ee251",
+      "author_date": "2026-09-10T11:19:35+08:00",
+      "commit_date": "2026-09-10T11:19:35+08:00",
+      "subject": "fix: calibrate DeepSeek input budgets with the official tokenizer",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/README.md",
+        "docs/context-assembly.md",
+        "docs/data/input-token-calibration.json",
+        "docs/input-token-calibration.md",
+        "pyproject.toml",
+        "scripts/analyze_input_token_estimates.py",
+        "src/bot/compaction/handoff.py",
+        "src/bot/compaction/service.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/core/models.py",
+        "src/bot/evals/handoff_recording.py",
+        "src/bot/providers/_vendor/LICENSE.deepseek",
+        "src/bot/providers/_vendor/README.md",
+        "src/bot/providers/_vendor/__init__.py",
+        "src/bot/providers/_vendor/encoding_dsv4.py",
+        "src/bot/providers/base.py",
+        "src/bot/providers/install_tokenizer.py",
+        "src/bot/providers/openai_compatible.py",
+        "src/bot/providers/token_counting.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_context_handoff.py",
+        "tests/unit/test_context_compaction.py",
+        "tests/unit/test_context_management.py",
+        "tests/unit/test_handoff_evaluation.py",
+        "tests/unit/test_input_token_counting.py"
+      ]
+    },
+    {
+      "commit": "875750c36f1868a3f43df9ce274f29f5a6b1cac0",
+      "short_commit": "875750c",
+      "author_date": "2026-09-10T11:42:51+08:00",
+      "commit_date": "2026-09-10T11:42:51+08:00",
+      "subject": "feat: deliver skill bodies through run-scoped history",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/README.md",
+        "docs/active-skill-layer-removal-plan.md",
+        "docs/context-assembly.md",
+        "docs/data/skill-context-smoke-2026-09-10.json",
+        "docs/skill-context-validation.md",
+        "docs/skill-run-lifecycle-design.md",
+        "scripts/run_skill_context_smoke.py",
+        "src/bot/cli/app.py",
+        "src/bot/compaction/service.py",
+        "src/bot/config/models.py",
+        "src/bot/core/agent.py",
+        "src/bot/core/context.py",
+        "src/bot/evals/context_handoff.py",
+        "src/bot/memory/service.py",
+        "src/bot/providers/base.py",
+        "src/bot/providers/openai_compatible.py",
+        "src/bot/sessions/store.py",
+        "src/bot/skills/catalog.py",
+        "src/bot/skills/runtime.py",
+        "src/bot/web/server.py",
+        "tests/integration/test_agent_loop.py",
+        "tests/integration/test_context_compaction_benchmark.py",
+        "tests/integration/test_skill_context.py",
+        "tests/unit/test_markdown_memory.py",
+        "tests/unit/test_skill_runtime.py"
+      ]
+    },
+    {
+      "commit": "51ab2714d820ac94cce801aab8df57cdc4741284",
+      "short_commit": "51ab271",
+      "author_date": "2026-09-10T11:54:22+08:00",
+      "commit_date": "2026-09-10T11:54:22+08:00",
+      "subject": "docs: align skill lifecycle docs with history delivery",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "README.md",
+        "docs/README.md",
+        "docs/active-skill-layer-removal-plan.md",
+        "docs/archive/README.md",
+        "docs/context-assembly.md",
+        "docs/context-cache-benchmark.md",
+        "docs/context-evaluation-matrix.md",
+        "docs/context-framework-comparison.md",
+        "docs/context-management-interview-guide.md",
+        "docs/design.md",
+        "docs/implementation-status.md",
+        "docs/markdown-memory.md",
+        "docs/recoverable-context-compaction.md",
+        "docs/skill-context-validation.md",
+        "docs/skill-run-lifecycle-design.md",
+        "docs/skill-unloading-cache-comparison.md"
+      ]
+    },
+    {
+      "commit": "ed9f23e8fd80d1fad7c17502384bfe08b8ea4e07",
+      "short_commit": "ed9f23e",
+      "author_date": "2026-09-10T14:23:38+08:00",
+      "commit_date": "2026-09-10T14:23:38+08:00",
+      "subject": "docs: clarify skill state in web eval and child runs",
+      "reachable_from_baseline": true,
+      "changed_files": [
+        "docs/custom-agents.md",
+        "docs/evaluation.md",
+        "docs/web-workbench.md"
+      ]
+    }
+  ]
+}

@@ -61,6 +61,7 @@
 
 ## 面试与历史资料
 
+- [历史开发记录与简历素材库](resume-materials.md)：覆盖全项目的 42 条候选描述、开发时间线、指标边界与提交证据，按个人实际贡献筛选；完整提交清单见 [development-history.json](data/development-history.json)。
 - [上下文管理架构与面试手册](context-management-interview-guide.md)：统一的面试准备入口，包含请求组装、项目深挖、指标边界和源码索引。
 - [历史归档](archive/README.md)：旧压缩方案、故障复盘、被替代的简短问答和单次评测记录。
 
