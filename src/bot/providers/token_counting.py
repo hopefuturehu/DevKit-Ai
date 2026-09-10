@@ -26,9 +26,14 @@ TOKENIZER_URL = (
     f"https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash/resolve/{REVISION}/tokenizer.json"
 )
 MODEL = "deepseek-v4-flash"
+# Pro's official tokenizer and encoder are byte-identical to the pinned Flash
+# assets (Pro revision b5968e9190ef611bbf34a7229255be88a0e937c1).
+MODEL_REVISIONS = {MODEL: REVISION, "deepseek-v4-pro": "b5968e9190ef611bbf34a7229255be88a0e937c1"}
 
 
 def tokenizer_path() -> Path:
+    if configured := os.environ.get("BOT_DEEPSEEK_TOKENIZER_PATH"):
+        return Path(configured).expanduser()
     return Path.home() / ".cache" / "bot" / "tokenizers" / MODEL / REVISION / "tokenizer.json"
 
 
@@ -91,7 +96,7 @@ class DeepSeekInputCounter:
 
     def estimate(self, request: ModelRequest, payload: dict[str, Any]) -> InputTokenEstimate:
         mode = payload.get("thinking", {}).get("type", "enabled")
-        source = f"deepseek-v4-flash:{REVISION}"
+        source = f"{request.model}:{MODEL_REVISIONS.get(request.model, REVISION)}"
         try:
             tokenizer = load_tokenizer(tokenizer_path())
             key = hashlib.sha256(

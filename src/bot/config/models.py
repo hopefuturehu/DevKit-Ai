@@ -19,6 +19,7 @@ class ModelConfig(StrictModel):
     temperature: float = Field(default=0.2, ge=0, le=2)
     timeout_seconds: float = Field(default=120, gt=0)
     max_output_tokens: int | None = Field(default=None, gt=0)
+    thinking: Literal["enabled", "disabled"] | None = None
     context_window_tokens: int = Field(default=131_072, gt=0)
     input_cost_per_million: float | None = Field(default=None, ge=0)
     output_cost_per_million: float | None = Field(default=None, ge=0)
@@ -134,6 +135,11 @@ class PermissionsConfig(StrictModel):
 
 
 class ContextConfig(StrictModel):
+    compaction_strategy: Literal["current", "a", "b"] = "current"
+    compaction_low_water_tokens: int = Field(default=40_000, ge=512)
+    compaction_leaf_input_tokens: int = Field(default=24_000, ge=2_048)
+    compaction_merge_fanout: int = Field(default=4, ge=2, le=16)
+    compaction_background: bool = True
     max_input_tokens: int = Field(default=120_000, gt=0)
     auto_compact_threshold: float = Field(default=0.8, gt=0, lt=1)
     output_reserve_tokens: int = Field(default=4_096, ge=0)

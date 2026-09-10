@@ -15,8 +15,7 @@ from bot.core.models import (
     ModelRequest,
 )
 from bot.providers.base import ModelProvider, ProviderError, ProviderErrorKind
-from bot.providers.token_counting import MODEL as TOKENIZER_MODEL
-from bot.providers.token_counting import DeepSeekInputCounter
+from bot.providers.token_counting import MODEL_REVISIONS, DeepSeekInputCounter
 
 _CONTEXT_ERROR_MARKERS = (
     "context length",
@@ -128,7 +127,7 @@ class OpenAICompatibleProvider(ModelProvider):
         return hostname == "api.deepseek.com" or hostname.endswith(".deepseek.com")
 
     def estimate_input_tokens(self, request: ModelRequest) -> InputTokenEstimate | None:
-        if not self._is_official_deepseek_endpoint() or request.model != TOKENIZER_MODEL:
+        if not self._is_official_deepseek_endpoint() or request.model not in MODEL_REVISIONS:
             return super().estimate_input_tokens(request)
         return self._input_counter.estimate(request, self._payload(request))
 
@@ -136,7 +135,7 @@ class OpenAICompatibleProvider(ModelProvider):
         payload = self._payload(request)
         estimate = (
             self._input_counter.estimate(request, payload)
-            if self._is_official_deepseek_endpoint() and request.model == TOKENIZER_MODEL
+            if self._is_official_deepseek_endpoint() and request.model in MODEL_REVISIONS
             else None
         )
         owned_client = self._client is None

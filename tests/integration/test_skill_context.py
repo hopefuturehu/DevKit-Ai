@@ -8,7 +8,14 @@ from bot.config.models import AppConfig
 from bot.core.agent import AgentRunner
 from bot.core.context import ContextAssembler
 from bot.core.events import EventBus
-from bot.core.models import ModelCapabilities, ModelEvent, ModelEventKind, RunRequest
+from bot.core.models import (
+    ChatMessage,
+    ModelCapabilities,
+    ModelEvent,
+    ModelEventKind,
+    Role,
+    RunRequest,
+)
 from bot.execution.local import LocalExecutionTarget
 from bot.policy import DefaultPolicyEngine
 from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
@@ -275,6 +282,91 @@ async def test_compaction_restores_exact_version_and_excludes_synthetic_user_anc
         assert len({e.skill_delivery.version_hash for e in body_entries}) == 1
         for compaction in store.list_context_compactions(result.session_id):
             assert all(entries[p - 1].is_real_user for p in compaction["anchor_positions"])
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("strategy", ["a", "b"])
+async def test_real_runner_strategy_restores_skill_and_continues_tools(tmp_path, strategy):
+    write_skill(tmp_path, body="KEEP_EXACT_SKILL_947\n" + "rules for evidence.\n" * 100)
+    (tmp_path / "evidence.txt").write_text("verified current workspace")
+
+    class CombinedProvider(SkillProvider):
+        async def stream(self, request):
+            last = request.messages[-1].content or ""
+            is_summary = (
+                "在当前安全断点" in last or '"kind": "leaf"' in last or '"kind": "merge"' in last
+            )
+            if is_summary:
+                summary = "\n\n".join(
+                    f"# {section}\n- Continue the evidence task."
+                    for section in [
+                        "Goal",
+                        "Constraints",
+                        "Progress",
+                        "Key Decisions",
+                        "Relevant Files",
+                        "Failures",
+                        "Next Steps",
+                        "Critical Context",
+                    ]
+                )
+                yield ModelEvent(kind=ModelEventKind.USAGE, input_tokens=100, output_tokens=20)
+                for event in finish(summary):
+                    yield event
+            else:
+                async for event in super().stream(request):
+                    yield event
+
+    provider = CombinedProvider([calls(("read1", "read_file", {"path": "evidence.txt"})), finish()])
+    runner, store = make_runner(
+        tmp_path,
+        provider,
+        compaction=True,
+        context={
+            "compaction_strategy": strategy,
+            "recent_conversation_tokens": 300,
+            "compaction_leaf_input_tokens": 4000,
+        },
+    )
+    session = store.create_session(tmp_path)
+    store.start_run(session, "history")
+    for index in range(6):
+        store.append_message(
+            session,
+            "history",
+            ChatMessage(
+                role=Role.ASSISTANT,
+                content=f"inspection {index}: " + "old observations " * 700,
+            ),
+        )
+    store.finish_run("history", "completed")
+
+    async def request_cut(request):
+        if len(provider.requests) == 1:
+            runner.request_compaction(session)
+
+    provider.on_request = request_cut
+    try:
+        result = await runner.run(
+            RunRequest(
+                session_id=session,
+                prompt="Read evidence and conclude.",
+                explicit_skills=["analysis"],
+            )
+        )
+        assert result.status == "completed", result.error
+        records = store.list_context_compactions(session)
+        assert len(records) == 1 and records[0]["trigger"] == f"strategy:{strategy}"
+        assert result.input_tokens >= 100 and result.output_tokens >= 20
+        assert len(provider.requests) == 2
+        for request in provider.requests:
+            assert sum("KEEP_EXACT_SKILL_947" in (m.content or "") for m in request.messages) == 1
+        entries = store.load_positioned_messages(session)
+        assert any(e.skill_delivery and e.skill_delivery.kind == "restored_body" for e in entries)
+        assert all(entries[p - 1].is_real_user for p in records[0]["anchor_positions"])
+        assert not runner._run_compaction_strategies
     finally:
         store.close()
 

@@ -51,7 +51,8 @@ def test_upstream_template_resolves_reasoning_and_tools_without_mutating_payload
     assert thinking.endswith("<｜Assistant｜><think>")
 
 
-def test_counter_uses_effective_mode_and_never_calls_it_exact(monkeypatch):
+@pytest.mark.parametrize("model", ["deepseek-v4-flash", "deepseek-v4-pro"])
+def test_counter_uses_effective_mode_and_never_calls_it_exact(monkeypatch, model):
     prompts = []
 
     def encode(prompt, *, add_special_tokens):
@@ -62,11 +63,13 @@ def test_counter_uses_effective_mode_and_never_calls_it_exact(monkeypatch):
     monkeypatch.setattr(counting, "load_tokenizer", lambda _: SimpleNamespace(encode=encode))
     provider = OpenAICompatibleProvider(base_url="https://api.deepseek.com", api_key="unused")
     request = tool_request(None)
+    request.model = model
     request.messages[1].reasoning_content = None  # Provider automatically selects non-thinking.
     estimate = provider.estimate_input_tokens(request)
     assert estimate.tokens == 10_000
     assert estimate.budget_tokens == 10_500
     assert estimate.effective_thinking == "disabled"
+    assert estimate.source.startswith(model + ":")
     assert provider.count_tokens(request) is None
     assert prompts[0].endswith("</think>")
     assert provider.estimate_input_tokens(request) == estimate
@@ -107,7 +110,7 @@ def test_tokenizer_verifies_asset_and_unknown_models_do_not_use_it(tmp_path, mon
     assert provider.estimate_input_tokens(tool_request()) is None
     provider = OpenAICompatibleProvider(base_url="https://api.deepseek.com", api_key="unused")
     request = tool_request()
-    request.model = "deepseek-v4-pro"
+    request.model = "unverified-model"
     assert provider.estimate_input_tokens(request) is None
 
 

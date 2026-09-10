@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shlex
 from pathlib import Path
@@ -34,6 +35,7 @@ class KunpengBot(BaseInstalledAgent):
         max_wall_time_seconds: float = 1800,
         max_cost_usd: float | None = None,
         subagents_enabled: bool = False,
+        tokenizer_path: str | None = None,
         **kwargs: Any,
     ) -> None:
         self.package_path = Path(package_path).expanduser().resolve()
@@ -50,6 +52,14 @@ class KunpengBot(BaseInstalledAgent):
         self.max_wall_time_seconds = float(max_wall_time_seconds)
         self.max_cost_usd = float(max_cost_usd) if max_cost_usd is not None else None
         self.subagents_enabled = bool(subagents_enabled)
+        self.tokenizer_path = (
+            Path(tokenizer_path).expanduser().resolve() if tokenizer_path else None
+        )
+        if self.tokenizer_path is not None:
+            from bot.providers.token_counting import TOKENIZER_SHA256
+
+            if hashlib.sha256(self.tokenizer_path.read_bytes()).hexdigest() != TOKENIZER_SHA256:
+                raise ValueError("DeepSeek tokenizer checksum mismatch")
         super().__init__(logs_dir, **kwargs)
 
     @override
@@ -63,6 +73,10 @@ class KunpengBot(BaseInstalledAgent):
             f"{self._REMOTE_ROOT}/{self.package_path.name}",
         )
         await environment.upload_file(self.config_path, self._REMOTE_CONFIG)
+        if self.tokenizer_path is not None:
+            await environment.upload_file(
+                self.tokenizer_path, f"{self._REMOTE_ROOT}/tokenizer.json"
+            )
         # Harbor 0.20.0's published BaseInstalledAgent predates the
         # ensure_system_dependencies helper that is present on main.
         await self.exec_as_root(
@@ -148,7 +162,14 @@ class KunpengBot(BaseInstalledAgent):
             environment,
             command=f"{shlex.join(argv)} 2>&1 | tee /logs/agent/worker.log",
             cwd=workspace,
-            env={"HARBOR_CONTAINER": "1"},
+            env={
+                "HARBOR_CONTAINER": "1",
+                **(
+                    {"BOT_DEEPSEEK_TOKENIZER_PATH": f"{self._REMOTE_ROOT}/tokenizer.json"}
+                    if self.tokenizer_path
+                    else {}
+                ),
+            },
         )
 
     @override

@@ -204,6 +204,45 @@ class RunSkillState(SkillManager):
             raise SkillContextError("skill_body_version_mismatch", reference)
         return body
 
+    def preview_restorations(self, history: list[PositionedMessage]) -> list[ChatMessage]:
+        """Budget the exact missing deliveries without publishing or changing bindings."""
+        if self.mode != "history":
+            return []
+        messages = []
+        for binding in self.bindings.values():
+            if self._find_body(history, binding) is None:
+                messages.append(
+                    synthetic_user_context_message(
+                        name="skill_body",
+                        kind="restored_body",
+                        scope="run",
+                        source=f"skill:{binding.name}",
+                        content=self._read_body(
+                            binding.body_ref, binding.body_bytes, binding.version_hash
+                        ),
+                    )
+                )
+        positions = {entry.position for entry in history}
+        for position, resource in self.pending_resources.items():
+            if position not in positions:
+                delivery = resource.skill_delivery
+                if delivery is None:
+                    raise SkillContextError("skill_body_unavailable", "资源缺少交付来源")
+                messages.append(
+                    synthetic_user_context_message(
+                        name="skill_resource",
+                        kind="skill_resource",
+                        scope="run",
+                        source=f"skill:{delivery.skill_name}",
+                        content=self._read_body(
+                            delivery.body_ref,
+                            delivery.body_bytes,
+                            delivery.version_hash,
+                        ),
+                    )
+                )
+        return messages
+
     def prepare_history(
         self,
         history: list[PositionedMessage],

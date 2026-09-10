@@ -10,6 +10,8 @@ from uuid import uuid4
 
 import jsonschema
 
+from bot.compaction.models import ContextCompactionResult
+from bot.compaction.strategies import StrategyCompactor, StrategyFrame
 from bot.config.models import AppConfig
 from bot.core.approval import ApprovalHandler, ApprovalScope, DenyApprovalHandler
 from bot.core.context import (
@@ -235,6 +237,7 @@ class AgentRunner:
         self._session_idle_events: dict[str, asyncio.Event] = {}
         self._activated_tools: dict[str, set[str]] = {}
         self._run_skill_states: dict[str, RunSkillState] = {}
+        self._run_compaction_strategies: dict[str, StrategyCompactor] = {}
         self._last_context_reports: dict[str, dict[str, object]] = {}
         self._token_estimator = TokenEstimator()
         context_window = config.model.context_window_tokens
@@ -408,6 +411,14 @@ class AgentRunner:
         idle_event.clear()
         self._steering_queues[session_id] = asyncio.Queue()
         self._run_skill_states[session_id] = skill_state
+        strategy = None
+        if (
+            self.context_compactor is not None
+            and self.config.context.compaction_strategy != "current"
+        ):
+            strategy = StrategyCompactor(self.context_compactor, self.provider, session_id, run_id)
+        if strategy is not None:
+            self._run_compaction_strategies[session_id] = strategy
         try:
             return await self._run_owned(
                 request,
@@ -416,10 +427,15 @@ class AgentRunner:
                 skill_state=skill_state,
             )
         finally:
-            skill_state.close()
-            self._run_skill_states.pop(session_id, None)
-            self._steering_queues.pop(session_id, None)
-            idle_event.set()
+            try:
+                if strategy is not None:
+                    await strategy.close()
+            finally:
+                skill_state.close()
+                self._run_compaction_strategies.pop(session_id, None)
+                self._run_skill_states.pop(session_id, None)
+                self._steering_queues.pop(session_id, None)
+                idle_event.set()
 
     def active_skill_names(self, session_id: str | None = None) -> list[str]:
         if session_id is not None:
@@ -567,6 +583,13 @@ class AgentRunner:
             )
         if result.status == "completed":
             self.store.clear_progress_state(session_id)
+        strategy = self._run_compaction_strategies.get(session_id)
+        if strategy is not None:
+            await strategy.close()
+            extra_input, extra_output = strategy.take_usage()
+            result.input_tokens += extra_input
+            result.output_tokens += extra_output
+            result.cost_usd = self._calculate_cost(result.input_tokens, result.output_tokens)
         self.store.finish_run(
             run_id,
             result.status,
@@ -860,6 +883,44 @@ class AgentRunner:
             )
             if unplanned_estimate is not None:
                 unplanned_tokens = unplanned_estimate.budget_tokens
+            strategy = self._run_compaction_strategies.get(session_id)
+            if strategy is not None:
+                self._prepare_strategy_frame(
+                    strategy,
+                    skill_state=skill_state,
+                    base_items=base_items,
+                    memory_items=memory_items,
+                    conversation=conversation,
+                    compaction_items=compaction_items,
+                    runtime_notes=runtime_notes,
+                    request_tools=request_tools,
+                    run_id=run_id,
+                )
+                retained = self._retained_conversation_positions(conversation, force=False)
+                older_positions = [e.position for e in conversation if e.position not in retained]
+                if older_positions:
+                    strategy.schedule(max(older_positions))
+                extra_input, extra_output = strategy.take_usage()
+                if extra_input or extra_output:
+                    input_tokens, output_tokens, cost_usd = await self._account_compaction_usage(
+                        ContextCompactionResult(
+                            compacted=False,
+                            trigger="background",
+                            input_tokens=extra_input,
+                            output_tokens=extra_output,
+                        ),
+                        session_id=session_id,
+                        run_id=run_id,
+                        step=step,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                    )
+                    self._enforce_compaction_cost_limit(
+                        step=step,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=cost_usd,
+                    )
             if force_compact or (
                 not context_retry_used and unplanned_tokens > self._token_budget.target_input_limit
             ):
@@ -1015,6 +1076,7 @@ class AgentRunner:
                 ),
                 temperature=self.config.model.temperature,
                 max_output_tokens=self.config.model.max_output_tokens,
+                thinking=self.config.model.thinking,
             )
             dropped_ids = {str(item.get("id")) for item in context_pack.dropped_items}
             disposable_positions_sent = {
@@ -1909,6 +1971,7 @@ class AgentRunner:
                     tools=[],
                     temperature=self.config.model.temperature,
                     max_output_tokens=self.config.model.max_output_tokens,
+                    thinking=self.config.model.thinking,
                 )
                 skill_state.check_request(finalizer_request, self.provider)
                 estimate = estimate_input_tokens(self.provider, finalizer_request)
@@ -2542,6 +2605,7 @@ class AgentRunner:
                     tools=tools,
                     temperature=self.config.model.temperature,
                     max_output_tokens=self.config.model.max_output_tokens,
+                    thinking=self.config.model.thinking,
                 )
             )
         except Exception:
@@ -2561,6 +2625,7 @@ class AgentRunner:
                 tools=tools,
                 temperature=self.config.model.temperature,
                 max_output_tokens=self.config.model.max_output_tokens,
+                thinking=self.config.model.thinking,
             ),
         )
 
@@ -2833,6 +2898,74 @@ class AgentRunner:
         validate_main_agent_context_roles(items)
         return items
 
+    def _prepare_strategy_frame(
+        self,
+        strategy: StrategyCompactor,
+        *,
+        skill_state: RunSkillState,
+        base_items: list[ContextItem],
+        memory_items: list[ContextItem],
+        conversation: list[PositionedMessage],
+        compaction_items: list[ContextItem],
+        runtime_notes: list[ContextItem],
+        request_tools: list[ToolDefinition],
+        run_id: str,
+    ) -> None:
+        def assemble(items: list[ContextItem]) -> ModelRequest:
+            return ModelRequest(
+                model=self.config.model.name,
+                messages=[item.message for item in sorted(items, key=ContextPlanner._render_order)],
+                tools=request_tools,
+                temperature=self.config.model.temperature,
+                max_output_tokens=self.config.model.max_output_tokens,
+                thinking=self.config.model.thinking,
+            )
+
+        def project(record: dict[str, Any]) -> ModelRequest:
+            tail = self.store.load_positioned_messages(
+                strategy.session_id,
+                after_position=record["covered_end_position"],
+            )
+            items = self._build_context_items(
+                base_items=base_items,
+                memory_items=memory_items,
+                skill_state=skill_state,
+                compaction_items=self._compaction_context_items(
+                    {"compaction": record}, run_id=run_id
+                ),
+                conversation=tail,
+                runtime_notes=runtime_notes,
+            )
+            latest = max((entry.position for entry in tail), default=record["covered_end_position"])
+            for index, message in enumerate(skill_state.preview_restorations(tail), 1):
+                items.append(
+                    ContextItem(
+                        id=f"skill-restore-preview:{index}",
+                        layer=ContextLayer.RECENT_CONVERSATION,
+                        message=message,
+                        source="skill:restore-preview",
+                        trust=ContextTrust.UNTRUSTED,
+                        retention=ContextRetention.PINNED,
+                        priority=600,
+                        position=latest + index,
+                    )
+                )
+            return assemble(items)
+
+        strategy.frame = StrategyFrame(
+            assemble(
+                self._build_context_items(
+                    base_items=base_items,
+                    memory_items=memory_items,
+                    skill_state=skill_state,
+                    compaction_items=compaction_items,
+                    conversation=conversation,
+                    runtime_notes=runtime_notes,
+                )
+            ),
+            project,
+        )
+
     async def _consolidate_conversation(
         self,
         *,
@@ -2858,13 +2991,19 @@ class AgentRunner:
             active_run_id=active_run_id,
             conversation=conversation,
         )
-        result = await self.context_compactor.compact(
-            session_id,
-            through_position=max(entry.position for entry in older),
-            trigger="context_pressure_forced" if force else "context_pressure",
-            active_run_ids={active_run_id},
-            anchor_positions=anchor_positions or None,
-        )
+        strategy = self._run_compaction_strategies.get(session_id)
+        if strategy is None:
+            result = await self.context_compactor.compact(
+                session_id,
+                through_position=max(entry.position for entry in older),
+                trigger="context_pressure_forced" if force else "context_pressure",
+                active_run_ids={active_run_id},
+                anchor_positions=anchor_positions or None,
+            )
+        else:
+            result = await strategy.compact(
+                max(entry.position for entry in older), anchor_positions
+            )
         if not result.compacted:
             return _ConsolidationOutcome(
                 result=result,
@@ -2897,6 +3036,7 @@ class AgentRunner:
             projection=projection,
             conversation=remaining,
             details={
+                **(strategy.last_metrics if strategy is not None else {}),
                 "compaction_id": result.compaction_id,
                 "cursor_position": cursor,
                 "messages_consolidated": len(conversation) - len(remaining),
