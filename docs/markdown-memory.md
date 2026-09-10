@@ -46,7 +46,7 @@
 - 工作区与当前 Runtime 一致；
 - 尚未成功提取，或失败次数没有达到 `memory.max_attempts`。
 
-提取输入只包含带位置的用户、Assistant 和有限 Tool 消息，不包含 reasoning。用户消息和
+提取输入只包含带位置的用户、Assistant 和有限 Tool 消息，不包含 reasoning。真实用户消息和
 最终 Assistant 正文优先进入 `memory.max_source_tokens` 预算。每条消息还受
 `memory.max_message_chars` 限制。
 
@@ -59,7 +59,9 @@
 - `pitfall`
 
 程序随后验证置信度、长度、证据位置、用户偏好的 User 证据和敏感信息。`user_preference`
-只保留真实 `role=user` 的证据位置；“用户曾说过/贴出/发送/否认/同意/授权”一类会话事件
+只保留 `PositionedMessage.is_real_user` 判定为真的证据位置：角色为 `user` 且没有内部 Skill
+交付来源。显式或恢复的 Skill 合成消息即使使用 `role=user`，也不成为用户偏好证据；旧的未知
+记录保留兼容处理，不按正文自报身份。“用户曾说过/贴出/发送/否认/同意/授权”一类会话事件
 无论模型给出什么 kind 都被确定性拒绝，因为它们应从原始 Transcript 查询，而不是固化成长期
 记忆。这条规则直接阻止 Assistant 的错误归因借用一条 User 否认消息成为“证据”。模型只能建议
 稳定 key，不能决定信任级别、目标路径或覆盖旧内容。

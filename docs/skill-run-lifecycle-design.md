@@ -8,6 +8,11 @@
 >
 > 目标：保留显式激活与 Run 状态，移除独立 Active Skill 全文层；正文在历史中稳定回放，压缩前按价值裁剪，压缩后在继续执行前验证并恢复必要正文。Run 结束关闭绑定，正文延迟批量卸载。本文保留原提案，不代表所有类型、接口和裁剪策略均已落地；实际边界以首版方案与[验证记录](skill-context-validation.md)为准。
 
+实现对照（`875750c`）：实际类型为 `RunSkillState`、`SkillBinding`、`SkillDelivery`，来源表为
+`skill_deliveries`；正文消息与 blob 同时保存。下文的 `ActiveSkillBinding`、`context_deliveries`、
+投影 revision、范围依赖、回收索引、释放/裁剪/恢复专用事件仍是原提案接口，不是当前运行 API。
+第 2 节描述改造前问题，第 7–8 节的通用投影与裁剪方案尚未实现。
+
 ## 1. 核心决策
 
 采用 **Catalog + RunSkillState + 带来源的历史交付 + 统一裁剪与恢复**。需要保留的是“当前任务的必要指令可获得、可验证”，不需要用独立前置全文区实现这个保证。
@@ -27,9 +32,9 @@
 
 不在第一版引入模型判断相关性、自动 TTL、逐轮 LRU 或跨 Run 隐式继承。需要多轮常驻时，后续可增加用户明确指定的 session pin；它必须是独立策略，不能由一次显式激活推导出来。
 
-## 2. 当前问题与改动依据
+## 2. 改造前的问题与设计依据（`1615c78`）
 
-| 当前实现 | 影响 | 设计调整 |
+| 改造前实现 | 影响 | 原设计调整 |
 |---|---|---|
 | `SkillManager.active` 是 Runtime 中的可变字典 | 正常 Run 结束仍保留；不同 session 共用 Runner 时也没有按 Run 隔离 | Catalog 与激活状态分离，每个 Run 一个状态对象 |
 | `run()` 没有统一关闭 Skill 状态 | 完成、异常、取消等路径缺少释放动作 | 用覆盖启动和收尾的最外层 `finally` 清理 |
@@ -43,7 +48,9 @@
 | 当前 idle 信号先于 `finish_run()` 完成 | 自动续跑可能在旧任务清理前开始 | 将释放和持久化尝试纳入同一准入保护周期，最后才发布 idle |
 | CLI/Web 使用全局 `reset()` 和 `active` | 新会话操作可能影响同 Runtime 的其他执行 | 状态查询按 session/run；新会话不再全局清空 |
 
-依据：[SkillManager](../src/bot/skills/catalog.py)、[AgentRunner](../src/bot/core/agent.py)、[Runtime](../src/bot/cli/runtime.py)、[CLI](../src/bot/cli/app.py)、[Web](../src/bot/web/server.py)。
+以上问题依据为 `1615c78` 的对应文件；[SkillManager](../src/bot/skills/catalog.py)、
+[AgentRunner](../src/bot/core/agent.py)、[CLI](../src/bot/cli/app.py)及[Web](../src/bot/web/server.py)
+链接指向当前实现，已修复范围见首版方案，不能将表中缺口继续当作当前行为。
 
 ## 3. “释放”的准确含义
 
@@ -505,4 +512,9 @@ Run 关闭本身不删中段历史；正常情况下也不因为 active 变空�
 
 ## 15. 面试表达
 
-> 我会保留 Skill 的显式激活和 Run 状态，把正文从独立前置层收敛到历史中的单次交付。压缩前先按重复、过期和任务依赖裁剪工具结果；压缩后由 Runtime 恢复当前 Skill 的必要原文，并检查最终请求，不能只让摘要记住 Skill 名称。Run 结束立即关闭绑定，正文随压缩批量卸载，减少历史改写。验收同时看状态隔离、压缩后的规则执行、总费用和真实任务质量；这是一份待实现方案，不能作为已取得的优化成果。
+以下按首版实际能力表述，个人贡献仍应按本人参与范围调整：
+
+> 当前实现保留 Skill 显式激活和 Run 绑定，把新会话的正文从独立前置层移到历史加载位置。
+> 压缩后由 Runtime 恢复必要原文并检查最终请求，Run 结束关闭绑定，历史正文继续随普通预算和
+> 压缩管理。通用去重、微裁剪和批量收据回收还没有实现。验收确认了状态隔离和压缩后规则执行，
+> 也观察到部分场景输入增加；尚不能把这项改造表述成普遍节费成果。

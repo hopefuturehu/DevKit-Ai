@@ -1,6 +1,6 @@
 # 移除 Active Skill 独立全文层：最小实施方案
 
-> 状态：首版 A–C 已实现并通过确定性回归；D 的小规模真实模型验证及范围见[实施与验证记录](skill-context-validation.md)。日期：2026-09-10。
+> 状态：首版 A–C 已在 `875750c` 实现并通过确定性回归；D 已有小规模行为与 usage 对照，完整成本评测待补。日期：2026-09-10。结果见[实施与验证记录](skill-context-validation.md)。
 >
 > 基于当前工作区核对，承接 [Skill 上下文管理设计](skill-run-lifecycle-design.md) 与 [开源框架调研](skill-unloading-cache-comparison.md)。本文确定首版实施范围；原方案中的独立微裁剪、批量历史投影和通用去重留待后续评测。
 
@@ -20,7 +20,7 @@
 | Skill Catalog | 保留名称、说明和加载入口 |
 | `activate_skill` | 保留名称和参数；负责选择、绑定与首次正文交付 |
 | `load_skill_resource` | 保留；执行时检查本 Run 绑定及现有目录访问约束 |
-| 独立 Active Skill header/body | 从请求构建中移除；有必要时用短尾部状态说明当前有效 Skill |
+| 独立 Active Skill header/body | history 请求不再产生；legacy 兼容路径保留，history 用短尾部状态说明当前绑定 |
 | 激活状态 | 从共享 `SkillManager.active` 收敛为 Run 所有的状态 |
 | 正文 | 自动加载放 Tool Result；显式加载和恢复放带来源的合成消息 |
 | 压缩与恢复 | 复用现有摘要、原文 blob 和历史游标，增加交付来源与执行前检查 |
@@ -52,9 +52,11 @@
 
 同一版本已有完整且可用的历史交付时复用它，不额外注入前置正文。摘要覆盖了旧位置时，在新历史尾部恢复一次，随后继续回放这个新位置。
 
-## 3. 必须先修复的现有路径
+## 3. 已修复的旧路径
 
-| 位置 | 当前行为 | 必需改动 |
+下表的“改造前”描述实施前的缺口；最后一列是 history 模式当前实现。
+
+| 位置 | 改造前行为 | 已实现处理 |
 |---|---|---|
 | [agent.py](../src/bot/core/agent.py) `_activate_skill()` 与工具结果持久化 | 返回正文后仍经过 `_inline_reference()`，可能成为头尾预览 | 为内部 Skill 正文增加完整交付分支 |
 | 同文件显式 Skill 处理 | 在真实用户消息落库前激活；正文仅靠独立层重建 | 在真实用户消息后追加显式正文交付 |
@@ -70,21 +72,27 @@
 
 ### 4.1 Run 内绑定
 
-增加 Run 所有的 `RunSkillState`，显式传入执行、资源加载和收尾路径。共享 Catalog 负责发现，状态对象记录本 Run 的选择：
+`RunSkillState` 显式传入执行、资源加载和收尾路径。共享 Catalog 负责发现，状态对象保存快照和
+本 Run 的选择。以下为实际内部字段的节选：
 
 ```text
 RunSkillState
-  session_id, run_id, status(open/finalizing/closed)
-  catalog_snapshot
-  bindings[name] = {
-    version_hash, body_ref, required_range,
-    explicit, latest_delivery_position
-  }
+  session_id, run_id, mode, status(open/finalizing/closed)
+  catalog = template.catalog.snapshot()
+  bindings[name]: SkillBinding
+    name, reason, explicit, version_hash, body_ref, body_bytes, tokens, delivery_position
+  pending_resources[position]: PositionedMessage
+  required[position]: ChatMessage
+  request_ready: bool
 ```
 
-字段是拟议内部接口。`version_hash` 对规范化并按项目既有规则脱敏后的正文计算；blob 与实际交付正文必须使用同一表示，消息信封单独校验。Run 固定目录/正文快照，reload 只影响后续 Run，不从新文件冒充旧版本恢复。
+`version_hash` 对渲染并脱敏后的存储正文计算；`body_bytes` 记录 UTF-8 字节数。消息信封包含在
+独立的消息哈希校验中。Run 固定 Catalog/正文快照，reload 只影响后续 Run，不从新文件冒充
+旧版本恢复；资源目录本身没有整体冻结。
 
-第一版 `required_range` 为完整正文，沿用 `active_skill_tokens=16000` 的聚合上限，同时服从完整请求预算。计数复用当前请求预算接口；16K 不是整份请求的可发送保证。
+首版只支持完整正文依赖，没有 `required_range` 字段。`active_skill_tokens=16000` 是
+`TokenEstimator` 估算的活动正文聚合上限；完整请求另走既有 Planner/Provider 预算接口。
+16K 不是整份请求的可发送保证，失效正文仍另计历史占用。
 
 重复激活幂等。显式指定已有自动绑定时升级来源，修正自动激活名额。新 Run 不从历史“已激活”字样恢复旧绑定；相同版本仍可见时，可以建立新绑定后复用旧交付位置。
 
@@ -93,16 +101,20 @@ RunSkillState
 首版选择在 `messages` 中直接保存有界的完整 Skill 正文，同时保留不可变 blob 供压缩后恢复。增加 `skill_deliveries` 侧表，不把内部字段塞入 Provider 消息协议：
 
 ```text
-session_id, run_id, message_position
-kind = auto_body | explicit_body | restored_body | resource
-skill_name, version_hash, body_ref, delivered_range
-message_hash, delivery_key
+skill_deliveries 表：
+  session_id, run_id, message_position, delivery_key, delivery_json
+  PRIMARY KEY(session_id, message_position)
+  UNIQUE(session_id, delivery_key)
+
+delivery_json（SkillDelivery）：
+  kind = auto_body | explicit_body | restored_body | resource
+  skill_name, version_hash, body_ref, body_bytes, message_hash
 ```
 
 约束与读取规则：
 
-- 消息和来源记录在同一 SQLite 事务提交；失败不能留下成功绑定。blob 可以预先保存，孤立 blob 交现有存储维护。
-- 来源由内部处理器生成，不接受普通工具正文自报身份。所有历史读取入口关联侧表，包括按位置读取、压缩源读取、恢复与 fork。
+- 消息和来源记录在同一 SQLite 事务提交；失败不能留下成功绑定。blob 可以预先保存，失败时可能留下未交付 blob，首版未实现 GC。
+- 来源由内部处理器生成，不接受普通工具正文自报身份。执行、压缩和记忆所用的带位置查询关联侧表，包括会话、Run 和指定位置读取；fork 复制交付来源。
 - 扩展 `PositionedMessage` 携带内部来源。统一的真实用户判断应覆盖最新用户、用户信任、压缩锚点、近期用户轮数、memory routing 和历史判断；旧的未知记录维持兼容处理，不靠正文猜测来源。
 - fork 复制来源关系并按既有 session 规则继承合法 blob 访问权，不继承 active 绑定。
 - `delivery_key` 用于同一次加载/恢复重试去重；恢复键包含 Run、正文版本和当前压缩/恢复边界，在同一修复周期中保持稳定。
@@ -114,7 +126,9 @@ message_hash, delivery_key
 
 `load_skill_resource` 的访问范围与单次大小限制保持明确；按实际交付给模型的范围登记，不把 blob 中的全文当成完整交付证据。存在截断时明确标记未交付范围。新加载的资源范围保护到取得下一次有效执行模型响应，Provider 拒绝或发送失败不消耗这次保护；随后沿用普通历史管理。
 
-跨多步确实依赖某个资源时，通过明确依赖登记延长保护；首版不自动把整个 Skill 资源目录提升为必留内容。所有资源都计入全局预算。
+首版没有跨多步延长资源保护的公开接口；已有视图在保护结束后仍可随历史回放，但不保证持续必留。
+明确范围依赖与延长保护留待后续实现，不自动把整个 Skill 资源目录提升为必留内容。
+所有资源都计入完整请求预算。
 
 ## 5. 加载、打包和恢复算法
 
@@ -130,7 +144,8 @@ message_hash, delivery_key
 
 ### 5.2 执行请求准备
 
-首请求、正常下一步、Provider 超限重试、正常最终回答及异常 finalizer 共用一个准备入口：
+首请求、正常下一步、Provider 超限重试、正常最终回答及异常 finalizer 共用本 Run 的
+`prepare_history()` 与 `check_request()` 检查：
 
 ```text
 读取当前历史 + 本 Run 依赖
@@ -139,16 +154,19 @@ message_hash, delivery_key
 → Planner 打包 + Provider 消息适配 + 统一输入预算计数
 → 核对实际发送内容的来源、版本、完整范围和工具配对
     满足：允许发出执行请求
-    不满足：使用本 step 的一次修复机会
-            → 必要时强制压缩 → 恢复缺失正文 → 重新打包并检查
-            → 仍失败：明确终止
+    引用/版本/完整性不满足：直接停止执行
+    本地 Skill 装箱或 Provider 超限：使用本 step 的一次修复机会
+            → 强制压缩，未推进时仅 Provider 路径可应急外置普通内容
+            → 恢复缺失正文 → 重新打包并检查 → 仍失败：明确终止
 ```
 
 Planner 必须在分配 mandatory/optional 之前完成原子组划分；组内一项为本次必需依赖时，整个合法组一起处理。必需组连同基础输入放不下时触发修复，不把多余字段或另一条 Tool Result 静默删除。
 
 如果包含 Skill 的旧原子组过大，可以在修复中让 compaction 覆盖它，再追加独立的合成恢复正文，避免为了保留手册而永久保留同组所有旧结果。原组未被覆盖时，优先复用、完整保护；不能每次打包失败都追加一份相同正文。
 
-最终检查不能只查看 `ContextItem.metadata` 或磁盘文件存在性。它必须检查对应正文在最终发送的文本中完整保留，hash/范围符合依赖，未被工具预览、再次外置或 Provider 适配缩短。内部来源字段不发送给模型；适配过程应保留可供本地核对的映射。
+最终检查不只查看 `ContextItem.metadata` 或磁盘文件存在性。准备阶段校验持久消息哈希，恢复
+阶段校验 blob 哈希和字节数；`check_request()` 比较 Provider `serialized_messages()` 与必要
+消息的角色、Tool Call ID 和完整正文，并验证工具调用组闭合。内部来源字段不进入 Provider 协议。
 
 ### 5.3 压缩与失败边界
 
@@ -156,7 +174,9 @@ Planner 必须在分配 mandatory/optional 之前完成原子组划分；组内�
 
 沿用现有摘要验证和游标发布逻辑。摘要成功而恢复失败时，可以保留已验证的新摘要，但禁止后续任务动作；失败报告给出已有进展和缺失原因。恢复消息及来源记录原子追加。若摘要发布与恢复之间崩溃，重启仍能读取合法摘要与原始引用；新 Run 不静默继承中断的 active 状态。
 
-每个 Agent step 共享一次修复额度，覆盖本地检查失败和 Provider overflow，不能由不同异常入口重新计数。同一边界/版本/预算下失败后不无限重读。引用不可用、版本校验失败或正文仍超预算时返回具体错误；finalizer 无工具时也由 Runtime 恢复，失败则进入有界报告路径。
+每个 Agent step 的本地 Skill 装箱超限与 Provider overflow 共用一次修复额度，不能由不同异常
+入口重新计数。引用不可用、版本校验失败或最终正文不完整时直接停止，不先尝试模型补救。
+finalizer 无工具时也由 Runtime 恢复；仍无法满足内容或预算检查则退回确定性报告，不另开修复循环。
 
 已实现错误码：`skill_context_budget_exceeded`、`skill_body_unavailable`、`skill_body_version_mismatch`、`skill_body_not_visible`；另有激活数量、不可用 Skill 和关闭作用域错误。自动激活失败返回工具错误，显式加载及已绑定依赖恢复失败则终止 Run。
 
@@ -172,17 +192,19 @@ Run 关闭只终止绑定，不删除历史加载消息。下一 Run 重新选�
 
 ## 7. 分阶段交付
 
-| 阶段 | 内容 | 完成门槛 |
+| 阶段 | 当前结果 | 状态 |
 |---|---|---|
-| A：来源与状态 | RunSkillState、交付侧表及事务、真实用户识别、fork/reload/清理兼容 | 合成消息不会成为用户锚点；状态不跨 Run/session 泄漏 |
-| B：新交付与恢复 | 完整加载、原子组保护、最终检查、压缩后恢复、有界失败 | 长正文中尾部规则始终可见；所有请求入口通过同一门禁 |
-| C：切换组装 | 新模式停用 `_active_skill_items()`，去掉参数链和前置条目；稳定控制工具 | 自动和显式路径均无独立全文副本，工具协议合法 |
-| D：行为与成本评测 | 相同样本成对比较旧布局与新布局，包含压缩及异常 | 正确性通过，实际费用与行为证据足以决定启用 |
+| A：来源与状态 | RunSkillState、来源事务、真实用户识别、fork/reload/清理兼容 | 已实现并通过确定性测试 |
+| B：新交付与恢复 | 完整加载、原子组保护、最终检查、压缩后恢复、有界失败 | 已实现并通过长正文、连续压缩及异常测试 |
+| C：切换组装 | history 路径无独立前置层，控制工具定义稳定 | 已切换新会话默认；旧会话保留兼容布局 |
+| D：行为与成本评测 | 三个场景及各自无关续轮的 legacy/history 单样本对照，记录原始 usage | history 行为通过；未隔离缓存预热，未计算实际费用，完整成本评测待补 |
 
 阶段 B 的确定性检查通过后，新会话默认 `skills.context_mode=history`；旧布局保留作兼容与对照。
 默认切换依据是正文完整性与恢复门禁，未把小样本 usage 当作普遍节费证据。
 
-正式切换后移除主循环、压缩后重建、finalizer 中的 `_active_skill_items()` 调用和实现，以及 `_build_context_items(active_skill_items=...)` 参数。`ContextLayer.ACTIVE_SKILL` 不再被新模式使用；旧报告的字符串读取兼容可保留，枚举与相关排序/校验项在无运行依赖后清理。历史报表不必改写。
+主循环、压缩后重建、finalizer 中的 `_active_skill_items()` 调用和旧参数链已移除。
+`ContextLayer.ACTIVE_SKILL` 仍由 `_legacy_skill_items()` 使用，因此枚举、排序和校验项继续保留；
+history 路径不产生此层。旧报告无需改写。
 
 在 `sessions` 增加持久布局模式，旧会话迁移默认 legacy，新会话按配置创建；history 会话不能在重启后无提示地切回旧前置层。回滚使用已包含来源识别的兼容版本，新会话可恢复 legacy；已写入新格式的会话继续由兼容读取器处理，必要时暂停该会话。不能承诺直接运行完全不识别合成历史来源的旧二进制。
 
@@ -212,19 +234,20 @@ Run 关闭只终止绑定，不删除历史加载消息。下一 Run 重新选�
 - Provider 实际 cached/uncached token、总费用、压缩与回读开销、延迟；字段缺失时标记不可观测。
 - 任务通过率、规则执行正确性、恢复失败、旧 Skill 干扰和超限次数。
 
-已有 [历史裁剪分析](history-pruning-analysis.md) 没有可验证 Skill 激活样本，不能拿其中约 8% 的容量潜力证明本方案收益。发布前应补齐上述样本，不预设节省比例。
+已有 [历史裁剪分析](history-pruning-analysis.md) 没有可验证 Skill 激活样本，不能拿其中约 8% 的容量潜力证明本方案收益。宣称普遍成本收益前仍需补齐上述样本，不预设节省比例。
 
 ## 9. 改动文件地图
 
 | 文件 | 实施职责 |
 |---|---|
-| [skills/models.py](../src/bot/skills/models.py)、[skills/catalog.py](../src/bot/skills/catalog.py) | 快照、Run 绑定、版本、幂等和资源资格检查 |
+| [skills/runtime.py](../src/bot/skills/runtime.py)、[skills/catalog.py](../src/bot/skills/catalog.py) | RunSkillState、绑定、快照、版本、幂等和资源资格检查 |
 | [sessions/store.py](../src/bot/sessions/store.py) | 交付来源侧表、原子追加、布局模式、历史/fork 查询 |
 | [core/context.py](../src/bot/core/context.py) | PositionedMessage 来源、真实用户识别、完整组预算、角色校验与排序 |
 | [core/agent.py](../src/bot/core/agent.py) | 显式/自动加载、受控外置、统一准备门禁、恢复、Run 清理及旧层移除 |
 | [compaction/service.py](../src/bot/compaction/service.py) | 合成来源排除用户锚点，压缩输入与恢复协调，保留既有验证契约 |
 | [providers/base.py](../src/bot/providers/base.py)、[providers/openai_compatible.py](../src/bot/providers/openai_compatible.py) | 核对最终适配内容和统一预算接口，不建立第二套计数规则 |
-| [cli/runtime.py](../src/bot/cli/runtime.py)、[cli/app.py](../src/bot/cli/app.py)、[web/server.py](../src/bot/web/server.py) | Run 状态归属、按 session 查询、reload/new、并发与续跑准入 |
+| [cli/app.py](../src/bot/cli/app.py)、[web/server.py](../src/bot/web/server.py) | 按 session 查询活动 Skill，reload/new 不再全局清空绑定；状态归属与准入由 AgentRunner 处理 |
 | [config/models.py](../src/bot/config/models.py) | 临时布局开关，沿用现有预算；定型后清理过渡配置 |
 
-落地顺序是 A → B → C → D；其中 B 的正文完整性和恢复保证是切换前置条件。首版以这条闭环完成独立全文层移除，再根据实测决定是否扩展正文回收策略。
+首版以 A–C 完成新模式的独立全文层移除。D 已有的行为与 usage 对照用于暴露取舍，
+后续根据更完整的成对成本数据决定是否扩展正文回收策略。

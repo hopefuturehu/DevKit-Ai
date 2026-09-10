@@ -18,7 +18,7 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 - read/search/apply-patch/argv command/受控 shell/network 等通用 Tool；长命令在短暂
   同步等待后转为可轮询、可输入、可终止的受管进程；
 - Workspace 路径边界、危险操作审批、审批作用域、输出截断和敏感值脱敏；
-- 指定目录 Skill 的三段式披露、自动或 `$skill-name` 显式激活、资源按需读取；
+- 指定目录 Skill 的三段式披露、自动或 `$skill-name` 显式激活、Run 隔离、历史正文交付与压缩恢复；
 - KSYS 与 DevKit Tuner 的结构化 Subprocess CLI Adapter；
 - x86 或缺少工具时生成鲲鹏 ARM 手动执行命令并接受后续自由文本结果；
 - 运行中 steering、`/cancel`、五级上下文管理、可恢复单摘要压缩、显式/自动 Markdown
@@ -175,6 +175,7 @@ router_enforce_required = true
 
 [skills]
 path = "./skills"
+context_mode = "history"
 
 [storage]
 # 相对路径以工作区为基准
@@ -321,6 +322,17 @@ daemon；父运行结束后仍未完成的 detached 任务会在 Runtime 关闭�
 默认扫描工作区 `./skills` 的直接子目录。仓库内提供首个领域 Skill：
 `kunpeng-performance-analysis`。Skill 可以使用 KSYS 做广泛诊断，再根据证据选择 Tuner
 的 `top-down`、`hotspot`、`miss`、`numafast`、`hpc-perf` 或 `roofline`，但不强制固定流程。
+
+Skill 激活只对当前 Run 生效：一次用户请求及其后续模型、工具和收尾步骤共用绑定，Run 结束后
+释放。下一 Run 使用同一 Skill 时需重新选择；已在历史中完整保留的同版正文可以复用。
+新会话默认把自动加载正文放入 Tool Result，把显式加载正文放在真实用户消息之后，不再使用
+独立 Active Skill 前置层。压缩覆盖必要正文时，Runtime 在继续执行前恢复原版本并验证完整性。
+
+升级前已有会话保留 `legacy` 布局；新会话首次运行按 `skills.context_mode` 选定模式并持久化，
+修改配置不会切换已有会话，fork 继承原模式。默认配置下用 `/new` 开始历史交付模式。
+`/skills reload` 重新扫描目录，正在执行的 Run 继续使用启动时的 Catalog 快照。
+实际布局和当前绑定可在 `/status` 的 `context.skill_context_mode`、`active_skills` 查看。
+实现、迁移与验证结果见 [Skill 历史交付实施与验证](docs/skill-context-validation.md)。
 
 ## 验证
 

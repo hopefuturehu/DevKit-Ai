@@ -4,17 +4,21 @@
 >
 > 日期：2026-08-31；`bot` 文档核对：2026-08-31
 >
-> `bot` 代码基线：`2035795`
+> `bot` 原始代码基线：`2035795`；第 5.3 节的 `bot` Skill 角色与布局按 `875750c` 单项更新。
 
 本文比较当前 `bot` 与本地 checkout 中的 Codex、OpenCode、Pi、Hermes Agent、DeepSeek
 Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如何保存与回传、长对话如何
 选择压缩边界、摘要如何生成、发布和失败恢复，以及跨会话自动长期记忆如何提取、管理、检索和
 注入。KAT 是较早的 Nanobot 派生实现，放在文末作为演进参照，不与当前 Nanobot 重复展开。
 
-本文只描述上述 commit 的实现，不把项目宣传文案或未来计划当成已实现行为。当前 `bot` 的
+除明确标注的补充外，本文只描述上述 commit 的实现，不把项目宣传文案或未来计划当成已实现行为。`bot` 的
 修复前运行数据和卡游标案例见[上下文压缩历史快照](archive/context-compaction-current-state.md)与
 [长会话上下文压缩问题](archive/context-compaction-failure-analysis.md)；本项目自身的请求层顺序见
 [模型上下文分块与组装顺序](context-assembly.md)。
+
+2026-09-10 Skill 补充：新会话默认 history 交付，Run 绑定隔离，压缩后由 Runtime 恢复必要
+原文；旧会话保留 legacy 布局。外部框架的 checkout 和本次调研结论没有重新核验，不能以旧
+角色表推断当前 `bot` 的前置正文。实现与样本范围见[Skill 验证记录](skill-context-validation.md)。
 
 2026-09-09 补充：[压缩 reasoning 的保存与回放](compaction-reasoning-replay.md)专门核对摘要
 调用自身的推理、OpenCode 保留路径、Pi/Harness 的 user checkpoint，以及 Hermes 单空格补位。
@@ -179,7 +183,7 @@ Chat Completions 通常使用 `system`、`developer`、`user`、`assistant`、`t
 
 | 实现 | 高权限/稳定提示 | `user` 中的真实与合成内容 | `assistant` | Tool 在 wire 上 | 典型请求顺序或例外 |
 |---|---|---|---|---|---|
-| `bot` | 只有版本化 Core Policy 为 `system`；组装器拒绝其他 System 来源 | 真实用户；`AGENTS.md`、环境、Skill 目录/正文、Tool 目录、显式/自动记忆、Memory Router 和 runtime note 都是带 `bot.context.v1` 信封、`can_authorize=false` 的 synthetic `user`；压缩范围内的真实用户锚点按原始 `user` 回放；旧版历史 `system` 降为 synthetic `user(name=historical_context)` | 原始 Assistant 回复和 Tool Call；压缩摘要为 `assistant(name=context_compaction)` | `role=tool`；schema 在顶层 `tools`；记忆检索/证据正文为一次性 Tool Result | 默认 `core(system) -> project/environment/skill/memory(synthetic user) -> raw-anchor(user)* -> compaction(assistant) -> transcript -> runtime(synthetic user) -> assistant(memory Tool Call) -> memory(tool)`；`REQUIRE_*` 使用 named choice 或 Agent fail-closed 校验 Tool 名称 |
+| `bot`（Skill 已更新） | 只有版本化 Core Policy 为 `system`；组装器拒绝其他 System 来源 | `AGENTS.md`、环境、Skill/Tool Catalog、记忆与 runtime note 为不可授权 synthetic `user`；history 中显式/恢复 Skill 正文也是 synthetic `user`，持久来源用于排除真实用户归因；压缩锚点保留原始 `user` | 原始回复和 Tool Call；摘要为 `assistant(name=context_compaction)` | 自动 Skill 正文为配对的持久 `tool`；记忆检索正文为一次性交付；schema 在顶层 `tools` | 默认 `core -> project/environment/catalogs/memory -> raw anchors -> compaction -> history（含 Skill 正文）-> runtime`；只有 legacy 会话保留前置 Active Skill 层；Memory 的 `REQUIRE_*` 仍由 Tool 门禁执行 |
 | Codex | 常规 Responses 请求的模型基础提示位于顶层 `instructions`；开发者指令、Memory 摘要、Skill、协作/权限/模型状态等为 `developer` item；Responses Lite 把基础提示也转成 `developer` item | 真实用户；`AGENTS.md`、环境和部分 App/插件提示为 contextual `user`；本地压缩保留的用户锚点与最终 summary 都是 `user` | 模型消息为 `assistant` item | Function/custom tool call/output、reasoning、native compaction 是专用 `ResponseItem`，不是 `role=tool` | 初始上下文通常按 `developer* -> contextual-user` 进入 history，再接会话；远端压缩可返回无普通 role 的原生 compaction item |
 | OpenCode | Agent/provider prompt、环境、项目指令、MCP、Skill 和 per-user system 合成 system 数组；一般变成前置 `system`，OpenAI OAuth 路径改用 `instructions` | 真实用户；压缩 marker 会渲染为 synthetic user “What did we do so far?”；媒体兼容提示和自动继续提示也可生成 `user` | 真实回复；压缩摘要保存为 `assistant(summary=true)` | AI SDK 从 assistant Tool part 生成 Tool Call/Result；Provider adapter 再落到目标协议 | 正常为 `system* -> projected history`；压缩投影明确重排为 `compaction-user -> summary-assistant -> retained tail -> continue-user` |
 | Pi | Core、Tool 指南、项目 context files、Skill、CWD 合成一个 `systemPrompt`；Chat Completions 上按模型能力发 `system` 或 `developer`，标准 Responses 发 `system/developer` message，Codex Responses 路径使用顶层 `instructions` | 真实用户；bash/custom extension 消息、branch summary、compaction summary 均转换为 synthetic `user` | 真实回复；thinking 与 Tool Call 是 assistant content block | 内部是独立 `toolResult` 角色；Chat Completions 转成 `tool`，Responses 转成 function/custom tool output item | `systemPrompt + active session-tree path`；最新 compaction 先作为 `user`，再接 `firstKeptEntryId` 起的连续尾部 |

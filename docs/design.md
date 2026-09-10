@@ -3,6 +3,8 @@
 > 状态：设计基线 v0.2；MVP 代码已实现（M0–M3 全部完成），环境验收项见 [implementation-status.md](implementation-status.md)
 > 工作名：`bot`
 > 设计基线：通用 Agent Core、CLI-first、local-first、OpenAI-compatible、Skill/Tool 可扩展、安全默认开启
+>
+> 2026-09-10：Skill 相关实现按 `875750c` 同步，完整验证范围见 [Skill 历史交付](skill-context-validation.md)。
 
 ## 1. 产品定义
 
@@ -441,17 +443,23 @@ MVP 只实现 `LocalExecutionTarget`。`EnvironmentCapabilities` 至少包含操
 ### 7.1 上下文分层
 
 按稳定程度、因果顺序和更新频率确定性装配。模型消息的实际顺序是：Core Policy、根到当前
-目录的 `AGENTS.md`、Environment、Skill Catalog、预算卸载后的 Tool Catalog、Active
-Skills、显式记忆、`eager` 兼容模式的自动记忆索引、活动压缩的原始 user 锚点与单个
-Assistant 摘要、兼容 Snapshot、近期会话/Tool Result、Runtime Note。默认自动记忆不进入这条
+目录的 `AGENTS.md`、Environment、Skill Catalog、预算卸载后的 Tool Catalog、显式记忆、
+`eager` 兼容模式的自动记忆索引、活动压缩的原始 user 锚点与单个
+Assistant 摘要、近期会话/Tool Result（含 Skill 正文）、Runtime Note。默认自动记忆不进入这条
 静态序列，而由 Router 通过 Tool 按需检索。Tool schema 不混入消息，而是作为独立请求字段按
 名称排序。
 
+以上是新会话默认 `skills.context_mode="history"` 的顺序；持久模式为 `legacy` 的会话仍在
+Tool Catalog 后使用 Active Skill 前置层。旧 Snapshot 仅兼容读取，不进入默认主请求。
+
 主 Agent 固定使用 `system/user/assistant/tool` 四角色：只有代码内置的 Core Policy 可以映射为
-`system`；`AGENTS.md`、Environment、Skill、Memory、Tool Catalog 和 Runtime Note 都以带
+`system`；`AGENTS.md`、Environment、Skill Catalog、Memory、Tool Catalog 和 Runtime Note 以带
 `bot.context.v1` 来源信封的 synthetic `user` 注入，并固定 `can_authorize=false`。组装器在
 Provider 调用前拒绝任何其他 System 来源。必须执行的 Memory 检索、终止禁用 Tool、审批和
 workspace 边界由 Agent/Policy 代码强制，不把安全保证寄托在 prompt 角色上。
+
+history 模式的自动 Skill 正文是配对的 `tool` 消息；显式或恢复正文是历史中的 synthetic
+`user`，也使用不可授权信封。内部持久来源区分真实用户与合成 Skill，不能只按 `role=user` 归因。
 
 这个顺序形成“稳定前缀 → 因果历史 → 易变尾部”：显式记忆通常稳定，放在会话前参与缓存；
 Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 Tool Result 出现。layer 排序只决定模型
@@ -459,7 +467,8 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
 来源和请求修复流程见 [模型上下文分块与组装顺序](context-assembly.md)。
 
 `/status` 输出可检查的上下文状态：`context_manifest` 列出基础 Core/AGENTS/Skill Catalog 的来源
-和字符数，`context` 列出 hard/target、活动摘要、cursor 后的消息数与估算 Token、活动 Tool，
+和字符数，`context` 列出 hard/target、活动摘要、cursor 后的消息数与估算 Token、活动 Tool、
+本会话的 `skill_context_mode` 和本 Run 的 `active_skills`，
 以及最近一次 pack 的逐层 Token 和卸载项。首次 pack 前 `last_pack` 为空，因此当前实现还不是
 任意时刻完整重算的逐层实时 manifest。
 
@@ -473,8 +482,8 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
    atomic group 的 Context Ledger；每次模型调用都重新规划，Assistant Tool Call 与对应
    Tool Result 不可拆分。
 3. **卸载级**：完整 Tool 输出和巨型消息进入内容寻址 blob，模型只接收 head/tail、hash
-   与可分页读取的 `context_ref`；Tool schema 超预算时只保留目录和动态激活入口；Skill
-   Catalog、Skill 正文和资源分别管理。
+   与可分页读取的 `context_ref`；Tool schema 超预算时只保留目录和动态激活入口。
+   history 模式的 Skill 正文有独立来源，绕过通用预览；当前 Run 必需交付所在的完整工具组必留。
 4. **单摘要级**：旧消息前缀只在 Tool Call/Result 原子组边界切分。LLM 用上一份活动摘要
    和新增原文生成一份替代摘要；摘要必须包含目标、约束、进度、决定、文件、失败和下一步，
    结构化记录连续覆盖范围与来源 SHA-256；默认不要求摘要正文逐条引用，`item` 兼容模式才
@@ -482,6 +491,7 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
 5. **恢复级**：新摘要先以 `building` 写入，通过来源、结构和预算校验后，才与旧活动版本在
    同一事务中切换。恢复时重新发现 Core/Project/Environment，加载活动版本保存的原始 user
    锚点、一个 `ready` Assistant 摘要和游标后的原始消息；摘要损坏时沿父版本自动降级。
+   若活动 Skill 正文已被摘要覆盖，Runtime 从绑定的原版本 blob 恢复，再核对最终请求。
 
 `/compact` 发布新的恢复点，`/compact rebuild` 从原文重建，`/compact rollback <id>` 切换
 到已验证的历史版本。原始消息、Tool Run 和事件始终是事实来源，不因压缩而删除。旧
@@ -489,10 +499,12 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
 [可恢复的单摘要上下文压缩](recoverable-context-compaction.md)。
 
 自动压缩失败时旧摘要和 cursor 保持不变，但 Agent 不一定立即停止：Planner 仍可卸载非
-pinned 的 Skill、Memory 或历史原子组。只有 pinned 内容与已选 Tool schema 仍超过 hard 时，
-Run 才以 `limit_reached/context_limit` 终止且不再调用主模型；若本地 pack 能放下但 Provider
-仍报告上下文超限，整个 Run 只执行一次“强制压缩，失败则激进外置”的恢复重试，第二次拒绝
-以 `failed/provider_error` 结束。完整动作表见
+pinned 的 Memory、历史原子组等可选内容。history 模式的必要 Skill 正文不可静默卸载；
+Provider 上下文超限有每个执行 step 一次修复机会，成功响应后重置；存在 Skill 依赖时，
+本地装箱超限也使用这同一次额度。
+修复后必留内容仍放不下则以 `limit_reached/context_limit` 或 `skill_context_budget_exceeded`
+停止；同一步再次被 Provider 拒绝则以 `failed/provider_error` 结束，使用确定性收尾。
+应急外置跳过已登记的 Skill 交付。完整动作表见
 [模型上下文分块与组装顺序](context-assembly.md#达到触发线或硬上限时的实际动作)。
 
 ### 7.3 长期记忆
@@ -536,12 +548,19 @@ Skill 选择采用“**模型主导、运行时兜底**”策略，不实现基�
 - 用户可通过 `$skill-name` 显式激活一个或多个 Skill；显式选择优先于模型的隐式选择；
 - 模型可根据任务自动激活一个或多个 Skill，并为每次激活给出可审计的原因；
 - 运行时只负责平台、架构、所需 Tool、权限和配置等资格过滤，以及数量和上下文预算控制；
-- 自动激活默认设置软数量上限和总 Token 预算，超过预算时由模型缩小范围，必要时再请求用户判断；
-- 已加载的 Skill 不重复注入；会话压缩后保留激活记录，需要时可重新加载正文；
+- 自动激活默认最多 3 个，显式选择不占自动名额；活动正文聚合预算默认为 16K tokens，仍受完整请求预算约束；
+- 已知预算不足时不提交新绑定：自动加载返回工具错误，显式加载在首请求前终止；
+- 绑定按 Run 隔离；压缩覆盖本 Run 必需正文时恢复原版本，Run 结束后关闭绑定，下一 Run 重新选择；
+- history 模式复用同版完整交付，失效正文继续随历史预算和自然压缩回收，不因 Run 结束逐条改写；
 - MVP 只扫描配置指定的一个 Skill 根目录，不实现安装、远程仓库、签名校验或项目级/用户级/内置级多来源合并；
 - 指定目录内出现重复 Skill 名称时视为配置错误，相关 Skill 不进入候选目录，并通过 `bot doctor` 和日志报告。
 
 模型通过 Agent Core 提供的内部控制动作 `activate_skill(name, reason)` 请求加载 Skill；该动作只读取已进入 Catalog 的 Skill，不执行外部程序，也不绕过 Policy Engine。用户输入中的 `$skill-name` 由 CLI 解析为显式激活请求，再与原始任务一同交给 Agent Core。
+
+自动正文随真实 Tool Result 交付，显式正文在当前用户消息后追加。`RunSkillState` 保存 Catalog
+快照和绑定，`skill_deliveries` 保存正文引用、版本与消息哈希；正文消息和来源记录原子提交。
+执行与模型收尾前检查 Provider 序列化后的完整内容、工具配对和输入预算。
+已启用的控制工具定义不因激活集合增减；`load_skill_resource` 在执行端检查当前 Run 绑定。
 
 多个 Skill 同时匹配时按关系处理：
 
@@ -550,15 +569,17 @@ Skill 选择采用“**模型主导、运行时兜底**”策略，不实现基�
 - **语义冲突**：用户显式选择优先；若均为自动选择且无法可靠消解，则向用户说明冲突并请求取舍；
 - **常用组合**：MVP 后可增加 Skill Bundle 或领域总入口 Skill，但不将其做成强制执行工作流。
 
-运行时不得把多个 Skill 改写、拼接成一个无法追踪来源的提示。每个 Skill 独立保留名称、版本、文件路径和激活顺序，并产生以下事件：
+运行时不得把多个 Skill 改写、拼接成一个无法追踪来源的提示。每个 Skill 独立保留名称、版本、文件路径和激活顺序。当前加载路径使用以下事件：
 
 ```text
 skill.discovered
 skill.activated
 skill.resource_loaded
 skill.skipped
-skill.conflict_detected
 ```
+
+`skill.conflict_detected` 仅保留事件枚举；当前没有自动语义冲突检测器。上面的重叠与冲突处理是
+模型选择建议，不是已实现的 Runtime 判定机制。
 
 领域 Skill 应围绕用户目标组织，而不是机械地为每个命令行工具创建一个 Skill。例如 `kunpeng-performance-analysis` 可以根据诊断情况组合调用 KSYS 和 Tuner；KSYS、Tuner 仍是只负责结构化命令执行和结果返回的 Tool。Skill 提供可偏离的专家操作手册，不承担权限控制、参数校验或强制状态机职责。
 
@@ -567,6 +588,7 @@ MVP 的目录配置和发现约定如下：
 ```toml
 [skills]
 path = "./skills"
+context_mode = "history"
 auto_activate = true
 max_auto_activated = 3
 ```
@@ -581,7 +603,11 @@ skills/
     └── references/
 ```
 
-启动时扫描该目录的直接子目录并解析其中的 `SKILL.md`，生成内存中的 Skill Catalog。目录不存在、文件无法读取、元数据不合法或名称重复时，只禁用对应 Skill 并给出诊断，不阻止通用 Agent 启动。MVP 不监听目录变化；用户修改 Skill 后，通过重启会话或执行 `/skills reload` 重新扫描。
+启动时扫描该目录的直接子目录并解析其中的 `SKILL.md`，生成内存中的 Skill Catalog。目录不存在、文件无法读取、元数据不合法或名称重复时，只禁用对应 Skill 并给出诊断，不阻止通用 Agent 启动。MVP 不监听目录变化；用户修改 Skill 后，通过重启 Runtime 或执行 `/skills reload` 重新扫描，正在执行的 Run 继续使用其快照。
+
+SQLite v15 将升级前已有会话标为 `legacy`；新会话首次 Run 按配置确定布局，fork 继承布局。
+修改配置和重启不会切换已有会话。默认配置下使用 `/new` 进入 history 模式；该模式的实测结果
+和未实现的微裁剪边界见 [Skill 历史交付实施与验证](skill-context-validation.md)。
 
 ### 7.5 鲲鹏领域扩展
 
@@ -702,10 +728,11 @@ MVP 只有一个通过 `[skills].path` 指定的 Skill 根目录，不从用户�
 
 SQLite 表的最小集合：
 
-- `sessions`：会话元数据、工作区、父会话、创建/更新时间；
+- `sessions`：会话元数据、工作区、父会话、创建/更新时间及持久 `skill_context_mode`；
 - `runs`：一次用户请求对应的运行、状态和预算使用；
 - `events`：有序事件流，payload 使用带版本号的 JSON；
 - `messages`：便于查询的消息投影；
+- `skill_deliveries`：Skill 交付消息的内部来源、幂等键及正文/消息哈希；与消息原子追加，不保存跨 Run 活动绑定；
 - `tool_runs`：工具参数摘要、状态、耗时和结果摘要；
 - `approvals`：请求、决定、范围和策略来源；
 - `memories`：只用于旧显式记忆的兼容迁移；新记忆正文不再写入该表；
@@ -827,6 +854,7 @@ router_enforce_required = true
 
 [skills]
 path = "./skills"
+context_mode = "history"
 auto_activate = true
 max_auto_activated = 3
 

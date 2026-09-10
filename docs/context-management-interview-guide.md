@@ -4,6 +4,8 @@
 >
 > 实现核对基线：`5ed983d`（`feat: add persistent session todo plans`）
 >
+> 2026-09-10 补充核对：Skill 历史交付、整组保留和请求恢复按 `875750c` 更新；历史指标不重测。
+>
 > 适用角色：上下文管理模块核心开发，目标岗位为 Agent / 大模型应用研发。
 >
 > 本文将当前实现、历史实验和后续计划分开记录。历史指标不代表当前版本重新实测；第一人称回答是口述草稿，使用时按本人实际主导、参与和协作的范围调整。
@@ -96,25 +98,28 @@ flowchart TD
 | `atomic_group` | 哪些消息必须整体保留或移除 |
 | `position` / `metadata` | 恢复时间顺序和携带额外状态 |
 
-保留策略包括 `PINNED`、`CHECKPOINTED`、`REHYDRATABLE`、`DISPOSABLE`。当前 Planner 的主要选择逻辑是先保留 pinned 项，再按原子组的优先级和新旧程度装箱；这些枚举不意味着四套独立的智能调度算法。
+保留策略包括 `PINNED`、`CHECKPOINTED`、`REHYDRATABLE`、`DISPOSABLE`。当前 Planner 先找出含
+pinned 项的完整原子组并整组保留，再按其他组的优先级和新旧程度装箱；这些枚举不意味着四套
+独立的智能调度算法。某条 Skill Tool Result 必留时，其调用及同批其他结果也必须保留。
 
 **是否选入与最终排序是两步。** 不能把“出现在前面”理解为“预算优先级最高”，也不能把 `ContextTrust` 理解成已经执行的权限隔离。
 
 ### 3.2 最终请求长什么样
 
-默认 `on_demand` 模式下，主请求按以下顺序发送：
+默认 `memory.context_mode="on_demand"`、`skills.context_mode="history"` 下，主请求按以下顺序发送：
 
 ```text
 唯一 system：代码内置 Core Policy
   ↓
 synthetic user：Project Instructions → Environment → Skill Catalog
-               → Tool Catalog（需要时）→ Active Skill → Explicit Memory
+               → Tool Catalog（需要时）→ Explicit Memory
   ↓
 原始 user：已被压缩覆盖、需要保留的活动任务目标与 steering
   ↓
 assistant(name=context_compaction)：唯一活动摘要
   ↓
-原始角色：cursor 之后的 User / Assistant / Tool Call / Tool Result
+历史：cursor 之后的 User / Assistant / Tool Call / Tool Result
+      自动 Skill 正文随 Tool Result；显式及恢复正文为 synthetic user
   ↓
 synthetic user：Runtime Note（含 Router 提示及运行状态）
 
@@ -122,6 +127,11 @@ tools：通过请求顶层字段独立发送，按名称稳定排序
 ```
 
 自动记忆默认不直接注入正文。仅在 `eager` 兼容模式中，自动索引位于 Explicit Memory 后、Transcript 前；旧版本“自动记忆放在尾部”的实验记录不代表当前实现。
+
+只有持久布局为 `legacy` 的兼容会话仍在 Tool Catalog 后保留 Active Skill 层。新模式下
+Skill 绑定属于当前 Run，Run 结束关闭；历史正文不会立刻删除，也不代表下一 Run 已激活。
+必要正文被压缩覆盖时从原版 blob 恢复，发送前验证完整内容和工具配对，失败则停止执行。
+实现、会话迁移和单样本行为证据见 [Skill 历史交付实施与验证](skill-context-validation.md)。
 
 synthetic user 使用保留的 `name` 和 `bot.context.v1` 信封，明确 `is_current_user_message=false`、`can_authorize=false`。真实用户消息保留原始角色且不使用这些合成名称。摘要使用 Assistant 角色，因为它是模型对历史的派生表述。
 
@@ -152,7 +162,7 @@ target = floor(hard × auto_compact_threshold)
 | 子预算 | 默认值 | 说明 |
 |---|---:|---|
 | 显式记忆 | 8,000 tokens | eager 模式下与自动索引共享 |
-| 活动 Skill 正文 | 16,000 tokens | 放不下可卸载、按需重新读取 |
+| 活动 Skill 正文 | 16,000 tokens | 聚合上限；history 必需正文完整交付，压缩后恢复；仍放不下则停止 |
 | 业务 Tool schema | 16,000 tokens | 内部恢复工具优先保留，子预算不是绝对总上限 |
 | Tool Result 内联摘录 | 4,000 tokens | 长正文通过引用恢复 |
 | 近期连续原文 | 20,000 tokens | 有界目标；最新单个不可拆组可例外超过 |
@@ -160,7 +170,10 @@ target = floor(hard × auto_compact_threshold)
 | 压缩模型输入 | 60,000 tokens | 默认按 80%，即 48,000 规划 |
 | 压缩请求最大输出 | 8,192 tokens | 与最终接受的 4,000-token 摘要限制分开 |
 
-当前 `TokenEstimator` 是启发式估算，不能保证是真实 tokenizer 的上界。虽然 Planner 预留了精确计数接口，但当前 `OpenAICompatibleProvider` 没有实现它；Provider 实际超限时还会进入一次恢复路径。
+`TokenEstimator` 仍是启发式估算。官方 DeepSeek V4 Flash 已接入 `estimate_input_tokens()`，
+使用对应 tokenizer、消息编码和工程余量；其他模型沿用原计数路径，不能声称服务端计数总有
+精确上界。Provider 超限时每个执行 step 最多修复一次，存在 Skill 依赖时本地装箱失败也使用
+同一次额度；超限修复失败不再调用模型收尾。计数口径见[输入 token 校准](input-token-calibration.md)。
 
 ### 3.4 工具消息必须按原子组处理
 
@@ -205,7 +218,9 @@ Tool: result B
 
 “保留最后三轮用户对话”看似合理，但一次用户任务可能产生几十次工具调用。把三轮当成硬下限，会让近期尾部无限突破预算，压缩也无法推进。
 
-当前选择器从尾部按完整原子组回扫，下一组使 tail 超过 20K 就停止。强制压缩的“三条 user”只是预算内停止条件：先达到三条就停，预算先到也停。只有最新单个原子组本身超过 20K 时允许例外，最终仍受主请求硬限制约束。
+当前选择器从尾部按完整原子组回扫，下一组使 tail 超过 20K 就停止。强制压缩的“三条真实用户
+消息”只是预算内停止条件，不计合成 Skill：先达到三条就停，预算先到也停。只有最新单个
+原子组本身超过 20K 时允许例外，最终仍受主请求硬限制约束。
 
 为避免单轮长任务中用户目标被压进摘要后变得模糊，系统把当前活动 Run 的真实用户输入及 steering 作为锚点候选，仅保存本次已经覆盖的部分，并按原始 `role=user` 回放。仍在 raw tail 中的用户消息不重复回放。这样 tail 可以从完整 Assistant 消息开始，而用户目标仍有直接来源。
 
@@ -220,6 +235,9 @@ Tool: result B
 ```
 
 普通长消息默认约超过 5K tokens 时也会外置；普通 Tool Result 完整正文写 blob，长结果内联摘录受 4K 预算约束。引用回读是例外：它已有源 blob，不把检索结果再外置成第二层 blob。
+
+Skill 正文也是例外，但生命周期不同：history 模式把完整正文作为持久历史交付，不走 4K
+预览，也不在下一响应后换成收据。资源交付视图保护到下一次有效响应，之后仍按普通历史管理。
 
 一次性交付并非“生成后马上删除”：只有该原子组实际被 Planner 选入且 Provider 完成响应后，内存中的正文才过期为收据。若本轮没选入，不提前过期。
 
@@ -252,7 +270,7 @@ Router 主要依靠规则和词法匹配，包括中文片段匹配，不是向�
 
 - **现象**：会话持续增长时，稳定显式记忆没有进入可复用前缀；压缩之后出现明显 miss 峰值。
 - **根因**：旧布局把显式记忆放在增长中的会话后，运行时动态内容又靠前；Tool 注册顺序也可能制造无意义变化。
-- **处理**：稳定项目 / Skill / 显式记忆靠前，摘要与原文保持因果顺序，动态状态放最后，Tool schema 按名称排序。
+- **处理**：稳定项目 / Skill Catalog / 显式记忆靠前，摘要与原文保持因果顺序，动态状态放最后，Tool schema 按名称排序；新会话的 Skill 正文位于历史加载位置。
 - **验证**：固定 workload hash、seed、输入规模和预算；观察逐请求首个变化片段、cache read / miss、压缩 epoch 和每逻辑轮成本，并先通过正确性门禁。
 - **取舍**：显式记忆、Skill 或工具集合确实发生变化时仍会破坏前缀；摘要更换也必然产生新的 epoch，不能靠排序消除所有 miss。
 - **证据**：第 5.1 节的历史对照实验。
@@ -553,7 +571,8 @@ Fast 在压缩后恢复到 80% 命中所需请求数由 **6 次变成 2 次**。
 | 持久化一致性 | [sessions/store.py](../src/bot/sessions/store.py) | building / ready 发布、父版本检查、来源范围、blob 授权 |
 | 默认参数 | [config/models.py](../src/bot/config/models.py) | 输入 / 输出预算和压缩参数的含义 |
 | 记忆路由 | [memory/routing.py](../src/bot/memory/routing.py) | 四级决策、显式历史依赖、隐式词法候选 |
-| Provider 能力边界 | [base.py](../src/bot/providers/base.py)、[openai_compatible.py](../src/bot/providers/openai_compatible.py) | token 计数接口、usage、tool choice 和 reasoning 协议 |
+| Provider 能力边界 | [base.py](../src/bot/providers/base.py)、[openai_compatible.py](../src/bot/providers/openai_compatible.py) | token 预算接口、最终消息序列化、usage、tool choice 和 reasoning 协议 |
+| Skill 生命周期与交付 | [runtime.py](../src/bot/skills/runtime.py)、[专项验证](skill-context-validation.md) | Run 绑定、同版历史复用、来源哈希、压缩恢复、预算失败与并发隔离 |
 | 预算及角色测试 | [test_context_management.py](../tests/unit/test_context_management.py) | 角色信封、工具原子组、不可减载溢出、回读授权 |
 | 压缩故障测试 | [test_context_compaction.py](../tests/unit/test_context_compaction.py) | 失败不推进、分类恢复、回滚、哈希损坏、活动调用边界 |
 | 长任务集成 | [test_context_compaction_benchmark.py](../tests/integration/test_context_compaction_benchmark.py) | 单摘要、用户锚点、长单轮安全切分、原始 Transcript 不变 |
@@ -581,5 +600,5 @@ Fast 在压缩后恢复到 80% 命中所需请求数由 **6 次变成 2 次**。
 4. **正确性**：Tool Call / Result 原子组；失败不推进 cursor；来源哈希与事务发布；用户原话和派生摘要分开。
 5. **成本**：外置和一次性交付减少重复 token，但可能增加回读；缓存命中率要与质量和任务成本一起看。
 6. **数字**：Fast 折算成本 -35.02%、Soak -27.59% 是离线受控结果；20 / 20、p95 9.96 秒是真实 Provider 固定合成轨迹回放。
-7. **局限**：token 估算仍是启发式；摘要有损；规则 Router 有漏召回；规模治理与真实任务效果仍待补足。
+7. **局限**：token 预算依赖模型适配，不能普遍保证精确；摘要有损；Skill 历史与恢复可能增加输入；真实任务成本仍需更大样本。
 8. **验收**：模型结束、工具被请求、关键词出现，都不足以证明任务完成；需要独立 verifier 和证据。

@@ -2,7 +2,7 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-08-31
+> 压缩基线核对：2026-08-31；2026-09-10 按 `875750c` 补充 Skill 历史交付与恢复边界。
 
 ## 目标
 
@@ -13,16 +13,20 @@ Transcript，并为每个摘要记录来源范围、来源哈希、锚点、父�
 运行时视图为：
 
 ```text
-Core / Project / Skills / USER.md
+Core / Project / Environment / Skill Catalog / Tool Catalog / USER.md
                   +
    被压缩范围的原始 user 锚点
                   +
  一个 Assistant Active Compaction
                   +
-        cursor 之后的原始消息
+        cursor 之后的历史（含 Skill 正文，必要时追加恢复消息）
                   +
        Memory Router / Runtime Note；按需自动记忆作为 Tool Result
 ```
+
+上图按新会话默认 `skills.context_mode="history"` 描述；旧 `legacy` 会话仍保留独立 Active
+Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在下一次执行前从绑定的原文 blob
+恢复被覆盖的必要正文，并检查最终 Provider 请求。合成正文不作为新的真实用户锚点。
 
 旧的 `ContextSnapshot` 数据仍可读取，但不参与默认运行时上下文装配。已有数据库中曾由
 旧版本创建的语义记忆表不会在升级时被破坏性删除，新版本也不再访问这些表。
@@ -110,8 +114,9 @@ Agent Run 另外受 `agent.max_cost_usd` 约束；费用门禁要求配置模型
 
 恢复会话时只加载 `ready` 版本。若哈希或摘要结构校验失败，该版本转为 `failed`，系统沿
 `parent_id` 自动恢复最近的有效父版本。自动压缩把活动 Run 的用户目标与 steering 作为锚点
-候选；手动压缩使用最新 user 候选，二者都只记录实际进入覆盖范围的消息，仍在 raw tail 的
-user 不会重复回放；rebuild 保持当前锚点集合。锚点从 SQLite 原文恢复为独立 `role=user`；若
+候选；手动压缩使用最新真实用户候选，二者都排除带 Skill 交付来源的合成 user，并只记录
+实际进入覆盖范围的消息。仍在 raw tail 的 user 不会重复回放；rebuild 保持当前锚点集合。
+锚点从 SQLite 原文恢复为独立 `role=user`；若
 正文超过通用消息阈值，请求视图会改用有界 head/tail 和可回读 `context_ref`，而 SQLite 事实
 源不变。
 
@@ -130,11 +135,16 @@ user 不会重复回放；rebuild 保持当前锚点集合。锚点从 SQLite �
 保留。
 
 压缩失败只保证“不发布、不推进 cursor”，不保证当前 Run 一定停止。随后 Context Planner 会
-先卸载非 pinned 的 Skill、Memory、历史消息组等可选项；这些组按优先级和新旧程度装箱，可能
-形成非连续会话视图。只有 Core/Project/Environment、活动压缩的 user 锚点与 Assistant 摘要、
-最新用户消息等 pinned 内容和已选 Tool schema 仍超过硬窗口时，Planner 才报告
-`context_limit` 并停止主请求。此时可从原文重建更紧凑摘要、降低摘要预算、卸载可重载
-Skill/Tool schema，或换用更大上下文模型。
+先卸载非 pinned 的 Memory、历史消息组等可选项，可能形成非连续会话视图。history 模式的
+本 Run 必需 Skill 交付及其整个工具组必须保留；不能靠删除其中正文使请求勉强通过。
+若必留内容和已选 Tool schema 超过硬窗口，存在 Skill 依赖时最多再用一次强制压缩修复机会，
+与本 step 的 Provider 超限恢复共用。仍放不下则报告 `context_limit` 或
+`skill_context_budget_exceeded`，使用确定性收尾，不继续调用执行模型。
+
+可调整的是后续请求的任务范围、正文/摘要预算或模型窗口；不是让仍绑定的 Skill 静默降为预览。
+新摘要已经合法发布但正文恢复失败时，摘要与 cursor 可以保持推进，Run 仍会停止。
+这是“摘要发布失败不推进”之外的独立失败阶段。恢复细节及实测开销见
+[Skill 历史交付实施与验证](skill-context-validation.md)。
 
 ## 配置
 

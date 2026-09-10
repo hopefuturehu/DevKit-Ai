@@ -4,14 +4,15 @@
 “是否增加 Tool 调用”“规模增大后是否仍正确”“模型会不会自主检索”和“长任务跨生命周期后是否
 丢上下文”拆成可定位的 case。
 
-## 四个补充 case 与原缺口
+## 专项入口与覆盖缺口
 
 | Case | 补全的缺口 | 主要覆盖 | 不负责证明 |
 |---|---|---|---|
 | `context-efficiency-live` | 离线 token 估算不能代表真实 Provider | 同工作负载 `raw/current` A/B；Provider usage、费用、模型延迟、任务质量 | 存储规模与长时间稳定性 |
 | `context-blob-scale` | 只有单 blob 正确性，没有数量/体积曲线 | content-addressed 去重、query、range、并发访问、越权隔离、fork 授权、DB 增长、p50/p95/max、query 峰值 Python 分配 | 模型是否会作出正确检索决策；跨进程吞吐；尚不存在的 GC/保留策略 |
 | `context-retrieval-behavior` | 综合 case 在 prompt 中直接指定了 query 策略 | 不该查、预览命中、中段命中、空结果恢复、多匹配、多 blob 选址；query/range 与调用次数 | 大量 blob 的存储复杂度；scripted 模式不能替代真实模型能力 |
-| `context-full-stack-soak` | 各层和生命周期以前分别测试，缺少组合压力 | AGENTS、memory、active skill、Tool schema 卸载、压缩、Tool Result 外置、runtime resume、session fork、child blob grant | 真实 Provider 波动；真正的 subagent worker 调度和多进程竞争 |
+| `context-full-stack-soak` | 各层和生命周期以前分别测试，缺少组合压力 | AGENTS、memory、Skill 历史正文、Tool schema 卸载、压缩、Tool Result 外置、runtime resume、session fork、child blob grant | 真实 Provider 波动；真正的 subagent worker 调度和多进程竞争 |
+| Skill 历史交付专项 | 移除前置层需补足完整交付、作用域与恢复保证 | 自动/显式长正文、同版复用、来源事务、整组保留、连续压缩、预算/损坏失败、并发取消；另有真实模型布局 smoke | 独立微裁剪、通用投影去重；真实长循环、多 Skill 切换及隔离预热的成本对照 |
 | `memory-routing` 聚焦测试 | 自动记忆误认以前只在综合运行中观察，无法定位是位置、路由、证据还是回放问题 | 默认请求形状、四级 Router、capability-aware Tool 门禁、归因证据、一次性交付、错误候选拒绝、中文命中解释，以及 3 次真实 Provider canary | canary 只有每桶一个 fixture；总体误归因率和隐式召回率仍需 [多样本统计实验](memory-routing.md#多样本统计实验门槛) |
 
 原有 `context-efficiency` 仍是压缩、外置、query 与一次性交付的主要受控 A/B。新增 case 是补充其
@@ -170,6 +171,32 @@ RUN_MEMORY_ROUTING_LIVE=1 \
 [18 题上下文分析](public-benchmark-context-analysis.md)。局部表示缩短不能替代累计 API 节省，
 摘要安装不能替代后续运行和产物验收；尚未实施的优化，其恢复率与通过率增量保持 N/A。
 
+## 7. Skill 历史交付与布局对照
+
+确定性门禁：
+
+```bash
+.venv/bin/pytest tests/unit/test_skill_runtime.py tests/integration/test_skill_context.py
+```
+
+27 项专项测试覆盖完整交付、Run 隔离、来源校验及有界恢复。自动 Tool Result 与显式合成消息
+分别测试，不能只验证 active 已清空或摘要仍包含 Skill 名称。
+
+真实模型 smoke：
+
+```bash
+.venv/bin/python scripts/run_skill_context_smoke.py --live \
+  --output .bot/benchmarks/skill-context-smoke.json
+```
+
+2026-09-10 的 `deepseek-v4-pro` 单样本对照中，history 的短自动、长显式、压缩后继续三个
+审计场景及各自的无关后续任务通过；legacy 有一次严格格式失败。两个布局都使用新的 Run
+隔离与稳定控制工具定义，不能把 legacy 等同于改造前二进制。
+
+记录包含执行与压缩请求的原始 cached/uncached usage；缓存预热未隔离、未计算金额。
+部分场景累计输入增加，因此该 smoke 不承担成本推广门禁，也不能替代长循环或多 Skill
+切换的成对实验。命令退出码会因任何布局失败而非零。详见[实施与验证记录](skill-context-validation.md)。
+
 ## 指标如何拿到
 
 | 指标方向 | 原始来源 | 典型指标 |
@@ -187,10 +214,11 @@ RUN_MEMORY_ROUTING_LIVE=1 \
 ## CI 分层与仍缺内容
 
 - 普通 CI：scripted `context-efficiency`、缩小参数的 blob-scale、完整 retrieval behavior、full-stack
-  fast，以及各 CLI opt-in 门禁；
+  fast、Skill Runtime/Agent 专项，以及各 CLI opt-in 门禁；
 - 定时/手动：blob-scale soak、full-stack soak；
 - 有密钥且配置价格的受控环境：context efficiency、retrieval behavior 和 memory routing 三个 live
   case，至少重复 3 次。
+- 手动布局验收：Skill history/legacy live smoke；单样本结果只用于行为和输入开销诊断。
 
 这次补全后仍没有统一跨模型基线仓库、真实 Provider 的长期定时趋势面板、blob retention/GC、
 数据库内流式或索引检索、多进程 blob 压测，以及把真实 subagent worker 调度并入 120 轮 soak。

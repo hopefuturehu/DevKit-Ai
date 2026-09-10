@@ -24,6 +24,7 @@
 |---|---|
 | [模型上下文分块与组装顺序](context-assembly.md) | 请求顺序、角色边界、预算和超限处理的主要入口 |
 | [Skill 历史交付实施与验证](skill-context-validation.md) | 移除独立 Active Skill 层、Run 隔离、压缩恢复、会话迁移及测试证据 |
+| [移除 Active Skill 独立层：首版方案](active-skill-layer-removal-plan.md) | 已实现 A–C 的数据结构与恢复路径；D 已有行为 smoke，完整成本评测待补 |
 | [输入 token 计数与安全余量](input-token-calibration.md) | DeepSeek V4 Flash tokenizer、usage 误差记录、预算接入和 517 条历史请求核对 |
 | [可恢复的单摘要上下文压缩](recoverable-context-compaction.md) | 压缩不变量、版本发布、原文恢复、配置与测试 |
 | [Markdown 长期记忆](markdown-memory.md) | 文件布局、提取生命周期、读取路径和配置 |
@@ -44,12 +45,12 @@
 
 这些文档仍对应仓库中的评测脚本和测试，因此保留在当前目录；其中带日期的结果是历史基线，不表示本次整理重新运行了评测。
 
-## 待实施设计与配套分析
+## 设计演进与配套分析
 
 | 文档 | 状态与用途 |
 |---|---|
-| [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 尚未实现的提案；Run 隔离、正文交付、裁剪和恢复 |
-| [Skill 卸载与缓存复用调研](skill-unloading-cache-comparison.md) | 上述提案的源码依据与成本取舍；固定 checkout 调研 |
+| [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 原始完整提案；Run 隔离、历史交付和恢复已落地，通用投影与微裁剪待实施 |
+| [Skill 卸载与缓存复用调研](skill-unloading-cache-comparison.md) | 首版与后续裁剪设计的源码依据；固定 checkout 调研，区分历史建议与当前实现 |
 | [历史会话裁剪容量分析](history-pruning-analysis.md) | 2026-09-08 的离线容量回放，支撑待实施设计；不代表生产裁剪收益 |
 | [裁剪容量统计数据](data/history-pruning-summary.json) | 上述分析的参数、统计和逐压缩结果 |
 | [开源 Agent 框架上下文管理对比](context-framework-comparison.md) | 固定本地源码快照的跨框架研究；本项目当前行为参照模块说明 |

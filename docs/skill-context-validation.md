@@ -1,6 +1,7 @@
 # Skill 历史交付：实施与验证
 
-日期：2026-09-10。对应[首版实施方案](active-skill-layer-removal-plan.md)。
+验证日期：2026-09-10；实现提交：`875750c`。对应[首版实施方案](active-skill-layer-removal-plan.md)。
+下列测试与模型结果为该次实施验收记录；后续文档修订没有重跑真实模型或更新历史数字。
 
 ## 已实现行为
 
@@ -9,11 +10,11 @@
 Tool Result 中；显式加载在当前用户输入后追加不可授权的合成消息。同版完整历史交付可以复用，
 正文不会经过通用头尾预览。控制工具 schema 在同一目录快照内保持稳定。
 
-`RunSkillState` 冻结本 Run 的 Catalog、正文版本和绑定。完成、取消、异常及持久化失败后关闭
+`RunSkillState` 持有本 Run 的独立绑定，冻结 Catalog 快照和已加载的正文版本。完成、取消、异常及持久化失败后关闭
 状态并释放执行准入；另一个 Run 的绑定不受影响。历史正文仍可回放，但不会自动授权下一 Run
 加载资源。磁盘 reload 只影响后续 Run，不替换本 Run 已绑定的正文。
 
-消息与 `skill_deliveries` 来源侧表在同一个事务中提交，保存正文 blob、版本哈希及实际消息哈希。
+消息与 `skill_deliveries` 来源侧表在同一个事务中提交，保存正文 blob 引用、版本哈希及实际消息哈希。
 历史加载、按位置查询和 fork 保留来源；合成 Skill 消息不进入真实用户锚点或用户偏好归因。
 运行中必要正文及其 Assistant Call / 同批 Tool Result 整组必留；每次执行请求和模型收尾前，
 核对 Provider 序列化后的完整内容、工具协议及输入预算。
@@ -33,7 +34,8 @@ SQLite schema 升为 v15。已有会话迁移为 `legacy`；新会话首次 Run 
 context_mode = "history"
 ```
 
-使用 `/new` 创建采用新默认布局的会话。`/status` 的 `context.skill_context_mode` 显示实际布局，
+默认配置下使用 `/new` 创建采用 history 布局的会话。若显式配置为 legacy，新会话也按该配置
+确定布局。`/status` 的 `context.skill_context_mode` 显示实际布局，
 `active_skills` 按会话查询本 Run 的绑定。兼容会话仍使用 `_legacy_skill_items()`；这次没有删除
 旧布局读取能力，也不能直接回退到不识别合成历史来源的旧二进制。
 

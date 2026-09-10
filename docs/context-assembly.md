@@ -4,7 +4,7 @@
 >
 > 核对日期：2026-09-10
 >
-> 已包含 Skill 历史交付改造；默认运行时使用 `ContextCompactor`，`HandoffEngine` 目前仅由独立评测入口调用。
+> Skill 实现基线：`875750c`；默认运行时使用 `ContextCompactor`，`HandoffEngine` 目前仅由独立评测入口调用。
 
 本文描述主 Agent 每次调用模型时的实际请求视图。SQLite Transcript、压缩记录、计划事件、
 子 Agent mailbox、Markdown 记忆和 Skill 文件是事实源；组装过程生成本次 `ModelRequest`，
@@ -86,7 +86,8 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 Skill 正文在新模式下随历史排序，不进入独立前置槽位。旧布局仅由 `_legacy_skill_items()` 生成。
 
 `skills.context_mode` 默认为 `history`。数据库升级把已有会话标为 `legacy`，新会话首次 Run
-按配置确定并持久化布局；重启、修改配置和 fork 不会隐式切换已有会话。使用 `/new` 开始新布局。
+按配置确定并持久化布局；重启、修改配置和 fork 不会隐式切换已有会话。默认配置下使用 `/new`
+开始 history 布局。
 自动激活把完整正文写入真正的 Tool Result；显式加载在真实用户消息后追加 `skill_body`。
 同版正文已在当前历史中时直接复用。正文与 `skill_deliveries` 来源记录在一个事务中提交，
 不经过通用头尾预览；原文版本、blob 引用及消息哈希用于恢复和完整性校验。
@@ -240,7 +241,7 @@ target = floor(hard * context.auto_compact_threshold)
 | `tool_schema_tokens` | 16K | 业务 Tool schema 的选择预算；内部恢复 Tool 始终先保留 |
 | `tool_result_inline_tokens` | 4K | 外置内容在请求中的摘录预算 |
 | `recent_conversation_tokens` | 20K | 连续近期原文的有界目标；为保证至少保留一个进展单元，只有最新单个不可拆原子组可突破 |
-| `compaction_min_recent_user_turns` | 3 | 强制压缩的预算内停止条件：收集到 3 条 user 即停；否则在下一个更旧组会使 tail 超过 20K 时停止 |
+| `compaction_min_recent_user_turns` | 3 | 强制压缩的预算内停止条件：收集到 3 条真实用户消息即停，合成 Skill 不计入；否则在下一个更旧组会使 tail 超过 20K 时停止 |
 | `compaction_summary_target_tokens` | 3K | 摘要软目标；未显式配置时运行时取 `min(3000, compaction_summary_tokens)` |
 | `compaction_summary_tokens` | 4K | 摘要正文的估算 token 校验上限；不含回放时附加的溯源头和用户锚点 |
 | `compaction_max_output_tokens` | 8,192 | 独立压缩请求的输出预算，与摘要正文限制分开 |
@@ -249,7 +250,8 @@ target = floor(hard * context.auto_compact_threshold)
 
 排序靠 layer；是否能进入请求则靠 retention、priority 和预算：
 
-1. 先确定包含 `PINNED` 项的完整原子组，再整组选入，包括核心策略、项目指令、环境、最新真实用户消息、本 Run 必需 Skill 交付，以及活动压缩中的
+1. 先确定包含 `PINNED` 项的完整原子组，再整组选入，包括核心策略、项目指令、环境、
+   最新真实用户消息、history 模式下本 Run 必需 Skill 交付，以及活动压缩中的
    原始 user 锚点和 Assistant 摘要；
 2. 其余项按 atomic group 聚合，优先级高者先选；同优先级保留更新的会话组；
 3. Tool schema 的 token 先从 target message budget 中扣除；
@@ -289,7 +291,7 @@ target 时直接保留，避免字符估算过高造成无谓卸载；触发压�
 | 分层预算装箱 | 任意主请求组装时都执行 | `PINNED` 必留；其余按 priority、recency 和 atomic group 选择，放不下的组不进入本次请求 | Transcript 保留；`search_session_history` 可检索 |
 | Reasoning 作用域收窄 | Assistant reasoning 不属于仍需回放的 Tool Call 消息 | 普通请求不重放该 reasoning；默认独立压缩输入也不携带 reasoning 正文 | SQLite 仍持久化，来源哈希仍覆盖；handoff 输入见后文 |
 | 协议清理 | 组装后的请求副本存在孤儿 Tool 或缺失结果时 | 修复 Call/Result 配对，丢弃孤儿结果；不把历史伪 `system` 恢复为特权消息 | 不改写持久 Transcript |
-| Provider 溢出应急外置 | Provider 首次报 context-length error，且强制压缩没有推进 | 将本次内存视图中超过 2,000 字符的正文缩成约 1,500 字符前缀和引用，再重试一次 | blob 中保留完整正文 |
+| Provider 溢出应急外置 | 本 step 首次报 context-length error、未用修复额度，且强制压缩没有推进 | 将超过 2,000 字符的普通正文缩成约 1,500 字符前缀和引用；跳过已登记的 Skill 交付，再重试一次 | blob 中保留完整正文；必要 Skill 仍须通过最终检查 |
 
 其中“预算装箱”是有损的请求投影，但不是持久删除。它目前可能跳过中间原子组后保留更早的
 小组，形成没有 gap 标记的非连续视图；这与“连续最近窗口”不是同一种策略。大消息外置、按需
@@ -299,6 +301,9 @@ Tool/Skill/Memory 加载则属于可恢复的渐进披露，优先级应高于�
 
 普通 Tool Result 都先把完整 `model_content()` 写入内容寻址 blob，再把带 `context_ref` 的请求
 视图写入 SQLite；短结果保留全文，长结果只保留受 `tool_result_inline_tokens` 限制的 head/tail。
+history 模式的首次 `activate_skill` 正文是专门分支：消息与来源原子保存全文，不走这段预览。
+`load_skill_resource` 沿用有界交付，但已交付视图受保护直到下一次有效模型响应；之后保留为普通
+历史，不自动改成一次性回执。
 成功且带 `context_delivery` 的 `load_context_reference`、`search_memory` 和
 `load_memory_evidence` 是一次性交付分支：SQLite Transcript 只保存包含原始引用、操作和范围等
 元数据的短回执；内存请求视图临时保存正文，并以
@@ -324,8 +329,9 @@ Tool schema：传 `query` 时在 blob 存储侧做大小写可选的字面量检
 其他角色的消息从 SQLite 加载或新写入会话时，只要正文估算超过
 `max(tool_result_inline_tokens, recent_conversation_tokens / 4)`，也会把完整正文写入 blob，并只
 在内存请求视图中保留 head/tail 和 `context_ref`，不改写 SQLite 原消息。默认通用触发线为
-5K token，摘录上限为 4K token。Provider 首次报告上下文超限且强制压缩没有推进时，还会对
-本次内存视图中超过 2,000 字符的正文做一次更激进的 1,500 字符前缀外置。
+5K token，摘录上限为 4K token。已登记的 Skill 交付跳过这些通用外置路径。Provider 在本 step
+首次报告上下文超限、修复额度未使用且强制压缩没有推进时，对普通正文执行一次更激进的
+1,500 字符前缀外置；完整 Skill 依赖不因此变成预览。
 
 Assistant 的 `reasoning_content` 独立持久化，但只有同一条 Assistant 消息还带 Tool Call 时才
 序列化回普通 Agent 请求，`TokenEstimator` 也只在这一条件下计入它。默认独立压缩模型的
@@ -340,6 +346,10 @@ Provider 序列化成顶层 `tools`。有 Tool 时默认 `tool_choice=auto`；Me
 Provider 支持 named choice 时会指定工具，否则由 Agent 的响应门禁执行必需调用约束。
 终止模型收尾使用空 Tool 列表。所有可见 Tool 按名称排序，使注册扫描
 顺序变化不会无意义地改变缓存前缀。
+
+Skill 控制工具使用本 Run 的 Catalog 快照：非空目录且允许自动激活时提供 `activate_skill`，
+非空目录提供 `load_skill_resource`。两者作为内部控制定义优先保留，不因 active 数量变化增删；
+资源是否可读由执行端检查当前 Run 绑定。
 
 默认 schema budget 是 16K token。未超预算时发送完整且已排序的集合；超预算时先保留内部
 恢复/激活工具、按运行时能力加入的历史/记忆检索工具，以及子 Agent controller 提供的工具，
@@ -378,11 +388,12 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 | 压缩失败或没有安全前缀 | 不删除原文；普通同增量失败默认退避 300 秒 | Planner 仍可丢弃非 pinned 组并发送，因此压缩失败不等于 Run 立即失败 |
 | Planner 估算超过 target | 丢弃放不下的非 pinned 原子组；Provider 有精确计数且超过 hard 时再从低优先级、较旧组开始卸载 | 能降到 hard 内则继续请求，可能形成非连续历史视图 |
 | pinned messages + 已选 Tool schema 仍超过 hard | Skill 依赖存在时最多强制压缩修复一次，再验证原文；仍超限不发出执行请求 | `limit_reached/context_limit` 或 `skill_context_budget_exceeded`，禁用模型收尾并使用确定性文本 |
-| Provider 首次返回上下文长度错误 | 整个 Run 只允许一次恢复：从尾部回扫，收集到 3 条 user 即停；否则在下一个更旧组会使 tail 超过 20K 时停止（最新单个原子组例外）；压缩未推进则激进外置正文，然后重建并重试 | 成功则继续 Run |
-| Provider 再次返回上下文长度错误 | 不再循环压缩或重试 | Run 为 `failed/provider_error`；终止协调器会尝试无 Tool 模型收尾，失败则使用确定性收尾 |
+| Provider 返回上下文长度错误且本 step 尚未修复 | 从尾部按真实用户消息和完整原子组选取保留范围；强制压缩未推进则外置普通正文；重建并检查必要 Skill 后重试 | 成功响应后重置修复额度；该额度与 Skill 本地装箱修复共用 |
+| 本 step 修复后 Provider 仍返回上下文长度错误 | 不再循环压缩或采样 | Run 为 `failed/provider_error`，禁用模型收尾，使用确定性文本 |
 
-自动压力路径每个 step 最多推进一个压缩分块；backlog 仍很大时，下一 step 再继续推进。显式
-`/compact` 则在空闲会话中循环处理分块，直到目标位置、无进展或请求数/时间/费用预算之一
+普通预防性压力压缩每轮尝试一个分块；本地 Skill 装箱或 Provider 超限还可在共享修复额度内
+强制压缩。修复重试不递增逻辑 step，也不重复普通预防性压缩。backlog 仍很大时，下一 step
+再继续推进。显式 `/compact` 则在空闲会话中循环处理分块，直到目标位置、无进展或请求数/时间/费用预算之一
 到达上限。
 
 ## 默认压缩请求与 handoff 实验的区别
@@ -392,6 +403,10 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 的 `bot.context.v1` 信封。增量模式传 `previous_summary + new_messages`；从原文重建时传
 `raw_messages`，不叠加旧摘要。每条消息默认最多提供 12,000 字符正文，不包含
 `reasoning_content`，历史 Tool Call 也作为 JSON 数据而非可执行调用传入。
+
+Skill 历史正文同样可能进入这份有界摘要输入；首版没有把它提前转换成收据。执行请求需要的
+全文由 Runtime 在摘要发布后恢复，因此不能把摘要里保留 Skill 名称当作已恢复，也不能忽略
+压缩长手册本身的输入开销。
 
 这一路径有自己独立的输入预算：
 

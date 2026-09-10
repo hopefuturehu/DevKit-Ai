@@ -164,6 +164,10 @@ prompt/read/miss 和请求指纹，不保存原始 prompt 或任何密钥。
 
 ## 组装顺序优化实验（2026-08-23）
 
+本节保留 `cb911b1` / `d16b203` 的历史请求布局与测量值，包含当时的前置 Active Skill 层。
+`875750c` 已将新会话 Skill 正文改为历史交付；下列命中率及折算成本变化不用于证明这次改造的
+收益。当前形状见[上下文组装](context-assembly.md)，新布局的单样本 usage 见[Skill 验证](skill-context-validation.md)。
+
 ### 可还原代码点和控制变量
 
 - 旧顺序：本地分支 `context-cache-order-baseline`，commit `cb911b1`；
