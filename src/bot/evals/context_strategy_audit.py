@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import tomllib
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,6 +47,11 @@ def request_rows(events: list[dict]) -> list[dict]:
             raw = payload.get("provider_metadata", {}).get("raw_usage") or {}
             phase = payload.get("phase", "main")
             status = "usage_received"
+        elif kind == "model.request.retry":
+            start = None
+            raw = {}
+            phase = "main"
+            status = "retry_without_usage"
         else:
             continue
         rows.append(
@@ -70,6 +76,10 @@ def request_rows(events: list[dict]) -> list[dict]:
                 or payload.get("provider_metadata", {}).get("input_token_estimate"),
             }
         )
+        if start and payload.get("duration_ms") is not None:
+            elapsed = (moment(event["timestamp"]) - moment(start["timestamp"])).total_seconds()
+            rows[-1]["utc_duration_ms"] = elapsed * 1000
+            rows[-1]["clock_gap_ms"] = elapsed * 1000 - payload["duration_ms"]
     for event in pending.values():
         rows.append(
             {
@@ -145,7 +155,7 @@ def analyze_events(events: list[dict], pricing: dict) -> dict:
     )
     totals["cost_is_lower_bound"] |= totals["interruption_or_retry_may_hide_usage"]
     phases = sorted({r["phase"] for r in rows})
-    main = [r for r in rows if r["phase"] == "main"]
+    main = [r for r in rows if r["phase"] == "main" and r["raw_usage"]]
     switches = []
     for index, event in enumerate(events):
         if event["type"] != "context.compaction.completed":
@@ -209,6 +219,38 @@ def analyze_events(events: list[dict], pricing: dict) -> dict:
         "switches": switches,
         "event_counts": dict(kinds),
         "requests": rows,
+        "clock_discrepancies": [
+            {
+                k: r.get(k)
+                for k in ("event_id", "phase", "duration_ms", "utc_duration_ms", "clock_gap_ms")
+            }
+            for r in rows
+            if abs(r.get("clock_gap_ms", 0)) > 5000
+        ],
+    }
+
+
+def verify_manifest(manifest: dict) -> dict:
+    assets = [manifest["wheel"], manifest["tokenizer"], *manifest["configs"].values()]
+    for asset in assets:
+        if hashlib.sha256(Path(asset["path"]).read_bytes()).hexdigest() != asset["sha256"]:
+            raise ValueError(f"Frozen asset hash mismatch: {asset['path']}")
+    task = Path(manifest["task"])
+    for name, expected in manifest["task_files"].items():
+        if hashlib.sha256((task / name).read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Frozen task hash mismatch: {name}")
+    baseline = None
+    for strategy, asset in manifest["configs"].items():
+        config = tomllib.loads(Path(asset["path"]).read_text())
+        if config["context"].pop("compaction_strategy") != strategy:
+            raise ValueError("Strategy/config mismatch")
+        if baseline is not None and config != baseline:
+            raise ValueError("Comparison configurations differ beyond compaction_strategy")
+        baseline = config
+    return {
+        "asset_hashes": len(assets),
+        "task_hashes": len(manifest["task_files"]),
+        "only_strategy_differs": True,
     }
 
 
@@ -220,6 +262,7 @@ def audit(directory: Path, *, partial: bool = False) -> dict:
         "revision": manifest["revision"],
         "pricing": manifest["pricing"],
         "limits": manifest["limits"],
+        "frozen_inputs_verified": verify_manifest(manifest),
         "strategies": {},
     }
     for strategy in manifest["order"]:

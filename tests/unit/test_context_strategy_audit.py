@@ -1,6 +1,13 @@
+import hashlib
+
 import pytest
 
-from bot.evals.context_strategy_audit import aggregate, analyze_events, request_rows
+from bot.evals.context_strategy_audit import (
+    aggregate,
+    analyze_events,
+    request_rows,
+    verify_manifest,
+)
 
 PRICING = {
     "usd_per_million_peak": {"hit": 0.044, "miss": 1.32, "output": 3.96},
@@ -96,3 +103,76 @@ def test_audit_cancelled_main_stream_keeps_subtotal_and_marks_uncertainty():
     )
     assert report["totals"]["input"] == 100
     assert report["totals"]["cost_is_lower_bound"]
+
+
+def test_audit_exposes_clock_gap_without_silently_replacing_reported_duration():
+    started = event(
+        "context.compaction.request.started", {"compaction_id": "c", "phase": "generate"}
+    )
+    ended = event(
+        "context.compaction.request.completed",
+        {"compaction_id": "c", "phase": "generate", "duration_ms": 30000, "raw_usage": RAW},
+    )
+    ended["timestamp"] = "2026-09-10T12:05:30Z"
+    report = analyze_events([started, ended], PRICING)
+    discrepancy = report["clock_discrepancies"][0]
+    assert discrepancy["duration_ms"] == 30000
+    assert discrepancy["utc_duration_ms"] == 330000
+    assert discrepancy["clock_gap_ms"] == 300000
+
+
+def test_audit_main_transport_retry_is_an_unpriced_attempt():
+    report = analyze_events(
+        [
+            event("model.request.retry", {"step": 9, "failed_attempt": 1}),
+            event("model.usage", {"step": 9, "provider_metadata": {"raw_usage": RAW}}, 1),
+        ],
+        PRICING,
+    )
+    assert report["totals"]["requests"] == 2
+    assert report["totals"]["usage_missing"] == 1
+    assert report["totals"]["input"] == 100
+    assert report["totals"]["cost_is_lower_bound"]
+
+
+@pytest.mark.parametrize("tamper", [None, "asset", "task", "config_diff", "strategy"])
+def test_manifest_audit_checks_files_and_comparison_controls(tmp_path, tamper):
+    def asset(name, content):
+        path = tmp_path / name
+        path.write_text(content)
+        return {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    configs = {
+        strategy: asset(
+            f"{strategy}.toml", f'[context]\ncompaction_strategy="{strategy}"\nlimit=40000\n'
+        )
+        for strategy in ("current", "a", "b")
+    }
+    task = asset("instruction.md", "frozen task")
+    manifest = {
+        "wheel": asset("package.whl", "frozen wheel"),
+        "tokenizer": asset("tokenizer.json", "frozen vocabulary"),
+        "configs": configs,
+        "task": str(tmp_path),
+        "task_files": {"instruction.md": task["sha256"]},
+    }
+    if tamper == "asset":
+        (tmp_path / "package.whl").write_text("changed")
+    elif tamper == "task":
+        (tmp_path / "instruction.md").write_text("changed")
+    elif tamper in ("config_diff", "strategy"):
+        configs["b"] = asset(
+            "b.toml",
+            '[context]\ncompaction_strategy="a"\nlimit=40000\n'
+            if tamper == "strategy"
+            else '[context]\ncompaction_strategy="b"\nlimit=50000\n',
+        )
+    if tamper:
+        with pytest.raises(ValueError):
+            verify_manifest(manifest)
+    else:
+        assert verify_manifest(manifest) == {
+            "asset_hashes": 5,
+            "task_hashes": 1,
+            "only_strategy_differs": True,
+        }
