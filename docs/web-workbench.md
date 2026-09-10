@@ -32,6 +32,10 @@ Web 工作台用于在 Bot 执行任务时查看进展和结果，与 CLI 共用
 
 服务器重启会更换事件 epoch，客户端重新恢复历史。重启前未持久化终态的任务显示历史状态未确认；不会声称进程仍在运行，也不会自动重跑任务。审批仅对当前执行端仍持有的准确请求有效。恢复会话不代表恢复已经结束的服务器进程。
 
+Skill 激活状态也只属于当前 Run，完成或取消后释放，历史激活事件不代表当前仍有绑定。
+新会话首次 Run 按 `skills.context_mode` 选定并持久化布局，默认 history；升级前已有会话保持
+legacy。重启不改变已有布局，恢复历史也不恢复已结束 Run 的活动集合。
+
 `model.usage` 为累计值，界面直接覆盖，避免重复相加。Run 用量包含本 Run 的上下文整理，不包含子任务；子任务有独立 Run。费用缺失时显示“未记录”。源输出被截断时，已留存全文也未必能恢复最初的所有内容，详情明确提示截断或全文不可用。
 
 ## 文件产物边界
@@ -44,7 +48,9 @@ Web 工作台用于在 Bot 执行任务时查看进展和结果，与 CLI 共用
 
 | 接口 | 用途 |
 |---|---|
+| `GET /api/status?session_id={sid}` | Runtime 配置与指定会话当前 Run 的 `active_skills` |
 | `GET/POST /api/sessions` | 会话列表/创建 |
+| `GET /api/sessions/{sid}` | 会话详情、消息、用量及持久 `skill_context_mode` |
 | `GET/POST /api/sessions/{sid}/runs` | 运行列表/启动；启动需要 `prompt`、`request_id`，可传 `skills` |
 | `GET /api/runs/{rid}` | 运行状态、累计用量、当前执行端是否可控制 |
 | `GET /api/sessions/{sid}/events` | 会话与实际子任务事件 |
@@ -64,6 +70,11 @@ Web 工作台用于在 Bot 执行任务时查看进展和结果，与 CLI 共用
 | `GET /api/runs/{rid}/artifacts` | 真实文件变化列表 |
 | `GET /api/runs/{rid}/artifacts/{id}` | 差异详情 |
 | `GET /api/runs/{rid}/artifacts/{id}/content` | 快照内容，支持 `side=before/after` 和 `download=true` |
+
+`/api/status` 不传 `session_id` 时，`active_skills` 是共享主 Runner 当前所有活动 Run 的名称
+合集，不是某个会话的状态，也不汇总独立 child Runner。布局应读取会话详情的
+`skill_context_mode`；新建且尚未首次运行的会话该字段可以为 `null`。这个字段不在
+`/api/status` 的响应中。Skill 正文交付与恢复边界见[实施与验证](skill-context-validation.md)。
 
 事件分页接受 `cursor`、`through`、`limit`，返回 `events/cursor/through/has_more/epoch`。第一次请求确定快照边界，后续分页沿用 `through`；游标过期返回 409。列表使用 `limit/offset`，文本使用字符偏移，不会截断 UTF-8 中文字符。
 

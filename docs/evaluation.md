@@ -18,6 +18,9 @@ bot eval run evals/artifacts.jsonl \
 
 模型、预算、工具权限及 Skill 配置从 CLI 的当前工作区（或 `bot -C` 指定目录）加载；
 `--config` 仍可指定配置文件。`--disable-skills` 可运行关闭 Skill 的对照组。
+这与 history/legacy 正文布局对照不同：`--disable-skills` 清空候选 Catalog 并忽略显式选择，
+两个布局则都保留 Skill 能力。布局由 `skills.context_mode` 决定，新会话默认 history；专门的
+布局验收命令与原始 usage 见 [Skill 历史交付验证](skill-context-validation.md)。
 全部 Case 通过时退出码为 0；任一 `fail` 或 `error` 为 1。
 单个 Case 执行或验收异常会留下结果，并继续下一 Case；JSONL 格式或字段定义无效则在加载时拒绝整份文件。
 
@@ -32,7 +35,7 @@ bot eval run evals/artifacts.jsonl \
 | `memory_fixture` | 可选的初始记忆目录，相对于 JSONL；复制后使用 |
 | `state_fixture` | 可选的初始 SQLite 数据库，相对于 JSONL；只读备份后使用 |
 | `max_snapshot_bytes` | 单份快照或种子数据库的大小上限，默认 64 MiB，最大 1 GiB；快照另限 10000 个条目 |
-| `explicit_skills` | 本次显式激活的 Skill；关闭 Skill 的对照组会忽略 |
+| `explicit_skills` | 仅为本次根 Run 显式绑定的 Skill，不成为持久会话激活状态；关闭 Skill 的对照组会忽略 |
 
 每次执行有独立的临时 Git 工作区、SQLite 状态库、记忆目录和子 Agent worktree 目录。
 默认不继承会话、审批记录和用户 Agent 目录；只有显式 `state_fixture` 会引入数据库中的历史状态。
@@ -62,10 +65,13 @@ Agent 执行仍使用本地执行器和 `workspace_only` 权限策略，**没有
 | `expected_tools` | 根运行中确实请求并成功完成的工具，不接受仅请求、失败或仍在运行的结果 |
 | `tool_results` | 按工具名、请求参数、终态、成功标志、退出码和次数检查具体执行结果 |
 | `forbidden_tools` | 根运行中禁止请求的工具，即使请求后来失败也会违反条件 |
-| `expected_skills` | 根运行激活的 Skill；关闭 Skill 的对照组忽略此项 |
+| `expected_skills` | 根据根 session/run 的 `skill.activated` 事件判定；关闭 Skill 的对照组忽略此项 |
 | `max_tool_calls` / `max_approval_requests` | 根运行的工具请求和审批次数上限 |
 
 所有条件必须同时满足。没有任何验收条件的 Case 返回 `error`，不会默认为通过。
+`expected_skills` 验证本 Run 是否成功绑定过指定 Skill，不读取结束后已经清空的活动集合，
+也不接受其他 Run 或子 Agent 的事件。激活事件本身不能证明模型遵守规则或任务产物正确；
+仍需结合 `expected_status`、工具参数、文件结果或独立 verifier 验收。
 JSON Schema 在运行前检查，只允许文档内部引用；不联网取 Schema。非法 JSON、`NaN` 和类型/数值不符都不能通过。
 重复写入相同内容、仅修改时间戳或权限，不满足产物的“内容改变”条件。
 

@@ -38,12 +38,18 @@ output:
 
 - `model` 为空时继承主模型；非空时 child runner 使用该模型。
 - `tools` 是严格 allowlist；`read_only` Agent 不能声明写工具。
+- `skills` 是每次 child Run 的显式 Skill 名称列表，包括续接任务时的新 Run；不继承父 Run 的活动集合。
 - `isolation: worktree` 只在全局允许 worktree 写入时可用，且不直接修改主工作区。
 - `execution` 限定前台/后台调用方式。
 - `limits` 只能缩小全局步数、时间和费用边界，不能绕过全局上限。
-- Markdown 正文作为 child system/task 指令，但不能扩大 Tool 和权限。
+- Markdown 正文编入 child Run 的任务输入，按 `user` 消息发送，不另增 System 权限，也不能扩大 Tool 和权限。
 
 同名定义不会按“项目覆盖用户”静默合并；所有冲突项均禁用并报错，避免权限来源模糊。
+
+child Run 使用独立 `RunSkillState`：开始时取得 Catalog 快照，完成、取消或失败后关闭绑定。
+同一 child session 续接时按定义重新显式选择；history 模式可复用仍完整可见的同版历史正文，
+但不会把历史加载事件当作当前激活。正文预算、压缩恢复与最终请求检查沿用主 Agent 的规则。
+生命周期和旧会话兼容范围见 [Skill 历史交付实施与验证](skill-context-validation.md)。
 
 ## 管理命令
 
