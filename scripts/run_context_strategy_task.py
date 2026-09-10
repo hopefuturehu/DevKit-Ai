@@ -34,7 +34,15 @@ def save(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
 
-def prepare(root: Path, output: Path, task: Path, input_limit: int) -> None:
+def prepare(
+    root: Path,
+    output: Path,
+    task: Path,
+    input_limit: int,
+    *,
+    main_output_tokens: int = 8192,
+    strategies: list[str] | None = None,
+) -> None:
     if (output / "manifest.json").exists():
         raise ValueError("manifest already exists; use a new output directory for a new experiment")
     if not (task / "task.toml").is_file():
@@ -53,7 +61,7 @@ def prepare(root: Path, output: Path, task: Path, input_limit: int) -> None:
         api_key_ref="env:BOT_MODEL_API_KEY",
         temperature=0,
         thinking="disabled",
-        max_output_tokens=8192,
+        max_output_tokens=main_output_tokens,
         context_window_tokens=131072,
         input_cost_per_million=1.32,
         output_cost_per_million=3.96,
@@ -73,12 +81,12 @@ def prepare(root: Path, output: Path, task: Path, input_limit: int) -> None:
         }
     )
     configs = {}
-    for strategy in ("current", "a", "b"):
+    for strategy in dict.fromkeys(strategies or ["current", "a", "b"]):
         cfg.context.compaction_strategy = strategy
         path = output / f"{strategy}.toml"
         path.write_text(tomli_w.dumps(cfg.model_dump(mode="json", exclude_none=True)))
         configs[strategy] = {"path": str(path), "sha256": digest(path)}
-    order = ["current", "a", "b"]
+    order = list(configs)
     random.Random(20260910).shuffle(order)
     manifest = {
         "created_at": datetime.now(UTC).isoformat(),
@@ -100,6 +108,8 @@ def prepare(root: Path, output: Path, task: Path, input_limit: int) -> None:
         "worker_wall_seconds": 1740,
         "max_cost_usd_conservative_per_run": 10,
         "model": model["name"],
+        "main_max_output_tokens": main_output_tokens,
+        "summary_max_output_tokens": cfg.context.compaction_max_output_tokens,
         "model_host": model_hostname(model["base_url"]),
         "pricing": {
             "source": "https://api-docs.deepseek.com/quick_start/pricing/",
@@ -212,13 +222,24 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--task", type=Path)
     parser.add_argument("--input-limit", type=int, default=120000)
+    parser.add_argument("--main-output-tokens", type=int, default=8192)
+    parser.add_argument(
+        "--strategies", nargs="+", choices=("current", "a", "b"), default=None
+    )
     parser.add_argument("--run", action="store_true", help="Run the previously frozen paid trials")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.run:
         run(root, args.output.resolve())
     elif args.task:
-        prepare(root, args.output.resolve(), args.task.resolve(), args.input_limit)
+        prepare(
+            root,
+            args.output.resolve(),
+            args.task.resolve(),
+            args.input_limit,
+            main_output_tokens=args.main_output_tokens,
+            strategies=args.strategies,
+        )
     else:
         parser.error("--task is required when preparing")
 
