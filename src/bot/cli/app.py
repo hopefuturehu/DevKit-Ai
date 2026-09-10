@@ -320,7 +320,7 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                     "base_url": runtime.config.model.base_url,
                     "permission_mode": runtime.config.permissions.mode,
                     "auto_approve": runtime.config.permissions.auto_approve,
-                    "active_skills": list(runtime.skills.active),
+                    "active_skills": runtime.runner.active_skill_names(session_id),
                     "context_manifest": runtime.context.manifest(),
                     "context": runtime.runner.context_status(session_id),
                     "memory": (
@@ -448,11 +448,12 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
                 )
             continue
         if prompt == "/skills":
-            _print_skills(runtime.catalog, active=set(runtime.skills.active))
+            _print_skills(
+                runtime.catalog, active=set(runtime.runner.active_skill_names(session_id))
+            )
             continue
         if prompt == "/skills reload":
             runtime.catalog.scan()
-            runtime.skills.reset()
             console.print(
                 f"已重新扫描 {runtime.catalog.root}，可用 {len(runtime.catalog.skills)} 个 Skill。"
             )
@@ -516,7 +517,6 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
             continue
         if prompt == "/new":
             session_id = runtime.store.create_session(runtime.workspace)
-            runtime.skills.reset()
             console.print(f"已创建会话 {session_id[:8]}")
             continue
         clean_prompt, explicit_skills = _parse_prompt(prompt)

@@ -23,6 +23,7 @@
 | 文档 | 用途 |
 |---|---|
 | [模型上下文分块与组装顺序](context-assembly.md) | 请求顺序、角色边界、预算和超限处理的主要入口 |
+| [Skill 历史交付实施与验证](skill-context-validation.md) | 移除独立 Active Skill 层、Run 隔离、压缩恢复、会话迁移及测试证据 |
 | [输入 token 计数与安全余量](input-token-calibration.md) | DeepSeek V4 Flash tokenizer、usage 误差记录、预算接入和 517 条历史请求核对 |
 | [可恢复的单摘要上下文压缩](recoverable-context-compaction.md) | 压缩不变量、版本发布、原文恢复、配置与测试 |
 | [Markdown 长期记忆](markdown-memory.md) | 文件布局、提取生命周期、读取路径和配置 |

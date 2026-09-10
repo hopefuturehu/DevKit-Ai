@@ -114,7 +114,7 @@ class FrozenContext(ContextAssembler):
         super().__init__(**kwargs)
         self.head = head
 
-    def ledger_items(self, environment):
+    def ledger_items(self, environment, *, skill_catalog=None):
         return [
             ContextItem(
                 id="core-policy",

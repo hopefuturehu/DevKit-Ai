@@ -1,0 +1,911 @@
+{
+  "created_at": "2026-09-10T03:38:25.585372+00:00",
+  "model": "deepseek-v4-pro",
+  "scope": "single-sample behavior smoke; cache warmth uncontrolled; no price claims",
+  "cases": [
+    {
+      "mode": "legacy",
+      "scenario": "short_auto",
+      "fixture_sha256": "ae415d86e4a28421708e0652d546f963a01aef97cfd0ae040bf01003d8b6dfcb",
+      "task_passed": true,
+      "recovery_passed": true,
+      "unrelated_passed": true,
+      "final_text": "AUDIT_OK_947: cedar/amber",
+      "status": "completed",
+      "restored_bodies": 0,
+      "compactions": 0,
+      "read_paths": [
+        "evidence.txt",
+        "proof-947.txt"
+      ],
+      "requests": [
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 1873,
+              "completion_tokens": 80,
+              "total_tokens": 1953,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 1873
+            }
+          ],
+          "latency_seconds": 3.152,
+          "tail_marker_messages": 0
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2419,
+              "completion_tokens": 67,
+              "total_tokens": 2486,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 627
+            }
+          ],
+          "latency_seconds": 2.408,
+          "tail_marker_messages": 2
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2564,
+              "completion_tokens": 46,
+              "total_tokens": 2610,
+              "prompt_tokens_details": {
+                "cached_tokens": 2432
+              },
+              "prompt_cache_hit_tokens": 2432,
+              "prompt_cache_miss_tokens": 132
+            }
+          ],
+          "latency_seconds": 2.43,
+          "tail_marker_messages": 2
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2687,
+              "completion_tokens": 10,
+              "total_tokens": 2697,
+              "prompt_tokens_details": {
+                "cached_tokens": 2560
+              },
+              "prompt_cache_hit_tokens": 2560,
+              "prompt_cache_miss_tokens": 127
+            }
+          ],
+          "latency_seconds": 2.181,
+          "tail_marker_messages": 2
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2459,
+              "completion_tokens": 4,
+              "total_tokens": 2463,
+              "prompt_tokens_details": {
+                "cached_tokens": 1920
+              },
+              "prompt_cache_hit_tokens": 1920,
+              "prompt_cache_miss_tokens": 539
+            }
+          ],
+          "latency_seconds": 2.035,
+          "tail_marker_messages": 1
+        }
+      ],
+      "passed": true,
+      "totals": {
+        "input_tokens": 12002,
+        "cached_input_tokens": 8704,
+        "uncached_input_tokens": 3298,
+        "output_tokens": 207,
+        "request_latency_seconds": 12.206
+      }
+    },
+    {
+      "mode": "history",
+      "scenario": "short_auto",
+      "fixture_sha256": "ae415d86e4a28421708e0652d546f963a01aef97cfd0ae040bf01003d8b6dfcb",
+      "task_passed": true,
+      "recovery_passed": true,
+      "unrelated_passed": true,
+      "final_text": "AUDIT_OK_947: cedar/amber",
+      "status": "completed",
+      "restored_bodies": 0,
+      "compactions": 0,
+      "read_paths": [
+        "evidence.txt",
+        "proof-947.txt"
+      ],
+      "requests": [
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 1873,
+              "completion_tokens": 80,
+              "total_tokens": 1953,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 81
+            }
+          ],
+          "latency_seconds": 2.695,
+          "tail_marker_messages": 0
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2158,
+              "completion_tokens": 44,
+              "total_tokens": 2202,
+              "prompt_tokens_details": {
+                "cached_tokens": 1920
+              },
+              "prompt_cache_hit_tokens": 1920,
+              "prompt_cache_miss_tokens": 238
+            }
+          ],
+          "latency_seconds": 3.117,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2280,
+              "completion_tokens": 46,
+              "total_tokens": 2326,
+              "prompt_tokens_details": {
+                "cached_tokens": 2048
+              },
+              "prompt_cache_hit_tokens": 2048,
+              "prompt_cache_miss_tokens": 232
+            }
+          ],
+          "latency_seconds": 2.41,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2403,
+              "completion_tokens": 10,
+              "total_tokens": 2413,
+              "prompt_tokens_details": {
+                "cached_tokens": 2176
+              },
+              "prompt_cache_hit_tokens": 2176,
+              "prompt_cache_miss_tokens": 227
+            }
+          ],
+          "latency_seconds": 2.403,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2435,
+              "completion_tokens": 4,
+              "total_tokens": 2439,
+              "prompt_tokens_details": {
+                "cached_tokens": 2304
+              },
+              "prompt_cache_hit_tokens": 2304,
+              "prompt_cache_miss_tokens": 131
+            }
+          ],
+          "latency_seconds": 2.219,
+          "tail_marker_messages": 1
+        }
+      ],
+      "passed": true,
+      "totals": {
+        "input_tokens": 11149,
+        "cached_input_tokens": 10240,
+        "uncached_input_tokens": 909,
+        "output_tokens": 184,
+        "request_latency_seconds": 12.844
+      }
+    },
+    {
+      "mode": "legacy",
+      "scenario": "long_explicit",
+      "fixture_sha256": "0370e4572a3196acda5524c28038fe8d40d93267014e2c691f6b28079f49ff84",
+      "task_passed": false,
+      "recovery_passed": true,
+      "unrelated_passed": true,
+      "final_text": "已按 Skill 要求顺序读取两个文件，核对结果如下：\n\n- evidence.txt → evidence 值 = `cedar`\n- proof-947.txt → proof 值 = `amber`\n\nAUDIT_OK_947: cedar/amber",
+      "status": "completed",
+      "restored_bodies": 0,
+      "compactions": 0,
+      "read_paths": [
+        "evidence.txt",
+        "proof-947.txt"
+      ],
+      "requests": [
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10230,
+              "completion_tokens": 55,
+              "total_tokens": 10285,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 8438
+            }
+          ],
+          "latency_seconds": 3.744,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10363,
+              "completion_tokens": 71,
+              "total_tokens": 10434,
+              "prompt_tokens_details": {
+                "cached_tokens": 10240
+              },
+              "prompt_cache_hit_tokens": 10240,
+              "prompt_cache_miss_tokens": 123
+            }
+          ],
+          "latency_seconds": 3.105,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10511,
+              "completion_tokens": 49,
+              "total_tokens": 10560,
+              "prompt_tokens_details": {
+                "cached_tokens": 10368
+              },
+              "prompt_cache_hit_tokens": 10368,
+              "prompt_cache_miss_tokens": 143
+            }
+          ],
+          "latency_seconds": 2.76,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2223,
+              "completion_tokens": 4,
+              "total_tokens": 2227,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 431
+            }
+          ],
+          "latency_seconds": 1.937,
+          "tail_marker_messages": 0
+        }
+      ],
+      "passed": false,
+      "totals": {
+        "input_tokens": 33327,
+        "cached_input_tokens": 24192,
+        "uncached_input_tokens": 9135,
+        "output_tokens": 179,
+        "request_latency_seconds": 11.546
+      }
+    },
+    {
+      "mode": "history",
+      "scenario": "long_explicit",
+      "fixture_sha256": "0370e4572a3196acda5524c28038fe8d40d93267014e2c691f6b28079f49ff84",
+      "task_passed": true,
+      "recovery_passed": true,
+      "unrelated_passed": true,
+      "final_text": "AUDIT_OK_947: cedar/amber",
+      "status": "completed",
+      "restored_bodies": 0,
+      "compactions": 0,
+      "read_paths": [
+        "evidence.txt",
+        "proof-947.txt"
+      ],
+      "requests": [
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10215,
+              "completion_tokens": 57,
+              "total_tokens": 10272,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 8423
+            }
+          ],
+          "latency_seconds": 3.423,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10350,
+              "completion_tokens": 46,
+              "total_tokens": 10396,
+              "prompt_tokens_details": {
+                "cached_tokens": 10112
+              },
+              "prompt_cache_hit_tokens": 10112,
+              "prompt_cache_miss_tokens": 238
+            }
+          ],
+          "latency_seconds": 2.428,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10473,
+              "completion_tokens": 10,
+              "total_tokens": 10483,
+              "prompt_tokens_details": {
+                "cached_tokens": 10240
+              },
+              "prompt_cache_hit_tokens": 10240,
+              "prompt_cache_miss_tokens": 233
+            }
+          ],
+          "latency_seconds": 2.589,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10505,
+              "completion_tokens": 4,
+              "total_tokens": 10509,
+              "prompt_tokens_details": {
+                "cached_tokens": 10368
+              },
+              "prompt_cache_hit_tokens": 10368,
+              "prompt_cache_miss_tokens": 137
+            }
+          ],
+          "latency_seconds": 2.823,
+          "tail_marker_messages": 1
+        }
+      ],
+      "passed": true,
+      "totals": {
+        "input_tokens": 41543,
+        "cached_input_tokens": 32512,
+        "uncached_input_tokens": 9031,
+        "output_tokens": 117,
+        "request_latency_seconds": 11.263
+      }
+    },
+    {
+      "mode": "legacy",
+      "scenario": "long_compaction",
+      "fixture_sha256": "0370e4572a3196acda5524c28038fe8d40d93267014e2c691f6b28079f49ff84",
+      "task_passed": true,
+      "recovery_passed": true,
+      "unrelated_passed": true,
+      "final_text": "AUDIT_OK_947: cedar/amber",
+      "status": "completed",
+      "restored_bodies": 0,
+      "compactions": 1,
+      "read_paths": [
+        "evidence.txt",
+        "proof-947.txt"
+      ],
+      "requests": [
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10232,
+              "completion_tokens": 55,
+              "total_tokens": 10287,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 8440
+            }
+          ],
+          "latency_seconds": 3.015,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "compaction",
+          "active_layer_messages": 0,
+          "tool_names": [],
+          "raw_usage": [
+            {
+              "prompt_tokens": 388,
+              "completion_tokens": 187,
+              "total_tokens": 575,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 388
+            }
+          ],
+          "latency_seconds": 4.594,
+          "tail_marker_messages": 0
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10711,
+              "completion_tokens": 68,
+              "total_tokens": 10779,
+              "prompt_tokens_details": {
+                "cached_tokens": 10112
+              },
+              "prompt_cache_hit_tokens": 10112,
+              "prompt_cache_miss_tokens": 599
+            }
+          ],
+          "latency_seconds": 2.83,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 1,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10856,
+              "completion_tokens": 10,
+              "total_tokens": 10866,
+              "prompt_tokens_details": {
+                "cached_tokens": 10752
+              },
+              "prompt_cache_hit_tokens": 10752,
+              "prompt_cache_miss_tokens": 104
+            }
+          ],
+          "latency_seconds": 2.196,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 2528,
+              "completion_tokens": 4,
+              "total_tokens": 2532,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 736
+            }
+          ],
+          "latency_seconds": 2.148,
+          "tail_marker_messages": 0
+        }
+      ],
+      "passed": true,
+      "totals": {
+        "input_tokens": 34715,
+        "cached_input_tokens": 24448,
+        "uncached_input_tokens": 10267,
+        "output_tokens": 324,
+        "request_latency_seconds": 14.783
+      }
+    },
+    {
+      "mode": "history",
+      "scenario": "long_compaction",
+      "fixture_sha256": "0370e4572a3196acda5524c28038fe8d40d93267014e2c691f6b28079f49ff84",
+      "task_passed": true,
+      "recovery_passed": true,
+      "unrelated_passed": true,
+      "final_text": "AUDIT_OK_947: cedar/amber",
+      "status": "completed",
+      "restored_bodies": 1,
+      "compactions": 1,
+      "read_paths": [
+        "evidence.txt",
+        "proof-947.txt"
+      ],
+      "requests": [
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 10213,
+              "completion_tokens": 58,
+              "total_tokens": 10271,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 8421
+            }
+          ],
+          "latency_seconds": 3.071,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "compaction",
+          "active_layer_messages": 0,
+          "tool_names": [],
+          "raw_usage": [
+            {
+              "prompt_tokens": 8572,
+              "completion_tokens": 537,
+              "total_tokens": 9109,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 8572
+            }
+          ],
+          "latency_seconds": 8.817,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 11042,
+              "completion_tokens": 61,
+              "total_tokens": 11103,
+              "prompt_tokens_details": {
+                "cached_tokens": 1792
+              },
+              "prompt_cache_hit_tokens": 1792,
+              "prompt_cache_miss_tokens": 9250
+            }
+          ],
+          "latency_seconds": 3.011,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 11180,
+              "completion_tokens": 10,
+              "total_tokens": 11190,
+              "prompt_tokens_details": {
+                "cached_tokens": 2816
+              },
+              "prompt_cache_hit_tokens": 2816,
+              "prompt_cache_miss_tokens": 8364
+            }
+          ],
+          "latency_seconds": 2.606,
+          "tail_marker_messages": 1
+        },
+        {
+          "phase": "agent",
+          "active_layer_messages": 0,
+          "tool_names": [
+            "activate_skill",
+            "activate_tools",
+            "load_compaction_source",
+            "load_context_reference",
+            "load_skill_resource",
+            "read_file",
+            "search_session_history"
+          ],
+          "raw_usage": [
+            {
+              "prompt_tokens": 11212,
+              "completion_tokens": 4,
+              "total_tokens": 11216,
+              "prompt_tokens_details": {
+                "cached_tokens": 10880
+              },
+              "prompt_cache_hit_tokens": 10880,
+              "prompt_cache_miss_tokens": 332
+            }
+          ],
+          "latency_seconds": 2.768,
+          "tail_marker_messages": 1
+        }
+      ],
+      "passed": true,
+      "totals": {
+        "input_tokens": 52219,
+        "cached_input_tokens": 17280,
+        "uncached_input_tokens": 34939,
+        "output_tokens": 670,
+        "request_latency_seconds": 20.273
+      }
+    }
+  ],
+  "schema_version": 1,
+  "measurement_notes": [
+    "Each layout shares the new Run isolation and stable control tool schemas; legacy is a layout comparison, not the old binary.",
+    "One sample per layout and scenario; legacy ran first. Cache warmth was not isolated.",
+    "tail_marker_messages counts messages containing the tail marker, not full-body equality; deterministic tests and the runtime guard verify full delivery.",
+    "Each case includes a subsequent unrelated Run. Compaction requests and their raw usage are included.",
+    "No verified price configuration is included; monetary cost is not calculated."
+  ]
+}

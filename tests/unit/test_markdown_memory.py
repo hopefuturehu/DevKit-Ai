@@ -340,7 +340,6 @@ def test_agent_loads_physical_memory_files_with_separate_trust(tmp_path: Path) -
     historical = runner._build_context_items(  # noqa: SLF001
         base_items=[],
         memory_items=[],
-        active_skill_items=[],
         compaction_items=[],
         conversation=[
             PositionedMessage(

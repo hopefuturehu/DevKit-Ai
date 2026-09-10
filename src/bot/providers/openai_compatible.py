@@ -69,7 +69,7 @@ class OpenAICompatibleProvider(ModelProvider):
             return self.base_url
         return f"{self.base_url}/chat/completions"
 
-    def _payload(self, request: ModelRequest) -> dict[str, Any]:
+    def serialized_messages(self, request: ModelRequest) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []
         for index, message in enumerate(request.messages):
             try:
@@ -79,6 +79,10 @@ class OpenAICompatibleProvider(ModelProvider):
                     f"模型请求中的第 {index} 条消息无效: {exc}",
                     kind=ProviderErrorKind.CONFIGURATION,
                 ) from exc
+        return messages
+
+    def _payload(self, request: ModelRequest) -> dict[str, Any]:
+        messages = self.serialized_messages(request)
         payload: dict[str, Any] = {
             "model": request.model,
             "messages": messages,

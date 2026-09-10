@@ -1709,7 +1709,7 @@ class ContextCompactor:
         eligible = [
             entry.position
             for entry in entries
-            if entry.message.role == Role.USER and (entry.message.content or "").strip()
+            if entry.is_real_user and (entry.message.content or "").strip()
         ]
         if requested_positions is not None:
             requested = {int(position) for position in requested_positions}
@@ -1726,7 +1726,7 @@ class ContextCompactor:
         return [
             entry
             for entry in self.store.load_positioned_messages(session_id)
-            if entry.position in selected
+            if entry.position in selected and entry.is_real_user
         ]
 
     @staticmethod

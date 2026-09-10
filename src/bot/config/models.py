@@ -196,6 +196,7 @@ class MemoryConfig(StrictModel):
 
 class SkillsConfig(StrictModel):
     path: str = "./skills"
+    context_mode: Literal["history", "legacy"] = "history"
     auto_activate: bool = True
     max_auto_activated: int = Field(default=3, ge=0)
     max_catalog_chars: int = Field(default=8_000, gt=0)

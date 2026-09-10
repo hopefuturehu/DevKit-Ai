@@ -124,7 +124,7 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
         return HTMLResponse((_STATIC_DIR / "index.html").read_text(encoding="utf-8"))
 
     @app.get("/api/status")
-    async def status():
+    async def status(session_id: str | None = None):
         service = wb()
         rt = service.runtime
         return {
@@ -134,7 +134,7 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
             "base_url": rt.config.model.base_url,
             "permission_mode": rt.config.permissions.mode,
             "auto_approve": rt.config.permissions.auto_approve,
-            "active_skills": list(rt.skills.active),
+            "active_skills": rt.runner.active_skill_names(session_id),
             "subagents_enabled": rt.config.subagents.enabled,
             "epoch": service.queries.epoch,
         }

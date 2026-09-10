@@ -1,10 +1,15 @@
 # 移除 Active Skill 独立全文层：最小实施方案
 
-> 状态：设计方案，尚未实施。日期：2026-09-10。
+> 状态：首版 A–C 已实现并通过确定性回归；D 的小规模真实模型验证及范围见[实施与验证记录](skill-context-validation.md)。日期：2026-09-10。
 >
 > 基于当前工作区核对，承接 [Skill 上下文管理设计](skill-run-lifecycle-design.md) 与 [开源框架调研](skill-unloading-cache-comparison.md)。本文确定首版实施范围；原方案中的独立微裁剪、批量历史投影和通用去重留待后续评测。
 
 目标是保留 `activate_skill`、Skill Catalog 和当前 Run 的激活状态，把正文从历史之前的独立层移到加载位置。后续请求回放同一份历史正文；压缩覆盖正文后，由 Runtime 恢复必要原文，再发出执行请求。
+
+实际落地使用 `skills/runtime.py::RunSkillState` 与 SQLite schema v15 的 `skill_deliveries` 侧表。
+新会话默认 `skills.context_mode="history"`；数据库迁移保留已有会话的 `legacy` 布局，首次 Run
+选定的模式持久化，fork 继承。`_active_skill_items()` 和原参数链已移除，仅兼容路径保留
+`_legacy_skill_items()`。下文保留实施决策与验收目标；通用历史去重、微裁剪和大样本成本评测未实现。
 
 首版完成标准：新模式下不再产生 `ContextLayer.ACTIVE_SKILL` 条目；自动、显式加载及压缩恢复均可交付完整正文；模型每次继续执行前，当前 Run 依赖的正文版本完整可见，或请求明确失败。这个保证不等于模型一定遵守所有规则。
 
@@ -153,7 +158,7 @@ Planner 必须在分配 mandatory/optional 之前完成原子组划分；组内�
 
 每个 Agent step 共享一次修复额度，覆盖本地检查失败和 Provider overflow，不能由不同异常入口重新计数。同一边界/版本/预算下失败后不无限重读。引用不可用、版本校验失败或正文仍超预算时返回具体错误；finalizer 无工具时也由 Runtime 恢复，失败则进入有界报告路径。
 
-候选错误码：`skill_context_budget_exceeded`、`skill_body_unavailable`、`skill_body_version_mismatch`、`skill_body_not_visible`。这些是拟议接口，不是已有运行行为。
+已实现错误码：`skill_context_budget_exceeded`、`skill_body_unavailable`、`skill_body_version_mismatch`、`skill_body_not_visible`；另有激活数量、不可用 Skill 和关闭作用域错误。自动激活失败返回工具错误，显式加载及已绑定依赖恢复失败则终止 Run。
 
 ## 6. Run 结束和缓存策略
 
@@ -174,7 +179,8 @@ Run 关闭只终止绑定，不删除历史加载消息。下一 Run 重新选�
 | C：切换组装 | 新模式停用 `_active_skill_items()`，去掉参数链和前置条目；稳定控制工具 | 自动和显式路径均无独立全文副本，工具协议合法 |
 | D：行为与成本评测 | 相同样本成对比较旧布局与新布局，包含压缩及异常 | 正确性通过，实际费用与行为证据足以决定启用 |
 
-开发期间先在新会话开启拟议 `skills.context_mode=history`，旧模式保留作对照，单个请求只能选择一条交付路径。阶段 B 的检查通过前，不将新模式作为默认配置。
+阶段 B 的确定性检查通过后，新会话默认 `skills.context_mode=history`；旧布局保留作兼容与对照。
+默认切换依据是正文完整性与恢复门禁，未把小样本 usage 当作普遍节费证据。
 
 正式切换后移除主循环、压缩后重建、finalizer 中的 `_active_skill_items()` 调用和实现，以及 `_build_context_items(active_skill_items=...)` 参数。`ContextLayer.ACTIVE_SKILL` 不再被新模式使用；旧报告的字符串读取兼容可保留，枚举与相关排序/校验项在无运行依赖后清理。历史报表不必改写。
 
@@ -182,7 +188,7 @@ Run 关闭只终止绑定，不删除历史加载消息。下一 Run 重新选�
 
 ## 8. 验证矩阵
 
-先做确定性检查，再做真实模型行为和计费对照。下表是实施时必须新增或调整的验收，本次文档提交未执行这些运行测试。
+先做确定性检查，再做真实模型行为和计费对照。下表保留完整验收目标；已经执行的范围及结果见[实施与验证记录](skill-context-validation.md)。
 
 | 场景 | 必须观察到的结果 |
 |---|---|

@@ -370,7 +370,6 @@ async def test_single_large_turn_splits_at_assistant_boundary_with_raw_user_anch
     assembled_items = runner._build_context_items(  # noqa: SLF001
         base_items=[],
         memory_items=[],
-        active_skill_items=[],
         compaction_items=projected_items,
         conversation=outcome.conversation,
         runtime_notes=[],

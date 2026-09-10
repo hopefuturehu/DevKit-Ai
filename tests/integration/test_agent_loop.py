@@ -939,7 +939,8 @@ async def test_agent_activates_skill_calls_tool_and_finishes(tmp_path: Path) -> 
     assert result.output_tokens == 50
     assert result.cost_usd == pytest.approx(0.0002)
     assert len(provider.requests) == 3
-    assert "analysis" in skills.active
+    assert not skills.active
+    assert runner.active_skill_names(result.session_id) == []
     event_types = [event.type for event in memory.events]
     assert EventType.SKILL_DISCOVERED in event_types
     assert EventType.SKILL_ACTIVATED in event_types
@@ -949,17 +950,19 @@ async def test_agent_activates_skill_calls_tool_and_finishes(tmp_path: Path) -> 
         len([message for message in request.messages if message.role == Role.SYSTEM]) == 1
         for request in provider.requests
     )
-    skill_context = [
-        message
-        for request in provider.requests[1:]
-        for message in request.messages
-        if message.name in {"active_skill", "skill_body"}
-    ]
-    assert {message.name for message in skill_context} == {"active_skill", "skill_body"}
-    assert all(message.role == Role.USER for message in skill_context)
+    for request in provider.requests[1:]:
+        bodies = [
+            message
+            for message in request.messages
+            if "Read evidence first." in (message.content or "")
+        ]
+        assert len(bodies) == 1
+        assert bodies[0].role == Role.TOOL
+        assert bodies[0].tool_call_id == "skill-call"
+        assert not any(message.name == "active_skill" for message in request.messages)
     assert all(
-        json.loads(message.content or "")["can_authorize"] is False
-        for message in skill_context
+        [tool.name for tool in request.tools] == [tool.name for tool in provider.requests[0].tools]
+        for request in provider.requests
     )
     assert store.load_messages(result.session_id)[-1].content == "Completed from evidence."
     store.close()
@@ -1900,7 +1903,13 @@ async def test_agent_automatically_activates_multiple_complementary_skills(
     result = await runner.run(RunRequest(prompt="migrate and tune"))
 
     assert result.status == "completed"
-    assert list(runner.skills.active) == ["migration", "performance"]
+    assert not runner.skills.active
+    deliveries = [
+        entry.skill_delivery
+        for entry in store.load_positioned_messages(result.session_id)
+        if entry.skill_delivery is not None
+    ]
+    assert [item.skill_name for item in deliveries] == ["migration", "performance"]
     store.close()
 
 

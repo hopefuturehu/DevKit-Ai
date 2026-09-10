@@ -4,18 +4,19 @@ import hashlib
 import json
 import re
 import sqlite3
+from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Lock
 from typing import Any
 from uuid import uuid4
 
-from bot.core.context import ContextSnapshot, PositionedMessage, SnapshotStatus
+from bot.core.context import ContextSnapshot, PositionedMessage, SkillDelivery, SnapshotStatus
 from bot.core.events import AgentEvent, EventSink, EventType
 from bot.core.models import ChatMessage
 from bot.core.plan import validate_plan_payload
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 
 class SQLiteSessionStore(EventSink):
@@ -46,6 +47,7 @@ class SQLiteSessionStore(EventSink):
                     id TEXT PRIMARY KEY,
                     workspace TEXT NOT NULL,
                     parent_session_id TEXT,
+                    skill_context_mode TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY(parent_session_id) REFERENCES sessions(id)
@@ -88,6 +90,16 @@ class SQLiteSessionStore(EventSink):
                 );
                 CREATE INDEX IF NOT EXISTS idx_messages_session_position
                     ON messages(session_id, position);
+                CREATE TABLE IF NOT EXISTS skill_deliveries (
+                    session_id TEXT NOT NULL,
+                    run_id TEXT NOT NULL,
+                    message_position INTEGER NOT NULL,
+                    delivery_key TEXT NOT NULL,
+                    delivery_json TEXT NOT NULL,
+                    PRIMARY KEY(session_id, message_position),
+                    UNIQUE(session_id, delivery_key),
+                    FOREIGN KEY(session_id) REFERENCES sessions(id)
+                );
                 CREATE TABLE IF NOT EXISTS tool_runs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     session_id TEXT NOT NULL,
@@ -374,6 +386,12 @@ class SQLiteSessionStore(EventSink):
                         task["completed_at"],
                     ),
                 )
+            session_columns = {
+                row[1] for row in self._connection.execute("PRAGMA table_info(sessions)")
+            }
+            if "skill_context_mode" not in session_columns:
+                self._connection.execute("ALTER TABLE sessions ADD COLUMN skill_context_mode TEXT")
+                self._connection.execute("UPDATE sessions SET skill_context_mode = 'legacy'")
             approval_columns = {
                 row[1] for row in self._connection.execute("PRAGMA table_info(approvals)")
             }
@@ -464,6 +482,23 @@ class SQLiteSessionStore(EventSink):
             return session_id
         return self.create_session(workspace, session_id=session_id)
 
+    def claim_skill_context_mode(self, session_id: str, mode: str) -> str:
+        """Choose once; restarting with different config never changes a session's layout."""
+        if mode not in {"history", "legacy"}:
+            raise ValueError(f"未知 Skill 上下文布局: {mode}")
+        with self._lock, self._connection:
+            self._connection.execute(
+                "UPDATE sessions SET skill_context_mode = ? "
+                "WHERE id = ? AND skill_context_mode IS NULL",
+                (mode, session_id),
+            )
+            row = self._connection.execute(
+                "SELECT skill_context_mode FROM sessions WHERE id = ?", (session_id,)
+            ).fetchone()
+        if row is None:
+            raise ValueError(f"会话不存在: {session_id}")
+        return str(row[0])
+
     def session_exists(self, session_id: str) -> bool:
         with self._lock:
             row = self._connection.execute(
@@ -486,7 +521,7 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             rows = self._connection.execute(
                 """
-                SELECT id, workspace, parent_session_id, created_at, updated_at
+                SELECT id, workspace, parent_session_id, created_at, updated_at, skill_context_mode
                 FROM sessions ORDER BY updated_at DESC LIMIT ?
                 """,
                 (limit,),
@@ -497,7 +532,7 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             row = self._connection.execute(
                 """
-                SELECT id, workspace, parent_session_id, created_at, updated_at
+                SELECT id, workspace, parent_session_id, created_at, updated_at, skill_context_mode
                 FROM sessions WHERE id = ?
                 """,
                 (session_id,),
@@ -548,6 +583,8 @@ class SQLiteSessionStore(EventSink):
         new_session_id = self.create_session(
             Path(source["workspace"]), parent_session_id=session_id
         )
+        if source["skill_context_mode"] is not None:
+            self.claim_skill_context_mode(new_session_id, source["skill_context_mode"])
         query = (
             "SELECT position, role, content, message_json, created_at "
             "FROM messages WHERE session_id = ?"
@@ -582,6 +619,26 @@ class SQLiteSessionStore(EventSink):
                 max((int(row["position"]) for row in rows), default=0)
                 if up_to_position is None
                 else up_to_position
+            )
+            delivery_rows = self._connection.execute(
+                "SELECT message_position, delivery_key, delivery_json FROM skill_deliveries "
+                "WHERE session_id = ? AND message_position <= ?",
+                (session_id, max_copied_position),
+            ).fetchall()
+            self._connection.executemany(
+                "INSERT INTO skill_deliveries "
+                "(session_id, run_id, message_position, delivery_key, delivery_json) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [
+                    (
+                        new_session_id,
+                        f"fork:{session_id}",
+                        row["message_position"],
+                        row["delivery_key"],
+                        row["delivery_json"],
+                    )
+                    for row in delivery_rows
+                ],
             )
             now = datetime.now(UTC).isoformat()
             compaction = self._connection.execute(
@@ -633,6 +690,9 @@ class SQLiteSessionStore(EventSink):
             for row in rows
             for reference in re.findall(r"blob:[0-9a-f]{64}", row["message_json"])
         }
+        blob_references.update(
+            json.loads(row["delivery_json"])["body_ref"] for row in delivery_rows
+        )
         if blob_references:
             granted_at = datetime.now(UTC).isoformat()
             with self._lock, self._connection:
@@ -811,27 +871,94 @@ class SQLiteSessionStore(EventSink):
         if error := message.assistant_payload_error():
             raise ValueError(f"拒绝持久化无效消息: {error}")
         with self._lock, self._connection:
-            position = self._connection.execute(
-                "SELECT COALESCE(MAX(position), 0) + 1 FROM messages WHERE session_id = ?",
-                (session_id,),
-            ).fetchone()[0]
-            self._connection.execute(
-                """
-                INSERT INTO messages(
-                    session_id, run_id, position, role, content, message_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    session_id,
-                    run_id,
-                    position,
-                    message.role.value,
-                    message.content,
-                    message.model_dump_json(),
-                    datetime.now(UTC).isoformat(),
-                ),
-            )
+            position = self._insert_message(session_id, run_id, message)
         return int(position)
+
+    def _insert_message(self, session_id: str, run_id: str, message: ChatMessage) -> int:
+        """Caller owns the store lock and transaction; message is already sanitized."""
+        position = self._connection.execute(
+            "SELECT COALESCE(MAX(position), 0) + 1 FROM messages WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()[0]
+        self._connection.execute(
+            "INSERT INTO messages "
+            "(session_id, run_id, position, role, content, message_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                session_id,
+                run_id,
+                position,
+                message.role.value,
+                message.content,
+                message.model_dump_json(),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        return int(position)
+
+    def append_skill_message(
+        self,
+        session_id: str,
+        run_id: str,
+        message: ChatMessage,
+        delivery: SkillDelivery,
+        *,
+        delivery_key: str,
+    ) -> PositionedMessage:
+        message = ChatMessage.model_validate(self._sanitizer(message.model_dump(mode="python")))
+        if error := message.assistant_payload_error():
+            raise ValueError(f"拒绝持久化无效消息: {error}")
+        delivery = replace(
+            delivery, message_hash=hashlib.sha256(message.model_dump_json().encode()).hexdigest()
+        )
+        with self._lock, self._connection:
+            existing = self._connection.execute(
+                "SELECT d.message_position, d.delivery_json, m.message_json "
+                "FROM skill_deliveries d JOIN messages m ON m.session_id = d.session_id "
+                "AND m.position = d.message_position "
+                "WHERE d.session_id = ? AND d.delivery_key = ?",
+                (session_id, delivery_key),
+            ).fetchone()
+            if existing is not None:
+                if json.loads(existing["delivery_json"]) != asdict(
+                    delivery
+                ) or not delivery.matches(
+                    ChatMessage.model_validate_json(existing["message_json"])
+                ):
+                    raise ValueError("Skill 交付重试与已提交内容不一致")
+                position = int(existing["message_position"])
+            else:
+                position = self._insert_message(session_id, run_id, message)
+                self._connection.execute(
+                    "INSERT INTO skill_deliveries "
+                    "(session_id, run_id, message_position, delivery_key, delivery_json) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (
+                        session_id,
+                        run_id,
+                        position,
+                        delivery_key,
+                        json.dumps(asdict(delivery), ensure_ascii=False),
+                    ),
+                )
+        return PositionedMessage(position, message, run_id=run_id, skill_delivery=delivery)
+
+    @staticmethod
+    def _positioned_row(row: sqlite3.Row) -> PositionedMessage:
+        message = ChatMessage.model_validate_json(row["message_json"])
+        delivery = (
+            SkillDelivery(**json.loads(row["delivery_json"]))
+            if row["delivery_json"] is not None
+            else None
+        )
+        if delivery is not None and not delivery.matches(message):
+            raise ValueError(f"skill_body_version_mismatch: 消息 {row['position']} 来源校验失败")
+        return PositionedMessage(
+            position=int(row["position"]),
+            message=message,
+            run_id=str(row["run_id"]),
+            skill_delivery=delivery,
+        )
 
     def append_message_and_mark_agent_tasks_reported(
         self,
@@ -1035,24 +1162,18 @@ class SQLiteSessionStore(EventSink):
         through_position: int | None = None,
     ) -> list[PositionedMessage]:
         query = (
-            "SELECT position, run_id, message_json FROM messages "
-            "WHERE session_id = ? AND position > ?"
+            "SELECT m.position, m.run_id, m.message_json, d.delivery_json FROM messages m "
+            "LEFT JOIN skill_deliveries d ON d.session_id = m.session_id "
+            "AND d.message_position = m.position WHERE m.session_id = ? AND m.position > ?"
         )
         arguments: list[Any] = [session_id, after_position]
         if through_position is not None:
-            query += " AND position <= ?"
+            query += " AND m.position <= ?"
             arguments.append(through_position)
-        query += " ORDER BY position"
+        query += " ORDER BY m.position"
         with self._lock:
             rows = self._connection.execute(query, tuple(arguments)).fetchall()
-        return [
-            PositionedMessage(
-                position=int(row["position"]),
-                message=ChatMessage.model_validate_json(row["message_json"]),
-                run_id=str(row["run_id"]),
-            )
-            for row in rows
-        ]
+        return [self._positioned_row(row) for row in rows]
 
     def latest_message_position(self, session_id: str) -> int:
         with self._lock:
@@ -2756,19 +2877,14 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             rows = self._connection.execute(
                 """
-                SELECT position, run_id, message_json
-                FROM messages WHERE run_id = ? ORDER BY position
+                SELECT m.position, m.run_id, m.message_json, d.delivery_json
+                FROM messages m LEFT JOIN skill_deliveries d
+                  ON d.session_id = m.session_id AND d.message_position = m.position
+                WHERE m.run_id = ? ORDER BY m.position
                 """,
                 (run_id,),
             ).fetchall()
-        return [
-            PositionedMessage(
-                position=int(row["position"]),
-                message=ChatMessage.model_validate_json(row["message_json"]),
-                run_id=str(row["run_id"]),
-            )
-            for row in rows
-        ]
+        return [self._positioned_row(row) for row in rows]
 
     def load_messages_at_positions(
         self,
@@ -2782,21 +2898,15 @@ class SQLiteSessionStore(EventSink):
         with self._lock:
             rows = self._connection.execute(
                 f"""
-                SELECT position, run_id, message_json
-                FROM messages
-                WHERE session_id = ? AND position IN ({placeholders})
-                ORDER BY position
+                SELECT m.position, m.run_id, m.message_json, d.delivery_json
+                FROM messages m LEFT JOIN skill_deliveries d
+                  ON d.session_id = m.session_id AND d.message_position = m.position
+                WHERE m.session_id = ? AND m.position IN ({placeholders})
+                ORDER BY m.position
                 """,
                 (session_id, *selected),
             ).fetchall()
-        return [
-            PositionedMessage(
-                position=int(row["position"]),
-                message=ChatMessage.model_validate_json(row["message_json"]),
-                run_id=str(row["run_id"]),
-            )
-            for row in rows
-        ]
+        return [self._positioned_row(row) for row in rows]
 
     def start_memory_extraction(
         self,

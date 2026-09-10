@@ -4,7 +4,7 @@
 >
 > 核对日期：2026-09-10
 >
-> 代码基线：`dcdd474`；默认运行时使用 `ContextCompactor`，`HandoffEngine` 目前仅由独立评测入口调用。
+> 已包含 Skill 历史交付改造；默认运行时使用 `ContextCompactor`，`HandoffEngine` 目前仅由独立评测入口调用。
 
 本文描述主 Agent 每次调用模型时的实际请求视图。SQLite Transcript、压缩记录、计划事件、
 子 Agent mailbox、Markdown 记忆和 Skill 文件是事实源；组装过程生成本次 `ModelRequest`，
@@ -32,12 +32,13 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 
 若启用了子 Agent，未消费 mailbox 会先以闭合的 Assistant/Tool 消息对追加到 tail，然后才
 持久化本轮输入。显式记忆在 Run 开始时加载；每个 step 再排空 steering 队列、更新后台进程
-与 TODO 提示、选择 Tool schema，并重建活动 Skill。它们分别生成带类型的 `ContextItem`。
+与 TODO 提示、选择 Tool schema，并检查本 Run 的 Skill 正文是否完整可见。正文来自带来源的
+历史交付；压缩覆盖后从绑定的原文 blob 追加恢复，Catalog 在 Run 开始时冻结。
 
 每个模型 step 按以下路径处理：
 
 ```text
-基础上下文 + 记忆 + Skill + 活动压缩 + 近期会话/子任务结果 + 运行时状态
+基础上下文 + 记忆 + 活动压缩 + 历史（含 Skill 正文）/子任务结果 + 运行时状态
                          │
                          ▼
              ContextItem 候选集合
@@ -55,6 +56,9 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
                          │
                          ▼
               ModelRequest(messages, tools)
+                         │
+                         ▼
+       最终 Provider 序列化后的 Skill 完整性、工具配对及输入预算检查
 ```
 
 `_build_context_items()` 的列表追加顺序不是最终顺序。最终顺序由
@@ -64,23 +68,32 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 
 | 顺序 | Layer | 典型角色 | 来源和用途 | 稳定性策略 |
 |---:|---|---|---|---|
-| 0 | `CORE_POLICY` | `system` | 内置安全、工具、TODO 和完成规则；当前版本 `6` | `PINNED`，只随代码版本变化 |
+| 0 | `CORE_POLICY` | `system` | 内置安全、工具、TODO 和完成规则；当前版本 `7` | `PINNED`，只随代码版本变化 |
 | 1 | `PROJECT_INSTRUCTION` | synthetic `user` | 从仓库根到当前目录的 `AGENTS.md` | 父目录先、具体目录后；`PINNED`；不能授权 |
 | 2 | `ENVIRONMENT` | synthetic `user` | OS、架构、workspace、可执行文件探测 | Run 内稳定；`PINNED`；仅为事实 |
 | 3 | `SKILL_CATALOG` | synthetic `user` | 可用 Skill 的精简目录 | 可从磁盘重建；不能授权 |
 | 4 | `TOOL_CATALOG` | synthetic `user` | Tool schema 超预算时的未加载工具目录 | 仅超预算时出现；稳定后进入前缀 |
-| 5 | `ACTIVE_SKILL` | synthetic `user` | 已激活 Skill 的 header 和正文 | 激活后通常稳定；正文可卸载重载；不能授权 |
+| 5 | `ACTIVE_SKILL` | synthetic `user` | 仅持久布局为 `legacy` 的会话保留 header 和正文 | 新会话默认 `history`，不产生此层 |
 | 6 | `MEMORY` | synthetic `user` | 用户显式确认的 `USER.md`/兼容 SQLite 记忆 | 放在会话前，参与稳定前缀复用 |
 | 7 | `AUTOMATIC_MEMORY` | synthetic `user` | 仅 `memory.context_mode="eager"` 兼容模式下的自动索引 | 默认不出现；兼容模式也放在 Transcript 前并带 reference-only 边界 |
 | 8 | `COMPACTION` | 原始 `user` + 派生 `assistant` | 自动压缩保存活动 Run 中已被覆盖的真实用户输入（包括 steering），随后是唯一活动的 `context_compaction` 摘要 | 均为 `PINNED`；锚点按原位置排序，摘要位于它们和 cursor 后 raw tail 之间 |
 | 8 | `SNAPSHOT` | synthetic `user` | 旧 checkpoint 兼容层 | 默认主路径不注入 |
-| 9 | `RECENT_CONVERSATION` / `TOOL_RESULT` | 原始角色 | 压缩游标之后的 SQLite 消息，包括 mailbox/必需子任务的 Assistant/Tool 桥接对 | 按 `position` 恢复时间顺序 |
+| 9 | `RECENT_CONVERSATION` / `TOOL_RESULT` | 原始角色或 synthetic `user` | 压缩游标后的 SQLite 消息，包括 Skill 正文和 mailbox/必需子任务的 Assistant/Tool 桥接对 | 按 `position` 排序；本 Run 必需 Skill 正文及所在工具组整体 `PINNED` |
 | 11 | `RUNTIME_NOTE` | synthetic `user` | Memory Router、持久 TODO、后台进程、停滞恢复、终止及临时约束 | 最易变化，放在动态尾部；硬约束由代码门禁执行 |
 
 表中的数字是 `_render_order()` 的排序权重，不是连续消息编号。`TOOL_SCHEMA` 只用于预算与
 统计，不会作为一条消息插入表中。同层按 `position`、稳定 `id` 排序；未设置位置时落到 `-1`。
-例如活动 Skill 的 `active-skill-body:*` 实际排在 `active-skill-header:*` 前，不能从
-`_active_skill_items()` 先追加 header、再追加 body 推断最终顺序。
+Skill 正文在新模式下随历史排序，不进入独立前置槽位。旧布局仅由 `_legacy_skill_items()` 生成。
+
+`skills.context_mode` 默认为 `history`。数据库升级把已有会话标为 `legacy`，新会话首次 Run
+按配置确定并持久化布局；重启、修改配置和 fork 不会隐式切换已有会话。使用 `/new` 开始新布局。
+自动激活把完整正文写入真正的 Tool Result；显式加载在真实用户消息后追加 `skill_body`。
+同版正文已在当前历史中时直接复用。正文与 `skill_deliveries` 来源记录在一个事务中提交，
+不经过通用头尾预览；原文版本、blob 引用及消息哈希用于恢复和完整性校验。
+
+绑定只属于当前 Run，完成、异常、取消及收尾失败均释放；旧加载消息不代表后续 Run 已激活。
+失效正文继续随普通历史预算和压缩回收。实现边界与验证见
+[移除 Active Skill 独立全文层](active-skill-layer-removal-plan.md)。
 
 ## 四角色安全模型
 
@@ -93,7 +106,7 @@ Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端
 | Core Policy | 唯一 `system` | bot 自身发布的稳定策略，定义其余来源的解释规则 |
 | `AGENTS.md` | `user(name=project_instruction)` | 仓库文件不与内置策略同权 |
 | Environment | `user(name=environment_context)` | 探测结果是事实，不是高权限指令 |
-| Skill Catalog/正文 | `user(name=skill_catalog/active_skill/skill_body)` | 指导方法，不能扩大权限 |
+| Skill Catalog/正文 | Catalog、显式/恢复正文为 synthetic `user`；自动加载正文为 `tool` | 指导方法，不能扩大权限；来源侧表区分合成消息与真实用户 |
 | Tool Catalog | `user(name=tool_catalog)` | 只负责发现能力 |
 | 显式/自动记忆 | `user(name=explicit_memory/automatic_memory)` | 历史参考，不是本轮输入且不能授权 |
 | Runtime Note | `user(name=runtime_context)` | 搜索、终止和审批门禁由 Agent/Policy 执行；TODO 是执行状态参考 |
@@ -236,7 +249,7 @@ target = floor(hard * context.auto_compact_threshold)
 
 排序靠 layer；是否能进入请求则靠 retention、priority 和预算：
 
-1. `PINNED` 项无条件先选，包括核心策略、项目指令、环境、最新用户消息，以及活动压缩中的
+1. 先确定包含 `PINNED` 项的完整原子组，再整组选入，包括核心策略、项目指令、环境、最新真实用户消息、本 Run 必需 Skill 交付，以及活动压缩中的
    原始 user 锚点和 Assistant 摘要；
 2. 其余项按 atomic group 聚合，优先级高者先选；同优先级保留更新的会话组；
 3. Tool schema 的 token 先从 target message budget 中扣除；
@@ -271,7 +284,7 @@ target 时直接保留，避免字符估算过高造成无谓卸载；触发压�
 | 大消息外置 | 普通消息默认超过约 5K token；Tool Result 摘录预算默认 4K | 完整正文写入内容寻址 blob，只内联 head/tail 和 `context_ref` | `load_context_reference` 先按 `query` 检索，或按 `offset/limit` 分块读取 |
 | 引用结果一次性交付 | 成功检索或读取外置内容 | 原始命中片段只进入紧随其后的单次模型请求，之后换回短回执；审计仍可保存结果 blob | 原始 `context_ref` 保持可再次检索/读取，回执不改成指向读取结果的新引用 |
 | Tool schema 渐进披露 | 全部 schema 超过 `tool_schema_tokens=16K` | 只保留内部恢复 Tool 和已激活业务 Tool，其余降为短目录 | `activate_tools` 按名称重新加载 |
-| Skill 正文限额 | 活动 Skill 正文累计超过 `active_skill_tokens=16K` | header 仍进入候选；放不下的正文不注入，Planner 还可继续卸载 header/body | `activate_skill` / `load_skill_resource` 按需加载，仍受当前预算约束 |
+| Skill 正文限额 | 活动正文累计超过 `active_skill_tokens=16K` | 新模式不提交不完整绑定；显式加载终止，自动加载返回工具错误 | 已成功绑定的正文完整保留；恢复或整组装箱后仍超限则停止执行 |
 | Memory 限额和按需检索 | 显式记忆使用 `memory_tokens=8K`；`eager` 兼容索引最多 2K | 默认不注入自动索引；Router 按需检索 | `search_memory` / `load_memory_evidence` 一次性交付 |
 | 分层预算装箱 | 任意主请求组装时都执行 | `PINNED` 必留；其余按 priority、recency 和 atomic group 选择，放不下的组不进入本次请求 | Transcript 保留；`search_session_history` 可检索 |
 | Reasoning 作用域收窄 | Assistant reasoning 不属于仍需回放的 Tool Call 消息 | 普通请求不重放该 reasoning；默认独立压缩输入也不携带 reasoning 正文 | SQLite 仍持久化，来源哈希仍覆盖；handoff 输入见后文 |
@@ -364,7 +377,7 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 | 未规划候选输入超过 `target` | 同步尝试压缩一个最旧、Tool-safe 的连续前缀；普通压力保留约 20K 连续 tail，超大单轮可从 Assistant 边界切分并独立回放真实用户锚点 | 压缩成功则推进 cursor；失败则旧摘要/cursor 不变，继续交给 Planner |
 | 压缩失败或没有安全前缀 | 不删除原文；普通同增量失败默认退避 300 秒 | Planner 仍可丢弃非 pinned 组并发送，因此压缩失败不等于 Run 立即失败 |
 | Planner 估算超过 target | 丢弃放不下的非 pinned 原子组；Provider 有精确计数且超过 hard 时再从低优先级、较旧组开始卸载 | 能降到 hard 内则继续请求，可能形成非连续历史视图 |
-| pinned messages + 已选 Tool schema 仍超过 hard | 发出 `context.limit_reached`，不发送该次主模型请求 | Run 为 `limit_reached/context_limit`，并禁用模型收尾，使用确定性收尾文本 |
+| pinned messages + 已选 Tool schema 仍超过 hard | Skill 依赖存在时最多强制压缩修复一次，再验证原文；仍超限不发出执行请求 | `limit_reached/context_limit` 或 `skill_context_budget_exceeded`，禁用模型收尾并使用确定性文本 |
 | Provider 首次返回上下文长度错误 | 整个 Run 只允许一次恢复：从尾部回扫，收集到 3 条 user 即停；否则在下一个更旧组会使 tail 超过 20K 时停止（最新单个原子组例外）；压缩未推进则激进外置正文，然后重建并重试 | 成功则继续 Run |
 | Provider 再次返回上下文长度错误 | 不再循环压缩或重试 | Run 为 `failed/provider_error`；终止协调器会尝试无 Tool 模型收尾，失败则使用确定性收尾 |
 
@@ -498,7 +511,8 @@ cache 指标替代。
 
 `/status` 的 `context_manifest` 只列基础 Core/AGENTS/Skill Catalog 的来源和字符数；
 `context` 字段另外给出 hard/target、活动摘要、cursor 后消息数和估算 token、活动 Tool，以及
-最近一次 pack 的逐层 token 与 `dropped_items`。在尚未发生 pack 时，`last_pack` 为空，因此它
+最近一次 pack 的逐层 token 与 `dropped_items`，以及本会话的 `active_skills`、`skill_context_mode`。
+在尚未发生 pack 时，`last_pack` 为空，因此它
 不是任意时刻都完整的逐层实时 token 清单。
 
 `active_tools` 是会话中显式激活的名称集合，不等于最近请求实际发送的全部 schema；启用子

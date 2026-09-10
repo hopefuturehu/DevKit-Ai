@@ -66,6 +66,12 @@ class SkillCatalog:
     def get(self, name: str) -> Skill | None:
         return self.skills.get(name)
 
+    def snapshot(self) -> SkillCatalog:
+        snapshot = SkillCatalog(self.root)
+        snapshot.skills = {name: skill.model_copy(deep=True) for name, skill in self.skills.items()}
+        snapshot.diagnostics = [item.model_copy(deep=True) for item in self.diagnostics]
+        return snapshot
+
     def summary(self, max_chars: int = 8_000) -> str:
         if not self.skills:
             return "当前没有可用 Skill。"
@@ -173,6 +179,8 @@ class SkillManager:
             return None, f"Skill 不存在或不可用: {name}"
         existing = self.active.get(name)
         if existing:
+            if explicit and not existing.explicit:
+                self.active[name] = existing.model_copy(update={"explicit": True})
             return skill, f"Skill 已激活: {name}"
         auto_count = sum(not item.explicit for item in self.active.values())
         if not explicit and auto_count >= self.max_auto_activated:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from enum import StrEnum
+from typing import Any
 
 from bot.core.models import InputTokenEstimate, ModelCapabilities, ModelEvent, ModelRequest
 
@@ -56,6 +57,10 @@ class ModelProvider(ABC):
 
     def count_tokens(self, request: ModelRequest) -> int | None:
         return None
+
+    def serialized_messages(self, request: ModelRequest) -> list[dict[str, Any]]:
+        """Expose the actual message projection for execution dependency checks."""
+        return [message.to_openai() for message in request.messages]
 
     def estimate_input_tokens(self, request: ModelRequest) -> InputTokenEstimate | None:
         try:

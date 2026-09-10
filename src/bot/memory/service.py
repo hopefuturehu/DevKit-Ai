@@ -272,7 +272,7 @@ class MemoryExtractor:
         priorities: dict[int, int] = {}
         for entry in entries:
             message = entry.message
-            if message.role == Role.USER:
+            if entry.is_real_user:
                 priorities[entry.position] = 3
             elif message.role == Role.ASSISTANT and message.content and not message.tool_calls:
                 priorities[entry.position] = 2
@@ -303,6 +303,7 @@ class MemoryExtractor:
         return {
             "position": entry.position,
             "role": message.role.value,
+            "is_real_user": entry.is_real_user,
             "name": message.name,
             "tool_call_id": message.tool_call_id,
             "tool_calls": [
@@ -372,6 +373,7 @@ class MemoryExtractor:
             if entry.position in allowed_positions and entry.message.role != Role.SYSTEM
         }
         valid: list[ExtractedMemoryCandidate] = []
+        real_user_positions = {entry.position for entry in entries if entry.is_real_user}
         seen: set[tuple[str, str]] = set()
         for candidate in candidates:
             content = candidate.content.strip()
@@ -385,9 +387,7 @@ class MemoryExtractor:
             if any(position not in by_position for position in positions):
                 continue
             if candidate.kind == MemoryKind.USER_PREFERENCE:
-                positions = [
-                    position for position in positions if by_position[position].role == Role.USER
-                ]
+                positions = [position for position in positions if position in real_user_positions]
                 if not positions:
                     continue
             if all(

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
@@ -22,6 +22,7 @@ from bot.core.context import (
     ContextRetention,
     ContextTrust,
     PositionedMessage,
+    SkillDelivery,
     TokenBudget,
     TokenEstimator,
     repair_tool_protocol,
@@ -55,6 +56,7 @@ from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
 from bot.providers.base import estimate_input_tokens
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillManager
+from bot.skills.runtime import RunSkillState, SkillContextError
 from bot.tools import ToolContext, ToolRegistry, ToolResult
 
 
@@ -232,6 +234,7 @@ class AgentRunner:
         self._steering_queues: dict[str, asyncio.Queue[tuple[str, str | None]]] = {}
         self._session_idle_events: dict[str, asyncio.Event] = {}
         self._activated_tools: dict[str, set[str]] = {}
+        self._run_skill_states: dict[str, RunSkillState] = {}
         self._last_context_reports: dict[str, dict[str, object]] = {}
         self._token_estimator = TokenEstimator()
         context_window = config.model.context_window_tokens
@@ -271,7 +274,7 @@ class AgentRunner:
         older = [entry for entry in conversation if entry.position not in retained_positions]
         target = max((entry.position for entry in older), default=previous_cursor)
         latest_user_position = max(
-            (entry.position for entry in conversation if entry.message.role == Role.USER),
+            (entry.position for entry in conversation if entry.is_real_user),
             default=None,
         )
         total_input_tokens = 0
@@ -391,16 +394,49 @@ class AgentRunner:
             self.memory_extractor.schedule(exclude_run_id=run_id)
         if session_id in self._steering_queues:
             raise RuntimeError(f"会话 {session_id} 已有运行中的任务")
+        mode = self.store.claim_skill_context_mode(session_id, self.config.skills.context_mode)
+        skill_state = RunSkillState(
+            self.skills,
+            session_id=session_id,
+            run_id=run_id,
+            mode=mode,
+            store=self.store,
+            body_budget=self.config.context.active_skill_tokens,
+            redactor=self.redactor,
+        )
         idle_event = self._session_idle_events.setdefault(session_id, asyncio.Event())
         idle_event.clear()
         self._steering_queues[session_id] = asyncio.Queue()
+        self._run_skill_states[session_id] = skill_state
+        try:
+            return await self._run_owned(
+                request,
+                session_id=session_id,
+                run_id=run_id,
+                skill_state=skill_state,
+            )
+        finally:
+            skill_state.close()
+            self._run_skill_states.pop(session_id, None)
+            self._steering_queues.pop(session_id, None)
+            idle_event.set()
+
+    def active_skill_names(self, session_id: str | None = None) -> list[str]:
+        if session_id is not None:
+            state = self._run_skill_states.get(session_id)
+            return sorted(state.active) if state is not None else []
+        return sorted({name for state in self._run_skill_states.values() for name in state.active})
+
+    async def _run_owned(
+        self,
+        request: RunRequest,
+        *,
+        session_id: str,
+        run_id: str,
+        skill_state: RunSkillState,
+    ) -> RunResult:
         if self.subagent_controller is not None:
-            try:
-                await self.subagent_controller.start()
-            except BaseException:
-                self._steering_queues.pop(session_id, None)
-                idle_event.set()
-                raise
+            await self.subagent_controller.start()
         wall_time_limit = self.config.agent.max_wall_time_seconds
         try:
             self.store.start_run(session_id, run_id)
@@ -432,14 +468,35 @@ class AgentRunner:
                 },
             )
             if wall_time_limit is None:
-                result = await self._run_loop(request, session_id=session_id, run_id=run_id)
+                result = await self._run_loop(
+                    request, session_id=session_id, run_id=run_id, skill_state=skill_state
+                )
             else:
                 async with asyncio.timeout(wall_time_limit):
-                    result = await self._run_loop(request, session_id=session_id, run_id=run_id)
+                    result = await self._run_loop(
+                        request, session_id=session_id, run_id=run_id, skill_state=skill_state
+                    )
+        except SkillContextError as exc:
+            usage = self.store.latest_run_usage(run_id)
+            result = await self._finalize_termination(
+                session_id=session_id,
+                run_id=run_id,
+                skill_state=skill_state,
+                termination=_RunTermination(
+                    status="limit_reached" if "budget" in exc.code else "failed",
+                    reason_code=exc.code,
+                    message=str(exc),
+                    model_finalizer=False,
+                    input_tokens=usage.get("input_tokens", 0),
+                    output_tokens=usage.get("output_tokens", 0),
+                    cost_usd=usage.get("cost_usd"),
+                ),
+            )
         except _RunTermination as termination:
             result = await self._finalize_termination(
                 session_id=session_id,
                 run_id=run_id,
+                skill_state=skill_state,
                 termination=termination,
             )
         except TimeoutError as exc:
@@ -454,6 +511,7 @@ class AgentRunner:
             result = await self._finalize_termination(
                 session_id=session_id,
                 run_id=run_id,
+                skill_state=skill_state,
                 termination=_RunTermination(
                     status=status,
                     reason_code=termination_reason,
@@ -495,15 +553,13 @@ class AgentRunner:
             result = await self._finalize_termination(
                 session_id=session_id,
                 run_id=run_id,
+                skill_state=skill_state,
                 termination=_RunTermination(
                     status="failed",
                     reason_code="runtime_error",
                     message=error,
                 ),
             )
-        finally:
-            self._steering_queues.pop(session_id, None)
-            idle_event.set()
         if self.subagent_controller is not None and result.status != "completed":
             await self.subagent_controller.cancel_required(
                 session_id,
@@ -527,9 +583,16 @@ class AgentRunner:
         )
         return result
 
-    async def _run_loop(self, request: RunRequest, *, session_id: str, run_id: str) -> RunResult:
+    async def _run_loop(
+        self,
+        request: RunRequest,
+        *,
+        session_id: str,
+        run_id: str,
+        skill_state: RunSkillState,
+    ) -> RunResult:
         environment = await self.execution_target.probe(["ksys", "devkit"])
-        base_items = self.context.ledger_items(environment)
+        base_items = self.context.ledger_items(environment, skill_catalog=skill_state.catalog)
         compaction_projection: dict[str, Any] = {
             "cursor_position": 0,
             "compaction": None,
@@ -561,16 +624,19 @@ class AgentRunner:
                 },
             )
         history = valid_history
-        had_prior_conversation = any(entry.message.role == Role.USER for entry in history)
+        had_prior_conversation = any(entry.is_real_user for entry in history)
         conversation = [
-            PositionedMessage(
-                entry.position,
-                self._externalize_message(
-                    entry.message,
-                    session_id=session_id,
-                    run_id=run_id,
+            replace(
+                entry,
+                message=(
+                    entry.message
+                    if entry.skill_delivery is not None
+                    else self._externalize_message(
+                        entry.message,
+                        session_id=session_id,
+                        run_id=run_id,
+                    )
                 ),
-                run_id=entry.run_id,
             )
             for entry in history
         ]
@@ -633,7 +699,7 @@ class AgentRunner:
             run_id=run_id,
         )
 
-        for skill in self.skills.catalog.skills.values():
+        for skill in skill_state.catalog.skills.values():
             await self.event_bus.emit(
                 EventType.SKILL_DISCOVERED,
                 session_id=session_id,
@@ -644,18 +710,6 @@ class AgentRunner:
                     "path": str(skill.path),
                 },
             )
-
-        for name in request.explicit_skills:
-            skill, content = self.skills.activate(name, "用户显式指定", explicit=True)
-            event_type = EventType.SKILL_ACTIVATED if skill else EventType.SKILL_SKIPPED
-            await self.event_bus.emit(
-                event_type,
-                session_id=session_id,
-                run_id=run_id,
-                payload={"name": name, "explicit": True, "message": content},
-            )
-            # Skill bodies are reconstructed from the catalog and never
-            # persisted into conversation history as privileged messages.
 
         user_message = self.redactor.redact_message(
             ChatMessage(role=Role.USER, content=request.prompt)
@@ -672,6 +726,28 @@ class AgentRunner:
                 run_id=run_id,
             )
         )
+        for name in request.explicit_skills:
+            prepared = skill_state.prepare(
+                name,
+                "用户显式指定",
+                explicit=True,
+                history=conversation,
+            )
+            entry = prepared.reused
+            if skill_state.mode == "history" and entry is None:
+                entry = skill_state.append_body(
+                    prepared,
+                    kind="explicit_body",
+                    key=f"explicit:{run_id}:{name}",
+                )
+                conversation.append(entry)
+            skill_state.commit(prepared, entry.position if entry is not None else None)
+            await self.event_bus.emit(
+                EventType.SKILL_ACTIVATED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={"name": name, "explicit": True, "message": f"已激活 Skill: {name}"},
+            )
         memory_routing = await self._start_memory_routing(
             request.prompt,
             has_prior_conversation=had_prior_conversation,
@@ -739,10 +815,10 @@ class AgentRunner:
             await self._refresh_managed_process_note(runtime_notes)
             self._refresh_plan_note(runtime_notes, session_id)
             request_tools = self.tool_registry.definitions()
-            if self.config.skills.auto_activate and self.skills.catalog.skills:
-                request_tools.append(self.skills.catalog.activation_tool_definition())
-            if self.skills.active:
-                request_tools.append(self.skills.catalog.resource_tool_definition())
+            if self.config.skills.auto_activate and skill_state.catalog.skills:
+                request_tools.append(skill_state.catalog.activation_tool_definition())
+            if skill_state.catalog.skills:
+                request_tools.append(skill_state.catalog.resource_tool_definition())
             request_tools, tool_catalog_note = self._select_tool_definitions(
                 session_id, request_tools
             )
@@ -751,11 +827,26 @@ class AgentRunner:
                 runtime_notes.append(tool_catalog_note)
 
             force_compact = session_id in self._force_compact_sessions
-            active_skill_items = self._active_skill_items()
+            conversation = skill_state.prepare_history(
+                conversation,
+                cursor=int(compaction_projection["cursor_position"]),
+            )
+            if skill_state.mode == "history" and any(
+                entry.skill_delivery for entry in conversation
+            ):
+                self._replace_runtime_note(
+                    runtime_notes,
+                    note_id="skill-state",
+                    priority=800,
+                    source="skill-runtime",
+                    content="本 Run 已激活 Skill: "
+                    + (", ".join(sorted(skill_state.active)) or "无")
+                    + "。旧加载消息仅为历史；本轮需要使用时重新激活。",
+                )
             context_items = self._build_context_items(
                 base_items=base_items,
                 memory_items=memory_items,
-                active_skill_items=active_skill_items,
+                skill_state=skill_state,
                 compaction_items=compaction_items,
                 conversation=conversation,
                 runtime_notes=runtime_notes,
@@ -769,7 +860,9 @@ class AgentRunner:
             )
             if unplanned_estimate is not None:
                 unplanned_tokens = unplanned_estimate.budget_tokens
-            if force_compact or unplanned_tokens > self._token_budget.target_input_limit:
+            if force_compact or (
+                not context_retry_used and unplanned_tokens > self._token_budget.target_input_limit
+            ):
                 consolidation = await self._consolidate_conversation(
                     session_id=session_id,
                     active_run_id=run_id,
@@ -800,10 +893,14 @@ class AgentRunner:
                         compaction_projection,
                         run_id=run_id,
                     )
+                    conversation = skill_state.prepare_history(
+                        conversation,
+                        cursor=int(compaction_projection["cursor_position"]),
+                    )
                     context_items = self._build_context_items(
                         base_items=base_items,
                         memory_items=memory_items,
-                        active_skill_items=active_skill_items,
+                        skill_state=skill_state,
                         compaction_items=compaction_items,
                         conversation=conversation,
                         runtime_notes=runtime_notes,
@@ -825,6 +922,42 @@ class AgentRunner:
                     input_counter=self._estimate_context_tokens,
                 )
             except ContextLimitError as exc:
+                if skill_state.required and not context_retry_used:
+                    context_retry_used = True
+                    consolidation = await self._consolidate_conversation(
+                        session_id=session_id,
+                        active_run_id=run_id,
+                        conversation=conversation,
+                        force=True,
+                    )
+                    if consolidation is not None:
+                        (
+                            input_tokens,
+                            output_tokens,
+                            cost_usd,
+                        ) = await self._account_compaction_usage(
+                            consolidation.result,
+                            session_id=session_id,
+                            run_id=run_id,
+                            step=step,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                        )
+                        self._enforce_compaction_cost_limit(
+                            step=step,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cost_usd=cost_usd,
+                        )
+                    if consolidation is not None and consolidation.projection is not None:
+                        compaction_projection = consolidation.projection
+                        conversation = consolidation.conversation
+                        compaction_items = self._compaction_context_items(
+                            compaction_projection,
+                            run_id=run_id,
+                        )
+                        step -= 1
+                        continue
                 self._last_context_reports[session_id] = exc.report
                 await self.event_bus.emit(
                     EventType.CONTEXT_LIMIT_REACHED,
@@ -835,7 +968,9 @@ class AgentRunner:
                 error = str(exc)
                 raise _RunTermination(
                     status="limit_reached",
-                    reason_code="context_limit",
+                    reason_code=(
+                        "skill_context_budget_exceeded" if skill_state.required else "context_limit"
+                    ),
                     message=error,
                     steps=step - 1,
                     input_tokens=input_tokens,
@@ -894,6 +1029,7 @@ class AgentRunner:
                     run_id=run_id,
                     step=step,
                     required_memory_tool=required_memory_tool,
+                    skill_state=skill_state,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                 )
@@ -954,6 +1090,7 @@ class AgentRunner:
                         run_id=run_id,
                         payload={"provider_error": str(exc), **retry_details},
                     )
+                    step -= 1
                     continue
                 raise _RunTermination(
                     status="failed",
@@ -964,12 +1101,14 @@ class AgentRunner:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
+                    model_finalizer=not self._is_context_length_error(exc),
                     metadata={
                         "provider_retry_count": failure.retry_count,
                         "provider_error_kind": exc.kind.value,
                     },
                 ) from exc
 
+            context_retry_used = False
             assistant_text = model_turn.assistant_text
             reasoning_text = model_turn.reasoning_text
             input_tokens = model_turn.input_tokens
@@ -984,6 +1123,8 @@ class AgentRunner:
                 )
                 for buffer in model_turn.call_buffers.values()
             ]
+            if assistant_text.strip() or tool_calls:
+                skill_state.acknowledge_response()
             response_summary = {
                 "step": step,
                 "finish_reason": finish_reason,
@@ -1368,9 +1509,13 @@ class AgentRunner:
                     },
                 )
                 if tool_call.name == "activate_skill":
-                    result = await self._activate_skill(tool_call, session_id, run_id)
+                    result = await self._activate_skill(
+                        tool_call, session_id, run_id, skill_state, conversation
+                    )
                 elif tool_call.name == "load_skill_resource":
-                    result = await self._load_skill_resource(tool_call, session_id, run_id)
+                    result = await self._load_skill_resource(
+                        tool_call, session_id, run_id, skill_state
+                    )
                 elif tool_call.name == "activate_tools":
                     result = self._activate_tools(tool_call, session_id)
                 elif tool_call.name == "load_context_reference":
@@ -1439,6 +1584,13 @@ class AgentRunner:
                         )
 
                 raw_model_content = result.model_content()
+                prepared_skill = skill_state.prepared.pop(tool_call.id, None)
+                full_skill_body = (
+                    skill_state.mode == "history"
+                    and prepared_skill is not None
+                    and prepared_skill.reused is None
+                )
+                skill_delivery = None
                 delivery = result.metadata.get("context_delivery")
                 is_disposable_delivery = (
                     tool_call.name
@@ -1450,7 +1602,10 @@ class AgentRunner:
                     and result.success
                     and isinstance(delivery, dict)
                 )
-                if is_disposable_delivery:
+                if full_skill_body:
+                    persisted_content = model_content = raw_model_content
+                    skill_delivery = prepared_skill.binding.delivery("auto_body")
+                elif is_disposable_delivery:
                     persisted_content = self._context_delivery_receipt(delivery)
                     model_content = raw_model_content
                 else:
@@ -1462,6 +1617,23 @@ class AgentRunner:
                     )
                     persisted_content = self._inline_reference(raw_model_content, reference)
                     model_content = persisted_content
+                if (
+                    tool_call.name == "load_skill_resource"
+                    and result.success
+                    and skill_state.mode == "history"
+                ):
+                    body_ref = self.store.put_context_blob(
+                        session_id=session_id,
+                        run_id=run_id,
+                        content=model_content,
+                    )
+                    skill_delivery = SkillDelivery(
+                        kind="resource",
+                        skill_name=str(tool_call.arguments["skill"]),
+                        version_hash=hashlib.sha256(model_content.encode()).hexdigest(),
+                        body_ref=body_ref,
+                        body_bytes=len(model_content.encode()),
+                    )
                 persisted_message = ChatMessage(
                     role=Role.TOOL,
                     name=tool_call.name,
@@ -1469,7 +1641,17 @@ class AgentRunner:
                     content=persisted_content,
                 )
                 reported_task_ids = result.metadata.get("reported_task_ids")
-                if isinstance(reported_task_ids, list) and all(
+                delivered_entry = None
+                if skill_delivery is not None:
+                    delivered_entry = self.store.append_skill_message(
+                        session_id,
+                        run_id,
+                        persisted_message,
+                        skill_delivery,
+                        delivery_key=f"tool:{run_id}:{tool_call.id}",
+                    )
+                    result_position = delivered_entry.position
+                elif isinstance(reported_task_ids, list) and all(
                     isinstance(task_id, str) for task_id in reported_task_ids
                 ):
                     result_position = self.store.append_message_and_mark_agent_tasks_reported(
@@ -1486,7 +1668,8 @@ class AgentRunner:
                     )
                 model_message = persisted_message.model_copy(update={"content": model_content})
                 conversation.append(
-                    PositionedMessage(
+                    delivered_entry
+                    or PositionedMessage(
                         result_position,
                         model_message,
                         run_id=run_id,
@@ -1496,6 +1679,24 @@ class AgentRunner:
                         priority_override=(800 if is_disposable_delivery else None),
                     )
                 )
+                if prepared_skill is not None:
+                    reuse = prepared_skill.reused
+                    skill_state.commit(
+                        prepared_skill,
+                        reuse.position if reuse is not None else result_position,
+                    )
+                    await self.event_bus.emit(
+                        EventType.SKILL_ACTIVATED,
+                        session_id=session_id,
+                        run_id=run_id,
+                        payload={
+                            "name": prepared_skill.binding.name,
+                            "explicit": False,
+                            "message": f"已激活 Skill: {prepared_skill.binding.name}",
+                        },
+                    )
+                if delivered_entry is not None and not delivered_entry.skill_delivery.is_body:
+                    skill_state.pending_resources[result_position] = delivered_entry
                 if is_disposable_delivery:
                     disposable_tool_results[result_position] = persisted_message
                 tool_output_bytes += len(raw_model_content.encode("utf-8"))
@@ -1655,8 +1856,10 @@ class AgentRunner:
         *,
         session_id: str,
         run_id: str,
+        skill_state: RunSkillState,
         termination: _RunTermination,
     ) -> RunResult:
+        skill_state.status = "finalizing"
         reason = f"{termination.reason_code}: {termination.message}"
         step = termination.steps
         input_tokens = termination.input_tokens
@@ -1684,6 +1887,7 @@ class AgentRunner:
                 context_items = await self._termination_context_items(
                     session_id=session_id,
                     run_id=run_id,
+                    skill_state=skill_state,
                     reason=reason,
                     status=termination.status,
                 )
@@ -1706,6 +1910,13 @@ class AgentRunner:
                     temperature=self.config.model.temperature,
                     max_output_tokens=self.config.model.max_output_tokens,
                 )
+                skill_state.check_request(finalizer_request, self.provider)
+                estimate = estimate_input_tokens(self.provider, finalizer_request)
+                if (
+                    estimate is not None
+                    and estimate.budget_tokens > self._token_budget.hard_input_limit
+                ):
+                    raise SkillContextError("skill_context_budget_exceeded", "收尾请求超出预算")
                 model_attempted = True
                 text_parts: list[str] = []
                 finalizer_finish_reason: str | None = None
@@ -1848,24 +2059,28 @@ class AgentRunner:
         *,
         session_id: str,
         run_id: str,
+        skill_state: RunSkillState,
         reason: str,
         status: str,
     ) -> list[ContextItem]:
         environment = await self.execution_target.probe(["ksys", "devkit"])
-        base_items = self.context.ledger_items(environment)
+        base_items = self.context.ledger_items(environment, skill_catalog=skill_state.catalog)
         projection: dict[str, Any] = {"cursor_position": 0, "compaction": None}
         if self.context_compactor is not None:
             projection = self.context_compactor.projection(session_id)
         cursor = int(projection["cursor_position"])
         conversation = [
-            PositionedMessage(
-                entry.position,
-                self._externalize_message(
-                    entry.message,
-                    session_id=session_id,
-                    run_id=run_id,
+            replace(
+                entry,
+                message=(
+                    entry.message
+                    if entry.skill_delivery is not None
+                    else self._externalize_message(
+                        entry.message,
+                        session_id=session_id,
+                        run_id=run_id,
+                    )
                 ),
-                run_id=entry.run_id,
             )
             for entry in self.store.load_positioned_messages(
                 session_id,
@@ -1873,6 +2088,7 @@ class AgentRunner:
             )
             if entry.message.assistant_payload_error() is None
         ]
+        conversation = skill_state.prepare_history(conversation, cursor=cursor)
         runtime_notes: list[ContextItem] = []
         await self._refresh_managed_process_note(runtime_notes)
         self._refresh_plan_note(runtime_notes, session_id)
@@ -1890,7 +2106,7 @@ class AgentRunner:
         return self._build_context_items(
             base_items=base_items,
             memory_items=self._memory_context_items(),
-            active_skill_items=self._active_skill_items(),
+            skill_state=skill_state,
             compaction_items=self._compaction_context_items(projection, run_id=run_id),
             conversation=conversation,
             runtime_notes=runtime_notes,
@@ -1988,11 +2204,11 @@ class AgentRunner:
             source="sqlite:plan-events",
         )
 
-    def _active_skill_items(self) -> list[ContextItem]:
+    def _legacy_skill_items(self, skill_state: RunSkillState) -> list[ContextItem]:
         items: list[ContextItem] = []
         used = 0
-        for active_name in self.skills.active:
-            active_skill = self.skills.catalog.get(active_name)
+        for active_name in skill_state.active:
+            active_skill = skill_state.catalog.get(active_name)
             if active_skill is None:
                 continue
             header = synthetic_user_context_message(
@@ -2345,7 +2561,7 @@ class AgentRunner:
                 tools=tools,
                 temperature=self.config.model.temperature,
                 max_output_tokens=self.config.model.max_output_tokens,
-            )
+            ),
         )
 
     async def _request_model_with_retries(
@@ -2356,6 +2572,7 @@ class AgentRunner:
         run_id: str,
         step: int,
         required_memory_tool: str | None,
+        skill_state: RunSkillState | None = None,
         input_tokens: int,
         output_tokens: int,
     ) -> _ModelTurnResult:
@@ -2369,6 +2586,8 @@ class AgentRunner:
             finish_metadata: dict[str, Any] = {}
             turn_usage: dict[str, Any] = {}
             try:
+                if skill_state is not None:
+                    skill_state.check_request(request, self.provider)
                 # Check the final request too: tool choice and protocol repair can
                 # differ from the planner's intermediate view.
                 estimate = estimate_input_tokens(self.provider, request)
@@ -2534,16 +2753,18 @@ class AgentRunner:
         *,
         base_items: list[ContextItem],
         memory_items: list[ContextItem],
-        active_skill_items: list[ContextItem],
         compaction_items: list[ContextItem],
         conversation: list[PositionedMessage],
         runtime_notes: list[ContextItem],
+        skill_state: RunSkillState | None = None,
     ) -> list[ContextItem]:
-        items = [*base_items, *memory_items, *active_skill_items, *runtime_notes]
+        items = [*base_items, *memory_items, *runtime_notes]
+        if skill_state is not None and skill_state.mode == "legacy":
+            items.extend(self._legacy_skill_items(skill_state))
         items.extend(compaction_items)
         tool_groups: dict[str, str] = {}
         latest_user_position = max(
-            (entry.position for entry in conversation if entry.message.role == Role.USER),
+            (entry.position for entry in conversation if entry.is_real_user),
             default=-1,
         )
         for entry in conversation:
@@ -2584,7 +2805,7 @@ class AgentRunner:
                     source=f"sqlite:messages:{entry.position}",
                     trust=(
                         ContextTrust.USER
-                        if message.role == Role.USER and not is_historical_system
+                        if entry.is_real_user and not is_historical_system
                         else ContextTrust.UNTRUSTED
                     ),
                     retention=(
@@ -2592,18 +2813,21 @@ class AgentRunner:
                         or (
                             ContextRetention.PINNED
                             if entry.position == latest_user_position
+                            or (skill_state is not None and entry.position in skill_state.required)
                             else ContextRetention.CHECKPOINTED
                         )
                     ),
                     priority=(
                         entry.priority_override
                         if entry.priority_override is not None
-                        else (
-                            700 if message.role == Role.USER and not is_historical_system else 600
-                        )
+                        else (700 if entry.is_real_user and not is_historical_system else 600)
                     ),
                     atomic_group=group or f"message:{entry.position}",
                     position=entry.position,
+                    metadata={
+                        "synthetic_skill": entry.skill_delivery is not None
+                        and message.role == Role.USER
+                    },
                 )
             )
         validate_main_agent_context_roles(items)
@@ -2680,9 +2904,7 @@ class AgentRunner:
                 "retained_tail_tokens": sum(
                     self._token_estimator.message(entry.message) for entry in remaining
                 ),
-                "raw_user_turns_retained": sum(
-                    entry.message.role == Role.USER for entry in remaining
-                ),
+                "raw_user_turns_retained": sum(entry.is_real_user for entry in remaining),
                 "rehydrated_user_anchors": len(projected_anchors),
                 "assistant_split_used": bool(
                     remaining and remaining[0].message.role == Role.ASSISTANT and projected_anchors
@@ -2780,7 +3002,7 @@ class AgentRunner:
         anchors = {
             entry.position
             for entry in conversation
-            if entry.message.role == Role.USER and entry.run_id == active_run_id
+            if entry.is_real_user and entry.run_id == active_run_id
         }
         if self.context_compactor is not None:
             active = self.context_compactor.projection(session_id).get("compaction")
@@ -2793,11 +3015,13 @@ class AgentRunner:
                 anchors.update(
                     entry.position
                     for entry in self.store.load_positioned_messages(session_id)
-                    if entry.position in existing and entry.run_id == active_run_id
+                    if entry.position in existing
+                    and entry.run_id == active_run_id
+                    and entry.is_real_user
                 )
         if not anchors:
             latest = max(
-                (entry.position for entry in conversation if entry.message.role == Role.USER),
+                (entry.position for entry in conversation if entry.is_real_user),
                 default=None,
             )
             if latest is not None:
@@ -2818,7 +3042,7 @@ class AgentRunner:
         preferred_user_turns = self.config.context.compaction_min_recent_user_turns
         for group in reversed(groups):
             cost = sum(self._token_estimator.message(entry.message) for entry in group)
-            group_user_turns = sum(entry.message.role == Role.USER for entry in group)
+            group_user_turns = sum(entry.is_real_user for entry in group)
             if retained and retained_tokens + cost > retain_limit:
                 break
             retained.append(group)
@@ -2954,6 +3178,9 @@ class AgentRunner:
             )
         if self.subagent_controller is not None:
             internal.extend(self.subagent_controller.definitions())
+        control_names = {"activate_skill", "load_skill_resource"}
+        internal.extend(item for item in definitions if item.name in control_names)
+        definitions = [item for item in definitions if item.name not in control_names]
         by_name = {definition.name: definition for definition in definitions}
         all_definitions = sorted(
             [*definitions, *internal],
@@ -3536,6 +3763,10 @@ class AgentRunner:
             "delta_messages": len(delta),
             "delta_tokens": sum(self._token_estimator.message(entry.message) for entry in delta),
             "active_tools": sorted(self._activated_tools.get(session_id, set())),
+            "active_skills": self.active_skill_names(session_id),
+            "skill_context_mode": (self.store.get_session(session_id) or {}).get(
+                "skill_context_mode"
+            ),
             "last_pack": self._last_context_reports.get(session_id),
         }
         if self.subagent_controller is not None:
@@ -3562,7 +3793,7 @@ class AgentRunner:
         for entry in conversation:
             message = entry.message
             content = message.content or ""
-            if len(content) <= 2_000:
+            if entry.skill_delivery is not None or len(content) <= 2_000:
                 compacted.append(entry)
                 continue
             reference = self.store.put_context_blob(
@@ -3596,29 +3827,39 @@ class AgentRunner:
             "token limit",
             "上下文",
         )
-        return any(marker in text for marker in markers)
+        return error.kind == ProviderErrorKind.CONTEXT_LENGTH or any(
+            marker in text for marker in markers
+        )
 
     async def _activate_skill(
-        self, tool_call: ToolCall, session_id: str, run_id: str
+        self,
+        tool_call: ToolCall,
+        session_id: str,
+        run_id: str,
+        skill_state: RunSkillState,
+        conversation: list[PositionedMessage],
     ) -> ToolResult:
         name = tool_call.arguments.get("name")
         reason = tool_call.arguments.get("reason")
         if not isinstance(name, str) or not isinstance(reason, str):
             return ToolResult(success=False, error="activate_skill 需要字符串 name 和 reason")
-        skill, content = self.skills.activate(name, reason, explicit=False)
-        if skill is not None and content == f"Skill 已激活: {name}":
-            content = self.skills.render(skill)
-        event_type = EventType.SKILL_ACTIVATED if skill else EventType.SKILL_SKIPPED
-        await self.event_bus.emit(
-            event_type,
-            session_id=session_id,
-            run_id=run_id,
-            payload={"name": name, "reason": reason, "explicit": False, "message": content},
-        )
+        try:
+            prepared = skill_state.prepare(name, reason, explicit=False, history=conversation)
+        except SkillContextError as exc:
+            await self.event_bus.emit(
+                EventType.SKILL_SKIPPED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={"name": name, "reason": reason, "message": str(exc)},
+            )
+            return ToolResult(success=False, error=str(exc))
+        skill_state.prepared[tool_call.id] = prepared
+        content = prepared.body
+        if skill_state.mode == "history" and prepared.reused is not None:
+            content = f"Skill 已激活: {name}；复用历史中的完整正文。"
         return ToolResult(
-            success=skill is not None,
-            output=content if skill else "",
-            error=None if skill else content,
+            success=True,
+            output=content,
             metadata={"skill": name},
             progress=(
                 ProgressSignal(
@@ -3626,13 +3867,15 @@ class AgentRunner:
                     summary=f"激活了 Skill {name}",
                     evidence_key=f"skill:{name}",
                 )
-                if skill is not None
-                else None
             ),
         )
 
     async def _load_skill_resource(
-        self, tool_call: ToolCall, session_id: str, run_id: str
+        self,
+        tool_call: ToolCall,
+        session_id: str,
+        run_id: str,
+        skill_state: RunSkillState,
     ) -> ToolResult:
         skill_name = tool_call.arguments.get("skill")
         relative_path = tool_call.arguments.get("path")
@@ -3641,7 +3884,7 @@ class AgentRunner:
                 success=False,
                 error="load_skill_resource 需要字符串 skill 和 path",
             )
-        content, message = self.skills.load_resource(skill_name, relative_path)
+        content, message = skill_state.load_resource(skill_name, relative_path)
         if content is None:
             return ToolResult(success=False, error=message)
         await self.event_bus.emit(
