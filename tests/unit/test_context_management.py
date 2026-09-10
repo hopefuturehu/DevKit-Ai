@@ -19,7 +19,7 @@ from bot.core.context import (
     repair_tool_protocol,
     validate_main_agent_context_roles,
 )
-from bot.core.models import ChatMessage, Role, ToolCall
+from bot.core.models import ChatMessage, InputTokenEstimate, Role, ToolCall
 from bot.sessions import SQLiteSessionStore
 
 
@@ -423,3 +423,70 @@ def test_blob_access_is_session_scoped_and_follows_forked_messages(tmp_path: Pat
     assert store.read_context_blob(unrelated, reference) is None
     assert store.read_context_blob(forked, reference)["content"] == "private evidence"
     store.close()
+
+
+def test_model_estimate_keeps_history_that_the_character_heuristic_overestimates():
+    planner = ContextPlanner(TokenBudget(1000, 1000, 0, 0, 0), TokenEstimator())
+    items = [
+        ContextItem(
+            id=str(index),
+            layer=ContextLayer.RECENT_CONVERSATION,
+            message=ChatMessage(role=Role.USER, content="中" * 1000),
+            source="test",
+            trust=ContextTrust.USER,
+            retention=ContextRetention.PINNED if index == 0 else ContextRetention.CHECKPOINTED,
+            priority=500,
+            position=index,
+        )
+        for index in range(3)
+    ]
+    pack = planner.pack(
+        items,
+        [],
+        input_counter=lambda *_: InputTokenEstimate(
+            tokens=400, budget_tokens=656, source="test_tokenizer"
+        ),
+    )
+    assert len(pack.messages) == 3
+    assert pack.fits and not pack.dropped_items
+    assert pack.exact_tokens is None
+    assert pack.overflow_report()["budget_tokens"] == 656
+    assert pack.overflow_report()["input_token_estimate"]["tokens"] == 400
+
+
+def test_model_budget_repacking_keeps_tool_groups_atomic():
+    planner = ContextPlanner(TokenBudget(1000, 1000, 0, 0, 0), TokenEstimator())
+    messages = [
+        ChatMessage(role=Role.SYSTEM, content="policy"),
+        ChatMessage(role=Role.ASSISTANT, tool_calls=[ToolCall(id="c", name="read", arguments={})]),
+        ChatMessage(role=Role.TOOL, tool_call_id="c", content="tiny but expensive"),
+    ]
+    items = [
+        ContextItem(
+            id=str(index),
+            layer=ContextLayer.RECENT_CONVERSATION,
+            message=message,
+            source="test",
+            trust=ContextTrust.UNTRUSTED,
+            retention=ContextRetention.PINNED if index == 0 else ContextRetention.CHECKPOINTED,
+            atomic_group=None if index == 0 else "tool-pair",
+            priority=500,
+            position=index,
+        )
+        for index, message in enumerate(messages)
+    ]
+
+    def counter(messages, tools):
+        tokens = 1500 if len(messages) > 1 else 100
+        return InputTokenEstimate(
+            tokens=tokens, budget_tokens=tokens + 256, source="test_tokenizer"
+        )
+
+    pack = planner.pack(items, [], input_counter=counter)
+    assert pack.messages == messages[:1]
+    assert {row["id"] for row in pack.dropped_items} == {"1", "2"}
+    assert pack.budget_tokens == 356
+    with pytest.raises(ContextLimitError, match="1756 > 1000"):
+        for item in items:
+            item.retention = ContextRetention.PINNED
+        planner.pack(items, [], input_counter=counter)

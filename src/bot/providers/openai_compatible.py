@@ -8,12 +8,15 @@ from urllib.parse import urlsplit
 import httpx
 
 from bot.core.models import (
+    InputTokenEstimate,
     ModelCapabilities,
     ModelEvent,
     ModelEventKind,
     ModelRequest,
 )
 from bot.providers.base import ModelProvider, ProviderError, ProviderErrorKind
+from bot.providers.token_counting import MODEL as TOKENIZER_MODEL
+from bot.providers.token_counting import DeepSeekInputCounter
 
 _CONTEXT_ERROR_MARKERS = (
     "context length",
@@ -49,6 +52,7 @@ class OpenAICompatibleProvider(ModelProvider):
         self.api_key = api_key
         self.timeout_seconds = timeout_seconds
         self._client = client
+        self._input_counter = DeepSeekInputCounter()
 
     def capabilities(self, model: str) -> ModelCapabilities:
         return ModelCapabilities(
@@ -119,7 +123,18 @@ class OpenAICompatibleProvider(ModelProvider):
         hostname = (urlsplit(self.base_url).hostname or "").lower()
         return hostname == "api.deepseek.com" or hostname.endswith(".deepseek.com")
 
+    def estimate_input_tokens(self, request: ModelRequest) -> InputTokenEstimate | None:
+        if not self._is_official_deepseek_endpoint() or request.model != TOKENIZER_MODEL:
+            return super().estimate_input_tokens(request)
+        return self._input_counter.estimate(request, self._payload(request))
+
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]:
+        payload = self._payload(request)
+        estimate = (
+            self._input_counter.estimate(request, payload)
+            if self._is_official_deepseek_endpoint() and request.model == TOKENIZER_MODEL
+            else None
+        )
         owned_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=self.timeout_seconds)
         headers = {
@@ -131,7 +146,7 @@ class OpenAICompatibleProvider(ModelProvider):
         choice_diagnostics: dict[int, dict[str, Any]] = {}
         try:
             async with client.stream(
-                "POST", self.endpoint, headers=headers, json=self._payload(request)
+                "POST", self.endpoint, headers=headers, json=payload
             ) as response:
                 if response.status_code >= 400:
                     body = (await response.aread()).decode(errors="replace")[:4000]
@@ -167,6 +182,19 @@ class OpenAICompatibleProvider(ModelProvider):
 
                     usage = chunk.get("usage")
                     if usage:
+                        calibration = {}
+                        if estimate is not None:
+                            actual = usage.get("prompt_tokens")
+                            valid_input = type(actual) is int and actual >= 0
+                            calibration = {
+                                "input_token_estimate": estimate.model_dump(),
+                                "input_token_error": (
+                                    actual - estimate.tokens if valid_input else None
+                                ),
+                                "input_budget_exceeded": (
+                                    actual > estimate.budget_tokens if valid_input else None
+                                ),
+                            }
                         yield ModelEvent(
                             kind=ModelEventKind.USAGE,
                             input_tokens=usage.get("prompt_tokens"),
@@ -176,6 +204,7 @@ class OpenAICompatibleProvider(ModelProvider):
                                 "response_id": chunk.get("id"),
                                 "model": chunk.get("model"),
                                 "raw_usage": usage,
+                                **calibration,
                             },
                         )
 

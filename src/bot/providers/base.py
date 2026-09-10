@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from enum import StrEnum
 
-from bot.core.models import ModelCapabilities, ModelEvent, ModelRequest
+from bot.core.models import InputTokenEstimate, ModelCapabilities, ModelEvent, ModelRequest
 
 
 class ProviderErrorKind(StrEnum):
@@ -56,3 +56,27 @@ class ModelProvider(ABC):
 
     def count_tokens(self, request: ModelRequest) -> int | None:
         return None
+
+    def estimate_input_tokens(self, request: ModelRequest) -> InputTokenEstimate | None:
+        try:
+            exact = self.count_tokens(request)
+        except Exception:
+            return None
+        if exact is None:
+            return None
+        return InputTokenEstimate(tokens=exact, budget_tokens=exact, source="provider_counter")
+
+
+def estimate_input_tokens(provider: object, request: ModelRequest) -> InputTokenEstimate | None:
+    """Preserve compatibility with duck-typed providers lacking the optional API."""
+    estimate = getattr(provider, "estimate_input_tokens", None)
+    if estimate is not None:
+        return estimate(request)
+    counter = getattr(provider, "count_tokens", None)
+    try:
+        exact = counter(request) if counter is not None else None
+    except Exception:
+        return None
+    if exact is None:
+        return None
+    return InputTokenEstimate(tokens=exact, budget_tokens=exact, source="provider_counter")

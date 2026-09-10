@@ -17,6 +17,7 @@ from bot.core.context import PositionedMessage, TokenEstimator, repair_tool_prot
 from bot.core.events import EventBus, EventType
 from bot.core.models import ChatMessage, ModelEventKind, ModelRequest, Role
 from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
+from bot.providers.base import estimate_input_tokens
 from bot.sessions import SQLiteSessionStore
 
 _SOURCE_REF = re.compile(r"\[m:(\d+)(?:-(\d+))?\]")
@@ -1068,13 +1069,10 @@ class ContextCompactor:
         )
 
     def _request_tokens(self, request: ModelRequest) -> int:
-        try:
-            exact = self.provider.count_tokens(request)
-        except Exception:
-            exact = None
+        estimate = estimate_input_tokens(self.provider, request)
         return (
-            exact
-            if exact is not None
+            estimate.budget_tokens
+            if estimate is not None
             else self._estimator.request(request.messages, request.tools)
         )
 
@@ -1414,13 +1412,22 @@ class ContextCompactor:
         request_attempt: int,
         quota: _RequestQuota,
     ) -> _TextResponse:
+        input_tokens = self._request_tokens(request)
+        if input_tokens > self._compaction_input_limit():
+            # No network attempt occurred, so do not reserve or charge a failed
+            # transmission. The outer range-reduction path handles this failure.
+            raise _CompactionFailure(
+                CompactionErrorClass.CONTEXT_OVERFLOW,
+                f"summary input token budget exceeded: {input_tokens} > "
+                f"{self._compaction_input_limit()}",
+            )
         request_sequence = quota.acquire()
-        input_tokens = self._estimator.request(request.messages, request.tools)
         output_tokens = 0
         parts: list[str] = []
         finish_reason: str | None = None
         reasoning_chars = 0
         raw_usage: dict[str, Any] = {}
+        token_calibration: dict[str, Any] = {}
         started = monotonic()
         base_payload = {
             "compaction_id": compaction_id,
@@ -1454,6 +1461,15 @@ class ContextCompactor:
                         input_tokens = event.input_tokens or input_tokens
                         output_tokens = event.output_tokens or output_tokens
                         raw_usage = dict(event.provider_metadata.get("raw_usage") or {})
+                        token_calibration = {
+                            key: event.provider_metadata[key]
+                            for key in (
+                                "input_token_estimate",
+                                "input_token_error",
+                                "input_budget_exceeded",
+                            )
+                            if key in event.provider_metadata
+                        }
                     elif event.kind == ModelEventKind.FINISH:
                         finish_reason = event.finish_reason
                         reasoning_chars = max(
@@ -1477,6 +1493,7 @@ class ContextCompactor:
                     "cost_usd": cost_usd,
                     "error": str(exc),
                     "error_class": self._error_class(exc).value,
+                    **token_calibration,
                 },
             )
             raise
@@ -1499,6 +1516,7 @@ class ContextCompactor:
                 "finish_reason": finish_reason,
                 "cost_usd": cost_usd,
                 "raw_usage": raw_usage,
+                **token_calibration,
             },
         )
         return _TextResponse(

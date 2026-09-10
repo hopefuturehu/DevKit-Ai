@@ -31,6 +31,7 @@ from bot.core.context import (
 from bot.core.events import EventBus, EventType
 from bot.core.models import (
     ChatMessage,
+    InputTokenEstimate,
     ModelEventKind,
     ModelRequest,
     Role,
@@ -50,7 +51,8 @@ from bot.memory.routing import (
 )
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
-from bot.providers import ModelProvider, ProviderError
+from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
+from bot.providers.base import estimate_input_tokens
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillManager
 from bot.tools import ToolContext, ToolRegistry, ToolResult
@@ -761,6 +763,12 @@ class AgentRunner:
             unplanned_tokens = self._token_estimator.request(
                 [item.message for item in context_items], request_tools
             )
+            unplanned_estimate = self._estimate_context_tokens(
+                [item.message for item in sorted(context_items, key=ContextPlanner._render_order)],
+                request_tools,
+            )
+            if unplanned_estimate is not None:
+                unplanned_tokens = unplanned_estimate.budget_tokens
             if force_compact or unplanned_tokens > self._token_budget.target_input_limit:
                 consolidation = await self._consolidate_conversation(
                     session_id=session_id,
@@ -814,6 +822,7 @@ class AgentRunner:
                     context_items,
                     request_tools,
                     exact_counter=self._exact_context_tokens,
+                    input_counter=self._estimate_context_tokens,
                 )
             except ContextLimitError as exc:
                 self._last_context_reports[session_id] = exc.report
@@ -1682,6 +1691,7 @@ class AgentRunner:
                     context_items,
                     [],
                     exact_counter=self._exact_context_tokens,
+                    input_counter=self._estimate_context_tokens,
                 )
                 finalizer_request = ModelRequest(
                     model=self.config.model.name,
@@ -2323,6 +2333,21 @@ class AgentRunner:
             # the Unicode-aware conservative estimate remains the safe fallback.
             return None
 
+    def _estimate_context_tokens(
+        self, messages: list[ChatMessage], tools: list[ToolDefinition]
+    ) -> InputTokenEstimate | None:
+        messages, _ = repair_tool_protocol(messages)
+        return estimate_input_tokens(
+            self.provider,
+            ModelRequest(
+                model=self.config.model.name,
+                messages=messages,
+                tools=tools,
+                temperature=self.config.model.temperature,
+                max_output_tokens=self.config.model.max_output_tokens,
+            )
+        )
+
     async def _request_model_with_retries(
         self,
         request: ModelRequest,
@@ -2344,6 +2369,18 @@ class AgentRunner:
             finish_metadata: dict[str, Any] = {}
             turn_usage: dict[str, Any] = {}
             try:
+                # Check the final request too: tool choice and protocol repair can
+                # differ from the planner's intermediate view.
+                estimate = estimate_input_tokens(self.provider, request)
+                if (
+                    estimate is not None
+                    and estimate.budget_tokens > self._token_budget.hard_input_limit
+                ):
+                    raise ProviderError(
+                        f"input token budget exceeded: {estimate.budget_tokens} > "
+                        f"{self._token_budget.hard_input_limit}",
+                        kind=ProviderErrorKind.CONTEXT_LENGTH,
+                    )
                 async for event in self.provider.stream(request):
                     if event.kind == ModelEventKind.TEXT_DELTA and event.text:
                         text_parts.append(event.text)

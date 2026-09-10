@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from bot.core.models import ChatMessage, Role, ToolCall, ToolDefinition
+from bot.core.models import ChatMessage, InputTokenEstimate, Role, ToolCall, ToolDefinition
 from bot.execution import EnvironmentCapabilities
 from bot.skills import SkillCatalog
 
@@ -413,17 +413,27 @@ class ContextPack:
     layer_tokens: dict[str, int]
     dropped_items: list[dict[str, Any]] = field(default_factory=list)
     exact_tokens: int | None = None
+    input_token_estimate: InputTokenEstimate | None = None
+
+    @property
+    def budget_tokens(self) -> int:
+        if self.input_token_estimate is not None:
+            return self.input_token_estimate.budget_tokens
+        return self.exact_tokens if self.exact_tokens is not None else self.token_estimate
 
     @property
     def fits(self) -> bool:
-        used = self.exact_tokens if self.exact_tokens is not None else self.token_estimate
-        return used <= self.hard_limit
+        return self.budget_tokens <= self.hard_limit
 
     def overflow_report(self) -> dict[str, Any]:
-        used = self.exact_tokens if self.exact_tokens is not None else self.token_estimate
+        used = self.budget_tokens
         return {
             "estimated_tokens": self.token_estimate,
             "exact_tokens": self.exact_tokens,
+            "budget_tokens": used,
+            "input_token_estimate": (
+                self.input_token_estimate.model_dump() if self.input_token_estimate else None
+            ),
             "hard_limit": self.hard_limit,
             "target_limit": self.target_limit,
             "overflow_tokens": max(0, used - self.hard_limit),
@@ -436,11 +446,13 @@ class ContextLimitError(RuntimeError):
     def __init__(self, report: dict[str, Any]) -> None:
         self.report = report
         layers = ", ".join(f"{key}={value}" for key, value in report["layers"].items())
-        used = (
-            report["exact_tokens"]
-            if report["exact_tokens"] is not None
-            else report["estimated_tokens"]
-        )
+        used = report.get("budget_tokens")
+        if used is None:
+            used = (
+                report["exact_tokens"]
+                if report["exact_tokens"] is not None
+                else report["estimated_tokens"]
+            )
         super().__init__(
             f"上下文在分层规划后仍超过硬限制：{used} > "
             f"{report['hard_limit']} tokens；各层：{layers}"
@@ -682,6 +694,9 @@ class ContextPlanner:
         exact_counter: (
             Callable[[list[ChatMessage], list[ToolDefinition]], int | None] | None
         ) = None,
+        input_counter: (
+            Callable[[list[ChatMessage], list[ToolDefinition]], InputTokenEstimate | None] | None
+        ) = None,
     ) -> ContextPack:
         for item in items:
             if item.token_estimate <= 0:
@@ -712,6 +727,18 @@ class ContextPlanner:
             ),
             reverse=True,
         )
+        # A rough overestimate must not discard history that the model counter
+        # confirms fits. Count the complete view once before greedy packing.
+        full = sorted(items, key=self._render_order)
+        full_estimate = (
+            input_counter([item.message for item in full], tools) if input_counter else None
+        )
+        if (
+            full_estimate is not None
+            and full_estimate.budget_tokens <= self.budget.target_input_limit
+        ):
+            selected = full
+            ranked = []
         for key in ranked:
             group = groups[key]
             cost = sum(item.token_estimate for item in group)
@@ -733,7 +760,9 @@ class ContextPlanner:
         messages = [item.message for item in selected]
         estimated = self.estimator.request(messages, tools)
         exact = exact_counter(messages, tools) if exact_counter else None
-        if exact is not None and exact > self.budget.hard_input_limit:
+        measured = input_counter(messages, tools) if input_counter else None
+        counted = measured.budget_tokens if measured is not None else exact
+        if counted is not None and counted > self.budget.hard_input_limit:
             selected_groups: dict[str, list[ContextItem]] = {}
             for item in selected:
                 if item.retention == ContextRetention.PINNED:
@@ -758,15 +787,17 @@ class ContextPlanner:
                         "tokens": item.token_estimate,
                         "retention": item.retention.value,
                         "source": item.source,
-                        "reason": "exact_token_repack",
+                        "reason": "input_budget_repack" if measured else "exact_token_repack",
                     }
                     for item in group
                 )
                 selected.sort(key=self._render_order)
                 messages = [item.message for item in selected]
                 estimated = self.estimator.request(messages, tools)
-                exact = exact_counter(messages, tools)
-                if exact is None or exact <= self.budget.hard_input_limit:
+                exact = exact_counter(messages, tools) if exact_counter else None
+                measured = input_counter(messages, tools) if input_counter else None
+                counted = measured.budget_tokens if measured is not None else exact
+                if counted is None or counted <= self.budget.hard_input_limit:
                     break
         layer_tokens: dict[str, int] = {ContextLayer.TOOL_SCHEMA.value: tool_tokens}
         for item in selected:
@@ -777,6 +808,7 @@ class ContextPlanner:
             tools=tools,
             token_estimate=estimated,
             exact_tokens=exact,
+            input_token_estimate=measured,
             hard_limit=self.budget.hard_input_limit,
             target_limit=self.budget.target_input_limit,
             layer_tokens=layer_tokens,

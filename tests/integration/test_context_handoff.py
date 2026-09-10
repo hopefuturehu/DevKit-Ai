@@ -402,3 +402,46 @@ engine.publish(snap, HandoffCandidate(sys.argv[3], 'A'), before_commit=lambda _:
     assert engine.recover_interrupted() == 1
     assert engine.publish(snap, HandoffCandidate(SUMMARY, "A")).status == "published"
     assert raw_digest(engine) == before
+
+
+@pytest.mark.asyncio
+async def test_handoff_checks_model_budget_before_generating_and_before_publishing(setup_engine):
+    from bot.core.models import InputTokenEstimate
+
+    engine, snap, provider, _ = setup_engine()
+    provider.estimate_input_tokens = lambda _: InputTokenEstimate(
+        tokens=115000, budget_tokens=121000, source="test_tokenizer"
+    )
+    with pytest.raises(HandoffError, match="summary_input_budget"):
+        await engine.generate(snap, "A")
+    assert not provider.requests
+    before = raw_digest(engine)
+    result = engine.publish(snap, HandoffCandidate(SUMMARY, "A"))
+    assert result.status == "rejected"
+    assert result.reason == "low_water_not_met"
+    assert raw_digest(engine) == before
+    assert engine.compactor.projection(engine.session_id)["compaction"] is None
+
+
+@pytest.mark.asyncio
+async def test_handoff_high_water_uses_model_count_instead_of_character_estimate(setup_engine):
+    from bot.core.models import InputTokenEstimate
+
+    engine, snap, provider, _ = setup_engine()
+    assert engine.estimator.request(snap.request.messages, snap.request.tools) < engine.high_water
+    provider.estimate_input_tokens = lambda request: InputTokenEstimate(
+        tokens=95000 if len(request.messages) > 1 else 1000,
+        budget_tokens=99000 if len(request.messages) > 1 else 1256,
+        source="test_tokenizer",
+    )
+    called = []
+
+    async def execute(snapshot, origin, **kwargs):
+        called.append(origin)
+        from bot.compaction.handoff import HandoffResult
+
+        return HandoffResult("published")
+
+    engine.execute = execute
+    assert (await engine.run_policy("AD", snap)).status == "published"
+    assert called == ["A"]

@@ -132,3 +132,28 @@ async def test_budget_denies_request_before_network(tmp_path):
         async for _ in provider.stream(request):
             pass
     assert underlying.calls == 0 and ledger.rows == []
+
+
+@pytest.mark.asyncio
+async def test_recording_wrapper_forwards_effective_mode_and_model_budget(tmp_path):
+    from bot.core.models import InputTokenEstimate
+
+    underlying = UsageProvider()
+    modes = []
+
+    def estimate(request):
+        modes.append(request.thinking)
+        return InputTokenEstimate(tokens=119000, budget_tokens=125000, source="test_tokenizer")
+
+    underlying.estimate_input_tokens = estimate
+    ledger = ExperimentLedger(tmp_path / "ledger.jsonl", max_cost_usd=1)
+    provider = RecordingHandoffProvider(underlying, ledger, tmp_path / "requests", identity={})
+    request = ModelRequest(
+        model="deepseek-v4-flash", messages=[ChatMessage(role=Role.USER, content="x")]
+    )
+    assert provider.estimate_input_tokens(request).budget_tokens == 125000
+    with pytest.raises(ProviderError, match="experiment input budget"):
+        async for _ in provider.stream(request):
+            pass
+    assert modes == ["disabled", "disabled"]
+    assert underlying.calls == 0 and ledger.rows == []

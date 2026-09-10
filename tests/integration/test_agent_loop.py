@@ -1902,3 +1902,66 @@ async def test_agent_automatically_activates_multiple_complementary_skills(
     assert result.status == "completed"
     assert list(runner.skills.active) == ["migration", "performance"]
     store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_compaction_trigger_uses_model_input_budget(tmp_path, monkeypatch):
+    from bot.core.models import InputTokenEstimate
+
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(tmp_path, provider)
+    reserved = runner._token_budget.target_input_limit + 1
+    provider.estimate_input_tokens = lambda _: InputTokenEstimate(
+        tokens=reserved - 256, budget_tokens=reserved, source="test_tokenizer"
+    )
+    consolidations = []
+
+    async def consolidate(**kwargs):
+        consolidations.append(kwargs)
+        return None
+
+    monkeypatch.setattr(runner, "_consolidate_conversation", consolidate)
+    try:
+        result = await runner.run(RunRequest(prompt="hello"))
+        assert result.status == "completed"
+        assert len(consolidations) == 1
+        assert not consolidations[0]["force"]
+        assert len(provider.requests) == 1
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_agent_rechecks_final_request_budget_before_provider_call(tmp_path):
+    from bot.core.agent import _ModelRequestFailure
+    from bot.core.models import InputTokenEstimate
+
+    provider = ScriptedProvider([])
+    runner, store = make_test_runner(tmp_path, provider)
+    provider.estimate_input_tokens = lambda _: InputTokenEstimate(
+        tokens=runner._token_budget.hard_input_limit,
+        budget_tokens=runner._token_budget.hard_input_limit + 256,
+        source="test_tokenizer",
+    )
+    try:
+        with pytest.raises(_ModelRequestFailure) as exc:
+            await runner._request_model_with_retries(
+                ModelRequest(model="mock", messages=[ChatMessage(role=Role.USER, content="hello")]),
+                session_id="unused",
+                run_id="unused",
+                step=1,
+                required_memory_tool=None,
+                input_tokens=0,
+                output_tokens=0,
+            )
+        assert exc.value.error.kind == ProviderErrorKind.CONTEXT_LENGTH
+        assert not provider.requests
+    finally:
+        store.close()

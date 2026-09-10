@@ -10,8 +10,9 @@ from time import monotonic
 from uuid import uuid4
 
 from bot.core.context import TokenEstimator
-from bot.core.models import ModelEventKind
+from bot.core.models import InputTokenEstimate, ModelEventKind, ModelRequest
 from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
+from bot.providers.base import estimate_input_tokens
 
 PRICE_SOURCE = "https://api-docs.deepseek.com/quick_start/pricing/"
 PRICE_CHECKED = "2026-09-09"
@@ -82,6 +83,11 @@ class RecordingHandoffProvider(ModelProvider):
     def capabilities(self, model):
         return self.underlying.capabilities(model)
 
+    def estimate_input_tokens(self, request: ModelRequest) -> InputTokenEstimate | None:
+        return estimate_input_tokens(
+            self.underlying, request.model_copy(update={"thinking": "disabled"})
+        )
+
     async def stream(self, original):
         if len(self.rows) >= self.max_requests:
             raise ProviderError("segment request budget", kind=ProviderErrorKind.PAYMENT)
@@ -93,7 +99,9 @@ class RecordingHandoffProvider(ModelProvider):
         if request.model != "deepseek-v4-flash":
             raise ValueError("The frozen price adapter applies only to deepseek-v4-flash")
         estimate = self.estimator.request(request.messages, request.tools)
-        if estimate > 120_000:
+        calibrated = self.estimate_input_tokens(request)
+        budget_tokens = calibrated.budget_tokens if calibrated is not None else estimate
+        if budget_tokens > 120_000:
             raise ProviderError("experiment input budget", kind=ProviderErrorKind.CONTEXT_LENGTH)
         # Conservative peak-price reserve with headroom for estimator error.
         reserve = (
@@ -158,6 +166,7 @@ class RecordingHandoffProvider(ModelProvider):
                 "provider_response_id": metadata.get("response_id"),
                 "thinking": "disabled",
                 "estimated_input_tokens": estimate,
+                "input_token_estimate": calibrated.model_dump() if calibrated else None,
                 "raw_usage": last_usage,
                 "usage_complete": normalized is not None,
                 "cost_usd_at_start_rate": cost_start,

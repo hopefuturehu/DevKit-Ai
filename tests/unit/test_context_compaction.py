@@ -1150,3 +1150,58 @@ async def test_rebuild_rollback_and_corruption_recovery_use_version_chain(
     assert recovered["cursor_position"] == 2
     assert store.get_context_compaction(session_id, active_id)["status"] == "failed"
     store.close()
+
+
+@pytest.mark.asyncio
+async def test_compaction_planning_respects_model_input_budget(tmp_path):
+    from bot.core.models import InputTokenEstimate
+
+    compactor, provider, store, _ = make_compactor(tmp_path)
+    session_id = store.create_session(tmp_path)
+    append_history(store, session_id)
+    provider.estimate_input_tokens = lambda _: InputTokenEstimate(
+        tokens=60000, budget_tokens=63000, source="test_tokenizer"
+    )
+    try:
+        result = await compactor.compact(session_id, through_position=4, trigger="context_pressure")
+        assert not result.compacted
+        assert result.reason == "source_group_exceeds_budget"
+        assert not provider.requests
+        assert len(store.load_positioned_messages(session_id)) == 4
+        assert compactor.projection(session_id)["compaction"] is None
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_locally_rejected_summary_does_not_acquire_quota_or_charge_input(tmp_path):
+    from bot.compaction.service import _CompactionFailure, _RequestQuota
+    from bot.core.models import InputTokenEstimate
+
+    compactor, provider, store, _ = make_compactor(tmp_path)
+    provider.estimate_input_tokens = lambda _: InputTokenEstimate(
+        tokens=60000, budget_tokens=63000, source="test_tokenizer"
+    )
+    quota = _RequestQuota(limit=3, cost_limit_usd=1)
+    try:
+        with pytest.raises(_CompactionFailure) as failure:
+            await compactor._consume_text_request(
+                ModelRequest(
+                    model="compaction-model", messages=[ChatMessage(role=Role.USER, content="x")]
+                ),
+                session_id="unused",
+                event_run_id="unused",
+                compaction_id="unused",
+                phase="summary",
+                original_phase="summary",
+                source_range=(1, 1),
+                range_attempt=1,
+                request_attempt=1,
+                quota=quota,
+            )
+        assert failure.value.error_class == CompactionErrorClass.CONTEXT_OVERFLOW
+        assert failure.value.input_tokens == 0
+        assert quota.used == 0 and quota.cost_usd == 0
+        assert not provider.requests
+    finally:
+        store.close()

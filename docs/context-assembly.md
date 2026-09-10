@@ -240,7 +240,7 @@ target = floor(hard * context.auto_compact_threshold)
    原始 user 锚点和 Assistant 摘要；
 2. 其余项按 atomic group 聚合，优先级高者先选；同优先级保留更新的会话组；
 3. Tool schema 的 token 先从 target message budget 中扣除；
-4. Provider 能精确计数且仍超过 hard limit 时，从低优先级、较旧的非 pinned 组开始二次卸载；
+4. Provider 计数或模型输入预算仍超过 hard limit 时，从低优先级、较旧的非 pinned 组开始二次卸载；
 5. 最后才按上表恢复模型应看到的语义顺序。
 
 因此，表中的“靠前”不代表更高保留优先级。例如 `SKILL_CATALOG` 排在会话前是为了形成稳定
@@ -248,13 +248,17 @@ target = floor(hard * context.auto_compact_threshold)
 择优装箱，不保证一定是连续的最近后缀；被跳过的组写入 `dropped_items` 和
 `context.packed` 事件，但当前不会在模型消息中插入 gap 标记。
 
-Planner 的精确计数和二次卸载是能力接口，不等于当前 Provider 已经提供精确计数。基类
-`ModelProvider.count_tokens()` 默认返回 `None`，当前 `OpenAICompatibleProvider` 没有覆盖它，
-所以普通生产路径仍以 `TokenEstimator` 的启发式估算为主；这里的 hard 是本地门禁，不能当成
-服务端精确 tokenizer 保证。若估算漏判，依靠 Provider 的首次上下文长度错误进入一次恢复路径。
-精确计数回调会先修复 Tool 协议；普通 pack 的估算统计则发生在最终协议修复之前，补齐缺失结果
-可能增加请求内容。`recent_conversation_tokens` 约束压缩时保留的 tail，不是 Planner 给整个会话
-层再设的独立 20K 上限。
+官方 DeepSeek V4 Flash 已通过 `estimate_input_tokens()` 接入对应 tokenizer 和消息编码，
+返回本地预测与加余量的 `budget_tokens`，不占用 `exact_tokens` 字段。完整候选请求低于
+target 时直接保留，避免字符估算过高造成无谓卸载；触发压缩、装箱和最终发送均检查模型预算。
+词表缺失时使用明确标记的保守降级估算；其他模型保留已有计数路径。
+见[输入 token 计数与安全余量](input-token-calibration.md)。
+
+`ModelProvider.count_tokens()` 仍是可选的精确计数接口，默认返回 `None`。hard 是本地门禁，
+不是服务端精确 tokenizer 保证；若仍漏判，可通过首次上下文长度错误进入一次恢复路径。
+模型计数回调先修复 Tool 协议，发送前还会核对最终请求；旧的字符估算仅作为初步规划与诊断。
+`recent_conversation_tokens` 约束压缩时保留的 tail，不是 Planner 给整个会话层再设的独立
+20K 上限。
 
 ## 不调用 LLM 时，当前 `bot` 如何减载
 

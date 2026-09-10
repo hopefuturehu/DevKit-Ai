@@ -1,0 +1,158 @@
+{
+  "tokenizer_revision": "60d8d70770c6776ff598c94bb586a859a38244f1",
+  "ledger_rows": 532,
+  "missing_input_usage": 15,
+  "thinking_modes": [
+    "disabled"
+  ],
+  "overall": {
+    "requests": 517,
+    "unique_request_hashes": 472,
+    "legacy": {
+      "absolute_error_max": 41806,
+      "relative_error_p50": 0.2246742824773414,
+      "relative_error_p95": 1.4547875291245977,
+      "relative_error_max": 1.5930985749617241,
+      "underestimate_count": 270,
+      "underestimate_max": 27418
+    },
+    "tokenizer": {
+      "absolute_error_max": 3,
+      "relative_error_p50": 5.9794307581918205e-05,
+      "relative_error_p95": 0.0002275830678197542,
+      "relative_error_max": 0.0008347245409015025,
+      "underestimate_count": 80,
+      "underestimate_max": 1
+    },
+    "budget_exceeded_count": 0
+  },
+  "checkpoints": {
+    "chess-large-tail": {
+      "requests": 78,
+      "unique_request_hashes": 71,
+      "legacy": {
+        "absolute_error_max": 41806,
+        "relative_error_p50": 1.3580334515965535,
+        "relative_error_p95": 1.540963030579644,
+        "relative_error_max": 1.5930985749617241,
+        "underestimate_count": 2,
+        "underestimate_max": 1823
+      },
+      "tokenizer": {
+        "absolute_error_max": 3,
+        "relative_error_p50": 0.00010098969905069682,
+        "relative_error_p95": 0.00011470520761642578,
+        "relative_error_max": 0.0001177717583323519,
+        "underestimate_count": 0,
+        "underestimate_max": 0
+      },
+      "budget_exceeded_count": 0
+    },
+    "near-budget": {
+      "requests": 77,
+      "unique_request_hashes": 70,
+      "legacy": {
+        "absolute_error_max": 27418,
+        "relative_error_p50": 0.2053375821549492,
+        "relative_error_p95": 0.23934205816359494,
+        "relative_error_max": 0.2393686213910933,
+        "underestimate_count": 77,
+        "underestimate_max": 27418
+      },
+      "tokenizer": {
+        "absolute_error_max": 3,
+        "relative_error_p50": 3.6620646720621085e-05,
+        "relative_error_p95": 3.971405877680699e-05,
+        "relative_error_max": 4.013646397752358e-05,
+        "underestimate_count": 20,
+        "underestimate_max": 1
+      },
+      "budget_exceeded_count": 0
+    },
+    "short": {
+      "requests": 78,
+      "unique_request_hashes": 71,
+      "legacy": {
+        "absolute_error_max": 357,
+        "relative_error_p50": 0.0277723450029337,
+        "relative_error_p95": 0.06685962373371925,
+        "relative_error_max": 0.25183374083129584,
+        "underestimate_count": 34,
+        "underestimate_max": 231
+      },
+      "tokenizer": {
+        "absolute_error_max": 3,
+        "relative_error_p50": 0.00020202020202020202,
+        "relative_error_p95": 0.0008307947936859596,
+        "relative_error_max": 0.0008347245409015025,
+        "underestimate_count": 20,
+        "underestimate_max": 1
+      },
+      "budget_exceeded_count": 0
+    },
+    "stage-boundary": {
+      "requests": 78,
+      "unique_request_hashes": 71,
+      "legacy": {
+        "absolute_error_max": 6956,
+        "relative_error_p50": 0.19770600664050708,
+        "relative_error_p95": 0.22493855904798862,
+        "relative_error_max": 0.22493855904798862,
+        "underestimate_count": 78,
+        "underestimate_max": 6956
+      },
+      "tokenizer": {
+        "absolute_error_max": 3,
+        "relative_error_p50": 3.716919417187035e-05,
+        "relative_error_p95": 9.652820232311208e-05,
+        "relative_error_max": 9.657481328869431e-05,
+        "underestimate_count": 20,
+        "underestimate_max": 1
+      },
+      "budget_exceeded_count": 0
+    },
+    "sympy-in-progress": {
+      "requests": 130,
+      "unique_request_hashes": 120,
+      "legacy": {
+        "absolute_error_max": 32313,
+        "relative_error_p50": 0.5807469414037347,
+        "relative_error_p95": 0.7903051712295163,
+        "relative_error_max": 0.790524792070463,
+        "underestimate_count": 3,
+        "underestimate_max": 8646
+      },
+      "tokenizer": {
+        "absolute_error_max": 3,
+        "relative_error_p50": 6.389776357827476e-05,
+        "relative_error_p95": 7.359434795407713e-05,
+        "relative_error_max": 7.360337594150985e-05,
+        "underestimate_count": 0,
+        "underestimate_max": 0
+      },
+      "budget_exceeded_count": 0
+    },
+    "user-correction": {
+      "requests": 76,
+      "unique_request_hashes": 69,
+      "legacy": {
+        "absolute_error_max": 9616,
+        "relative_error_p50": 0.1982312575685296,
+        "relative_error_p95": 0.22773356073526624,
+        "relative_error_max": 0.22777014543559618,
+        "underestimate_count": 76,
+        "underestimate_max": 9616
+      },
+      "tokenizer": {
+        "absolute_error_max": 3,
+        "relative_error_p50": 3.606462781304097e-05,
+        "relative_error_p95": 7.080648587410607e-05,
+        "relative_error_max": 7.082989021367016e-05,
+        "underestimate_count": 20,
+        "underestimate_max": 1
+      },
+      "budget_exceeded_count": 0
+    }
+  },
+  "scope": "Offline replay of saved payloads; six sources, not independent tasks or new API calls."
+}

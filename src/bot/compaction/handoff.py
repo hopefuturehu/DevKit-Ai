@@ -138,7 +138,7 @@ class HandoffEngine:
         current_files: dict[str, str] | None = None,
     ) -> HandoffResult:
         """One serial safe-boundary decision, with D-to-A fallback and loop guard."""
-        tokens = self.estimator.request(snapshot.request.messages, snapshot.request.tools)
+        tokens = self.compactor._request_tokens(snapshot.request)
         failure_key = (snapshot.full_digest, tokens)
         if failure_key in self._failed_snapshots:
             return HandoffResult("failed", "same_source_no_progress")
@@ -241,7 +241,7 @@ class HandoffEngine:
         request.max_output_tokens = 8192
         # Preserve tools, model, system and history prefix. No forced named choice.
         request.tool_choice = None
-        if self.estimator.request(request.messages, request.tools) > self.input_limit:
+        if self.compactor._request_tokens(request) > self.input_limit:
             raise HandoffError("summary_input_budget")
         text: list[str] = []
         reasoning: list[str] = []
@@ -361,8 +361,10 @@ class HandoffEngine:
                 control = []
         head = snapshot.request.messages[: snapshot.prefix_count]
         view = head + self.compactor.context_messages(self.session_id, record) + tail + control
-        before = self.estimator.request(snapshot.request.messages, snapshot.request.tools)
-        after = self.estimator.request(view, snapshot.request.tools)
+        before = self.compactor._request_tokens(snapshot.request)
+        after = self.compactor._request_tokens(
+            snapshot.request.model_copy(update={"messages": view})
+        )
         if not protocol_closed([message for message in view if message.role != Role.SYSTEM]):
             return HandoffResult(
                 "rejected", "projection_protocol", before_tokens=before, after_tokens=after

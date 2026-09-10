@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Role(StrEnum):
@@ -105,6 +105,23 @@ class ModelEventKind(StrEnum):
     TOOL_CALL_DELTA = "tool_call_delta"
     USAGE = "usage"
     FINISH = "finish"
+
+
+class InputTokenEstimate(BaseModel):
+    """Local prediction and the amount reserved for input, never API usage."""
+
+    model_config = ConfigDict(frozen=True)
+
+    tokens: int = Field(ge=0)
+    budget_tokens: int = Field(ge=0)
+    source: str
+    effective_thinking: str | None = None
+
+    @model_validator(mode="after")
+    def validate_budget(self) -> InputTokenEstimate:
+        if self.budget_tokens < self.tokens:
+            raise ValueError("input budget must include the token estimate")
+        return self
 
 
 class ModelEvent(BaseModel):

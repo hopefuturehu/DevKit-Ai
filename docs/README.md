@@ -23,6 +23,7 @@
 | 文档 | 用途 |
 |---|---|
 | [模型上下文分块与组装顺序](context-assembly.md) | 请求顺序、角色边界、预算和超限处理的主要入口 |
+| [输入 token 计数与安全余量](input-token-calibration.md) | DeepSeek V4 Flash tokenizer、usage 误差记录、预算接入和 517 条历史请求核对 |
 | [可恢复的单摘要上下文压缩](recoverable-context-compaction.md) | 压缩不变量、版本发布、原文恢复、配置与测试 |
 | [Markdown 长期记忆](markdown-memory.md) | 文件布局、提取生命周期、读取路径和配置 |
 | [Memory Router 设计与验收](memory-routing.md) | 按需检索、归因证据门禁、行为评测与历史 canary 的适用边界 |

@@ -35,6 +35,14 @@ python3 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 ```
 
+使用官方 DeepSeek V4 Flash 时，一次性安装对应 tokenizer，以启用模型输入计数和预算余量：
+
+```bash
+.venv/bin/python -m bot.providers.install_tokenizer
+```
+
+正常请求不会下载词表；计数口径及验证结果见[输入 token 校准](docs/input-token-calibration.md)。
+
 Web 工作台使用相同的模型配置与工作区：
 
 ```bash
