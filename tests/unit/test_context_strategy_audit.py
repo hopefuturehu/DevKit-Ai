@@ -84,3 +84,15 @@ def test_audit_inflight_summary_has_unknown_cost():
     )
     assert rows[0]["status"] == "no_terminal_event"
     assert aggregate(rows, PRICING)["usage_missing"] == 1
+
+
+def test_audit_cancelled_main_stream_keeps_subtotal_and_marks_uncertainty():
+    report = analyze_events(
+        [
+            event("model.usage", {"provider_metadata": {"raw_usage": RAW}}),
+            event("run.cancelled", {"termination_reason": "cancelled"}, 1),
+        ],
+        PRICING,
+    )
+    assert report["totals"]["input"] == 100
+    assert report["totals"]["cost_is_lower_bound"]

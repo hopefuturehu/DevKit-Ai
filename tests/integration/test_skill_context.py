@@ -288,7 +288,10 @@ async def test_compaction_restores_exact_version_and_excludes_synthetic_user_anc
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("strategy", ["a", "b"])
-async def test_real_runner_strategy_restores_skill_and_continues_tools(tmp_path, strategy):
+@pytest.mark.parametrize("delivery", ["file", "reference"])
+async def test_real_runner_strategy_restores_skill_and_continues_tools(
+    tmp_path, strategy, delivery
+):
     write_skill(tmp_path, body="KEEP_EXACT_SKILL_947\n" + "rules for evidence.\n" * 100)
     (tmp_path / "evidence.txt").write_text("verified current workspace")
 
@@ -342,10 +345,23 @@ async def test_real_runner_strategy_restores_skill_and_continues_tools(tmp_path,
             ),
         )
     store.finish_run("history", "completed")
+    if delivery == "reference":
+        reference = store.put_context_blob(
+            session_id=session, run_id="history", content="LIVE_PAYLOAD_852\n" * 400
+        )
+        provider.turns[0] = calls(
+            ("read1", "load_context_reference", {"reference": reference, "limit": 16000})
+        )
 
     async def request_cut(request):
         if len(provider.requests) == 1:
             runner.request_compaction(session)
+        elif delivery == "reference":
+            strategy_state = runner._run_compaction_strategies[session]
+            active = runner.context_compactor.projection(session)["compaction"]
+            projected = strategy_state.frame.project(active)
+            assert "LIVE_PAYLOAD_852" in "\n".join(m.content or "" for m in projected.messages)
+            assert "LIVE_PAYLOAD_852" in "\n".join(m.content or "" for m in request.messages)
 
     provider.on_request = request_cut
     try:

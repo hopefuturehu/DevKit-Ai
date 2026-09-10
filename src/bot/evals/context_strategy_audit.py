@@ -131,6 +131,19 @@ def duration(record: dict) -> float | None:
 def analyze_events(events: list[dict], pricing: dict) -> dict:
     rows = request_rows(events)
     kinds = Counter(e["type"] for e in events)
+    totals = aggregate(rows, pricing)
+    # A cancelled main stream has no terminal-usage event to count as a row.
+    # Keep the measured subtotal, and expose this accounting uncertainty.
+    totals["interruption_or_retry_may_hide_usage"] = bool(
+        kinds["run.cancelled"]
+        or kinds["model.request.retry"]
+        or any(
+            e["payload"].get("termination_reason") == "max_wall_time_seconds"
+            or e["payload"].get("finalization_error")
+            for e in events
+        )
+    )
+    totals["cost_is_lower_bound"] |= totals["interruption_or_retry_may_hide_usage"]
     phases = sorted({r["phase"] for r in rows})
     main = [r for r in rows if r["phase"] == "main"]
     switches = []
@@ -173,7 +186,7 @@ def analyze_events(events: list[dict], pricing: dict) -> dict:
             }
         )
     return {
-        "totals": aggregate(rows, pricing),
+        "totals": totals,
         "by_phase": {
             phase: aggregate([r for r in rows if r["phase"] == phase], pricing) for phase in phases
         },

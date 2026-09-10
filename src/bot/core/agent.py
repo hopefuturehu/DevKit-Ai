@@ -2927,10 +2927,12 @@ class AgentRunner:
             )
 
         def project(record: dict[str, Any]) -> ModelRequest:
-            tail = self.store.load_positioned_messages(
-                strategy.session_id,
-                after_position=record["covered_end_position"],
-            )
+            # Preserve the actual pending deliveries and externalized views.
+            # Reloading SQLite can substitute a receipt for a not-yet-consumed
+            # context-reference result and understate the next request.
+            tail = [
+                entry for entry in conversation if entry.position > record["covered_end_position"]
+            ]
             items = self._build_context_items(
                 base_items=base_items,
                 memory_items=memory_items,

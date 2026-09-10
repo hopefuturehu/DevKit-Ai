@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from time import monotonic
@@ -400,6 +401,46 @@ class StrategyCompactor:
                 return parents[0]
             nodes = parents
 
+    def select_boundary(
+        self,
+        frame: StrategyFrame,
+        entries: list[PositionedMessage],
+        through: int,
+        anchors: list[int],
+    ) -> tuple[int, int]:
+        """Budget the complete retained view before paying for a root summary.
+
+        The legacy tail target uses a text heuristic. A/B must additionally fit
+        the calibrated full request, including Skills and pending deliveries.
+        Reserve the entire output allowance, rather than assume an average
+        summary length. Final candidate validation remains authoritative.
+        """
+        candidates = [through] + [
+            group[-1].position
+            for group in self.compactor._atomic_groups(entries)[:-1]
+            if group[-1].position > through
+        ]
+        reserve = math.ceil(self.config.context.compaction_max_output_tokens * 1.1) + 256
+        limit = min(self.config.context.compaction_low_water_tokens, self.input_limit)
+        for boundary in candidates:
+            record = {
+                "id": "0" * 32,
+                "session_id": self.session_id,
+                "covered_start_position": 1,
+                "covered_end_position": boundary,
+                "source_sha256": "0" * 64,
+                "anchor_positions": [
+                    e.position
+                    for e in entries
+                    if e.position <= boundary and e.is_real_user and e.position in anchors
+                ],
+                "summary_text": "[Summary output reserved separately]",
+            }
+            projected = self.count(frame.project(record)) + reserve
+            if projected <= limit:
+                return boundary, projected
+        raise ValueError("fixed_context_exceeds_low_water")
+
     async def compact(self, through: int, anchors: list[int]) -> ContextCompactionResult:
         if self.frame is None:
             raise ValueError("strategy_context_frame_missing")
@@ -409,8 +450,10 @@ class StrategyCompactor:
             )
         frame = self.frame
         began = monotonic()
+        self.last_metrics = {}
         before_requests = self.requests
         entries = self.store.load_positioned_messages(self.session_id)
+        requested_through = through
         covered = [e for e in entries if e.position <= through]
         previous = self.compactor.projection(self.session_id)["compaction"]
         start = int(previous["covered_end_position"]) + 1 if previous else 1
@@ -432,6 +475,16 @@ class StrategyCompactor:
         try:
             if not covered or not protocol_closed([e.message for e in entries]):
                 raise ValueError("incomplete_tool_group")
+            through, reserved_after = self.select_boundary(frame, entries, through, anchors)
+            covered = [e for e in entries if e.position <= through]
+            result.covered_end_position = through
+            result.messages_compacted = len(covered)
+            result.source_chars = sum(len(e.message.model_dump_json()) for e in covered)
+            self.last_metrics = {
+                "tail_target_end_position": requested_through,
+                "selected_end_position": through,
+                "reserved_after_tokens": reserved_after,
+            }
             digest = self.compactor._digest(covered)
             references: list[str] = []
             if self.strategy == "a":
@@ -489,6 +542,7 @@ class StrategyCompactor:
             after_request = frame.project(record)
             before, after = self.count(frame.request), self.count(after_request)
             self.last_metrics = {
+                **self.last_metrics,
                 "strategy": self.strategy,
                 "before_tokens": before,
                 "after_tokens": after,

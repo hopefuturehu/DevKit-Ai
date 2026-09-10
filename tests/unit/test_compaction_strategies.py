@@ -74,6 +74,7 @@ def engine(tmp_path, strategy="b", *, after_size=0):
                 "compaction_leaf_input_tokens": 2048,
                 "compaction_low_water_tokens": 2000,
                 "compaction_merge_fanout": 2,
+                "compaction_max_output_tokens": 512,
             },
         }
     )
@@ -158,20 +159,61 @@ async def test_b_background_tree_covers_every_range_and_publishes_only_once(tmp_
 
 
 @pytest.mark.asyncio
-async def test_a_preserves_input_prefix_and_checks_post_skill_recovery_budget(tmp_path):
-    a, provider, store, _ = engine(tmp_path, "a", after_size=12000)
+async def test_a_preserves_input_prefix_when_publishing(tmp_path):
+    a, provider, store, _ = engine(tmp_path, "a")
     try:
         original = a.frame.request.model_copy(deep=True)
         result = await a.compact(12, [1])
-        assert not result.compacted
-        assert "low_water_not_met" in result.error
+        assert result.compacted, result.error
         assert provider.requests[0].messages[:-1] == original.messages
         assert provider.requests[0].tools == original.tools
         assert a.frame.request == original
-        assert a.compactor.projection(a.session_id)["cursor_position"] == 0
-        assert not store.list_context_compactions(a.session_id)
+        assert a.compactor.projection(a.session_id)["cursor_position"] == 12
     finally:
         await a.close()
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_a_rejects_unfittable_recovery_before_paying_for_summary(tmp_path):
+    a, provider, store, _ = engine(tmp_path, "a", after_size=12000)
+    try:
+        result = await a.compact(6, [1])
+        assert not result.compacted and "fixed_context_exceeds_low_water" in result.error
+        assert not provider.requests
+        assert a.compactor.projection(a.session_id)["cursor_position"] == 0
+    finally:
+        await a.close()
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("strategy", ["a", "b"])
+async def test_strategy_extends_coverage_to_fit_complete_tail(tmp_path, strategy):
+    instance, provider, store, _ = engine(tmp_path, strategy)
+    entries = store.load_positioned_messages(instance.session_id)
+    instance.frame.project = lambda record: ModelRequest(
+        model="mock",
+        messages=[ChatMessage(role=Role.SYSTEM, content="policy")]
+        + [ChatMessage(role=Role.ASSISTANT, content=record["summary_text"])]
+        + [e.message for e in entries if e.position > record["covered_end_position"]],
+    )
+    try:
+        result = await instance.compact(3, [1])
+        assert result.compacted, result.error
+        assert 3 < result.covered_end_position < 12
+        assert result.requested_end_position == 3
+        assert instance.last_metrics["after_tokens"] <= 2000
+        if strategy == "b":
+            sources = [
+                m["position"]
+                for r in provider.requests
+                if json.loads(r.messages[-1].content)["kind"] == "leaf"
+                for m in json.loads(r.messages[-1].content)["messages"]
+            ]
+            assert sources == list(range(1, result.covered_end_position + 1))
+    finally:
+        await instance.close()
         store.close()
 
 
