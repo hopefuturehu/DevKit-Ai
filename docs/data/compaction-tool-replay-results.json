@@ -1,0 +1,365 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "source_db": "artifacts/context-strategy-path-20260910/a-output-32k/jobs/a/035880d7ef5554b217e53a75ce5e87e4__CTqXzEk/agent/trace/state.db",
+    "source_db_sha256": "76bbc8800d1eb46c2e42094789c20bc020332f487772ff43380a8068dc64a777",
+    "source_events_sha256": "8fcaa299b03f379cc69589394ae8c3da0b119c590b4ccf75126019da083f54bf",
+    "config_sha256": "f2fefba951cf55764c7fbd568b0885f085a54377f15a208181d3650bd33058ea",
+    "cutoff_sequence": 5781,
+    "history_positions": [
+      1,
+      70
+    ],
+    "summary_covered_range": [
+      1,
+      40
+    ],
+    "runtime_note_ids": [
+      "progress-stall-warning",
+      "session-plan"
+    ],
+    "tool_names": [
+      "activate_tools",
+      "apply_patch",
+      "fetch_url",
+      "ksys",
+      "list_processes",
+      "load_compaction_source",
+      "load_context_reference",
+      "poll_process",
+      "read_file",
+      "run_command",
+      "run_shell",
+      "search_session_history",
+      "search_text",
+      "send_process_input",
+      "terminate_process",
+      "tuner",
+      "update_plan"
+    ],
+    "environment": {
+      "operating_system": "linux",
+      "architecture": "x86_64",
+      "executables": {
+        "ksys": null,
+        "devkit": null
+      }
+    },
+    "limitations": [
+      "Original HTTP payload was not persisted; this is a reconstructed replay.",
+      "Environment: Linux x86_64, ksys/devkit absent, no AGENTS.md, empty Skill catalog.",
+      "No published compaction or live managed process at this boundary.",
+      "Original two tool names/arguments are lost; these responses are new observations."
+    ],
+    "created_at": "2026-09-11T03:02:49.053951+00:00",
+    "live": true,
+    "original_first_input": 3914,
+    "reconstructed_first_input": 3914,
+    "original_summary_input": 73262,
+    "reconstructed_summary_input": 73262,
+    "estimate": {
+      "tokens": 73262,
+      "budget_tokens": 76926,
+      "source": "deepseek-v4-pro:b5968e9190ef611bbf34a7229255be88a0e937c1",
+      "effective_thinking": "disabled"
+    },
+    "model": "deepseek-v4-pro",
+    "thinking": "disabled",
+    "max_output_tokens": 8192,
+    "repeats": 3,
+    "max_cost_reserved_usd": 0.5,
+    "script_sha256": "dee19049e7cff10e52c60e4f493629dea1553588e8996e2e34e28a5827ddd216"
+  },
+  "source_audit": {
+    "wheel_sha256": "b5828aaddac8c0d49e8a23814ff0217f1e2922e85930d6ed4f1c5c8c9985077b",
+    "frozen_source_matches": {
+      "bot/compaction/handoff.py": true,
+      "bot/core/context.py": true,
+      "bot/core/termination/controller.py": true,
+      "bot/skills/catalog.py": true,
+      "bot/tools/__init__.py": true,
+      "bot/tools/base.py": true,
+      "bot/tools/builtins.py": true,
+      "bot/tools/plan.py": true,
+      "bot/tools/registry.py": true,
+      "bot/tools/subprocess_adapter.py": true,
+      "bot/tools/kunpeng/__init__.py": true,
+      "bot/tools/kunpeng/ksys.py": true,
+      "bot/tools/kunpeng/tuner.py": true,
+      "_build_context_items": true,
+      "_select_tool_definitions": true,
+      "_externalize_message": true,
+      "_inline_reference": true,
+      "_replace_runtime_note": true,
+      "_refresh_plan_note": true
+    }
+  },
+  "artifact_hashes": {
+    "artifacts/compaction-tool-replay-20260911/live/events-1.jsonl": "b50d79df69b36bcf29d526074546191275557df17bcb3ba96baeef445673b42a",
+    "artifacts/compaction-tool-replay-20260911/live/events-2.jsonl": "96ce7ccdffa4abf3a7e3cddda5e74a998c6936e25c2dd3a04cc1b0c76519a1ae",
+    "artifacts/compaction-tool-replay-20260911/live/events-3.jsonl": "72a2abb2d0b288c29011aa0ab964fd7902fd665819f7bbd4c4d2d64e48dbbfe0",
+    "artifacts/compaction-tool-replay-20260911/live/manifest.json": "afd8032378ec475b1d83ea41d8b88c31ab880d9b2e6374760256fb6954eaa535",
+    "artifacts/compaction-tool-replay-20260911/live/request.json": "e6350754d576345a7f1f75e54962a57cf53db0ea19e548b411e7c54cb38ac3be",
+    "artifacts/compaction-tool-replay-20260911/live/results.json": "7c44294bc089aef8753d6fac504c48c50bf6c3a892834d6713181fbd969f8ad9"
+  },
+  "aggregate": {
+    "requests": 3,
+    "complete_usage": 3,
+    "input_tokens": 219786,
+    "hit_tokens": 219648,
+    "miss_tokens": 138,
+    "output_tokens": 283,
+    "weighted_hit_rate": 0.9993721165133357,
+    "known_cost_usd": 0.010967352,
+    "price_period": "peak",
+    "usd_per_million": {
+      "hit": 0.044,
+      "miss": 1.32,
+      "output": 3.96
+    },
+    "pricing_source": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "model_tool_calls": 3,
+    "tool_executions": 0,
+    "summary_responses": 0
+  },
+  "comparisons": [
+    {
+      "attempt": 1,
+      "name": "run_shell",
+      "arguments": {
+        "script": "cd /app && objdump -s -j .rodata --start-address=0x485ac0 --stop-address=0x485ae0 mystery"
+      },
+      "executed": false,
+      "matches_last_executed_call": true
+    },
+    {
+      "attempt": 2,
+      "name": "update_plan",
+      "arguments": {
+        "items": [
+          {
+            "content": "Analyze mystery binary (symbols, constants, disassembly)",
+            "status": "completed"
+          },
+          {
+            "content": "Write mystery.c ray tracer reconstruction",
+            "status": "in_progress"
+          },
+          {
+            "content": "Compile and verify output matches image.ppm byte-for-byte",
+            "status": "pending"
+          },
+          {
+            "content": "Verify compressed size < 2k",
+            "status": "pending"
+          }
+        ]
+      },
+      "executed": false,
+      "items_match_current_plan": true
+    },
+    {
+      "attempt": 3,
+      "name": "run_shell",
+      "arguments": {
+        "script": "cd /app && objdump -s -j .rodata --start-address=0x485ac0 --stop-address=0x485ae0 mystery"
+      },
+      "executed": false,
+      "matches_last_executed_call": true
+    }
+  ],
+  "requests": [
+    {
+      "attempt": 1,
+      "started_at": "2026-09-11T03:02:49.055173+00:00",
+      "text": "",
+      "reasoning": "",
+      "calls": {
+        "0": {
+          "id": "call_00_WBauc7BPZxTVdS8qnRau4117",
+          "name": "run_shell",
+          "arguments": "{\"script\": \"cd /app && objdump -s -j .rodata --start-address=0x485ac0 --stop-address=0x485ae0 mystery\"}"
+        }
+      },
+      "usage": {
+        "provider": "openai_compatible",
+        "request_id": null,
+        "response_id": "9b90851d-7acc-49e9-9286-809438778ac4",
+        "model": "deepseek-v4-pro",
+        "raw_usage": {
+          "prompt_tokens": 73262,
+          "completion_tokens": 77,
+          "total_tokens": 73339,
+          "prompt_tokens_details": {
+            "cached_tokens": 73216
+          },
+          "prompt_cache_hit_tokens": 73216,
+          "prompt_cache_miss_tokens": 46
+        },
+        "input_token_estimate": {
+          "tokens": 73262,
+          "budget_tokens": 76926,
+          "source": "deepseek-v4-pro:b5968e9190ef611bbf34a7229255be88a0e937c1",
+          "effective_thinking": "disabled"
+        },
+        "input_token_error": 0,
+        "input_budget_exceeded": false
+      },
+      "status": "completed",
+      "finish_reason": "tool_calls",
+      "finish_metadata": {
+        "provider": "openai_compatible",
+        "request_id": null,
+        "response_id": "9b90851d-7acc-49e9-9286-809438778ac4",
+        "model": "deepseek-v4-pro",
+        "system_fingerprint": "a307abda487cd1b463329ccb945ce396",
+        "choice_index": 0,
+        "chunk_count": 45,
+        "content_chars": 0,
+        "reasoning_chars": 0,
+        "tool_call_chunks": 43,
+        "observed_delta_fields": [
+          "content",
+          "role",
+          "tool_calls"
+        ],
+        "unhandled_delta_samples": [],
+        "finish_choice_fields": [
+          "delta",
+          "finish_reason",
+          "index",
+          "logprobs"
+        ]
+      },
+      "ended_at": "2026-09-11T03:02:52.647825+00:00"
+    },
+    {
+      "attempt": 2,
+      "started_at": "2026-09-11T03:02:57.649740+00:00",
+      "text": "",
+      "reasoning": "",
+      "calls": {
+        "0": {
+          "id": "call_00_axgNoMu7tyYgqEGHjcqm4304",
+          "name": "update_plan",
+          "arguments": "{\"items\": [{\"content\": \"Analyze mystery binary (symbols, constants, disassembly)\", \"status\": \"completed\"}, {\"content\": \"Write mystery.c ray tracer reconstruction\", \"status\": \"in_progress\"}, {\"content\": \"Compile and verify output matches image.ppm byte-for-byte\", \"status\": \"pending\"}, {\"content\": \"Verify compressed size < 2k\", \"status\": \"pending\"}]}"
+        }
+      },
+      "usage": {
+        "provider": "openai_compatible",
+        "request_id": null,
+        "response_id": "a171dc68-d371-4026-b482-480199b441d5",
+        "model": "deepseek-v4-pro",
+        "raw_usage": {
+          "prompt_tokens": 73262,
+          "completion_tokens": 129,
+          "total_tokens": 73391,
+          "prompt_tokens_details": {
+            "cached_tokens": 73216
+          },
+          "prompt_cache_hit_tokens": 73216,
+          "prompt_cache_miss_tokens": 46
+        },
+        "input_token_estimate": {
+          "tokens": 73262,
+          "budget_tokens": 76926,
+          "source": "deepseek-v4-pro:b5968e9190ef611bbf34a7229255be88a0e937c1",
+          "effective_thinking": "disabled"
+        },
+        "input_token_error": 0,
+        "input_budget_exceeded": false
+      },
+      "status": "completed",
+      "finish_reason": "tool_calls",
+      "finish_metadata": {
+        "provider": "openai_compatible",
+        "request_id": null,
+        "response_id": "a171dc68-d371-4026-b482-480199b441d5",
+        "model": "deepseek-v4-pro",
+        "system_fingerprint": "a307abda487cd1b463329ccb945ce396",
+        "choice_index": 0,
+        "chunk_count": 95,
+        "content_chars": 0,
+        "reasoning_chars": 0,
+        "tool_call_chunks": 93,
+        "observed_delta_fields": [
+          "content",
+          "role",
+          "tool_calls"
+        ],
+        "unhandled_delta_samples": [],
+        "finish_choice_fields": [
+          "delta",
+          "finish_reason",
+          "index",
+          "logprobs"
+        ]
+      },
+      "ended_at": "2026-09-11T03:03:01.196141+00:00"
+    },
+    {
+      "attempt": 3,
+      "started_at": "2026-09-11T03:03:06.197731+00:00",
+      "text": "",
+      "reasoning": "",
+      "calls": {
+        "0": {
+          "id": "call_00_sLTKhnveG8YgAThjM9mg3401",
+          "name": "run_shell",
+          "arguments": "{\"script\": \"cd /app && objdump -s -j .rodata --start-address=0x485ac0 --stop-address=0x485ae0 mystery\"}"
+        }
+      },
+      "usage": {
+        "provider": "openai_compatible",
+        "request_id": null,
+        "response_id": "f9007bff-c376-4d11-9d80-50da11474777",
+        "model": "deepseek-v4-pro",
+        "raw_usage": {
+          "prompt_tokens": 73262,
+          "completion_tokens": 77,
+          "total_tokens": 73339,
+          "prompt_tokens_details": {
+            "cached_tokens": 73216
+          },
+          "prompt_cache_hit_tokens": 73216,
+          "prompt_cache_miss_tokens": 46
+        },
+        "input_token_estimate": {
+          "tokens": 73262,
+          "budget_tokens": 76926,
+          "source": "deepseek-v4-pro:b5968e9190ef611bbf34a7229255be88a0e937c1",
+          "effective_thinking": "disabled"
+        },
+        "input_token_error": 0,
+        "input_budget_exceeded": false
+      },
+      "status": "completed",
+      "finish_reason": "tool_calls",
+      "finish_metadata": {
+        "provider": "openai_compatible",
+        "request_id": null,
+        "response_id": "f9007bff-c376-4d11-9d80-50da11474777",
+        "model": "deepseek-v4-pro",
+        "system_fingerprint": "a307abda487cd1b463329ccb945ce396",
+        "choice_index": 0,
+        "chunk_count": 45,
+        "content_chars": 0,
+        "reasoning_chars": 0,
+        "tool_call_chunks": 43,
+        "observed_delta_fields": [
+          "content",
+          "role",
+          "tool_calls"
+        ],
+        "unhandled_delta_samples": [],
+        "finish_choice_fields": [
+          "delta",
+          "finish_reason",
+          "index",
+          "logprobs"
+        ]
+      },
+      "ended_at": "2026-09-11T03:03:09.936398+00:00"
+    }
+  ]
+}
