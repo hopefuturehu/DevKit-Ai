@@ -8,6 +8,9 @@
 补充 VS Code Copilot 后台摘要、oh-my-pi handoff 和 Harness 社区缓存参数修复，
 区分已实现代码、真实用量报告及未合并 PR。
 
+用户选定的“前缀尝试一次，失败后专用角色摘要”已形成
+[具体设计](compaction-prefix-fallback-design.md)，当前仍为设计阶段。
+
 ## 1. 与本项目直接对应的故障
 
 [DeepSeek Harness discussion #5521](https://github.com/deepseek-ai/deepseek-harness/discussions/5521)
