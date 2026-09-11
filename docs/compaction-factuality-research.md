@@ -110,3 +110,55 @@
 4. 同环境快照的短续跑是否采用错误结论、重新取证成本，以及任务验收；五次筛查不足以宣称总体收益。
 
 这些是后续测试设计，没有在本次执行，也没有证据可宣称某项建议已降低事实错误率。
+
+## 补充：Codex 与 Claude Code 的公开做法
+
+同日补充核对。Codex 先查看本地 `41ece455b7fa7166f4fc38522952afdaa2604e18`，
+再冻结上游 `02a8f038b87ad34d4a1dc5058eda26972ed7aa6c` 的相关文件。
+该新版本的手动路由在 Provider 支持时调用 remote V2，不支持时走普通文本摘要；
+另有 feature 控制的 TokenBudget 路径，本次不作所有实验策略的穷举。
+旧 `compact_remote.rs` 在该提交返回 404，不能沿用此前 remote V1 的路径描述来概括当前代码。
+
+### Codex：保留原文和上下文，原生压缩内部不可审计
+
+- 普通文本摘要提示要求保留进度、关键决定、约束、下一步和必要资料，没有逐项事实引用、
+  矛盾清单或第二次审查的要求。生成后，客户端提取最后一条助手正文，重建摘要与预算内的
+  用户消息，并按入口恢复当前初始上下文；所核对路径未见语义事实校验。
+- 原生 remote V2 从活动历史构造请求，追加 `CompactionTrigger`。客户端检查流是否完成，
+  是否恰好有一个 compaction item，然后构造保留消息与压缩状态；这些是协议检查。
+- OpenAI 官方文档说明压缩状态是不面向人类阅读的加密 item，可以承载之前的关键状态与 reasoning。
+  这不能证明无损压缩，也不能证明内部已核对事实。服务端摘要提示、事实验证及训练细节未在
+  本次核对资料中公开，不能从客户端源码推断“服务端一定没有审查”。
+- 普通文本路径还会提醒长线程与多次压缩可能降低准确性；这是公开承认质量边界，不是纠错机制。
+
+依据：[普通摘要提示](https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/prompts/templates/compact/prompt.md)、
+[文本摘要发布](https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact.rs#L350)、
+[V2 响应检查](https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact_remote_v2.rs#L423)、
+[OpenAI Compaction 文档](https://developers.openai.com/api/docs/guides/compaction)。
+API 文档用于解释公开的原生压缩接口概念，不代表 Codex CLI 当前直接调用 standalone endpoint。
+
+### Claude Code：摘要提示调优与从真实文件恢复
+
+Anthropic 的工程文章明确描述 Claude Code 保留架构决定、未解决问题和实现细节，
+并建议用复杂真实轨迹调优摘要：先提高相关信息保留率，再删除多余内容。
+这里的 precision 指减少无关内容，不应翻译成已经实现逐条事实准确性校验。
+见 [Anthropic 上下文工程文章](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)。
+
+官方行为文档说明压缩后恢复项目根指令、auto memory 与 plan；最多重读五个文件，
+优先最近修改的，超过 5,000 tokens 的文件改为路径引用。这样可减少对摘要转述文件内容的依赖，
+但记忆文件也可能含有模型错误，恢复文件不等于自动消解所有历史矛盾。
+见 [Claude Code 压缩恢复规则](https://code.claude.com/docs/en/context-window#what-survives-compaction)。
+
+此外，Anthropic 的模型提示指南公开了更具体的客户端摘要建议：保留遇到的问题及处理方式、
+尝试或否决的方案及原因、用户确立的约束、当前完成状态、未解决事项，以及难以重建的精确细节；
+用户内容应更接近原话，助手解释可以压缩得更多。这是面向自建客户端的官方建议，
+不能冒充 Claude Code 当前完整内置 prompt。
+见 [客户端摘要保留要求](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#tell-the-model-what-to-preserve-in-compaction-summaries)。
+
+PostCompact 可以获取 `compact_summary` 用于审计，但触发时压缩已经完成，不能控制或修改压缩结果。
+因此它提供可观测性，不是发布前的事实验证钩子。
+见 [PostCompact 官方说明](https://code.claude.com/docs/en/hooks#postcompact)。
+
+两者公开的做法支持优先改进信息保留、原文锚点和状态恢复；目前没有足够公开证据
+把它们表述为拥有类似 Gemini 的逐次二次摘要自查，更不能宣称已解决通用事实矛盾。
+本次补充同样只更新研究记录，没有修改运行时或调用付费模型。

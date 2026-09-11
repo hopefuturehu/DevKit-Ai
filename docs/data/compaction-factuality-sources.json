@@ -80,6 +80,57 @@
           "url": "https://github.com/microsoft/vscode/blob/19b19de2c7542c6dda1f76e742b3dff6608345b9/extensions/copilot/src/extension/prompts/node/agent/summarizedConversationHistory.tsx"
         }
       ]
+    },
+    {
+      "repo": "openai/codex",
+      "branch": "main",
+      "sha": "02a8f038b87ad34d4a1dc5058eda26972ed7aa6c",
+      "commit_date": "2026-09-11T07:13:19Z",
+      "checked_at": "2026-09-11T09:22:37.167974+00:00",
+      "files": [
+        {
+          "path": "codex-rs/prompts/templates/compact/prompt.md",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__prompts__templates__compact__prompt.md",
+          "sha256": "ab0c334d4faca17e3afbb9b16967c1b2fdcc7242a9a0880af57949fa236d6d07",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/prompts/templates/compact/prompt.md"
+        },
+        {
+          "path": "codex-rs/prompts/templates/compact/summary_prefix.md",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__prompts__templates__compact__summary_prefix.md",
+          "sha256": "e9b088e794a6bb9082ac053fcc760bd818d7e720ee4bcdc72c6e480de7b7cb0e",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/prompts/templates/compact/summary_prefix.md"
+        },
+        {
+          "path": "codex-rs/core/src/compact.rs",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__compact.rs",
+          "sha256": "da4a0ab1ebc2f52c49d08d3d76a9dcec23bf7f85794f3f88a09854f4cddb2f23",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact.rs"
+        },
+        {
+          "path": "codex-rs/core/src/compact_remote_v2.rs",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__compact_remote_v2.rs",
+          "sha256": "c5c268efb64c35d84f9c3922b4380f751ec2f010ae96a620c02c546454a62b8d",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact_remote_v2.rs"
+        },
+        {
+          "path": "codex-rs/core/src/compact_remote_v2_attempt.rs",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__compact_remote_v2_attempt.rs",
+          "sha256": "76c74b9b62f73f589b1d7d5073bd5c6b31a567101c25e89a24f7295d4ba9b803",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact_remote_v2_attempt.rs"
+        },
+        {
+          "path": "codex-rs/core/src/tasks/compact.rs",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__tasks__compact.rs",
+          "sha256": "1c1627c7959294525a86fbd0fd1aaee23930d38992e3bd9a1fd7b4fe2ad1d96f",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/tasks/compact.rs"
+        }
+      ],
+      "unavailable_paths": [
+        {
+          "path": "codex-rs/core/src/compact_remote.rs",
+          "error": "HTTP Error 404: Not Found"
+        }
+      ]
     }
   ],
   "scope": "Source audit and proposed improvements only; no runtime modifications or model experiments.",
@@ -89,6 +140,31 @@
       "checked_on": "2026-09-11",
       "supported_claim": "Project-root CLAUDE.md is read from disk and reinjected after compaction; nested and path-scoped instructions reload on relevant access.",
       "limitation": "Public behavior documentation does not establish a general factuality verifier."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/compaction",
+      "checked_on": "2026-09-11",
+      "supported_claim": "Native API compaction returns an opaque encrypted item carrying key prior state and reasoning; public docs do not establish factual verification."
+    },
+    {
+      "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+      "checked_on": "2026-09-11",
+      "supported_claim": "Claude Code summary priorities; prompt tuning on complex agent traces should first maximize recall, then remove superfluous content."
+    },
+    {
+      "url": "https://code.claude.com/docs/en/context-window#what-survives-compaction",
+      "checked_on": "2026-09-11",
+      "supported_claim": "Root instructions, auto memory and plan reload; up to five files reread, most recently modified first, with large files referenced by path."
+    },
+    {
+      "url": "https://code.claude.com/docs/en/hooks#postcompact",
+      "checked_on": "2026-09-11",
+      "supported_claim": "PostCompact receives compact_summary after completion and cannot affect the result."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#tell-the-model-what-to-preserve-in-compaction-summaries",
+      "checked_on": "2026-09-11",
+      "supported_claim": "Official client-side prompt guidance preserves rejected approaches, exact constraints, completion state and unresolved work; not proof of Claude Code internal prompt."
     }
   ]
 }
