@@ -9,7 +9,8 @@
 区分已实现代码、真实用量报告及未合并 PR。
 
 用户选定的“前缀尝试一次，失败后专用角色摘要”已形成
-[具体设计](compaction-prefix-fallback-design.md)，当前仍为设计阶段。
+[具体设计](compaction-prefix-fallback-design.md)，并实现为可选 `a_fallback`；
+后续验证见 [32K 实测记录](compaction-prefix-fallback-evaluation.md)。
 
 ## 1. 与本项目直接对应的故障
 
