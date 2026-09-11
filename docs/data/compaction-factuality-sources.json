@@ -1,0 +1,94 @@
+{
+  "checked_at": "2026-09-11T08:49:47.064680+00:00",
+  "repositories": [
+    {
+      "repo": "earendil-works/pi",
+      "branch": "main",
+      "sha": "62129190d81067ec86ae5a5fc907c96bfe435a78",
+      "commit_date": "2026-09-11T07:59:38Z",
+      "files": [
+        {
+          "path": "packages/coding-agent/src/core/compaction/compaction.ts",
+          "local": "artifacts/compaction-factuality-20260911/earendil-works__pi__packages__coding-agent__src__core__compaction__compaction.ts",
+          "sha256": "d3f639c21c4b91ebbe9d5716914636c3eb37a19d434e11bd6653fef8050f1357",
+          "url": "https://github.com/earendil-works/pi/blob/62129190d81067ec86ae5a5fc907c96bfe435a78/packages/coding-agent/src/core/compaction/compaction.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/core/compaction/utils.ts",
+          "local": "artifacts/compaction-factuality-20260911/earendil-works__pi__packages__coding-agent__src__core__compaction__utils.ts",
+          "sha256": "6e9d2c0b6076d5cac5fd444e5381a1fc01da5acf30eb776319a6b562fc42a02c",
+          "url": "https://github.com/earendil-works/pi/blob/62129190d81067ec86ae5a5fc907c96bfe435a78/packages/coding-agent/src/core/compaction/utils.ts"
+        }
+      ]
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "branch": "dev",
+      "sha": "193de13a88d62a6409c6d385831180f1def527dc",
+      "commit_date": "2026-09-10T20:33:35Z",
+      "files": [
+        {
+          "path": "packages/opencode/src/session/compaction.ts",
+          "local": "artifacts/compaction-factuality-20260911/anomalyco__opencode__packages__opencode__src__session__compaction.ts",
+          "sha256": "8d478570a7e4ad32b746030d4f86a1c673949b1e2259bd716b3885d99283289a",
+          "url": "https://github.com/anomalyco/opencode/blob/193de13a88d62a6409c6d385831180f1def527dc/packages/opencode/src/session/compaction.ts"
+        },
+        {
+          "path": "packages/opencode/src/agent/prompt/compaction.txt",
+          "local": "artifacts/compaction-factuality-20260911/anomalyco__opencode__packages__opencode__src__agent__prompt__compaction.txt",
+          "sha256": "552db0de0af1873a8acd4a631e2548345d4c43192de1d9be69c8feab4b41f80c",
+          "url": "https://github.com/anomalyco/opencode/blob/193de13a88d62a6409c6d385831180f1def527dc/packages/opencode/src/agent/prompt/compaction.txt"
+        },
+        {
+          "path": "packages/core/src/session/compaction.ts",
+          "local": "artifacts/compaction-factuality-20260911/anomalyco__opencode__packages__core__src__session__compaction.ts",
+          "sha256": "35bc2da1578b6bb80a3c39c1d6c51f234f34ce6586dd4f9d230e2a31b257138d",
+          "url": "https://github.com/anomalyco/opencode/blob/193de13a88d62a6409c6d385831180f1def527dc/packages/core/src/session/compaction.ts"
+        }
+      ]
+    },
+    {
+      "repo": "google-gemini/gemini-cli",
+      "branch": "main",
+      "sha": "ed2ac40df67a319bf348bd7e3d10494696b31b38",
+      "commit_date": "2026-09-08T22:40:34Z",
+      "files": [
+        {
+          "path": "packages/core/src/context/chatCompressionService.ts",
+          "local": "artifacts/compaction-factuality-20260911/google-gemini__gemini-cli__packages__core__src__context__chatCompressionService.ts",
+          "sha256": "796b43770e9de160c2aa2db8f729eb3141072b82d5cfc380543e0e95bdb0567e",
+          "url": "https://github.com/google-gemini/gemini-cli/blob/ed2ac40df67a319bf348bd7e3d10494696b31b38/packages/core/src/context/chatCompressionService.ts"
+        },
+        {
+          "path": "packages/core/src/prompts/snippets.ts",
+          "local": "artifacts/compaction-factuality-20260911/google-gemini__gemini-cli__packages__core__src__prompts__snippets.ts",
+          "sha256": "cd6013ea25ef66ba9353546f899fdf4751eae1bf711d156841eb9ad2358f2976",
+          "url": "https://github.com/google-gemini/gemini-cli/blob/ed2ac40df67a319bf348bd7e3d10494696b31b38/packages/core/src/prompts/snippets.ts"
+        }
+      ]
+    },
+    {
+      "repo": "microsoft/vscode",
+      "branch": "main",
+      "sha": "19b19de2c7542c6dda1f76e742b3dff6608345b9",
+      "commit_date": "2026-09-11T07:57:22Z",
+      "files": [
+        {
+          "path": "extensions/copilot/src/extension/prompts/node/agent/summarizedConversationHistory.tsx",
+          "local": "artifacts/compaction-factuality-20260911/microsoft__vscode__extensions__copilot__src__extension__prompts__node__agent__summarizedConversationHistory.tsx",
+          "sha256": "b2bdefe1a3826d2856f96f4d0ebeebcc5dc5443470906e65c2fed2a405956e28",
+          "url": "https://github.com/microsoft/vscode/blob/19b19de2c7542c6dda1f76e742b3dff6608345b9/extensions/copilot/src/extension/prompts/node/agent/summarizedConversationHistory.tsx"
+        }
+      ]
+    }
+  ],
+  "scope": "Source audit and proposed improvements only; no runtime modifications or model experiments.",
+  "official_documents": [
+    {
+      "url": "https://code.claude.com/docs/en/memory#instructions-seem-lost-after-compact",
+      "checked_on": "2026-09-11",
+      "supported_claim": "Project-root CLAUDE.md is read from disk and reinjected after compaction; nested and path-scoped instructions reload on relevant access.",
+      "limitation": "Public behavior documentation does not establish a general factuality verifier."
+    }
+  ]
+}
