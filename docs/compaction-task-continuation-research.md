@@ -4,6 +4,10 @@
 范围内，没有可直接保证 DeepSeek 同时保留全部热前缀、又绝不生成工具调用的通用开关。**
 本次只调研和补充文档，未修改运行时代码，未新增模型实验。
 
+后续扩大检索见[可复用主会话缓存的开源实现](cache-reusing-compaction-implementations.md)：
+补充 VS Code Copilot 后台摘要、oh-my-pi handoff 和 Harness 社区缓存参数修复，
+区分已实现代码、真实用量报告及未合并 PR。
+
 ## 1. 与本项目直接对应的故障
 
 [DeepSeek Harness discussion #5521](https://github.com/deepseek-ai/deepseek-harness/discussions/5521)

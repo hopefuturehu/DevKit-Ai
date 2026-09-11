@@ -1,0 +1,222 @@
+{
+  "checked_at": "2026-09-11T06:43:26.967432+00:00",
+  "scope": "Public upstream source audit of summary requests that can reuse the main conversation provider prefix cache. No runtime changes, paid model calls, or upstream test runs.",
+  "evidence": [
+    {
+      "project": "microsoft/vscode Copilot background summarization",
+      "level": "upstream implementation; no live cache measurements in this audit"
+    },
+    {
+      "project": "can1357/oh-my-pi handoff",
+      "level": "upstream implementation; toolChoice none remains provider-sensitive; no live cache measurements in this audit"
+    },
+    {
+      "project": "deepseek-ai/deepseek-harness",
+      "level": "upstream prefix replay implementation; full header inheritance only verified in separate community fork"
+    },
+    {
+      "project": "anomalyco/opencode",
+      "level": "two open unmerged pull requests, not default shipped behavior"
+    }
+  ],
+  "files": [
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "docs/handoff-generation-pipeline.md",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-docs__handoff-generation-pipeline.md",
+      "sha256": "df9a56481d8ecba2d422937ff68484b247aefe01d7de69ee0a63e96ed470b6ae",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/docs/handoff-generation-pipeline.md",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/docs/handoff-generation-pipeline.md"
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "docs/compaction.md",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-docs__compaction.md",
+      "sha256": "b2feca41bf0661e177620606720299ab11895aba56e0eee741c01b2dbf134cdc",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/docs/compaction.md",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/docs/compaction.md"
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "packages/agent/src/compaction/compaction.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-packages__agent__src__compaction__compaction.ts",
+      "sha256": "078d0571d2a20544cafb66fbfea3eaca45ee14078e85603cce139ce6d26f44ec",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/src/compaction/compaction.ts",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/src/compaction/compaction.ts"
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "packages/agent/src/agent.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-packages__agent__src__agent.ts",
+      "sha256": "70a8f287055255e46d6e36794ab097fe316a38c8779b09b4335a6f39a76f115f",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/src/agent.ts",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/src/agent.ts"
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "packages/coding-agent/src/session/session-handoff.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-packages__coding-agent__src__session__session-handoff.ts",
+      "sha256": "f634233ccf1a5203794447e13eac1f8247121c22988a5a2464361c6a9e8ba42c",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/coding-agent/src/session/session-handoff.ts",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/coding-agent/src/session/session-handoff.ts"
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "packages/agent/src/compaction/prompts/handoff-document.md",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-packages__agent__src__compaction__prompts__handoff-document.md",
+      "sha256": "8463c4689bab77afeb1ad354c829ea226e1e1cbda5aee55dccad7417111e6bd4",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/src/compaction/prompts/handoff-document.md",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/src/compaction/prompts/handoff-document.md"
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "packages/agent/test/handoff.test.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-packages__agent__test__handoff.test.ts",
+      "sha256": "7bbd3a52118c8058c65df92234beb9d22c067ad72a456babd15497be3feac162",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/test/handoff.test.ts",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/packages/agent/test/handoff.test.ts"
+    },
+    {
+      "repo": "microsoft/vscode",
+      "ref": "a2abfe9056619001322c95a9761a6671d233de68",
+      "path": "extensions/copilot/src/extension/prompts/node/agent/summarizedConversationHistory.tsx",
+      "local": "artifacts/compaction-cache-implementations-20260911/vscode-extensions__copilot__src__extension__prompts__node__agent__summarizedConversationHistory.tsx",
+      "sha256": "b2bdefe1a3826d2856f96f4d0ebeebcc5dc5443470906e65c2fed2a405956e28",
+      "url": "https://github.com/microsoft/vscode/blob/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/prompts/node/agent/summarizedConversationHistory.tsx",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/vscode/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/prompts/node/agent/summarizedConversationHistory.tsx"
+    },
+    {
+      "repo": "microsoft/vscode",
+      "ref": "a2abfe9056619001322c95a9761a6671d233de68",
+      "path": "extensions/copilot/src/extension/intents/node/agentIntent.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/vscode-extensions__copilot__src__extension__intents__node__agentIntent.ts",
+      "sha256": "657ec5b94acea278cf61f9cc85f5b229d2360c12a508c3abca10ab384d05c47c",
+      "url": "https://github.com/microsoft/vscode/blob/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/intents/node/agentIntent.ts",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/vscode/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/intents/node/agentIntent.ts"
+    },
+    {
+      "repo": "microsoft/vscode",
+      "ref": "a2abfe9056619001322c95a9761a6671d233de68",
+      "path": "extensions/copilot/src/platform/configuration/common/configurationService.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/vscode-extensions__copilot__src__platform__configuration__common__configurationService.ts",
+      "sha256": "f6998fc1e1f5d67d048dd4b354f97bf3d91f984d80d163a215f2868d324f6688",
+      "url": "https://github.com/microsoft/vscode/blob/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/platform/configuration/common/configurationService.ts",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/vscode/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/platform/configuration/common/configurationService.ts"
+    },
+    {
+      "repo": "microsoft/vscode",
+      "ref": "a2abfe9056619001322c95a9761a6671d233de68",
+      "path": "extensions/copilot/src/extension/prompts/node/agent/backgroundSummarizer.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/vscode-extensions__copilot__src__extension__prompts__node__agent__backgroundSummarizer.ts",
+      "sha256": "442af5ad19aac9854a3ca2d372cc9ec2cc6a8b72a10fbfac214ba0bc411bbb2b",
+      "url": "https://github.com/microsoft/vscode/blob/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/prompts/node/agent/backgroundSummarizer.ts",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/vscode/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/prompts/node/agent/backgroundSummarizer.ts"
+    },
+    {
+      "repo": "microsoft/vscode",
+      "ref": "a2abfe9056619001322c95a9761a6671d233de68",
+      "path": "extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/vscode-extensions__copilot__src__extension__prompts__node__agent__test__backgroundSummarizer.spec.ts",
+      "sha256": "526d92ad9076ac56da57039cbd68c523632ad3c68fa130ffc5c4e9be52ac6325",
+      "url": "https://github.com/microsoft/vscode/blob/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/vscode/a2abfe9056619001322c95a9761a6671d233de68/extensions/copilot/src/extension/prompts/node/agent/test/backgroundSummarizer.spec.ts"
+    },
+    {
+      "repo": "zoahdev/deepseek-harness",
+      "ref": "1cf3ee626dd6cb5d21f89e0fbd240a6dc8ec2bb3",
+      "path": "packages/compaction/compaction-basic/src/summarizer.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/harness-fork-summary.ts",
+      "sha256": "4004943acc6ae7b34ad8bb98656d70f0f23cb63d736720cd27ddfe0b1477db0f",
+      "url": "https://github.com/zoahdev/deepseek-harness/blob/1cf3ee626dd6cb5d21f89e0fbd240a6dc8ec2bb3/packages/compaction/compaction-basic/src/summarizer.ts",
+      "raw_url": "https://raw.githubusercontent.com/zoahdev/deepseek-harness/1cf3ee626dd6cb5d21f89e0fbd240a6dc8ec2bb3/packages/compaction/compaction-basic/src/summarizer.ts"
+    },
+    {
+      "repo": "cline/cline",
+      "ref": "dd50b97192e21e08408ee2ad1c5190aaf56d610e",
+      "path": "sdk/packages/core/src/extensions/context/agentic-compaction.ts",
+      "local": "artifacts/compaction-cache-implementations-20260911/cline-agentic.ts",
+      "sha256": "29266e1c515b14b40b1c8688746f26bc8a6ad82fb57b9df8260fc8bdcb73bdd9",
+      "url": "https://github.com/cline/cline/blob/dd50b97192e21e08408ee2ad1c5190aaf56d610e/sdk/packages/core/src/extensions/context/agentic-compaction.ts",
+      "raw_url": "https://raw.githubusercontent.com/cline/cline/dd50b97192e21e08408ee2ad1c5190aaf56d610e/sdk/packages/core/src/extensions/context/agentic-compaction.ts"
+    },
+    {
+      "repo": "MoonshotAI/kimi-cli",
+      "ref": "86f136422a0aae6b217ea49e7ea1d2e8a1defcd2",
+      "path": "src/kimi_cli/soul/compaction.py",
+      "local": "artifacts/compaction-cache-implementations-20260911/kimi-compact.py",
+      "sha256": "9cee31d8bbfdf5d0043f2461e98902b32e64666f39c9bf62a4d30e0189a38645",
+      "url": "https://github.com/MoonshotAI/kimi-cli/blob/86f136422a0aae6b217ea49e7ea1d2e8a1defcd2/src/kimi_cli/soul/compaction.py",
+      "raw_url": "https://raw.githubusercontent.com/MoonshotAI/kimi-cli/86f136422a0aae6b217ea49e7ea1d2e8a1defcd2/src/kimi_cli/soul/compaction.py"
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "ref": "3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec",
+      "path": "LICENSE",
+      "local": "artifacts/compaction-cache-implementations-20260911/omp-license.txt",
+      "sha256": "16c45f9d667442781f03fa198914cc39abcaa48ec5ed8f644643e554ca2fbf63",
+      "url": "https://github.com/can1357/oh-my-pi/blob/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/LICENSE",
+      "raw_url": "https://raw.githubusercontent.com/can1357/oh-my-pi/3b3a6dc9bbd85102ce19d0b1c11bf6870915f6ec/LICENSE"
+    },
+    {
+      "repo": "microsoft/vscode-copilot-chat",
+      "ref": "5863f5a7088958050792b5dccbe8b46c6e13eccc",
+      "path": "src/extension/prompts/node/agent/summarizedConversationHistory.tsx",
+      "local": "artifacts/compaction-cache-implementations-20260911/copilot-summary.tsx",
+      "sha256": "db61a5cd1fa54f1775bb0ad59f9b37ad7466fdb139e153074fafb0c3ba627eb4",
+      "url": "https://github.com/microsoft/vscode-copilot-chat/blob/5863f5a7088958050792b5dccbe8b46c6e13eccc/src/extension/prompts/node/agent/summarizedConversationHistory.tsx",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/vscode-copilot-chat/5863f5a7088958050792b5dccbe8b46c6e13eccc/src/extension/prompts/node/agent/summarizedConversationHistory.tsx"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "ref": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "path": "packages/compaction/compaction-basic/src/summarizer.ts",
+      "local": "artifacts/compaction-research-20260911/deepseek-ai__deepseek-harness-c291e7961a51/packages/compaction/compaction-basic/src/summarizer.ts",
+      "sha256": "fcf7fd42d1ea9b90fe259438431590abfb85a8a352f1fbc10b92d4dfcaf797bc",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/compaction/compaction-basic/src/summarizer.ts"
+    }
+  ],
+  "pull_requests": [
+    {
+      "url": "https://github.com/anomalyco/opencode/pull/42506",
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "head_sha": "9e7b5f170173055c6ae8157f23747aeefbb4c47b",
+      "local": "artifacts/compaction-cache-implementations-20260911/opencode-pr-42506.json",
+      "sha256": "a0631e497824a7404de08cd16f0c63a3f065c5e5a7778dce03a25791dfd9cfe6"
+    },
+    {
+      "url": "https://github.com/anomalyco/opencode/pull/46369",
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "head_sha": "f22237ed76521269e9fb9d34ac3734e62f075939",
+      "local": "artifacts/compaction-cache-implementations-20260911/opencode-pr-46369.json",
+      "sha256": "cff0855830d1a4e2a31ab45aa6c092232a5d972b3666fbc54577cdbb2b8c2e5f"
+    }
+  ],
+  "community_measurement": {
+    "url": "https://github.com/deepseek-ai/deepseek-harness/discussions/1944",
+    "setup": "opencode-go gateway + deepseek-v4-flash + reasoningEffort high",
+    "source_type": "community report, not reproduced by this project",
+    "before_reported_input_tokens": 122558,
+    "after_reported_usage": {
+      "cached_input_tokens": 220928,
+      "uncached_input_tokens": 402,
+      "output_tokens": 3548
+    },
+    "after_calculated_input_cache_hit_rate": 0.9981837075859576,
+    "limitations": [
+      "Before and after have different input lengths; not a same-snapshot paired A/B.",
+      "Does not isolate reasoningEffort versus maxTokens as the cause.",
+      "Does not demonstrate official DeepSeek cache-key internals or summary quality."
+    ]
+  }
+}
