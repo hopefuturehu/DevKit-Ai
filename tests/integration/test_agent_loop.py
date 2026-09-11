@@ -2167,3 +2167,89 @@ async def test_agent_rechecks_final_request_budget_before_provider_call(tmp_path
         assert not provider.requests
     finally:
         store.close()
+
+@pytest.mark.asyncio
+async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path):
+    from bot.compaction.service import ContextCompactor
+
+    summary = "\n\n".join(
+        f"# {name}\nPreserve evidence and continue the task."
+        for name in (
+            "Goal",
+            "Constraints",
+            "Progress",
+            "Key Decisions",
+            "Relevant Files",
+            "Failures",
+            "Next Steps",
+            "Critical Context",
+        )
+    )
+
+    class ForcedBoundaryProvider(ScriptedProvider):
+        async def stream(self, request):
+            async for event in super().stream(request):
+                yield event
+            if len(self.requests) == 1:
+                runner._force_compact_sessions.add(session)
+
+    provider = ForcedBoundaryProvider(
+        [
+            tool_turn("real-read", "read_file", '{"path":"evidence.txt"}'),
+            tool_turn("summary-read", "read_file", '{"path":"must-not-read.txt"}'),
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=summary),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done after compaction"),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop"),
+            ],
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        tools=[ReadFileTool()],
+        model_config={"max_output_tokens": 32768, "context_window_tokens": 131072},
+        context_config={
+            "compaction_strategy": "a_fallback",
+            "recent_conversation_tokens": 512,
+            "compaction_low_water_tokens": 12000,
+            "compaction_max_output_tokens": 512,
+        },
+        memory_config={"enabled": False},
+    )
+    runner.context_compactor = ContextCompactor(
+        config=runner.config, provider=provider, store=store, event_bus=runner.event_bus
+    )
+    session = store.create_session(tmp_path)
+    store.start_run(session, "seed")
+    for i in range(24):
+        store.append_message(
+            session,
+            "seed",
+            ChatMessage(
+                role=Role.USER if i == 0 else Role.ASSISTANT,
+                content=f"Evidence {i}: " + "verified observation " * 180,
+            ),
+        )
+    store.finish_run("seed", "completed")
+    (tmp_path / "evidence.txt").write_text("verified fact")
+    try:
+        result = await runner.run(RunRequest(session_id=session, prompt="continue investigation"))
+        assert result.status == "completed", result
+        assert len(provider.requests) == 4
+        main, prefix, isolated, continued = provider.requests
+        assert prefix.messages[: len(main.messages)] == main.messages
+        assert prefix.tools == main.tools and prefix.max_output_tokens == 32768
+        assert prefix.tool_choice == main.tool_choice
+        assert "verified fact" in str(prefix.messages[len(main.messages) :])
+        assert not isolated.tools and isolated.messages[0].role == Role.SYSTEM
+        assert "must-not-read" not in str(continued.messages)
+        events = store.list_events(session)
+        assert sum(e["type"] == EventType.TOOL_REQUESTED.value for e in events) == 1
+        completed = [e for e in events if e["type"] == EventType.CONTEXT_COMPACTION_COMPLETED.value]
+        assert len(completed) == 1 and completed[0]["payload"]["adopted_path"] == "isolated"
+    finally:
+        store.close()

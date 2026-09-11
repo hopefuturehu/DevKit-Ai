@@ -135,7 +135,7 @@ class PermissionsConfig(StrictModel):
 
 
 class ContextConfig(StrictModel):
-    compaction_strategy: Literal["current", "a", "b"] = "current"
+    compaction_strategy: Literal["current", "a", "b", "a_fallback"] = "current"
     compaction_low_water_tokens: int = Field(default=40_000, ge=512)
     compaction_leaf_input_tokens: int = Field(default=24_000, ge=2_048)
     compaction_merge_fanout: int = Field(default=4, ge=2, le=16)

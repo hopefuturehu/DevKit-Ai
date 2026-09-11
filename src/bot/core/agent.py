@@ -85,6 +85,8 @@ class _FinalizationFrame:
     conversation: list[PositionedMessage]
     sent: bool = False
     reusable: bool = True
+    message_positions: tuple[int | None, ...] = ()
+    compaction_id: str | None = None
 
 
 @dataclass
@@ -907,6 +909,11 @@ class AgentRunner:
                     request_tools=request_tools,
                     run_id=run_id,
                 )
+                strategy.frame.remaining_cost_usd = (
+                    max(0.0, self.config.agent.max_cost_usd - (cost_usd or 0.0))
+                    if self.config.agent.max_cost_usd is not None
+                    else None
+                )
                 retained = self._retained_conversation_positions(conversation, force=False)
                 older_positions = [e.position for e in conversation if e.position not in retained]
                 if older_positions:
@@ -1099,6 +1106,10 @@ class AgentRunner:
                 request=model_request.model_copy(deep=True),
                 through_position=self.store.latest_message_position(session_id),
                 conversation=conversation,
+                message_positions=self._sent_message_positions(
+                    context_items, dropped_ids, messages
+                ),
+                compaction_id=(compaction_projection.get("compaction") or {}).get("id"),
             )
             try:
                 model_turn = await self._request_model_with_retries(
@@ -3091,7 +3102,64 @@ class AgentRunner:
                 )
             ),
             project,
+            evidence=(
+                [replace(e, message=e.message.model_copy(deep=True)) for e in conversation]
+                if strategy.strategy == "a_fallback"
+                else None
+            ),
         )
+        if strategy.strategy == "a_fallback":
+            self._attach_compaction_prefix(strategy, conversation=conversation, run_id=run_id)
+
+    @staticmethod
+    def _sent_message_positions(
+        items: list[ContextItem], dropped_ids: set[str], messages: list[ChatMessage]
+    ) -> tuple[int | None, ...]:
+        selected = sorted(
+            (item for item in items if item.id not in dropped_ids), key=ContextPlanner._render_order
+        )
+        if [item.message for item in selected] != messages:
+            # Protocol repair or another projection changed the correspondence.
+            return ()
+        return tuple(item.position if item.id.startswith("message:") else None for item in selected)
+
+    def _attach_compaction_prefix(
+        self, strategy: StrategyCompactor, *, conversation: list[PositionedMessage], run_id: str
+    ) -> None:
+        frame = strategy.frame
+        sent = self._finalization_frames.get(run_id)
+        if sent is None or not sent.sent:
+            return
+        if not sent.reusable:
+            frame.prefix_skip_reason = "expired_one_shot_content"
+            return
+        previous = strategy.compactor.projection(strategy.session_id)["compaction"]
+        if sent.compaction_id != (previous["id"] if previous else None):
+            frame.prefix_skip_reason = "prefix_parent_changed"
+            return
+        if len(sent.message_positions) != len(sent.request.messages):
+            frame.prefix_skip_reason = "prefix_mapping_unavailable"
+            return
+        suffix = [e for e in conversation if e.position > sent.through_position]
+        items = sorted(
+            self._build_context_items(
+                base_items=[],
+                memory_items=[],
+                compaction_items=[],
+                conversation=suffix,
+                runtime_notes=[],
+            ),
+            key=ContextPlanner._render_order,
+        )
+        request = sent.request.model_copy(deep=True)
+        request.messages.extend(item.message.model_copy(deep=True) for item in items)
+        _, repair = repair_tool_protocol(request.messages)
+        if repair.changed:
+            frame.prefix_skip_reason = "prefix_protocol_incomplete"
+            return
+        frame.prefix_request = request
+        frame.prefix_positions = sent.message_positions + tuple(item.position for item in items)
+        frame.prefix_skip_reason = ""
 
     async def _consolidate_conversation(
         self,

@@ -224,7 +224,7 @@ def main() -> None:
     parser.add_argument("--input-limit", type=int, default=120000)
     parser.add_argument("--main-output-tokens", type=int, default=8192)
     parser.add_argument(
-        "--strategies", nargs="+", choices=("current", "a", "b"), default=None
+        "--strategies", nargs="+", choices=("current", "a", "b", "a_fallback"), default=None
     )
     parser.add_argument("--run", action="store_true", help="Run the previously frozen paid trials")
     args = parser.parse_args()

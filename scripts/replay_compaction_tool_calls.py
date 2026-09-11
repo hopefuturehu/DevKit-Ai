@@ -37,7 +37,7 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def reconstruct():
+def reconstruct(*, include_context=False):
     agent = next((SOURCE / "jobs/a").glob("*/agent"))
     db_path = agent / "trace/state.db"
     before_sha = sha(db_path)
@@ -136,7 +136,7 @@ def reconstruct():
             + "\n只输出交接摘要，不调用工具。Skill 正文由运行器恢复，不复制整份手册。",
         )
     )
-    return (
+    result = (
         first,
         request,
         {
@@ -158,6 +158,19 @@ def reconstruct():
             ],
         },
     )
+    if include_context:
+        return (
+            *result,
+            {
+                "runner": runner,
+                "history": history,
+                "base": base,
+                "notes": notes,
+                "tools": tools,
+                "config": config,
+            },
+        )
+    return result
 
 
 async def main():

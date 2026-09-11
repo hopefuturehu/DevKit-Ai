@@ -86,6 +86,9 @@ def request_rows(events: list[dict]) -> list[dict]:
                 or payload.get("provider_metadata", {}).get("input_token_estimate"),
             }
         )
+        for field in ("operation_id", "max_output_tokens", "finish_reason", "response_ref"):
+            if field in payload:
+                rows[-1][field] = payload[field]
         if start and payload.get("duration_ms") is not None:
             elapsed = (moment(event["timestamp"]) - moment(start["timestamp"])).total_seconds()
             rows[-1]["utc_duration_ms"] = elapsed * 1000

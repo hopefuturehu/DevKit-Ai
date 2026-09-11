@@ -15,7 +15,7 @@ from bot.core.models import (
     ModelRequest,
     Role,
 )
-from bot.providers import ModelProvider
+from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
 from bot.sessions import SQLiteSessionStore
 
 SUMMARY = "\n\n".join(
@@ -111,6 +111,13 @@ def engine(tmp_path, strategy="b", *, after_size=0):
             ],
         ),
     )
+    if strategy == "a_fallback":
+        instance.frame.request.max_output_tokens = 32768
+        instance.frame.evidence = store.load_positioned_messages(session)
+        instance.frame.prefix_request = request.model_copy(deep=True)
+        instance.frame.prefix_request.max_output_tokens = 32768
+        instance.frame.prefix_request.tool_choice = "auto"
+        instance.frame.prefix_positions = (None, *range(1, 13))
     return instance, provider, store, sink
 
 
@@ -289,4 +296,198 @@ async def test_b_reuses_overlapping_cache_and_publishes_successive_roots(tmp_pat
         assert final_request["nodes"][-1]["end"] == 12
     finally:
         await b.close()
+        store.close()
+
+
+class FallbackProvider(SummaryProvider):
+    def __init__(self, outcomes):
+        super().__init__()
+        self.outcomes = iter(outcomes)
+
+    async def stream(self, request):
+        outcome = next(self.outcomes)
+        if isinstance(outcome, BaseException):
+            self.requests.append(request.model_copy(deep=True))
+            raise outcome
+        async for event in super().stream(request):
+            if event.kind == ModelEventKind.TEXT_DELTA:
+                if outcome == "tool":
+                    yield ModelEvent(
+                        kind=ModelEventKind.TOOL_CALL_DELTA,
+                        tool_index=0,
+                        tool_call_id="must-not-execute",
+                        tool_name="run_shell",
+                        arguments_delta='{"command":"echo forbidden"}',
+                    )
+                if outcome == "format":
+                    event.text = "# Goal\nnot enough"
+                if outcome == "empty":
+                    continue
+            if event.kind == ModelEventKind.FINISH:
+                if outcome == "incomplete":
+                    continue
+                event.finish_reason = {"length": "length", "tool": "tool_calls"}.get(
+                    outcome, "stop"
+                )
+            yield event
+
+
+def fallback_engine(tmp_path, outcomes):
+    instance, _, store, sink = engine(tmp_path, "a_fallback")
+    provider = FallbackProvider(outcomes)
+    instance.provider = provider
+    return instance, provider, store, sink
+
+
+@pytest.mark.asyncio
+async def test_prefix_success_preserves_32k_and_uses_only_one_request(tmp_path):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["ok"])
+    try:
+        original = instance.frame.prefix_request.model_copy(deep=True)
+        result = await instance.compact(12, [1])
+        assert result.compacted, result.error
+        assert len(provider.requests) == 1
+        sent = provider.requests[0]
+        assert sent.messages[:-1] == original.messages
+        assert sent.model_dump(exclude={"messages"}) == original.model_dump(exclude={"messages"})
+        assert sent.max_output_tokens == 32768 and sent.tool_choice == "auto"
+        assert instance.last_metrics["adopted_path"] == "prefix"
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "tool",
+        "format",
+        "empty",
+        "length",
+        "incomplete",
+        TimeoutError(),
+        ProviderError("disconnect", kind=ProviderErrorKind.TRANSPORT),
+        ProviderError("too long", kind=ProviderErrorKind.CONTEXT_LENGTH),
+    ],
+)
+async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_path, failure):
+    instance, provider, store, sink = fallback_engine(tmp_path, [failure, "ok"])
+    try:
+        before = instance.compactor._digest(store.load_positioned_messages(instance.session_id))
+        result = await instance.compact(12, [1])
+        assert result.compacted, result.error
+        assert len(provider.requests) == 2 and result.request_count == 2
+        isolated = provider.requests[1]
+        assert not isolated.tools and isolated.tool_choice is None
+        assert [m.role for m in isolated.messages] == [Role.SYSTEM, Role.USER]
+        payload = json.loads(isolated.messages[1].content)
+        assert payload["covered_range"] == [1, 12]
+        assert [e["position"] for e in payload["transcript"]] == list(range(1, 13))
+        assert "echo forbidden" not in isolated.messages[1].content
+        assert instance.last_metrics["adopted_path"] == "isolated"
+        assert (
+            instance.compactor._digest(store.load_positioned_messages(instance.session_id))
+            == before
+        )
+        events = [e for e in sink.events if e.type == EventType.CONTEXT_COMPACTION_REQUEST_FAILED]
+        assert len(events) == 1 and events[0].payload["operation_id"]
+        response = store.read_context_blob(instance.session_id, events[0].payload["response_ref"])
+        if failure == "tool":
+            assert json.loads(response["content"])["tool_calls"]["0"]["name"] == "run_shell"
+        assert not any(e.type == EventType.TOOL_REQUESTED for e in sink.events)
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", [ProviderErrorKind.AUTHENTICATION, ProviderErrorKind.PAYMENT])
+async def test_prefix_auth_and_quota_failure_do_not_fallback(tmp_path, kind):
+    instance, provider, store, _ = fallback_engine(tmp_path, [ProviderError("denied", kind=kind)])
+    try:
+        result = await instance.compact(12, [1])
+        assert not result.compacted and len(provider.requests) == 1
+        assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_double_failure_keeps_cursor_and_backoff(tmp_path):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["tool", "format"])
+    try:
+        result = await instance.compact(12, [1])
+        assert not result.compacted and result.request_count == 2
+        assert result.input_tokens == 200 and result.output_tokens == 40
+        assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
+        assert (await instance.compact(12, [1])).reason == "failure_backoff"
+        assert len(provider.requests) == 2
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_cancel_does_not_fallback(tmp_path):
+    instance, provider, store, _ = fallback_engine(tmp_path, [asyncio.CancelledError()])
+    try:
+        with pytest.raises(asyncio.CancelledError):
+            await instance.compact(12, [1])
+        assert len(provider.requests) == 1
+        assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("problem", ["no_snapshot", "missing_source", "budget"])
+async def test_fallback_preflight_never_silently_drops_source(tmp_path, problem):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["ok"])
+    try:
+        if problem == "no_snapshot":
+            instance.frame.prefix_request = None
+        elif problem == "missing_source":
+            instance.frame.evidence = instance.frame.evidence[1:]
+        else:
+            instance.config.context.max_input_tokens = 10000
+        result = await instance.compact(12, [1])
+        if problem == "no_snapshot":
+            assert result.compacted and len(provider.requests) == 1
+            assert not provider.requests[0].tools
+            assert instance.last_metrics["prefix_skip_reason"] == "snapshot_missing"
+        else:
+            assert not result.compacted and not provider.requests
+            assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_prefix_cost_guard_and_source_change_stop_second_request(tmp_path):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["tool"])
+    try:
+        instance.config.model.input_cost_per_million = 1
+        instance.config.model.output_cost_per_million = 4
+        instance.frame.remaining_cost_usd = 0.001
+        result = await instance.compact(12, [1])
+        assert result.error == "compaction_cost_budget" and not provider.requests
+        instance.retry_after = 0
+        instance.frame.remaining_cost_usd = None
+        original = provider.stream
+
+        async def changing_source(request):
+            async for event in original(request):
+                yield event
+            store.append_message(
+                instance.session_id,
+                "run",
+                ChatMessage(
+                    role=Role.USER, content="New instruction arrived during summarization."
+                ),
+            )
+
+        provider.stream = changing_source
+        result = await instance.compact(12, [1])
+        assert result.error == "source_changed_during_compaction"
+        assert len(provider.requests) == 1
+        assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
+    finally:
         store.close()
