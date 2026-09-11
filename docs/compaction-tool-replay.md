@@ -74,6 +74,9 @@
 129 和 77；它们恰好与本轮计划调用和 shell 调用长度一致，只能视为同类行为的旁证，
 不能据此把新响应归给旧请求。背景见 [此前调查](tool-choice-cache-probe.md)。
 
+后续开源调研见 [摘要时继续执行任务：处理方案与缓存取舍](compaction-task-continuation-research.md)，
+包含 DeepSeek Harness 同类故障、Pi 的独立摘要、Moon IDE 的双路径及未合并 OpenCode PR。
+
 ## 费用、产物与验证
 
 三次请求 usage 完整，总输入 **219,786**、命中 **219,648**、未命中 **138**、输出 **283**。
