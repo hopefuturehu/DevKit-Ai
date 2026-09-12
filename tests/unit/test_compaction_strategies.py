@@ -4,7 +4,11 @@ import json
 import pytest
 
 from bot.compaction.service import ContextCompactor
-from bot.compaction.strategies import StrategyCompactor, StrategyFrame
+from bot.compaction.strategies import (
+    FALLBACK_SUMMARY_INSTRUCTION,
+    StrategyCompactor,
+    StrategyFrame,
+)
 from bot.config.models import AppConfig
 from bot.core.events import EventBus, EventType, MemoryEventSink
 from bot.core.models import (
@@ -36,6 +40,7 @@ SUMMARY = "\n\n".join(
 class SummaryProvider(ModelProvider):
     def __init__(self):
         self.requests = []
+        self.summary = SUMMARY
         self.started = asyncio.Event()
         self.release = asyncio.Event()
         self.release.set()
@@ -48,7 +53,7 @@ class SummaryProvider(ModelProvider):
         self.requests.append(request.model_copy(deep=True))
         self.started.set()
         await self.release.wait()
-        yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=SUMMARY)
+        yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=self.summary)
         yield ModelEvent(
             kind=ModelEventKind.USAGE,
             input_tokens=100,
@@ -173,6 +178,7 @@ async def test_a_preserves_input_prefix_when_publishing(tmp_path):
         result = await a.compact(12, [1])
         assert result.compacted, result.error
         assert provider.requests[0].messages[:-1] == original.messages
+        assert FALLBACK_SUMMARY_INSTRUCTION not in provider.requests[0].messages[-1].content
         assert provider.requests[0].tools == original.tools
         assert a.frame.request == original
         assert a.compactor.projection(a.session_id)["cursor_position"] == 12
@@ -351,6 +357,7 @@ async def test_prefix_success_preserves_32k_and_uses_only_one_request(tmp_path):
         assert sent.messages[:-1] == original.messages
         assert sent.model_dump(exclude={"messages"}) == original.model_dump(exclude={"messages"})
         assert sent.max_output_tokens == 32768 and sent.tool_choice == "auto"
+        assert FALLBACK_SUMMARY_INSTRUCTION in sent.messages[-1].content
         assert instance.last_metrics["adopted_path"] == "prefix"
     finally:
         store.close()
@@ -380,6 +387,8 @@ async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_pa
         isolated = provider.requests[1]
         assert not isolated.tools and isolated.tool_choice is None
         assert [m.role for m in isolated.messages] == [Role.SYSTEM, Role.USER]
+        assert FALLBACK_SUMMARY_INSTRUCTION in provider.requests[0].messages[-1].content
+        assert FALLBACK_SUMMARY_INSTRUCTION in isolated.messages[0].content
         payload = json.loads(isolated.messages[1].content)
         assert payload["covered_range"] == [1, 12]
         assert [e["position"] for e in payload["transcript"]] == list(range(1, 13))
@@ -396,6 +405,76 @@ async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_pa
             assert json.loads(response["content"])["tool_calls"]["0"]["name"] == "run_shell"
         assert not any(e.type == EventType.TOOL_REQUESTED for e in sink.events)
     finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_fallback_preserves_parent_tail_and_scoped_source_recovery(tmp_path):
+    """Check transport/recovery across two compactions, not model factual accuracy."""
+    instance, provider, store, sink = fallback_engine(tmp_path, ["ok", "tool", "ok"])
+    try:
+        instance.config.context.compaction_low_water_tokens = 20_000
+        entries = store.load_positioned_messages(instance.session_id)
+        original = instance.frame.request.model_copy(deep=True)
+        digest = instance.compactor._digest(entries)
+
+        def project(record):
+            return original.model_copy(
+                update={
+                    "messages": original.messages[:1]
+                    + instance.compactor.context_messages(instance.session_id, record)
+                    + [e.message for e in entries if e.position > record["covered_end_position"]]
+                },
+                deep=True,
+            )
+
+        instance.frame.project = project
+        provider.summary = SUMMARY + (
+            "\n- 待核实：历史助手的数值解释尚无工具结果支持。"
+            "\n- 已否决：重复读取整个文件，原因是没有得到新增证据。"
+        )
+        first = await instance.compact(6, [1])
+        assert first.compacted, first.error
+        assert first.covered_end_position == 6
+        parent = instance.compactor.projection(instance.session_id)["compaction"]
+        resumed = project(parent)
+        assert resumed.messages[1] == entries[0].message  # Original user anchor.
+        assert resumed.messages[3:] == [e.message for e in entries[6:]]
+        assert "续跑核验" in resumed.messages[2].content
+        assert parent["summary_text"] == provider.summary
+        assert instance.last_metrics["after_tokens"] == instance.count(resumed)
+
+        instance.frame.request = resumed
+        instance.frame.prefix_request = resumed.model_copy(deep=True)
+        instance.frame.prefix_positions = (None, 1, None, *range(7, 13))
+        provider.summary = SUMMARY
+        second = await instance.compact(12, [1])
+        assert second.compacted, second.error
+        assert second.parent_id == parent["id"] and second.request_count == 2
+        assert provider.requests[1].messages[:-1] == resumed.messages
+        payload = json.loads(provider.requests[2].messages[1].content)
+        assert payload["previous_summary"] == parent["summary_text"]
+        assert payload["transcript"] == [
+            {"position": e.position, "message": e.message.model_dump(mode="json")}
+            for e in entries[6:]
+        ]
+        # Both the superseded and active checkpoints still expose original evidence.
+        for compaction_id in (first.compaction_id, second.compaction_id):
+            source = instance.compactor.read_source(
+                session_id=instance.session_id,
+                compaction_id=compaction_id,
+                start_position=2,
+                end_position=3,
+            )
+            assert [m["position"] for m in source["messages"]] == [2, 3]
+            assert source["source_verification"]["verified"] is True
+        assert instance.compactor._digest(store.load_positioned_messages(instance.session_id)) == (
+            digest
+        )
+        assert len(provider.requests) == 3
+        assert not any(e.type == EventType.TOOL_REQUESTED for e in sink.events)
+    finally:
+        await instance.close()
         store.close()
 
 

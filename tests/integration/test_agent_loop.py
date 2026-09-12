@@ -2247,6 +2247,11 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
         assert "verified fact" in str(prefix.messages[len(main.messages) :])
         assert not isolated.tools and isolated.messages[0].role == Role.SYSTEM
         assert "must-not-read" not in str(continued.messages)
+        checkpoint = next(m for m in continued.messages if m.name == "context_compaction")
+        assert "续跑核验" in checkpoint.content
+        assert {"load_compaction_source", "search_session_history"} <= {
+            tool.name for tool in continued.tools
+        }
         events = store.list_events(session)
         assert sum(e["type"] == EventType.TOOL_REQUESTED.value for e in events) == 1
         completed = [e for e in events if e["type"] == EventType.CONTEXT_COMPACTION_COMPLETED.value]
