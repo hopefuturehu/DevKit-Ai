@@ -1,0 +1,1486 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-13",
+  "manifest": {
+    "created_at": "2026-09-12T16:06:50.102617+00:00",
+    "script_sha256": "1309415b83a79fe300e389d5113809cd8d979bdefba3c09cf0a6dd3919ed3887",
+    "revisions": {
+      "baseline": "6e6fc98d18ac01b0a265a1eb3463c93386446324",
+      "improved": "8d8a7a49218dfed99073c73aa83d62e2d396d786"
+    },
+    "cases": [
+      "initial"
+    ],
+    "model": "deepseek-v4-flash",
+    "thinking": "disabled",
+    "temperature": 0,
+    "frozen_sources": {
+      "baseline_service.py": "e8e85af3942a141865197f66c6ede4d30cf1e918936a4da1b698a8ebaa2e17ac",
+      "improved_service.py": "12f19f3d202a681183f17e2ac7c0e8e6d2a8fa99b8a3ce5b5a2cdb9a63963877",
+      "baseline_strategies.py": "90bd1d620d811ca8483d4001bd4e891dbde8292e0c70e40ce63209dc870f77a1",
+      "improved_strategies.py": "90bd1d620d811ca8483d4001bd4e891dbde8292e0c70e40ce63209dc870f77a1"
+    },
+    "source": {
+      "source_db": "artifacts/context-strategy-path-20260910/a-output-32k/jobs/a/035880d7ef5554b217e53a75ce5e87e4__CTqXzEk/agent/trace/state.db",
+      "source_db_sha256": "76bbc8800d1eb46c2e42094789c20bc020332f487772ff43380a8068dc64a777",
+      "source_events_sha256": "8fcaa299b03f379cc69589394ae8c3da0b119c590b4ccf75126019da083f54bf",
+      "config_sha256": "f2fefba951cf55764c7fbd568b0885f085a54377f15a208181d3650bd33058ea",
+      "cutoff_sequence": 5781,
+      "history_positions": [
+        1,
+        70
+      ],
+      "summary_covered_range": [
+        1,
+        40
+      ],
+      "runtime_note_ids": [
+        "progress-stall-warning",
+        "session-plan"
+      ],
+      "tool_names": [
+        "activate_tools",
+        "apply_patch",
+        "fetch_url",
+        "ksys",
+        "list_processes",
+        "load_compaction_source",
+        "load_context_reference",
+        "poll_process",
+        "read_file",
+        "run_command",
+        "run_shell",
+        "search_session_history",
+        "search_text",
+        "send_process_input",
+        "terminate_process",
+        "tuner",
+        "update_plan"
+      ],
+      "environment": {
+        "operating_system": "linux",
+        "architecture": "x86_64",
+        "executables": {
+          "ksys": null,
+          "devkit": null
+        }
+      },
+      "limitations": [
+        "Original HTTP payload was not persisted; this is a reconstructed replay.",
+        "Environment: Linux x86_64, ksys/devkit absent, no AGENTS.md, empty Skill catalog.",
+        "No published compaction or live managed process at this boundary.",
+        "Original two tool names/arguments are lost; these responses are new observations."
+      ]
+    },
+    "parent_summary": {
+      "path": "/Users/huyang/codespace/bot/artifacts/compaction-prefix-fallback-20260911/replay/1-isolated/summary.md",
+      "sha256": "44453c9b836c22b9ee1ebebd1eea37d24e5d806afd1afcf6cd466ee72366b1e3"
+    },
+    "seeds": {
+      "initial": {
+        "session_id": "9138f845953b46c2ab42bbae74496d0a",
+        "path": "/Users/huyang/codespace/bot/artifacts/compaction-heading-eval-20260913/live/seeds/initial/state.db",
+        "visible": 70,
+        "through": 40,
+        "parent_end": 0,
+        "sha256": "4f2f6acdeb654c03dc5fd277fdfc1ed80871e009d27c93904cdc64692317f0ae"
+      }
+    },
+    "order": [
+      {
+        "case": "initial",
+        "repeat": 1,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 1,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 2,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 2,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 3,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 3,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 4,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 4,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 5,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 5,
+        "arm": "baseline"
+      }
+    ],
+    "repeats": 5,
+    "main_output_tokens": 32768,
+    "isolated_output_tokens": 8192,
+    "summary_hard_tokens": 4000,
+    "max_reserved_usd_per_trial": 0.5,
+    "pricing": {
+      "usd_per_million_peak": {
+        "hit": 0.014,
+        "miss": 0.44,
+        "output": 1.32
+      },
+      "off_peak_multiplier": 0.5,
+      "note": "Frozen 2026-09-09 V4 Flash comparison rates from src/bot/evals/handoff_recording.py; estimates, not an invoice."
+    },
+    "continuation_selection": "Earliest repeat with both arms published in initial case, without inspecting quality.",
+    "limitations": [
+      "Initial checkpoint is reconstructed, not original HTTP bytes or a process snapshot.",
+      "Cross-round cases combine a real erroneous summary with real later messages; constructed replays, not original compactions.",
+      "Cross-round requests omit old runtime notes to avoid future-state leakage.",
+      "Parent snapshot IDs are fixed via seed database copies, not regenerated per arm.",
+      "No task tools execute during summary replay; five repeats do not establish population accuracy.",
+      "No artificial prewarming; interleaving cannot eliminate provider cache/order effects.",
+      "Usage missing on failed requests remains unknown; prices are frozen comparison rates.",
+      "A model override applies to both arms and both summary paths; historical token assertions only estimate old inputs without sending them."
+    ]
+  },
+  "script": {
+    "path": "scripts/test_compaction_fidelity.py",
+    "sha256": "1309415b83a79fe300e389d5113809cd8d979bdefba3c09cf0a6dd3919ed3887"
+  },
+  "analysis_script": {
+    "path": "artifacts/compaction-heading-eval-20260913/analyze.py",
+    "sha256": "71430cca7b877c8e16dd2f2a52380b13b41de258826b0e7c704b75c8e10205be"
+  },
+  "implementation_commit": "8d8a7a49218dfed99073c73aa83d62e2d396d786",
+  "historical_regression": {
+    "model_used_for_original_outputs": "deepseek-v4-pro",
+    "new_model_calls": 0,
+    "old_candidate_passed": 0,
+    "new_candidate_passed": 7,
+    "text_preserved": 7,
+    "cases": [
+      {
+        "trial": "initial-1-improved",
+        "source": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-1-improved/response-1.jsonl",
+        "before": {
+          "passed": false,
+          "error": "上下文摘要缺少章节: Constraints, Critical Context"
+        },
+        "after": {
+          "passed": true,
+          "content_unchanged": true
+        },
+        "source_sha256": "8577fc40ae3dde94c2be04e1f09a46ef5831778fe83e8d06066c933ec9d54e0e"
+      },
+      {
+        "trial": "initial-2-improved",
+        "source": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-2-improved/response-1.jsonl",
+        "before": {
+          "passed": false,
+          "error": "上下文摘要缺少章节: Constraints, Critical Context"
+        },
+        "after": {
+          "passed": true,
+          "content_unchanged": true
+        },
+        "source_sha256": "77e6c9d2f9d13c8d5a8f0e11ccc4204e4b6fd274682042f688b81dfb0a2c74a8"
+      },
+      {
+        "trial": "initial-3-improved",
+        "source": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-3-improved/response-1.jsonl",
+        "before": {
+          "passed": false,
+          "error": "上下文摘要缺少章节: Constraints, Critical Context"
+        },
+        "after": {
+          "passed": true,
+          "content_unchanged": true
+        },
+        "source_sha256": "40014d2f1d23ce9053d8e4fb7b81d263be232284c61ec6d894f314980dd4daed"
+      },
+      {
+        "trial": "initial-4-improved",
+        "source": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-4-improved/response-1.jsonl",
+        "before": {
+          "passed": false,
+          "error": "上下文摘要缺少章节: Constraints, Critical Context"
+        },
+        "after": {
+          "passed": true,
+          "content_unchanged": true
+        },
+        "source_sha256": "0886763fe078748c30220417aa21c5a0a6d061e1ae51ee8da3d44cf22b2f5193"
+      },
+      {
+        "trial": "initial-5-improved",
+        "source": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-5-improved/response-1.jsonl",
+        "before": {
+          "passed": false,
+          "error": "上下文摘要缺少章节: Constraints, Critical Context"
+        },
+        "after": {
+          "passed": true,
+          "content_unchanged": true
+        },
+        "source_sha256": "84d454e35c9af9ff3d6b844757c1aa1b7748e239c7dc5fab8166ee27158f1861"
+      },
+      {
+        "trial": "later_correction-3-improved",
+        "source": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-3-improved/response-1.jsonl",
+        "before": {
+          "passed": false,
+          "error": "上下文摘要缺少章节: Critical Context"
+        },
+        "after": {
+          "passed": true,
+          "content_unchanged": true
+        },
+        "source_sha256": "8fded57b509bb604ae445325b9eb4677679507eb9815d784309100fb82f3bcaf"
+      },
+      {
+        "trial": "later_correction-4-improved",
+        "source": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-4-improved/response-1.jsonl",
+        "before": {
+          "passed": false,
+          "error": "上下文摘要缺少章节: Critical Context"
+        },
+        "after": {
+          "passed": true,
+          "content_unchanged": true
+        },
+        "source_sha256": "1ab511be858f742f953ea57e72646227a20adccff703bb5dc13d73bb0240e67d"
+      }
+    ],
+    "scope": "Candidate validation of saved responses, not live publication or a Flash result."
+  },
+  "automated_checks": {
+    "pytest": "68 passed, 51 deselected; plus 1 real AgentRunner prefix-fallback integration test passed",
+    "new_parameterized_test_cases": 17,
+    "offline_preflight": "initial case, two arms, passed with exact live script SHA",
+    "ruff": "Changed Python files lint passed; existing service.py formatting differences outside patch left alone."
+  },
+  "groups": [
+    {
+      "arm": "baseline",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "prefix": 5
+      },
+      "mean_duration_seconds": 11.151051191380247,
+      "mean_summary_tokens_local_estimate": 1804.6,
+      "mean_after_tokens": 32505.6,
+      "mean_normalized_peak_cost_usd": 0.004230928,
+      "usage": {
+        "input": 375220,
+        "hit": 374400,
+        "miss": 820,
+        "output": 11782,
+        "requests": 5,
+        "usage_complete": 5,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.02115464,
+        "timestamp_priced_cost_usd": 0.01057732,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "arm": "improved",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "prefix": 5
+      },
+      "mean_duration_seconds": 11.844454874820077,
+      "mean_summary_tokens_local_estimate": 1814.4,
+      "mean_after_tokens": 32515.4,
+      "mean_normalized_peak_cost_usd": 0.010623112,
+      "usage": {
+        "input": 375220,
+        "hit": 299520,
+        "miss": 75700,
+        "output": 11829,
+        "requests": 5,
+        "usage_complete": 5,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.053115560000000006,
+        "timestamp_priced_cost_usd": 0.026557780000000003,
+        "cache_hit_rate": 0.7982516923404935,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    }
+  ],
+  "trials": [
+    {
+      "name": "initial-1-improved",
+      "arm": "improved",
+      "repeat": 1,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 12.572498292080127,
+      "summary_tokens_local_estimate": 1729,
+      "after_tokens": 32357,
+      "usage": {
+        "input": 75044,
+        "hit": 0,
+        "miss": 75044,
+        "output": 2215,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.03594316,
+        "timestamp_priced_cost_usd": 0.01797158,
+        "cache_hit_rate": 0.0,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "8b52d135a51844e28f6f3e69f9088a6f",
+          "timestamp": "2026-09-12T16:07:02.937657Z",
+          "started_at": "2026-09-12T16:06:50.431245Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 12506.131000001915,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2215,
+            "total_tokens": 77259,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "prompt_cache_hit_tokens": 0,
+            "prompt_cache_miss_tokens": 75044
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "3dc5854e-0af3-4fef-98ac-c7cadf2ce884",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "f5aa27c75cc44ae2801ad9a7957a3bcf",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:151337ae20e9874cb4f0e79ee8d25faa4b8b0099e98e99a0b82bdfc1d0afadf8",
+          "utc_duration_ms": 12506.411999999998,
+          "clock_gap_ms": 0.28099999808364373
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-improved/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-improved/response-1.jsonl",
+        "sha256": "c611bdbae85223ed3f5b636d935fb04bf6a8e6ea7a553997afa77c21ed7f41e4"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-improved/summary.md",
+        "sha256": "ab2910dfab6f1dc57b1fbb934bbcbbe48f2e0b03c1fa18085559eafb78d6fcc6"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-improved/result.json",
+        "sha256": "67283d2b7ff224dd10a3b16a55dae6d933a7bd979c3067b3a13dda2892c692b6"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 51,
+            "text": "   - 反汇编 0x402620–0x402663 显示：`xmm1=0x485adc`；`xmm2=ray.d.y`；`xmm3=movq 0x485a60`；`xmm2 = (d.y + xmm1) * 0x485a60`；随后 `xmm0=broadcast(xmm2)*xmm3`，`xmm1 = xmm1 - xmm2`，`xmm1 = xmm1 + xmm2`，`xmm0 += broadcast(xmm1-xmm2)`。"
+          },
+          {
+            "line": 52,
+            "text": "   - **常量归属存在冲突，必须重新核实**：助手先前一度判定 `0x485adc = 0.0f`，后又据 `0x485ad0` 区段（`00 00 00 00 | 00 00 00 bf | 00 00 a0 c0 | 00 00 80 3f`）判定 `0x485adc = 1.0f`。两种解释互斥，尚无定论，需以工具证据确认。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-1-baseline",
+      "arm": "baseline",
+      "repeat": 1,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 10.487983124912716,
+      "summary_tokens_local_estimate": 1665,
+      "after_tokens": 32231,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2095,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.00388588,
+        "timestamp_priced_cost_usd": 0.00194294,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "dac1bb7845cb4a4896d3d97907f733ac",
+          "timestamp": "2026-09-12T16:07:13.627701Z",
+          "started_at": "2026-09-12T16:07:03.210058Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 10417.381625040434,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2095,
+            "total_tokens": 77139,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "84ba869c-2299-40aa-871d-f4d0e7e2d396",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "c14aae61a21e4005b559d2fa25532d9e",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:3ba11893929c394350aa306f04bfa8db5fd8828c9635a72f4c3f541fdd109502",
+          "utc_duration_ms": 10417.643,
+          "clock_gap_ms": 0.2613749595657282
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-baseline/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-baseline/response-1.jsonl",
+        "sha256": "d45b34082aa8394a8710f101f112d457523ed4aa175745425dbc9e87c8b8148b"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-baseline/summary.md",
+        "sha256": "0f90bd03351a823b14f72ebf3faa9386450f3a44f178ecde2de91ebe5c2ac616"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-1-baseline/result.json",
+        "sha256": "e80f170baf45cdaa5b88edd49b328b2e33a7375b8a37ae5cf3ba17a03fb3c025"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 49,
+            "text": "1. **核实常量 0x485adc 的真实值**：助手一度误判为 0.0f，随后据 `objdump -s` 输出 `0x485ad0: 00000000 000000bf 0000a0c0 0000803f` 推断 0x485adc = 1.0f（即 (0.0, -0.5, -5.0, 1.0) 的第 4 个 float）。此点存在前后冲突，需以工具原始输出为准重新确认，并据此修正 `sky_color` 的 mix 公式。"
+          },
+          {
+            "line": 58,
+            "text": "- 0x485a58=(1.0,1.0)；0x485a60=(0.5,0.7)；0x485a68=(0.0,1.0)；0x485ab0=-0.0f；0x485ac0=NaN 掩码 0x7fffffff；0x485ad0=(0.0,-0.5,-5.0,1.0)（球心与半径）；0x485adc 值待核实（0.0f 或 1.0f，见 Next Steps）。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-2-baseline",
+      "arm": "baseline",
+      "repeat": 2,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 12.593099707970396,
+      "summary_tokens_local_estimate": 2084,
+      "after_tokens": 32925,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2756,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0047583999999999994,
+        "timestamp_priced_cost_usd": 0.0023791999999999997,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "7afe8ed303d5426abf085ab231e8f9f2",
+          "timestamp": "2026-09-12T16:07:26.410015Z",
+          "started_at": "2026-09-12T16:07:13.882726Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 12527.012708014809,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2756,
+            "total_tokens": 77800,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "99c01079-8eb7-419a-bc69-812f047c7132",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "599f3ece53674a44bfd0e2d212793ead",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:5f7b80721c4ccd804a98aaf243db91ad4c7aac23748aa5447192932d900a98ea",
+          "utc_duration_ms": 12527.288999999999,
+          "clock_gap_ms": 0.2762919851902552
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-baseline/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-baseline/response-1.jsonl",
+        "sha256": "469de8bc3d640a8b16677a5bdef215119955f65c746704a8e7aae2a51dac70f8"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-baseline/summary.md",
+        "sha256": "8cf7a504f1031a231900f2109bfa1fe118619da4ae6065ca384a6ad9e93263d4"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-baseline/result.json",
+        "sha256": "568ef4b7f5a29704ac40ba8bde9a1b487e51fb5155653784e8bee4d92dd4ce0a"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 51,
+            "text": "   - 反汇编 0x402620–0x402663 显示：`xmm1 = [0x485adc]`，`xmm2 = d.y`，`xmm3 = [0x485a60]`，`xmm2 = (d.y + xmm1) * [0x485a60]`，随后为 mix 模式。"
+          },
+          {
+            "line": 52,
+            "text": "   - **待核实的关键点**：`0x485adc` 的值。助手先前误判为 0.0f，但 `objdump -s` 显示 `0x485ad0` 行 = `00000000 000000bf 0000a0c0 0000803f`，即 0x485ad0=0.0f、0x485ad4=-0.5f、0x485ad8=-5.0f、**0x485adc=1.0f**。若 0x485adc=1.0f，则 `t = 0.5*(d.y+1.0)`，与当前代码一致；但输出仍不匹配，说明问题在别处或该推断仍需复核。"
+          },
+          {
+            "line": 68,
+            "text": "- 冲突/待核实：`0x485adc` 值——助手曾误判 0.0f，`objdump -s` 原始字节显示该地址为 `00 00 80 3f`=1.0f（位于 0x485ad0 行第 4 个 float）。此点直接影响 `sky_color` 公式，需以原始字节为准复核。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-2-improved",
+      "arm": "improved",
+      "repeat": 2,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 11.901551791001111,
+      "summary_tokens_local_estimate": 1683,
+      "after_tokens": 32193,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2059,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0038383600000000003,
+        "timestamp_priced_cost_usd": 0.0019191800000000001,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "ef8cf506a5604de2a6b5d51e146c5d30",
+          "timestamp": "2026-09-12T16:07:38.501890Z",
+          "started_at": "2026-09-12T16:07:26.670329Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 11831.304042018019,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2059,
+            "total_tokens": 77103,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "cfadffe4-fc20-4b0b-ad85-5ba670a57fff",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "1918b4a6c6eb4e2ab5cc0a493bff0355",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:e2c6a2a575d63661a711e876b421a2d0e06e9a0272e3732ef2192bafe3228e1a",
+          "utc_duration_ms": 11831.561000000002,
+          "clock_gap_ms": 0.25695798198285047
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-improved/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-improved/response-1.jsonl",
+        "sha256": "f4f441863d77a177b9ecbe5197b56c7037971d2e8cb13bfa758fb6bbf246f196"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-improved/summary.md",
+        "sha256": "06b140a46aad4e79b4db4c61bf1eb3245544c14909254cd4a529ab0192558326"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-2-improved/result.json",
+        "sha256": "978ac6cc52f500c1a51a8fbfb38301e751b6a735a2824a12e79624f0a1189026"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 39,
+            "text": "- 场景常量：0x485a58=(1.0,1.0)、0x485a60=(0.5,0.7)、0x485a68=(0.0,1.0)、0x485ad0=(0.0,-0.5,-5.0,1.0)、0x485adc=1.0f（**注意：助手先前一度误判为 0.0f，最新 dump 显示 0x485adc 处字节为 `00 00 80 3f` = 1.0f，此点需以工具证据为准**）。"
+          },
+          {
+            "line": 44,
+            "text": "- **核心失败**：重建的 `mystery.c` 输出与原始 `image.ppm` 不一致（char 16 起不同），天空色公式错误。此前对 `sky_color` 的寄存器追踪得出负值，属错误解读；随后发现 0x485adc 实为 1.0f，说明常量解读有误，需重新精确解码 `sky_color` 与 `trace` 的 mix/着色逻辑。"
+          },
+          {
+            "line": 47,
+            "text": "1. 重新精确解码 `sky_color`(0x402620) 与 `trace`(0x402750) 的浮点运算，以 0x485adc=1.0f 为基准修正 mix 公式（待核实：天空色应为 `mix((0.5,0.7,1.0),(1.0,1.0,1.0), 0.5*(d.y+1))` 之类，需用反汇编验证）。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-3-improved",
+      "arm": "improved",
+      "repeat": 3,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 12.407300999970175,
+      "summary_tokens_local_estimate": 1925,
+      "after_tokens": 32715,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2556,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0044944,
+        "timestamp_priced_cost_usd": 0.0022472,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "34683d5a892b4e788e7627107e90924a",
+          "timestamp": "2026-09-12T16:07:51.107717Z",
+          "started_at": "2026-09-12T16:07:38.778403Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 12329.018042073585,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2556,
+            "total_tokens": 77600,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "39a8dace-c735-4b46-b658-7f0734cf38e4",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "3989309f48a44c17be98af808457ee0c",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:9ee49561b6ee2b7bca7b93691e1ef13bdc9c5e94da62b36c0c4ae0d2fd46d3f3",
+          "utc_duration_ms": 12329.314,
+          "clock_gap_ms": 0.29595792641521257
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-improved/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-improved/response-1.jsonl",
+        "sha256": "ae19e019f6cea3839e164e259a3eddcfa18ebdbbc1fee701fdf8391250546b14"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-improved/summary.md",
+        "sha256": "07104ac26dc255d3c2326ca8c850e8febd88ae5e6abb05882ddcdcc52956b90d"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-improved/result.json",
+        "sha256": "4d8acfc3e24ee4f866e44a928cdee49f3ad982a226f05a26124869ed0c7a9804"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 50,
+            "text": "   - 反汇编显示：`xmm1 = [0x485adc]`；`xmm2 = d.y`；`xmm3 = [0x485a60]`(8字节)；`xmm2 = d.y + xmm1`；`xmm2 *= [0x485a60]`(0.5)；随后 `xmm0 = broadcast(xmm2) * xmm3`；`xmm1 = xmm1 - xmm2`；`xmm1 += xmm2`；`xmm0 += broadcast(xmm1)`。"
+          },
+          {
+            "line": 51,
+            "text": "   - **存在未解决的常量归属冲突**：助手先前一度判定 `0x485adc = 0.0f`，随后又据 `0x485ad0` 区段 dump（`00 00 00 00 | 00 00 00 bf | 00 00 a0 c0 | 00 00 80 3f`）改判 `0x485adc = 1.0f`。**该值必须重新核实**（0x485adc 是 0.0 还是 1.0 直接决定天空公式）。"
+          },
+          {
+            "line": 64,
+            "text": "  - 0x485ad0 区段 = (0.0, -0.5, -5.0, 1.0)；**0x485adc 归属待核实（0.0 或 1.0）**。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-3-baseline",
+      "arm": "baseline",
+      "repeat": 3,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 11.973704374977387,
+      "summary_tokens_local_estimate": 1876,
+      "after_tokens": 32710,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2551,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0044878,
+        "timestamp_priced_cost_usd": 0.0022439,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "ce8f3a476a9940c98446e917c569be2d",
+          "timestamp": "2026-09-12T16:08:03.275461Z",
+          "started_at": "2026-09-12T16:07:51.368374Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 11906.813999987207,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2551,
+            "total_tokens": 77595,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "a54b392d-66bd-4d32-91f6-e0c04290e0bf",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "45087922d44a4d6ca396f4e7c1278fbc",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:66627a80dacb0dd42d824a7b13f24e30d49d8c14578a12d9db66d17e48e72560",
+          "utc_duration_ms": 11907.087000000001,
+          "clock_gap_ms": 0.2730000127940002
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-baseline/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-baseline/response-1.jsonl",
+        "sha256": "0958e4d5395c360504fa9ab4b13b705f82e0252709807054a71941a52b1f6a89"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-baseline/summary.md",
+        "sha256": "36cee33bee358e1a987b3ba287afeac95b9f1652ab832cac06f62a914e0e5327"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-3-baseline/result.json",
+        "sha256": "fab0b59000cab1d723845f0c2d3ffab3fd3c6e4ce63eb061a93415ded0627ae6"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 49,
+            "text": "- 核实关键常量（见 Critical Context），特别是 `0x485adc` 的真实值存在冲突（见下）。"
+          },
+          {
+            "line": 54,
+            "text": "- **常量冲突（待核实）**：助手先前推断 `0x485adc` = 0.0f，但随后从 `objdump -s` 原始字节 `0x485ad0: 00000000 000000bf 0000a0c0 0000803f` 重新解读为：0x485ad0=0.0f、0x485ad4=-0.5f、0x485ad8=-5.0f、**0x485adc=1.0f**。两种解释互斥，尚无最终确认证据。此值直接影响 sky_color 与多处着色计算。"
+          },
+          {
+            "line": 88,
+            "text": "  - 0x485adc: 见上方冲突（0.0f 或 1.0f）"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-4-improved",
+      "arm": "improved",
+      "repeat": 4,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 11.111648707999848,
+      "summary_tokens_local_estimate": 1897,
+      "after_tokens": 32784,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2621,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0045802,
+        "timestamp_priced_cost_usd": 0.0022901,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "866923fb3d08477dbf5b2dd3f96b1a72",
+          "timestamp": "2026-09-12T16:08:14.582414Z",
+          "started_at": "2026-09-12T16:08:03.536528Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 11045.626541017555,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2621,
+            "total_tokens": 77665,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "4cc0203d-4c40-42fe-97a2-9a3ac3a7622e",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "10dc16815a3f4e9abbc0c4bd844e16cb",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:cfdd8d5e8f7d3cd7a3317b9f8f807e8ae495c271e49f95d11b06aa0d5b9cc443",
+          "utc_duration_ms": 11045.885999999999,
+          "clock_gap_ms": 0.25945898244390264
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-improved/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-improved/response-1.jsonl",
+        "sha256": "1fdb5c1037eabee791118fed7a343558ae365a32b6c2d029e3a32a4160d261d7"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-improved/summary.md",
+        "sha256": "0fb0f06834a788acbf7ad0a8d482667bdc895155fe7b6ccf82ce0d703c2226a7"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-improved/result.json",
+        "sha256": "c2e58524bc98d6844836d7cfc4fd485e8d79808b8699ad0baba9e71f083de7c0"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "1. 重新精确解码 `sky_color`（0x402620）与 `trace`（0x402750）的浮点运算，特别是 `0x485adc` 的真实值。"
+          },
+          {
+            "line": 49,
+            "text": "2. 核实 `0x485adc` 的值：助手先前误判为 0.0f，但按 `0x485ad0` 起 16 字节 `00 00 00 00 | 00 00 00 bf | 00 00 a0 c0 | 00 00 80 3f` 推算，`0x485adc` 应为 **1.0f**（待核实，这是当前主要冲突点）。"
+          },
+          {
+            "line": 81,
+            "text": "- 0x485adc: 按上述布局 = **1.0f**（助手先前误判为 0.0f，待核实）"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-4-baseline",
+      "arm": "baseline",
+      "repeat": 4,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 9.106306708068587,
+      "summary_tokens_local_estimate": 1458,
+      "after_tokens": 32010,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 1884,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.00360736,
+        "timestamp_priced_cost_usd": 0.00180368,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "f66402cedee74c6cb4eda5acfcd204a2",
+          "timestamp": "2026-09-12T16:08:23.897104Z",
+          "started_at": "2026-09-12T16:08:14.856216Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 9040.62649991829,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 1884,
+            "total_tokens": 76928,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "4f1d0d5e-d824-4ff4-8122-1c030e899526",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "c89714a99c6e48a6a4fe96af55f631f3",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:a6cd89cedb6be8c67333bc173f03530a29cc0926b33c6662eea76c3e8de1f0f1",
+          "utc_duration_ms": 9040.888,
+          "clock_gap_ms": 0.26150008171134687
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-baseline/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-baseline/response-1.jsonl",
+        "sha256": "76fee7111412846e472258e818cd3ae3c7abf0ebb1921d6a18f93e78abf1a01c"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-baseline/summary.md",
+        "sha256": "00e0bb2518952d33bff3fad9027b3ed92ce46d13e52e23eb6e6af58a49dfee5c"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-4-baseline/result.json",
+        "sha256": "7cf4295b10c92b60ff4d1cce3beb10870300473181ebc893447e12fd6f884443"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 47,
+            "text": "1. **核实 `sky_color` 公式**（关键存疑点）：重新精确解码 0x402620 的 `mix` 逻辑。注意我最后一步发现 `0x485adc` 实际是 **1.0f**（不是 0.0f）——`0x485ad0` 处 16 字节为 `(0.0, -0.5, -5.0, 1.0)`，故 0x485adc=1.0f。这很可能推翻我此前\"t=0.5*d.y\"的推导，需据此重算天空色。"
+          },
+          {
+            "line": 57,
+            "text": "  - **0x485ad0=(0.0,-0.5,-5.0,1.0)** → 0x485adc=**1.0f**（此前误记为 0.0f，需更正）。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-5-improved",
+      "arm": "improved",
+      "repeat": 5,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 11.229274583049119,
+      "summary_tokens_local_estimate": 1838,
+      "after_tokens": 32528,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2378,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.004259440000000001,
+        "timestamp_priced_cost_usd": 0.0021297200000000003,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "97a288208255493586edf9f1fb01eccf",
+          "timestamp": "2026-09-12T16:08:35.328499Z",
+          "started_at": "2026-09-12T16:08:24.166424Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 11161.818666034378,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2378,
+            "total_tokens": 77422,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "19139e6b-528a-4d4f-b05e-bbd4ffcd3621",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "447263759cb34f08b3b3848c9befafbe",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:fc20ba05672d86bdf3bb92971bb350e147f49264aae4ba9273876357cd68a540",
+          "utc_duration_ms": 11162.074999999999,
+          "clock_gap_ms": 0.25633396562079724
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-improved/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-improved/response-1.jsonl",
+        "sha256": "3d011157db810391c301fe01da1a409dd8c00712c2f19088c0e7a0aad058a1f6"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-improved/summary.md",
+        "sha256": "e38b570b46b8a7923047c00043178ff3ff9afba327cf0430a45689510cabe034"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-improved/result.json",
+        "sha256": "3d989c4c07dff184bc2cc76bc562c19cc6fff0d0afaec7aebb752097af2c8b9d"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 37,
+            "text": "- 关键更正（助手在最后一步发现，**尚未验证**）：`0x485adc` 实际是 **1.0f**，不是 0.0f。字节布局：`0x485ad0`=`00 00 00 00`(0.0f)、`0x485ad4`=`00 00 00 bf`(-0.5f)、`0x485ad8`=`00 00 a0 c0`(-5.0f)、`0x485adc`=`00 00 80 3f`(1.0f)。此前多处把 0x485adc 当作 0.0f 使用，可能是 sky_color 推导错误的根因。"
+          },
+          {
+            "line": 55,
+            "text": "1. 重新精确推导 `sky_color`（0x402620）：结合更正后的常量 `0x485adc = 1.0f`、`0x485a60 = (0.5, 0.7)`、`0x485a58 = (1.0, 1.0)`，重新解读 `mix` 模式，核对首像素应为 `159 197 255`。"
+          },
+          {
+            "line": 71,
+            "text": "  - `0x485ad0` = (0.0, -0.5, -5.0, 1.0)；**`0x485adc` = 1.0f（更正）**"
+          },
+          {
+            "line": 76,
+            "text": "- 待核实：`0x485adc = 1.0f` 的更正是否足以解释天空色差异；球半径、平面高度、光照方向、棋盘格参数均需以反汇编证据复核，当前重建版这些值多为助手推断，未经逐字节验证。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    },
+    {
+      "name": "initial-5-baseline",
+      "arm": "baseline",
+      "repeat": 5,
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 11.59416204097215,
+      "summary_tokens_local_estimate": 1940,
+      "after_tokens": 32652,
+      "usage": {
+        "input": 75044,
+        "hit": 74880,
+        "miss": 164,
+        "output": 2496,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.004415200000000001,
+        "timestamp_priced_cost_usd": 0.0022076000000000005,
+        "cache_hit_rate": 0.997814615425617,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "requests": [
+        {
+          "event_id": "86b8bf64fb1c4f61936eb6d83051d001",
+          "timestamp": "2026-09-12T16:08:47.112379Z",
+          "started_at": "2026-09-12T16:08:35.583459Z",
+          "phase": "a_prefix",
+          "status": "completed",
+          "step": null,
+          "duration_ms": 11528.670542058535,
+          "raw_usage": {
+            "prompt_tokens": 75044,
+            "completion_tokens": 2496,
+            "total_tokens": 77540,
+            "prompt_tokens_details": {
+              "cached_tokens": 74880
+            },
+            "prompt_cache_hit_tokens": 74880,
+            "prompt_cache_miss_tokens": 164
+          },
+          "error": null,
+          "source_range": [
+            1,
+            40
+          ],
+          "input_token_error": -207,
+          "response_id": "37066111-2463-45d6-a580-fe7d8aed5819",
+          "input_token_estimate": {
+            "tokens": 75251,
+            "budget_tokens": 79014,
+            "source": "deepseek-v4-flash:60d8d70770c6776ff598c94bb586a859a38244f1",
+            "effective_thinking": "disabled"
+          },
+          "operation_id": "b4c963d102c74146857ecfc6b84e366a",
+          "max_output_tokens": 32768,
+          "finish_reason": "stop",
+          "response_ref": "blob:1ae6c2ead90cba05cc350d7dd833a4afd8a33e29ce7117f9afebfb39f83ca348",
+          "utc_duration_ms": 11528.92,
+          "clock_gap_ms": 0.24945794146515254
+        }
+      ],
+      "payload": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-baseline/request-1.json",
+        "sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62"
+      },
+      "response": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-baseline/response-1.jsonl",
+        "sha256": "26077c4bc8e4cdf97c4656860d919dfcc533e6e5ab688c3f348356cd6deb3c51"
+      },
+      "summary": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-baseline/summary.md",
+        "sha256": "873d7500f54bbaf3cdf3daa88879d07532706eb8fccb727e5b246ae1feb284b1"
+      },
+      "result": {
+        "path": "artifacts/compaction-heading-eval-20260913/live/replays/initial-5-baseline/result.json",
+        "sha256": "9b9ab3f326b53a190e32e181e3e1abe016acd718e01f23b0157e6b3a5c554d0f"
+      },
+      "headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context"
+      ],
+      "manual_review": {
+        "target_quotes": [
+          {
+            "line": 45,
+            "text": "  - **`0x485adc` = `00 00 80 3f` = 1.0f**（重要更正：此前助手一度误判为 0.0f；按字节偏移 0x485ad0+12 应为 1.0f，待最终核实）。"
+          },
+          {
+            "line": 55,
+            "text": "1. **核实 `sky_color` 精确公式**：重新按字节偏移确认 `0x485adc` 是 0.0f 还是 1.0f（`0x485ad0` 起 16 字节 = 0.0, -0.5, -5.0, 1.0，故 0x485adc 应为 1.0f）。据此重推 `t` 与 mix 公式，使首像素匹配 `159 197 255`。"
+          },
+          {
+            "line": 67,
+            "text": "- 关键待核实常量：`0x485adc` 值（0.0f vs 1.0f）直接决定 `sky_color` 的 `t` 计算，是当前差异的首要嫌疑点。"
+          }
+        ],
+        "target_rubric": "Correction to 1.0f or explicit 0.0f/1.0f conflict retained; no score for other claims.",
+        "target_not_presented_as_only_certain_wrong_0.0f": true,
+        "tail_draft1444_duplicated": true,
+        "qualification": "Manual review of this hashed output, not an automatic factual classifier."
+      }
+    }
+  ],
+  "request_identity": {
+    "unique_payloads": 1,
+    "payload_sha256": "26193e7e6f6aedcbaa7034dff2f39e50b9b2cd80a950526edb035e0082522e62",
+    "count": 10
+  },
+  "cost_difference_decomposition": {
+    "improved_minus_baseline_usd": 0.031960920000000004,
+    "cache_bucket_shift_usd": 0.031898880000000004,
+    "output_length_difference_usd": 6.204000000000001e-05,
+    "extra_input_miss_tokens_improved": 74880,
+    "extra_output_tokens_improved": 47,
+    "interpretation": "First improved request was fully cold; remaining nine identical requests had hit74880/miss164. No compaction retry was needed in either arm."
+  },
+  "total_usage": {
+    "input": 750440,
+    "hit": 673920,
+    "miss": 76520,
+    "output": 23611,
+    "requests": 10,
+    "usage_complete": 10,
+    "usage_missing": 0,
+    "normalized_peak_cost_usd": 0.07427020000000001,
+    "timestamp_priced_cost_usd": 0.037135100000000004,
+    "cache_hit_rate": 0.8980331538830553,
+    "usage_coverage": 1.0,
+    "cost_is_lower_bound": false
+  },
+  "limitations": [
+    "Ten Flash responses used plain headings; live replay did not trigger the repaired annotation case.",
+    "No prompt changes: all ten first-request payloads were byte-identical. Content/latency differences cannot be attributed to parsing a plain heading.",
+    "Both arms retain target correction/conflict evidence but duplicate retained-tail progress; no general factual-accuracy claim.",
+    "Historical Pro regressions and live Flash comparisons are reported separately; no cross-model gain estimate.",
+    "Five pairs on one checkpoint, no task continuation or 18-task benchmark in this run.",
+    "Rates are frozen estimates. Totals retain first-request cold-cache cost; not an invoice or a production cache-rate estimate."
+  ]
+}

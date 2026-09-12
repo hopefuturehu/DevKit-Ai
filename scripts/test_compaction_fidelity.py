@@ -32,16 +32,39 @@ CASES = {
     "later_correction": {"visible": 72, "through": 72, "parent_end": 40},
 }
 PARENT = ROOT / "artifacts/compaction-prefix-fallback-20260911/replay/1-isolated/summary.md"
+MODEL_PRICING = {
+    "deepseek-v4-pro": PRICING,
+    "deepseek-v4-flash": {
+        "usd_per_million_peak": {"hit": 0.014, "miss": 0.44, "output": 1.32},
+        "off_peak_multiplier": 0.5,
+        "note": (
+            "Frozen 2026-09-09 V4 Flash comparison rates from "
+            "src/bot/evals/handoff_recording.py; estimates, not an invoice."
+        ),
+    },
+}
 
 
-def load_version(output: Path, arm: str):
+class FrozenModelProvider(RecordedProvider):
+    def __init__(self, output: Path, *, model: str, **kwargs):
+        super().__init__(output, **kwargs)
+        self.frozen_model = model
+
+    async def stream(self, request):
+        if request.model != self.frozen_model or request.thinking != "disabled":
+            raise ValueError("Request differs from the frozen evaluation model/thinking mode")
+        async for event in super().stream(request):
+            yield event
+
+
+def load_version(output: Path, arm: str, revision: str):
     classes = []
     for filename, classname in (
         ("service", "ContextCompactor"),
         ("strategies", "StrategyCompactor"),
     ):
         source = subprocess.check_output(
-            ["git", "show", f"{REVISIONS[arm]}:src/bot/compaction/{filename}.py"], cwd=ROOT
+            ["git", "show", f"{revision}:src/bot/compaction/{filename}.py"], cwd=ROOT
         )
         path = output / "frozen" / f"{arm}_{filename}.py"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -79,18 +102,35 @@ def historical_context():
     return first, historical, provenance, context, raw, history
 
 
-def prepare(output: Path, repeats: int) -> dict:
+def prepare(
+    output: Path,
+    repeats: int,
+    *,
+    revisions: dict[str, str],
+    cases: list[str],
+    model: str,
+) -> dict:
+    revisions = {
+        arm: subprocess.check_output(
+            ["git", "rev-parse", "--verify", f"{revision}^{{commit}}"], cwd=ROOT, text=True
+        ).strip()
+        for arm, revision in revisions.items()
+    }
     if (output / "manifest.json").exists():
         manifest = json.loads((output / "manifest.json").read_text())
         assert manifest["repeats"] == repeats
+        assert manifest["revisions"] == revisions
+        assert manifest["cases"] == cases
+        assert manifest["model"] == model
         assert manifest["script_sha256"] == sha(Path(__file__)), "frozen script changed"
         return manifest
     output.mkdir(parents=True, exist_ok=True)
     _, _, provenance, _, raw, _ = historical_context()
-    old_compactor, _, _ = load_version(output, "baseline")
-    load_version(output, "improved")
+    old_compactor, _, _ = load_version(output, "baseline", revisions["baseline"])
+    load_version(output, "improved", revisions["improved"])
     seeds = {}
-    for case, settings in CASES.items():
+    for case in cases:
+        settings = CASES[case]
         folder = output / "seeds" / case
         folder.mkdir(parents=True)
         store = SQLiteSessionStore(folder / "state.db")
@@ -108,7 +148,7 @@ def prepare(output: Path, repeats: int) -> dict:
                     session_id=session,
                     parent_id=None,
                     trigger="strategy:a_fallback",
-                    model="deepseek-v4-pro",
+                    model=model,
                     covered_start_position=1,
                     covered_end_position=settings["parent_end"],
                     delta_start_position=1,
@@ -130,15 +170,19 @@ def prepare(output: Path, repeats: int) -> dict:
             store.close()
         seeds[case]["sha256"] = sha(folder / "state.db")
     order = []
-    for case in CASES:
+    for case in cases:
         for repeat in range(1, repeats + 1):
-            arms = list(REVISIONS)
+            arms = list(revisions)
             random.Random(f"20260912:{case}:{repeat}").shuffle(arms)
             order.extend({"case": case, "repeat": repeat, "arm": arm} for arm in arms)
     manifest = {
         "created_at": datetime.now(UTC).isoformat(),
         "script_sha256": sha(Path(__file__)),
-        "revisions": REVISIONS,
+        "revisions": revisions,
+        "cases": cases,
+        "model": model,
+        "thinking": "disabled",
+        "temperature": 0,
         "frozen_sources": {p.name: sha(p) for p in (output / "frozen").glob("*.py")},
         "source": provenance,
         "parent_summary": {"path": str(PARENT), "sha256": sha(PARENT)},
@@ -149,7 +193,7 @@ def prepare(output: Path, repeats: int) -> dict:
         "isolated_output_tokens": 8192,
         "summary_hard_tokens": 4000,
         "max_reserved_usd_per_trial": 0.5,
-        "pricing": PRICING,
+        "pricing": MODEL_PRICING[model],
         "continuation_selection": (
             "Earliest repeat with both arms published in initial case, without inspecting quality."
         ),
@@ -163,6 +207,8 @@ def prepare(output: Path, repeats: int) -> dict:
             "five repeats do not establish population accuracy.",
             "No artificial prewarming; interleaving cannot eliminate provider cache/order effects.",
             "Usage missing on failed requests remains unknown; prices are frozen comparison rates.",
+            "A model override applies to both arms and both summary paths; "
+            "historical token assertions only estimate old inputs without sending them.",
         ],
     }
     save(output / "manifest.json", manifest)
@@ -187,9 +233,20 @@ async def trial(output: Path, manifest: dict, item: dict, api_key: str | None) -
     history = history[: seed["visible"]]
     cfg = context["config"].model_copy(deep=True)
     cfg.context.compaction_strategy = "a_fallback"
-    compactor_class, strategy_class, frame_class = load_version(output, arm)
-    provider = RecordedProvider(
-        folder, base_url=cfg.model.base_url, api_key=api_key or "offline-unused", timeout_seconds=90
+    cfg.model.name = cfg.context.compaction_model = manifest["model"]
+    cfg.model.thinking = cfg.context.compaction_thinking = "disabled"
+    cfg.model.temperature = 0
+    cfg.model.input_cost_per_million = manifest["pricing"]["usd_per_million_peak"]["miss"]
+    cfg.model.output_cost_per_million = manifest["pricing"]["usd_per_million_peak"]["output"]
+    compactor_class, strategy_class, frame_class = load_version(
+        output, arm, manifest["revisions"][arm]
+    )
+    provider = FrozenModelProvider(
+        folder,
+        model=manifest["model"],
+        base_url=cfg.model.base_url,
+        api_key=api_key or "offline-unused",
+        timeout_seconds=90,
     )
     assert provider.estimate_input_tokens(first).tokens == 3914
     assert provider.estimate_input_tokens(historical).tokens == 73262
@@ -203,6 +260,9 @@ async def trial(output: Path, manifest: dict, item: dict, api_key: str | None) -
     runner.config, runner.store, runner.context_compactor = cfg, store, compactor
     request = historical.model_copy(deep=True)
     request.messages.pop()
+    request.model = manifest["model"]
+    request.thinking = "disabled"
+    request.temperature = 0
     request.max_output_tokens = 32768
 
     def project(record):
@@ -261,7 +321,7 @@ async def trial(output: Path, manifest: dict, item: dict, api_key: str | None) -
                 "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in events)
             )
             rows = request_rows(events)
-            result["requests"], result["usage"] = rows, aggregate(rows, PRICING)
+            result["requests"], result["usage"] = rows, aggregate(rows, manifest["pricing"])
             if outcome.compacted:
                 active = compactor.projection(seed["session_id"])["compaction"]
                 (folder / "summary.md").write_text(active["summary_text"] + "\n")
@@ -281,10 +341,20 @@ async def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repeats", type=int, choices=range(1, 6), default=5)
+    parser.add_argument("--baseline-ref", default=REVISIONS["baseline"])
+    parser.add_argument("--improved-ref", default=REVISIONS["improved"])
+    parser.add_argument("--cases", nargs="+", choices=list(CASES), default=list(CASES))
+    parser.add_argument("--model", choices=list(MODEL_PRICING), default="deepseek-v4-pro")
     parser.add_argument("--live", action="store_true")
     args = parser.parse_args()
     output = args.output.resolve()
-    manifest = prepare(output, args.repeats)
+    manifest = prepare(
+        output,
+        args.repeats,
+        revisions={"baseline": args.baseline_ref, "improved": args.improved_ref},
+        cases=list(dict.fromkeys(args.cases)),
+        model=args.model,
+    )
     local = load_config(ROOT)
     api_key = resolve_model_api_key(local.model, workspace=ROOT) if args.live else None
     if args.live and not api_key:
