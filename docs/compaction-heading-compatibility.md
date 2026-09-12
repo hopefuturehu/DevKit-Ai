@@ -7,6 +7,9 @@
 按用户指定，新增真实请求全部使用 `deepseek-v4-flash`。修复前后各五次均在前缀路径直接成功；
 Flash 本轮输出的是普通标题，没有触发括号兼容分支，因此没有实测出额外的回退减少或费用优势。
 
+随后进行了 [V4 Flash 四策略完整任务对比](context-strategy-flash-evaluation.md)，统一主输出 32K，
+同时评估 CURRENT、A、B 和修复后的双路径方案；与本页的标题单因素重放分别统计。
+
 ## 1. 改了什么
 
 `ContextCompactor._validate_summary` 原来只接受完全匹配的八个 Markdown 标题。

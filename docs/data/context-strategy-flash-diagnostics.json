@@ -1,0 +1,135 @@
+{
+  "date": "2026-09-13",
+  "runtime_revision": "99d70d8f611f7a8d6e0ca3c4836a8a3c5066ce2e",
+  "scope": "Supplementary read-only diagnostics from completed trials; not additional live task repetitions.",
+  "factuality_spot_check": {
+    "scope": "One manually reviewed parameter/version mismatch in the fourth published a_fallback summary; not a global factuality accuracy score.",
+    "summary_id": "4c3b3fc96de24d6bab0e3f13aa90e9ff",
+    "covered_end_position": 130,
+    "summary_sha256": "e4a5c910025d21e3496ace62c92de662ec374c7cade5f4335028c68a4a99f81b",
+    "summary_excerpt": "- 球体参数（`main` 0x401a4b/0x401a5e）：`movabs $0x3f800000c0a00000` → 低 32 位 0xc0a00000=-5.0f，高 32 位 0x3f800000=1.0f；`movabs $0xbf00000000000000` → 0xbf000000=-0.5f。**实测球体匹配**（第一版差异仅在地平线），推断球心 (-5.0, 1.0, 0.0)、半径 0.5（寄存器顺序仍存歧义）。",
+    "new_candidate_message": 97,
+    "new_candidate_excerpt": "static V SC={0,-0.5f,-5}; static float SR=1.0f;",
+    "new_candidate_tool_result_message": 98,
+    "new_candidate_result_excerpt": "-rw-r--r-- 1 root root 5374339 Sep 12 16:53 image.ppm\nimage.ppm /app/image.ppm differ: char 2873820, line 240004\nDIFFER",
+    "interpretation": "The old center (-5,1,0), radius 0.5 remains qualified by register ambiguity but is linked to a matching-test claim. The generated candidate and later traces use center (0,-0.5,-5), radius 1. This is stale hypothesis/version attribution, not evidence of perfect factual preservation.",
+    "final_source_sha256": "0a793db6359812fd12d4734b1b3a57c06641a973cbc4991f068b0d8130f02e21",
+    "source_database_sha256": "27f5a0382a99edbf0b66096baf492d20a0cb46a7fc69ac000f6356793e4d1f34"
+  },
+  "progress_counterfactual": {
+    "volatile_process_id": {
+      "replayed": 235,
+      "non_continue": [],
+      "last": {
+        "occurrence": 235,
+        "action": "continue",
+        "progress": "weak",
+        "reason_code": "weak_progress",
+        "message": "当前步骤只有探索性进展。",
+        "epoch": 0,
+        "no_progress_steps": 0,
+        "recovery_attempt": 0
+      }
+    },
+    "stable_output": {
+      "replayed": 6,
+      "non_continue": [
+        {
+          "occurrence": 2,
+          "action": "warn",
+          "progress": "weak",
+          "reason_code": "tool_cycle",
+          "message": "检测到周期为 1 的工具调用重复模式。",
+          "epoch": 0,
+          "no_progress_steps": 0,
+          "recovery_attempt": 0,
+          "pattern": {
+            "period": 1,
+            "repetitions": 2
+          }
+        },
+        {
+          "occurrence": 3,
+          "action": "recover",
+          "progress": "weak",
+          "reason_code": "tool_cycle",
+          "message": "检测到周期为 1 的工具调用循环，已重复 3 次。",
+          "epoch": 0,
+          "no_progress_steps": 0,
+          "recovery_attempt": 1,
+          "pattern": {
+            "period": 1,
+            "repetitions": 3
+          }
+        },
+        {
+          "occurrence": 5,
+          "action": "warn",
+          "progress": "weak",
+          "reason_code": "tool_cycle",
+          "message": "检测到周期为 1 的工具调用重复模式。",
+          "epoch": 0,
+          "no_progress_steps": 0,
+          "recovery_attempt": 1,
+          "pattern": {
+            "period": 1,
+            "repetitions": 2
+          }
+        },
+        {
+          "occurrence": 6,
+          "action": "finalize",
+          "progress": "weak",
+          "reason_code": "tool_cycle_after_recovery",
+          "message": "检测到周期为 1 的工具调用循环，已重复 3 次。 恢复尝试未打破该模式，进入单次收尾。",
+          "epoch": 0,
+          "no_progress_steps": 0,
+          "recovery_attempt": 1,
+          "pattern": {
+            "period": 1,
+            "repetitions": 3
+          }
+        }
+      ],
+      "last": {
+        "occurrence": 6,
+        "action": "finalize",
+        "progress": "weak",
+        "reason_code": "tool_cycle_after_recovery",
+        "message": "检测到周期为 1 的工具调用循环，已重复 3 次。 恢复尝试未打破该模式，进入单次收尾。",
+        "epoch": 0,
+        "no_progress_steps": 0,
+        "recovery_attempt": 1,
+        "pattern": {
+          "period": 1,
+          "repetitions": 3
+        }
+      }
+    },
+    "scope": "Offline counterfactual on the repeated-command subsequence; no recovery model or task rerun. Does not establish task success or realized savings."
+  },
+  "progress_replay_script": {
+    "path": "artifacts/context-strategy-flash-20260913/replay_progress.py",
+    "sha256": "7493b3a12126dcb03c76cfc7449049662247747d3eb6956bb29c5aa682059a0a"
+  },
+  "a_main_output_limit": {
+    "step": 88,
+    "finish_reason": "length",
+    "content_chars": 77153,
+    "reasoning_chars": 0,
+    "tool_call_count": 0,
+    "completion_tokens": 32768,
+    "suffix_excerpt": "mm, OK. Hmm, so 0x10[L0] = (dir.y, dir.z). Hmm.\n\nHmm, hmm. Hmm, so the struct = {0, 0, 0, 0, dir.y, dir.z}. Hmm.\n\nHmm, hmm. Hmm, so the ray = {origin=(0,0,0), dir=(0, dir.y, dir.z)}. Hmm.\n\nHmm, hmm. Hmm, wait. Hmm, maybe the ray struct is {vec3 origin; vec3 dir;} and the compiler stored origin = (0,0,0) at 0x00-0x0b, then dir.x at 0x0c, dir.y at 0x10, dir.z at 0x14. Hmm, and dir.x = 0. Hmm.\n\nHmm, hmm. Hmm, but that's clearly wrong for the rendering. Hmm.\n\nHmm, hmm. Hmm, unless... hmm. Hmm, wait. Hmm, maybe the ray struct is {vec3 origin; vec3 dir;} and the caller stored it as: 0x00 = origin.x, 0x04 = origin.y, 0x08 = origin.z, 0x0c = dir.x, 0x10 = dir.y, 0x14 = dir.z. Hmm, and the caller set 0x00-0x0b = 0 (origin), 0x0c = 0, 0x10 = dir.y, 0x14 = dir.z. Hmm.\n\nHmm, so dir = (0, dir.y, dir.z). Hmm.\n\nHmm, hmm. Hmm, OK, let me just test this hypothesis: if dir.x = 0 always, then the sphere_intersect would compute oc = (0, 0.5, 5) and dir = (0, dir.y, dir.z). Hmm, and the sphere would be hit based on dir.y, dir.z only. Hmm, that would make the sphere appear as a vertical band. Hmm, but the",
+    "interpretation": "Main-model prose repeats register-layout hypotheses until the 32K ceiling; all four preceding summary requests succeeded. This is distinct from summary failure."
+  },
+  "current_main_output_limit": {
+    "step": 88,
+    "finish_reason": "length",
+    "content_chars": 56453,
+    "reasoning_chars": 0,
+    "tool_call_count": 0,
+    "completion_tokens": 32768,
+    "suffix_excerpt": "mm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, hmm. Hmm, h",
+    "interpretation": "Main-model prose degenerates to repeated Hmm until the 32K ceiling; seven summaries had been published successfully."
+  }
+}

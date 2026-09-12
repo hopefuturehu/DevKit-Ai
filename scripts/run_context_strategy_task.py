@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze and run CURRENT/A/B through Harbor's actual installed AgentRunner."""
+"""Freeze and run compaction strategies through Harbor's installed AgentRunner."""
 
 from __future__ import annotations
 
@@ -25,6 +25,17 @@ from bot.evals.terminalbench import (
 )
 from bot.providers.token_counting import TOKENIZER_SHA256, load_tokenizer, tokenizer_path
 
+FROZEN_PRICES = {
+    "deepseek-v4-pro": {
+        "as_of": "2026-09-10",
+        "usd_per_million_peak": {"hit": 0.044, "miss": 1.32, "output": 3.96},
+    },
+    "deepseek-v4-flash": {
+        "as_of": "2026-09-09",
+        "usd_per_million_peak": {"hit": 0.014, "miss": 0.44, "output": 1.32},
+    },
+}
+
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -42,14 +53,18 @@ def prepare(
     *,
     main_output_tokens: int = 8192,
     strategies: list[str] | None = None,
+    model_name: str | None = None,
 ) -> None:
     if (output / "manifest.json").exists():
         raise ValueError("manifest already exists; use a new output directory for a new experiment")
     if not (task / "task.toml").is_file():
         raise ValueError("task.toml missing")
     local = load_config(root)
-    if local.model.name != "deepseek-v4-pro":
-        raise ValueError("This frozen price/tokenizer protocol requires deepseek-v4-pro")
+    model_name = model_name or local.model.name
+    if model_name not in FROZEN_PRICES:
+        raise ValueError("No frozen price/tokenizer protocol for this model")
+    pricing = FROZEN_PRICES[model_name]
+    rates = pricing["usd_per_million_peak"]
     source_tokenizer = tokenizer_path()
     load_tokenizer(source_tokenizer)
     output.mkdir(parents=True, exist_ok=True)
@@ -58,13 +73,14 @@ def prepare(
     shutil.copyfile(source_tokenizer, vocab)
     model = local.model.model_dump(mode="json", exclude_none=True, exclude={"api_key"})
     model.update(
+        name=model_name,
         api_key_ref="env:BOT_MODEL_API_KEY",
         temperature=0,
         thinking="disabled",
         max_output_tokens=main_output_tokens,
         context_window_tokens=131072,
-        input_cost_per_million=1.32,
-        output_cost_per_million=3.96,
+        input_cost_per_million=rates["miss"],
+        output_cost_per_million=rates["output"],
     )
     cfg = AppConfig.model_validate(
         {
@@ -74,6 +90,7 @@ def prepare(
                 "compaction_low_water_tokens": min(40000, input_limit // 3),
                 "recent_conversation_tokens": min(20000, input_limit // 6),
                 "compaction_thinking": "disabled",
+                "compaction_model": model_name,
             },
             "agent": {"finalization": {"model_timeout_seconds": 30}},
             "subagents": {"enabled": False},
@@ -93,6 +110,7 @@ def prepare(
         "revision": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=root, text=True
         ).strip(),
+        "script_sha256": digest(Path(__file__)),
         "task": str(task),
         "task_files": {
             str(p.relative_to(task)): digest(p) for p in sorted(task.rglob("*")) if p.is_file()
@@ -113,8 +131,8 @@ def prepare(
         "model_host": model_hostname(model["base_url"]),
         "pricing": {
             "source": "https://api-docs.deepseek.com/quick_start/pricing/",
-            "as_of": "2026-09-10",
-            "usd_per_million_peak": {"hit": 0.044, "miss": 1.32, "output": 3.96},
+            **pricing,
+            "note": "Frozen comparison rates, not current prices or an invoice.",
             "off_peak_multiplier": 0.5,
             "peak_utc": "Monday-Friday [01:00,04:00), [06:00,10:00)",
         },
@@ -223,6 +241,7 @@ def main() -> None:
     parser.add_argument("--task", type=Path)
     parser.add_argument("--input-limit", type=int, default=120000)
     parser.add_argument("--main-output-tokens", type=int, default=8192)
+    parser.add_argument("--model", choices=list(FROZEN_PRICES))
     parser.add_argument(
         "--strategies", nargs="+", choices=("current", "a", "b", "a_fallback"), default=None
     )
@@ -239,6 +258,7 @@ def main() -> None:
             args.input_limit,
             main_output_tokens=args.main_output_tokens,
             strategies=args.strategies,
+            model_name=args.model,
         )
     else:
         parser.error("--task is required when preparing")
