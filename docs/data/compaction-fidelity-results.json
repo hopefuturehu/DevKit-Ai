@@ -1,0 +1,2533 @@
+{
+  "schema_version": 1,
+  "evaluation_date": "2026-09-12",
+  "scope": "One real task checkpoint; three cases x two versions x five repeats, plus one preselected 12-step continuation pair.",
+  "replay_manifest": {
+    "created_at": "2026-09-12T09:35:11.968363+00:00",
+    "script_sha256": "af08ab356ab2018621222bebd22f9523d0361821688a2b7ea8551ae76d585a55",
+    "revisions": {
+      "baseline": "04d7630",
+      "improved": "1bcda03"
+    },
+    "frozen_sources": {
+      "baseline_service.py": "f8996360376cbff4c9e5e554470d6655c73af417f3bacb75517dedb8ee26c727",
+      "improved_service.py": "e8e85af3942a141865197f66c6ede4d30cf1e918936a4da1b698a8ebaa2e17ac",
+      "baseline_strategies.py": "337320d9b5ea8cf37bd71ef08bb751b5e19ad4c12217e1e8627d0867447880fe",
+      "improved_strategies.py": "90bd1d620d811ca8483d4001bd4e891dbde8292e0c70e40ce63209dc870f77a1"
+    },
+    "source": {
+      "source_db": "artifacts/context-strategy-path-20260910/a-output-32k/jobs/a/035880d7ef5554b217e53a75ce5e87e4__CTqXzEk/agent/trace/state.db",
+      "source_db_sha256": "76bbc8800d1eb46c2e42094789c20bc020332f487772ff43380a8068dc64a777",
+      "source_events_sha256": "8fcaa299b03f379cc69589394ae8c3da0b119c590b4ccf75126019da083f54bf",
+      "config_sha256": "f2fefba951cf55764c7fbd568b0885f085a54377f15a208181d3650bd33058ea",
+      "cutoff_sequence": 5781,
+      "history_positions": [
+        1,
+        70
+      ],
+      "summary_covered_range": [
+        1,
+        40
+      ],
+      "runtime_note_ids": [
+        "progress-stall-warning",
+        "session-plan"
+      ],
+      "tool_names": [
+        "activate_tools",
+        "apply_patch",
+        "fetch_url",
+        "ksys",
+        "list_processes",
+        "load_compaction_source",
+        "load_context_reference",
+        "poll_process",
+        "read_file",
+        "run_command",
+        "run_shell",
+        "search_session_history",
+        "search_text",
+        "send_process_input",
+        "terminate_process",
+        "tuner",
+        "update_plan"
+      ],
+      "environment": {
+        "operating_system": "linux",
+        "architecture": "x86_64",
+        "executables": {
+          "ksys": null,
+          "devkit": null
+        }
+      },
+      "limitations": [
+        "Original HTTP payload was not persisted; this is a reconstructed replay.",
+        "Environment: Linux x86_64, ksys/devkit absent, no AGENTS.md, empty Skill catalog.",
+        "No published compaction or live managed process at this boundary.",
+        "Original two tool names/arguments are lost; these responses are new observations."
+      ]
+    },
+    "parent_summary": {
+      "path": "/Users/huyang/codespace/bot/artifacts/compaction-prefix-fallback-20260911/replay/1-isolated/summary.md",
+      "sha256": "44453c9b836c22b9ee1ebebd1eea37d24e5d806afd1afcf6cd466ee72366b1e3"
+    },
+    "seeds": {
+      "initial": {
+        "session_id": "c4b0d311d3344e2099f778c589033481",
+        "path": "/Users/huyang/codespace/bot/artifacts/compaction-fidelity-eval-20260912/live/seeds/initial/state.db",
+        "visible": 70,
+        "through": 40,
+        "parent_end": 0,
+        "sha256": "89c3134bfacb90281513c0a65a269d250775a664e85eb699798f07d47b13f09d"
+      },
+      "parent_error": {
+        "session_id": "7c6c415c54754d6bba7fcf6e4f344029",
+        "path": "/Users/huyang/codespace/bot/artifacts/compaction-fidelity-eval-20260912/live/seeds/parent_error/state.db",
+        "visible": 56,
+        "through": 56,
+        "parent_end": 40,
+        "sha256": "01ea3978adce33c404a1366926f84bc4f9a80b91f5466a5b899c5967f349e753"
+      },
+      "later_correction": {
+        "session_id": "032c92e5c8414702b477bbce028541db",
+        "path": "/Users/huyang/codespace/bot/artifacts/compaction-fidelity-eval-20260912/live/seeds/later_correction/state.db",
+        "visible": 72,
+        "through": 72,
+        "parent_end": 40,
+        "sha256": "d95a7140d892407efe058f96940bce6e67b5c07d6494f21f7d8708345891c1d4"
+      }
+    },
+    "order": [
+      {
+        "case": "initial",
+        "repeat": 1,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 1,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 2,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 2,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 3,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 3,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 4,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 4,
+        "arm": "baseline"
+      },
+      {
+        "case": "initial",
+        "repeat": 5,
+        "arm": "improved"
+      },
+      {
+        "case": "initial",
+        "repeat": 5,
+        "arm": "baseline"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 1,
+        "arm": "improved"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 1,
+        "arm": "baseline"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 2,
+        "arm": "improved"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 2,
+        "arm": "baseline"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 3,
+        "arm": "baseline"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 3,
+        "arm": "improved"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 4,
+        "arm": "baseline"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 4,
+        "arm": "improved"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 5,
+        "arm": "baseline"
+      },
+      {
+        "case": "parent_error",
+        "repeat": 5,
+        "arm": "improved"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 1,
+        "arm": "improved"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 1,
+        "arm": "baseline"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 2,
+        "arm": "baseline"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 2,
+        "arm": "improved"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 3,
+        "arm": "improved"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 3,
+        "arm": "baseline"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 4,
+        "arm": "baseline"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 4,
+        "arm": "improved"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 5,
+        "arm": "improved"
+      },
+      {
+        "case": "later_correction",
+        "repeat": 5,
+        "arm": "baseline"
+      }
+    ],
+    "repeats": 5,
+    "main_output_tokens": 32768,
+    "isolated_output_tokens": 8192,
+    "summary_hard_tokens": 4000,
+    "max_reserved_usd_per_trial": 0.5,
+    "pricing": {
+      "usd_per_million_peak": {
+        "hit": 0.044,
+        "miss": 1.32,
+        "output": 3.96
+      },
+      "off_peak_multiplier": 0.5,
+      "note": "Frozen 2026-09-10 comparison rates; estimates, not an invoice."
+    },
+    "continuation_selection": "Earliest repeat with both arms published in initial case, without inspecting quality.",
+    "limitations": [
+      "Initial checkpoint is reconstructed, not original HTTP bytes or a process snapshot.",
+      "Cross-round cases combine a real erroneous summary with real later messages; constructed replays, not original compactions.",
+      "Cross-round requests omit old runtime notes to avoid future-state leakage.",
+      "Parent snapshot IDs are fixed via seed database copies, not regenerated per arm.",
+      "No task tools execute during summary replay; five repeats do not establish population accuracy.",
+      "No artificial prewarming; interleaving cannot eliminate provider cache/order effects.",
+      "Usage missing on failed requests remains unknown; prices are frozen comparison rates."
+    ]
+  },
+  "continuation_manifest": {
+    "created_at": "2026-09-12T09:43:22.484589+00:00",
+    "selected_repeat": 1,
+    "selection": "Earliest repeat with both arms published in initial case, without inspecting quality.",
+    "image_id": "sha256:ab8763ac0652f40606da770e3ee26882a45dcfc1095aeb357631d9772b6d17dc",
+    "order": [
+      "improved",
+      "baseline"
+    ],
+    "max_steps": 12,
+    "max_wall_seconds": 600,
+    "max_cost_usd_conservative_per_run": 2,
+    "script_sha256": "4631b5a46c9e362883f8099b1874cc617cb617d0801e251916e2cd1a975c5a3d",
+    "source_restore": [
+      {
+        "source_position": 55,
+        "script_sha256": "8b432b19fa0f439537f8552c79ab05fab9f6f39129d2d76a7d0ec271e1969cf7",
+        "returncode": 0
+      },
+      {
+        "source_position": 57,
+        "script_sha256": "01004cffc3ac895be97b50071c588190b478760caf8314227e159d8971976214",
+        "returncode": 0
+      },
+      {
+        "source_position": 59,
+        "script_sha256": "336d15d07559175b3c0b752a4a3f3f6f6aa90a738e96636cf9ac2d589e693c98",
+        "returncode": 0
+      }
+    ],
+    "checkpoint_files_sha256": "869eebc7779f565fafcaae5c4c366c8d86bd5d21d9a8d1389d34fc67c09911de  /app/mystery\n011e84104005b16af830d05f65e2033adb16d2c798a34e97a42dd000d5af6d52  /app/mystery.c\n3328dbde3dcb3dbfb01702ca61d3180a9f7dac40b8019eefbb2aa6d75824ddf4  /app/reversed\n0d115b98f899dbfafed4a3e57c62a7182d6639861bb73d6965ec956a27d94ea7  /app/image.ppm\ncfa2cbba0489364349ce1d93228eb6a5e577e8924768ef5b344766b986307cb3  /tmp/reversed.ppm\n",
+    "limitations": [
+      "One selected pair is a pilot, not an estimate of general task success.",
+      "Filesystem reconstructed from original operations 55,57,59; no original process or kernel cache snapshot.",
+      "Both clones use the same image/file hashes; extra verification libraries are installed in the agent virtualenv.",
+      "Both arms receive the same neutral resume instruction; original history is immutable.",
+      "Only visible history blobs and the last historical plan are restored; no future data.",
+      "12 steps or 600 seconds is a short continuation, not the full 29-minute attempt."
+    ]
+  },
+  "analysis_script": {
+    "path": "artifacts/compaction-fidelity-eval-20260912/analyze.py",
+    "sha256": "d9a285dbd8da4834f02c8f14b2fe63e101fdb0e828b08629fd44e9987f3a2246"
+  },
+  "manual_review_protocol": {
+    "unit": "Targeted review of 0x485adc and initial-scope duplication; not an overall factual-accuracy score.",
+    "ground_truth": {
+      "address": "0x485adc",
+      "raw_evidence_positions": [
+        38,
+        70
+      ],
+      "raw_line": "485ad0 00000000 000000bf 0000a0c0 0000803f",
+      "little_endian_bytes": "00 00 80 3f",
+      "value": 1.0,
+      "later_explicit_correction_positions": [
+        69,
+        71
+      ]
+    },
+    "limitations": [
+      "Label table was manually assigned to these exact hashed summaries and must not be reused as an automatic classifier.",
+      "Parent-error case does not expose raw message 38; it tests retention/uncertainty of inherited errors, not recovery of inaccessible bytes.",
+      "General caveats are distinguished from an explicit uncertainty label on the target value.",
+      "Sphere radius is not determined solely by the 0x485adc value; radius claims are not scored as established facts.",
+      "Initial tail duplication uses the draft/gzip1444 evidence from positions beyond covered range1-40. Tail69 also contains explicit correction and tail70 raw bytes. Independent route sees narrower input, confounding route and prompt effects.",
+      "Normalized headings only pass existing candidate validation offline; no new publication, live retry, budget projection or task outcome is claimed."
+    ]
+  },
+  "summary_groups": [
+    {
+      "case": "initial",
+      "arm": "baseline",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "prefix": 5
+      },
+      "mean_duration_seconds": 25.677767216344364,
+      "mean_summary_tokens_local_estimate": 1422.4,
+      "mean_after_tokens": 31975,
+      "target_constant_review": {
+        "corrected_to_1.0f": 5
+      },
+      "mean_normalized_cost_usd": 0.01100748,
+      "usage": {
+        "input": 374605,
+        "hit": 374400,
+        "miss": 205,
+        "output": 9670,
+        "requests": 5,
+        "usage_complete": 5,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0550374,
+        "timestamp_priced_cost_usd": 0.0275187,
+        "cache_hit_rate": 0.9994527569039389,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "case": "initial",
+      "arm": "improved",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "isolated": 5
+      },
+      "mean_duration_seconds": 60.88887815021444,
+      "mean_summary_tokens_local_estimate": 1928.4,
+      "mean_after_tokens": 32849.6,
+      "target_constant_review": {
+        "wrong_0.0f_retained": 5
+      },
+      "mean_normalized_cost_usd": 0.03832121919999999,
+      "usage": {
+        "input": 623380,
+        "hit": 571264,
+        "miss": 52116,
+        "output": 24666,
+        "requests": 10,
+        "usage_complete": 10,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.19160609599999998,
+        "timestamp_priced_cost_usd": 0.09580304799999999,
+        "cache_hit_rate": 0.9163977028457763,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "case": "parent_error",
+      "arm": "baseline",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "prefix": 5
+      },
+      "mean_duration_seconds": 19.352800058433786,
+      "mean_summary_tokens_local_estimate": 1176.2,
+      "mean_after_tokens": 5881,
+      "target_constant_review": {
+        "wrong_0.0f_retained": 5
+      },
+      "mean_normalized_cost_usd": 0.012557969600000001,
+      "usage": {
+        "input": 123385,
+        "hit": 102272,
+        "miss": 21113,
+        "output": 7682,
+        "requests": 5,
+        "usage_complete": 5,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.06278984800000001,
+        "timestamp_priced_cost_usd": 0.031394924000000005,
+        "cache_hit_rate": 0.8288851967419054,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "case": "parent_error",
+      "arm": "improved",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "prefix": 5
+      },
+      "mean_duration_seconds": 23.488202066603115,
+      "mean_summary_tokens_local_estimate": 1362,
+      "mean_after_tokens": 6300.4,
+      "target_constant_review": {
+        "wrong_0.0f_retained": 5
+      },
+      "mean_normalized_cost_usd": 0.013833424,
+      "usage": {
+        "input": 125450,
+        "hit": 104320,
+        "miss": 21130,
+        "output": 9264,
+        "requests": 5,
+        "usage_complete": 5,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.06916712,
+        "timestamp_priced_cost_usd": 0.03458356,
+        "cache_hit_rate": 0.8315663611000399,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "case": "later_correction",
+      "arm": "baseline",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "prefix": 5
+      },
+      "mean_duration_seconds": 24.95987267498858,
+      "mean_summary_tokens_local_estimate": 1412.2,
+      "mean_after_tokens": 6349.2,
+      "target_constant_review": {
+        "corrected_to_1.0f": 5
+      },
+      "mean_normalized_cost_usd": 0.0164859728,
+      "usage": {
+        "input": 159740,
+        "hit": 131456,
+        "miss": 28284,
+        "output": 9927,
+        "requests": 5,
+        "usage_complete": 5,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.08242986399999999,
+        "timestamp_priced_cost_usd": 0.041214931999999996,
+        "cache_hit_rate": 0.8229372730687367,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "case": "later_correction",
+      "arm": "improved",
+      "trials": 5,
+      "published": 5,
+      "paths": {
+        "prefix": 3,
+        "isolated": 2
+      },
+      "mean_duration_seconds": 34.2204832247924,
+      "mean_summary_tokens_local_estimate": 1539.8,
+      "mean_after_tokens": 6619.2,
+      "target_constant_review": {
+        "corrected_to_1.0f": 5
+      },
+      "mean_normalized_cost_usd": 0.029078614399999998,
+      "usage": {
+        "input": 222727,
+        "hit": 163328,
+        "miss": 59399,
+        "output": 15101,
+        "requests": 7,
+        "usage_complete": 7,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.14539307199999998,
+        "timestamp_priced_cost_usd": 0.07269653599999999,
+        "cache_hit_rate": 0.7333102856860642,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "case": "all",
+      "arm": "baseline",
+      "trials": 15,
+      "published": 15,
+      "paths": {
+        "prefix": 15
+      },
+      "mean_duration_seconds": 23.330146649922245,
+      "mean_summary_tokens_local_estimate": 1336.9333333333334,
+      "mean_after_tokens": 14735.066666666668,
+      "target_constant_review": {
+        "corrected_to_1.0f": 10,
+        "wrong_0.0f_retained": 5
+      },
+      "mean_normalized_cost_usd": 0.013350474133333333,
+      "usage": {
+        "input": 657730,
+        "hit": 608128,
+        "miss": 49602,
+        "output": 27279,
+        "requests": 15,
+        "usage_complete": 15,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.200257112,
+        "timestamp_priced_cost_usd": 0.100128556,
+        "cache_hit_rate": 0.924586076353519,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    },
+    {
+      "case": "all",
+      "arm": "improved",
+      "trials": 15,
+      "published": 15,
+      "paths": {
+        "isolated": 7,
+        "prefix": 8
+      },
+      "mean_duration_seconds": 39.53252114720332,
+      "mean_summary_tokens_local_estimate": 1610.0666666666666,
+      "mean_after_tokens": 15256.4,
+      "target_constant_review": {
+        "wrong_0.0f_retained": 10,
+        "corrected_to_1.0f": 5
+      },
+      "mean_normalized_cost_usd": 0.027077752533333336,
+      "usage": {
+        "input": 971557,
+        "hit": 838912,
+        "miss": 132645,
+        "output": 49031,
+        "requests": 22,
+        "usage_complete": 22,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.40616628800000004,
+        "timestamp_priced_cost_usd": 0.20308314400000002,
+        "cache_hit_rate": 0.8634717263114774,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      }
+    }
+  ],
+  "summary_trials": [
+    {
+      "trial": "initial-1-improved",
+      "case": "initial",
+      "repeat": 1,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "isolated",
+      "prefix_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "duration_seconds": 55.69829879200552,
+      "summary_tokens_local_estimate": 1752,
+      "before_tokens": 76766,
+      "after_tokens": 32681,
+      "usage": {
+        "input": 124676,
+        "hit": 73088,
+        "miss": 51588,
+        "output": 4262,
+        "requests": 2,
+        "usage_complete": 2,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.088189552,
+        "timestamp_priced_cost_usd": 0.044094776,
+        "cache_hit_rate": 0.5862234912894222,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-1-improved/summary.md",
+        "sha256": "855f75e055ed6778bdb4adbcb30c8861cab30a66c95f96211024b418001bf5d5"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-1-improved/result.json",
+        "sha256": "9caf400f3b1d72dd464f174700f6b60fe854ce9bf01fc7b03cbd2764be9fe93c"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 61,
+            "text": "- 0x485adc: 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": false,
+        "initial_target_uncertainty": "wrong_value_without_target_specific_caveat",
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-1-baseline",
+      "case": "initial",
+      "repeat": 1,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 25.535061165923253,
+      "summary_tokens_local_estimate": 1439,
+      "before_tokens": 76766,
+      "after_tokens": 31912,
+      "usage": {
+        "input": 74921,
+        "hit": 74880,
+        "miss": 41,
+        "output": 1874,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.010769879999999999,
+        "timestamp_priced_cost_usd": 0.0053849399999999995,
+        "cache_hit_rate": 0.9994527569039389,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-1-baseline/summary.md",
+        "sha256": "d508588598c808668a378ac21e225662026fed240025a13a9b141f9e6233a66a"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-1-baseline/result.json",
+        "sha256": "b5caf0279cacee243403a47a622680094734c4b43700e28c4d49fb5f62a56e95"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 33,
+            "text": "- 关键错误：**误读常量 `0x485adc`**。之前误认为它是 `0.0f`，实际 `.rodata` 显示 `0x485ad0` 处为 `00 00 00 00 | 00 00 00 bf | 00 00 a0 c0 | 00 00 80 3f`，即 `0x485adc = 1.0f`（不是 0.0f）。这导致 sky_color 和 shading 公式全部错误。"
+          },
+          {
+            "line": 36,
+            "text": "1. **修正常量 `0x485adc = 1.0f`**（此前误读为 0.0f），重新推导 `sky_color`、`trace` 中的 shading 公式。"
+          },
+          {
+            "line": 71,
+            "text": "- `0x485adc` = **1.0f**（关键修正，此前误读为 0.0f）"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": true,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-2-baseline",
+      "case": "initial",
+      "repeat": 2,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 23.783931332989596,
+      "summary_tokens_local_estimate": 1357,
+      "before_tokens": 76766,
+      "after_tokens": 31873,
+      "usage": {
+        "input": 74921,
+        "hit": 74880,
+        "miss": 41,
+        "output": 1837,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.010623359999999998,
+        "timestamp_priced_cost_usd": 0.005311679999999999,
+        "cache_hit_rate": 0.9994527569039389,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-2-baseline/summary.md",
+        "sha256": "fca6e2a2493e981bb8eb9b550821a9ae608bae2d3ffa5b30428c7649f167115c"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-2-baseline/result.json",
+        "sha256": "1d41db6eea9d0405e9ea8f7803478eaffbcebe7d878d160c91c092cef2a4d393"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 21,
+            "text": "- 关键发现：`0x485adc` 实际是 **1.0f**（不是 0.0f）——这是 `sky_color` 和 `trace` 中 `mix` 的 `b` 分量，我第一版误读为 0.0f，导致天空颜色错误。"
+          },
+          {
+            "line": 31,
+            "text": "- 第一版 `mystery.c` 输出与原始不一致，根因是 `sky_color` 的 `mix` 常量误读（`0x485adc` 应为 1.0f 而非 0.0f），以及场景/着色细节尚未完全对齐。"
+          },
+          {
+            "line": 34,
+            "text": "1. **修正 `sky_color`**：正确解码 `mix` 公式。`0x485a60 = (0.5, 0.7)`，`0x485adc = 1.0f`。`t = 0.5 * d.y`（`addss 0.0` 后 `mulss 0.5`）。结果应为 `mix((0.5,0.7), (1.0,1.0), t)` 形式，需精确重推 `shufps $0xe0` 广播后的 `mulps`/`addps` 流程。"
+          },
+          {
+            "line": 68,
+            "text": "- `0x485adc` = **1.0f**（关键：mix 的 b 分量，非 0.0）"
+          },
+          {
+            "line": 74,
+            "text": "**注意**：`main` 中 `0x485adc` 被多处引用（`sky_color`、`trace` 的 `mix`、`main` 的着色），全部应视为 1.0f。第一版代码中所有 `0.0f` 的 `mix` 相关常量需重新核对。"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": true,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-2-improved",
+      "case": "initial",
+      "repeat": 2,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "isolated",
+      "prefix_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "duration_seconds": 64.18676425004378,
+      "summary_tokens_local_estimate": 2048,
+      "before_tokens": 76766,
+      "after_tokens": 33171,
+      "usage": {
+        "input": 124676,
+        "hit": 124544,
+        "miss": 132,
+        "output": 5484,
+        "requests": 2,
+        "usage_complete": 2,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.027370816,
+        "timestamp_priced_cost_usd": 0.013685408,
+        "cache_hit_rate": 0.9989412557348648,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-2-improved/summary.md",
+        "sha256": "47143ba96cce88cba65a682518be68dbc5b4708ac397930f9d65ab837412aaad"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-2-improved/result.json",
+        "sha256": "e26f2f2ba67677e935b3b4fccdafc250ebea3f1f77a260f6da8943c63b791085"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 106,
+            "text": "- 0x485adc = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": false,
+        "initial_target_uncertainty": "general_caveats_but_no_explicit_target_conflict",
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-3-improved",
+      "case": "initial",
+      "repeat": 3,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "isolated",
+      "prefix_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "duration_seconds": 65.31426254205871,
+      "summary_tokens_local_estimate": 2257,
+      "before_tokens": 76766,
+      "after_tokens": 33418,
+      "usage": {
+        "input": 124676,
+        "hit": 124544,
+        "miss": 132,
+        "output": 5456,
+        "requests": 2,
+        "usage_complete": 2,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.027259936,
+        "timestamp_priced_cost_usd": 0.013629968,
+        "cache_hit_rate": 0.9989412557348648,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-3-improved/summary.md",
+        "sha256": "68a288b28ecf83d5eaf37e3bb793000661ae99f4262b8f0ad029d73b73158d80"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-3-improved/result.json",
+        "sha256": "61e646d3100cfa5519e814579404f53bfa3bcbbceba5f08d4c48586d3785897d"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 93,
+            "text": "- 0x485adc: `00 00 00 00` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": false,
+        "initial_target_uncertainty": "general_caveats_but_no_explicit_target_conflict",
+        "invented_zero_raw_bytes_at_target": true
+      }
+    },
+    {
+      "trial": "initial-3-baseline",
+      "case": "initial",
+      "repeat": 3,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 26.13212412490975,
+      "summary_tokens_local_estimate": 1395,
+      "before_tokens": 76766,
+      "after_tokens": 32038,
+      "usage": {
+        "input": 74921,
+        "hit": 74880,
+        "miss": 41,
+        "output": 1994,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.01124508,
+        "timestamp_priced_cost_usd": 0.00562254,
+        "cache_hit_rate": 0.9994527569039389,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-3-baseline/summary.md",
+        "sha256": "1375f914c7b3746edc300fdd356a1145a6bf2989073f29a546bf43fee608a38e"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-3-baseline/result.json",
+        "sha256": "20e9185a8215bd6f577df58b74bdab3a960e09fc7568402627db6c6b433c5f7c"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "- `0x485adc` = **1.0f** (NOT 0.0f — this was a key correction discovered late)"
+          },
+          {
+            "line": 51,
+            "text": "1. **First draft output mismatch**: sky color wrong (draft produced `224 237 255` vs original `159 197 255` for top-left pixel). Root cause: mis-decoded `0x485adc` as 0.0f when it is actually **1.0f** (the 4th float of the sphere constant block at 0x485ad0)."
+          },
+          {
+            "line": 56,
+            "text": "1. **Re-derive `sky_color`** with corrected constant `0x485adc = 1.0f`. The function loads `xmm1 = 1.0f` (not 0.0), `xmm2 = d.y`, `xmm3 = (0.5, 0.7)`. Trace: `t = 0.5*d.y`; result appears to be `mix((0.5,0.7), (1.0,1.0), t)` style — must re-trace register flow precisely (the `subss`/`addss`/`shufps $0xe0`/`mulps`/`addps` sequence)."
+          },
+          {
+            "line": 71,
+            "text": "**Status: NOT yet verified.** The draft compiles and runs but produces incorrect output. The critical correction is `0x485adc = 1.0f` (not 0.0f), which affects `sky_color` and likely the shading/light logic throughout `main` and `trace`."
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": true,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-4-improved",
+      "case": "initial",
+      "repeat": 4,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "isolated",
+      "prefix_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "duration_seconds": 53.58734370896127,
+      "summary_tokens_local_estimate": 1460,
+      "before_tokens": 76766,
+      "after_tokens": 31992,
+      "usage": {
+        "input": 124676,
+        "hit": 124544,
+        "miss": 132,
+        "output": 4277,
+        "requests": 2,
+        "usage_complete": 2,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.022591095999999998,
+        "timestamp_priced_cost_usd": 0.011295547999999999,
+        "cache_hit_rate": 0.9989412557348648,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-4-improved/summary.md",
+        "sha256": "21637e3eb2f271c90aa1c0b7ca3bf29cfb834a4b7d12e828af1c455ba1fa3d3c"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-4-improved/result.json",
+        "sha256": "d34d17df2704c5e5724fab90d7d0fdb4ee92c52f9d06c741977696124c806f60"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 49,
+            "text": "- 0x485adc: 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": false,
+        "initial_target_uncertainty": "wrong_value_without_target_specific_caveat",
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-4-baseline",
+      "case": "initial",
+      "repeat": 4,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 24.54656545794569,
+      "summary_tokens_local_estimate": 1321,
+      "before_tokens": 76766,
+      "after_tokens": 31839,
+      "usage": {
+        "input": 74921,
+        "hit": 74880,
+        "miss": 41,
+        "output": 1804,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.01049268,
+        "timestamp_priced_cost_usd": 0.00524634,
+        "cache_hit_rate": 0.9994527569039389,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-4-baseline/summary.md",
+        "sha256": "39235b7ae0586c35f798069927d7fa466ad0c9c97f5facd829f4c56ee1bc94f7"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-4-baseline/result.json",
+        "sha256": "baf7341ebda146e657631541c9ce03f973613cd766eeb500334ff4509998c663"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 32,
+            "text": "2. **常量解码错误（关键）**：我最初把 `0x485adc` 误读为 `0.0f`，实际是 **`1.0f`**。正确布局："
+          },
+          {
+            "line": 36,
+            "text": "   - `0x485adc` = `00 00 80 3f` = **1.0f**（不是 0.0f！）"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": true,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-5-improved",
+      "case": "initial",
+      "repeat": 5,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "isolated",
+      "prefix_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "duration_seconds": 65.65772145800292,
+      "summary_tokens_local_estimate": 2125,
+      "before_tokens": 76766,
+      "after_tokens": 32986,
+      "usage": {
+        "input": 124676,
+        "hit": 124544,
+        "miss": 132,
+        "output": 5187,
+        "requests": 2,
+        "usage_complete": 2,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.026194696,
+        "timestamp_priced_cost_usd": 0.013097348,
+        "cache_hit_rate": 0.9989412557348648,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-5-improved/summary.md",
+        "sha256": "1203414884d4af089c0be5cf716c8d982a539a51f3f12158329eeaf075e33146"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-5-improved/result.json",
+        "sha256": "1028ae26aa2618b1b96cbe4ee9c18c5ba3145d422c208b97781ae2e77e732e8a"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 56,
+            "text": "- 0x485adc = 0.0f"
+          },
+          {
+            "line": 123,
+            "text": "  - 0x485adc = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": false,
+        "initial_target_uncertainty": "wrong_value_without_target_specific_caveat",
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "initial-5-baseline",
+      "case": "initial",
+      "repeat": 5,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 28.39115399995353,
+      "summary_tokens_local_estimate": 1600,
+      "before_tokens": 76766,
+      "after_tokens": 32213,
+      "usage": {
+        "input": 74921,
+        "hit": 74880,
+        "miss": 41,
+        "output": 2161,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0119064,
+        "timestamp_priced_cost_usd": 0.0059532,
+        "cache_hit_rate": 0.9994527569039389,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-5-baseline/summary.md",
+        "sha256": "2762dc53de5617c3e97b19ffa1721ad5aea38c9897aa149fb1e7e846f4eaa538"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-5-baseline/result.json",
+        "sha256": "849b82a45cf82ef0f364079e759f4037ff8958265408b39d228334d637dd5f10"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 32,
+            "text": "2. **关键错误已定位但尚未修正**：我此前误判 `0x485adc` 为 0.0f，实际应为 **1.0f**。`.rodata` 在 `0x485ad0` 处为 `00 00 00 00 | 00 00 00 bf | 00 00 a0 c0 | 00 00 80 3f`，即 (0.0, -0.5, -5.0, **1.0**)。这导致 `sky_color` 中 `t = 0.5*(d.y + 1.0)` 的推导错误（我写成了 `0.5*d.y`）。"
+          },
+          {
+            "line": 35,
+            "text": "1. **修正 `sky_color`**：`0x485adc` = 1.0f，故 `t = 0.5*(d.y + 1.0)`（这正是我第一版 C 代码里写的公式，但需核对 mix 的 a/b 颜色向量）。需重新精确解码 `sky_color` 的 `mix(a,b,t)` 中 a、b 具体值。"
+          },
+          {
+            "line": 70,
+            "text": "- `0x485adc` = **1.0f**（此前误判为 0.0f，这是 sky_color 推导错误根源）"
+          },
+          {
+            "line": 72,
+            "text": "`sky_color` 反汇编（0x402620）关键流程：`xmm1=1.0`(0x485adc)，`xmm2=d.y`，`xmm3=(0.5,0.7)`(0x485a60)，`xmm2 = (d.y+1.0)*0.5`（即 `t=0.5*(d.y+1.0)`），随后是 `mix` 模式（`shufps $0xe0` 广播 + `mulps`/`addps`），需精确还原 a/b 颜色向量。"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": true,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-1-improved",
+      "case": "parent_error",
+      "repeat": 1,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 30.779850666061975,
+      "summary_tokens_local_estimate": 1586,
+      "before_tokens": 25284,
+      "after_tokens": 6643,
+      "usage": {
+        "input": 25090,
+        "hit": 3968,
+        "miss": 21122,
+        "output": 2179,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.036684472,
+        "timestamp_priced_cost_usd": 0.018342236,
+        "cache_hit_rate": 0.15815065763252292,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-1-improved/summary.md",
+        "sha256": "c559d12c663e4ce232a563d7c2628fdc0db22687c1810bd6065b5e62097d70a1"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-1-improved/result.json",
+        "sha256": "4d9ed9701a0a5b5a8cc4fb5c1757e3373ce3b75daaa12bed76e37a488b6f5ae2"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 50,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-1-baseline",
+      "case": "parent_error",
+      "repeat": 1,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 20.389365958049893,
+      "summary_tokens_local_estimate": 1184,
+      "before_tokens": 25197,
+      "after_tokens": 5842,
+      "usage": {
+        "input": 24677,
+        "hit": 3968,
+        "miss": 20709,
+        "output": 1499,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.033446512000000005,
+        "timestamp_priced_cost_usd": 0.016723256000000002,
+        "cache_hit_rate": 0.16079750374842972,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-1-baseline/summary.md",
+        "sha256": "27e0d28897fc9c9b588f7710c43735f2b93af02d121b20fb1e57543e1f71f512"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-1-baseline/result.json",
+        "sha256": "f7c9e43b454804818927cd0ed3ab776b4f6441c68ab4d5df341cd1ef872290f4"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-2-improved",
+      "case": "parent_error",
+      "repeat": 2,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 23.444193584029563,
+      "summary_tokens_local_estimate": 1376,
+      "before_tokens": 25284,
+      "after_tokens": 6331,
+      "usage": {
+        "input": 25090,
+        "hit": 25088,
+        "miss": 2,
+        "output": 1882,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.008559232,
+        "timestamp_priced_cost_usd": 0.004279616,
+        "cache_hit_rate": 0.999920286966919,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-2-improved/summary.md",
+        "sha256": "c678516a255c220575b4fe0e0854265283b8b02cd860ca4582a4a44d40a6a2b7"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-2-improved/result.json",
+        "sha256": "9eec47b8ddc04d1efcbd3192ee3adf0b3a41e86f6fe8235184b519ac712f909f"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 25,
+            "text": "- Scene data: `0x485a58`=(1.0,1.0), `0x485a60`=(0.5,0.7), `0x485a68`=(0.0,1.0), `0x485ab0`=-0.0f, `0x485ac0`=0x7fffffff, `0x485ad0`=(0.0,-0.5,-5.0,1.0), `0x485adc`=0.0f."
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-2-baseline",
+      "case": "parent_error",
+      "repeat": 2,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 18.281873667030595,
+      "summary_tokens_local_estimate": 1163,
+      "before_tokens": 25197,
+      "after_tokens": 5838,
+      "usage": {
+        "input": 24677,
+        "hit": 24576,
+        "miss": 101,
+        "output": 1496,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.007138823999999999,
+        "timestamp_priced_cost_usd": 0.0035694119999999997,
+        "cache_hit_rate": 0.9959071199902744,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-2-baseline/summary.md",
+        "sha256": "e744410b53c3ef0351f49da6d28369480d9fa216c5f8ce30c67b6660d9b95ae5"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-2-baseline/result.json",
+        "sha256": "93c44d815bdcbbff52b58fa6935e173785fc657e38b0225510a7e0368d888806"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-3-baseline",
+      "case": "parent_error",
+      "repeat": 3,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 20.998607792076655,
+      "summary_tokens_local_estimate": 1258,
+      "before_tokens": 25197,
+      "after_tokens": 6041,
+      "usage": {
+        "input": 24677,
+        "hit": 24576,
+        "miss": 101,
+        "output": 1689,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.007903104,
+        "timestamp_priced_cost_usd": 0.003951552,
+        "cache_hit_rate": 0.9959071199902744,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-3-baseline/summary.md",
+        "sha256": "a0aea628782ed5f5cd93e9f72ec98d7ff658a41255a38501215c84d244794d8d"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-3-baseline/result.json",
+        "sha256": "3f70a105900e5375cea533e61703f2ee4fc37858af2b5e604013aeaae93da27a"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-3-improved",
+      "case": "parent_error",
+      "repeat": 3,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 18.130659749964252,
+      "summary_tokens_local_estimate": 1154,
+      "before_tokens": 25284,
+      "after_tokens": 5951,
+      "usage": {
+        "input": 25090,
+        "hit": 25088,
+        "miss": 2,
+        "output": 1520,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.007125711999999999,
+        "timestamp_priced_cost_usd": 0.0035628559999999997,
+        "cache_hit_rate": 0.999920286966919,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-3-improved/summary.md",
+        "sha256": "beb686b0735aaee03f32d8441f139b65ce22ec69160f860b7228b40df17010ca"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-3-improved/result.json",
+        "sha256": "eae22a4043287a928d172f7c9c08de5ab2d01f74032ca29604e0b9e7c8314e17"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 25,
+            "text": "- Scene data: `0x485a58`=(1.0,1.0), `0x485a60`=(0.5,0.7), `0x485a68`=(0.0,1.0), `0x485ab0`=-0.0f, `0x485ac0`=0x7fffffff, `0x485ad0`=(0.0,-0.5,-5.0,1.0), `0x485adc`=0.0f."
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-4-baseline",
+      "case": "parent_error",
+      "repeat": 4,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 19.46336383302696,
+      "summary_tokens_local_estimate": 1213,
+      "before_tokens": 25197,
+      "after_tokens": 5903,
+      "usage": {
+        "input": 24677,
+        "hit": 24576,
+        "miss": 101,
+        "output": 1557,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.007380384,
+        "timestamp_priced_cost_usd": 0.003690192,
+        "cache_hit_rate": 0.9959071199902744,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-4-baseline/summary.md",
+        "sha256": "5f280c69be58215abfc0515d3213aa07ca8fcf9f8c0f0bc134ada5c8efe16834"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-4-baseline/result.json",
+        "sha256": "124fac2820ead6c020a5d4257c77d6f32d0f2de26e9d483718c958cf68145ba1"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-4-improved",
+      "case": "parent_error",
+      "repeat": 4,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 22.231412125052884,
+      "summary_tokens_local_estimate": 1321,
+      "before_tokens": 25284,
+      "after_tokens": 6225,
+      "usage": {
+        "input": 25090,
+        "hit": 25088,
+        "miss": 2,
+        "output": 1781,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.008159272,
+        "timestamp_priced_cost_usd": 0.004079636,
+        "cache_hit_rate": 0.999920286966919,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-4-improved/summary.md",
+        "sha256": "37fe68a81044918f943153e06a07559d8e634791a653f8685fcc60fa1637c036"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-4-improved/result.json",
+        "sha256": "699ded1f312c38f58a8ae24b66c0f1dad69cc2156914e7f81184d2c8cfe9edf5"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 50,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-5-baseline",
+      "case": "parent_error",
+      "repeat": 5,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 17.630789041984826,
+      "summary_tokens_local_estimate": 1063,
+      "before_tokens": 25197,
+      "after_tokens": 5781,
+      "usage": {
+        "input": 24677,
+        "hit": 24576,
+        "miss": 101,
+        "output": 1441,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.006921024,
+        "timestamp_priced_cost_usd": 0.003460512,
+        "cache_hit_rate": 0.9959071199902744,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-5-baseline/summary.md",
+        "sha256": "49e3995f2e2eee6ec00ce855b970bc627e73f629b4503d89235097cb3e6b1a74"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-5-baseline/result.json",
+        "sha256": "577c0b5b4f2f83ffacd9392060e2ffac0d12fb9c455366ff43c50c38344ff808"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "parent_error-5-improved",
+      "case": "parent_error",
+      "repeat": 5,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 22.85489420790691,
+      "summary_tokens_local_estimate": 1373,
+      "before_tokens": 25284,
+      "after_tokens": 6352,
+      "usage": {
+        "input": 25090,
+        "hit": 25088,
+        "miss": 2,
+        "output": 1902,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.008638432000000001,
+        "timestamp_priced_cost_usd": 0.004319216000000001,
+        "cache_hit_rate": 0.999920286966919,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-5-improved/summary.md",
+        "sha256": "e58a66b2d671b7a14fce3b6e44d95b0efc9b2c5e3ae24009a64f1cb00e89db59"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/parent_error-5-improved/result.json",
+        "sha256": "2656b98b8be8d4594c5b939d30bdce0d0f1b226c85e88b4a7aed4bdf71dd6650"
+      },
+      "manual_review": {
+        "target_constant": "wrong_0.0f_retained",
+        "target_quotes": [
+          {
+            "line": 50,
+            "text": "- `0x485adc` = 0.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-1-improved",
+      "case": "later_correction",
+      "repeat": 1,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 26.871888917055912,
+      "summary_tokens_local_estimate": 1658,
+      "before_tokens": 32566,
+      "after_tokens": 6761,
+      "usage": {
+        "input": 32361,
+        "hit": 3968,
+        "miss": 28393,
+        "output": 2295,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.046741552,
+        "timestamp_priced_cost_usd": 0.023370776,
+        "cache_hit_rate": 0.12261673001452365,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-1-improved/summary.md",
+        "sha256": "586cf27f96402c0ca7cfa8ce8af8bb6607d378f459ec327d11ca4439f3ee1952"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-1-improved/result.json",
+        "sha256": "37ba45cf977fc11b67e66ab2b0771d4a376cf3b687b23aac3ddf4a65085f4c32"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 22,
+            "text": "- 关键纠正：`0x485adc` 的值此前被误读为 0.0f，实际为 **1.0f**（`00 00 80 3f`）。这导致 sky_color 公式和球体半径推断错误。"
+          },
+          {
+            "line": 23,
+            "text": "- 球体半径此前误判为 2.0（因 `0x480004`=4.0 被当作半径²），实际应为 **1.0**（`0x485adc`=1.0f 是半径，`0x485ad0` 处 `00 00 80 3f` 是半径 1.0）。"
+          },
+          {
+            "line": 36,
+            "text": "- 早期把 `0x485adc` 误读为 0.0f，导致 sky_color 推导出负值/错误公式。"
+          },
+          {
+            "line": 76,
+            "text": "- `0x485adc` = `00 00 80 3f` = **1.0f**（球体半径，此前误读为 0.0f）"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-1-baseline",
+      "case": "later_correction",
+      "repeat": 1,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 27.8965655840002,
+      "summary_tokens_local_estimate": 1479,
+      "before_tokens": 32479,
+      "after_tokens": 6354,
+      "usage": {
+        "input": 31948,
+        "hit": 3968,
+        "miss": 27980,
+        "output": 1990,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.044988591999999994,
+        "timestamp_priced_cost_usd": 0.022494295999999997,
+        "cache_hit_rate": 0.12420182797045198,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-1-baseline/summary.md",
+        "sha256": "f6e5c8e82bd8b387d3997d1db5f32e6749f604f84c8e21cedc7d445a2bf28404"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-1-baseline/result.json",
+        "sha256": "e3f0d7ae10ec8c8c4d6fc862c807e88a70a9ed73f459ec52de88660dcec3221b"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 21,
+            "text": "- `0x480004` = 4.0f（sphere_intersect 中作为半径²使用，**待核实**：若半径²=4.0 则半径=2.0，但见下方 0x485adc 修正）"
+          },
+          {
+            "line": 48,
+            "text": "- `0x485adc` = `00 00 80 3f` = **1.0f**（重要修正：此前误记为 0.0f）"
+          },
+          {
+            "line": 51,
+            "text": "**`0x485adc` = 1.0f，不是 0.0f。** 这影响多处解码："
+          },
+          {
+            "line": 52,
+            "text": "- 球体中心 = (0, -0.5, -5.0)，半径 = 1.0（`0x485adc` 是半径 1.0，而非 0x480004 的 4.0；**待核实** sphere_intersect 中 0x480004=4.0 的确切用途）"
+          },
+          {
+            "line": 77,
+            "text": "- 早期误将 `0x485adc` 记为 0.0f，导致 sky_color 解码错误（已修正为 1.0f）"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-2-baseline",
+      "case": "later_correction",
+      "repeat": 2,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 22.912956416024826,
+      "summary_tokens_local_estimate": 1300,
+      "before_tokens": 32479,
+      "after_tokens": 6223,
+      "usage": {
+        "input": 31948,
+        "hit": 31872,
+        "miss": 76,
+        "output": 1865,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.008888088,
+        "timestamp_priced_cost_usd": 0.004444044,
+        "cache_hit_rate": 0.9976211343433079,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-2-baseline/summary.md",
+        "sha256": "600e0667d9c39753011e0ee3da541d71bc47398182923cbfb0c82635abb76b22"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-2-baseline/result.json",
+        "sha256": "fea431aab88a258473e80cc7110881c4e02eb55169471a1311481939805235b1"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 28,
+            "text": "- `0x485adc` = **1.0f** (NOT 0.0f — this was a key error in prior analysis)"
+          },
+          {
+            "line": 89,
+            "text": "- Prior summary incorrectly recorded `0x485adc` as 0.0f (actually 1.0f) and sphere radius as 2.0 (actually 1.0)"
+          },
+          {
+            "line": 103,
+            "text": "- The `0x485adc = 1.0f` constant is reused as a generic \"1.0\" in multiple functions (sky_color, trace shading), so it must be treated as 1.0 everywhere."
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-2-improved",
+      "case": "later_correction",
+      "repeat": 2,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 24.824545040959492,
+      "summary_tokens_local_estimate": 1583,
+      "before_tokens": 32566,
+      "after_tokens": 6550,
+      "usage": {
+        "input": 32361,
+        "hit": 32256,
+        "miss": 105,
+        "output": 2094,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.009850104,
+        "timestamp_priced_cost_usd": 0.004925052,
+        "cache_hit_rate": 0.9967553536664504,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-2-improved/summary.md",
+        "sha256": "1e66f124285e48bca9657385ed0007fc5a273e1a48ae0996fbcc51226b837730"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-2-improved/result.json",
+        "sha256": "922c41f1265c7c2364ad14f7955d28923c42285e60f1a35b6ae18679ed572753"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 22,
+            "text": "- 关键常量 `0x485adc` 最初被误读为 0.0f，**已纠正为 1.0f**（`00 00 80 3f`）。此纠正来自 `objdump -s -j .rodata` 的原始字节证据。"
+          },
+          {
+            "line": 37,
+            "text": "- 根因 3：`0x485adc` 常量误读为 0.0f（实际 1.0f）。"
+          },
+          {
+            "line": 51,
+            "text": "  - `0x480004` = 4.0f（球体半径²，故半径 2.0？与 `0x485adc`=1.0 冲突，**待核实**——球心数据 `0x485ad0` 第 4 个 float 为 1.0，但 `sphere_intersect` 引用 `0x480004`=4.0 作半径²）"
+          },
+          {
+            "line": 65,
+            "text": "  - `0x485adc` = `00 00 80 3f` = **1.0f**（已纠正，非 0.0f）"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-3-improved",
+      "case": "later_correction",
+      "repeat": 3,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "isolated",
+      "prefix_failure": "上下文摘要缺少章节: Critical Context",
+      "duration_seconds": 48.538513874984346,
+      "summary_tokens_local_estimate": 1456,
+      "before_tokens": 32566,
+      "after_tokens": 6540,
+      "usage": {
+        "input": 62822,
+        "hit": 32256,
+        "miss": 30566,
+        "output": 4340,
+        "requests": 2,
+        "usage_complete": 2,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.058952784,
+        "timestamp_priced_cost_usd": 0.029476392,
+        "cache_hit_rate": 0.5134507019833816,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-3-improved/summary.md",
+        "sha256": "a50a052af3da8cabdd7e5f6f69559a1cf4f6022f5d8a8e844584e336f4aad1cb"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-3-improved/result.json",
+        "sha256": "9127cf459265595f3abb22ca8ee6faa239ab460918677d8eb92ec94a98787bb9"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 29,
+            "text": "- **`0x485adc` = 1.0f，不是 0.0f**（之前摘要中的记录有误）"
+          },
+          {
+            "line": 33,
+            "text": "  - `0x485adc` = `00 00 80 3f` = **1.0f**"
+          },
+          {
+            "line": 64,
+            "text": "- 之前摘要中 `0x485adc` = 0.0f 的记录错误，实际为 1.0f"
+          },
+          {
+            "line": 76,
+            "text": "- 球体：中心 (0, -0.5, -5.0)，半径 **1.0**（`0x485adc` = 1.0f）"
+          },
+          {
+            "line": 108,
+            "text": "  - `0x485adc` = 1.0f"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-3-baseline",
+      "case": "later_correction",
+      "repeat": 3,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 23.975998999900185,
+      "summary_tokens_local_estimate": 1494,
+      "before_tokens": 32479,
+      "after_tokens": 6355,
+      "usage": {
+        "input": 31948,
+        "hit": 31872,
+        "miss": 76,
+        "output": 1991,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.009387047999999999,
+        "timestamp_priced_cost_usd": 0.004693523999999999,
+        "cache_hit_rate": 0.9976211343433079,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-3-baseline/summary.md",
+        "sha256": "0264bc669f8a07c9e88ab369a55f4ee82d34ed11c7b924bbc568a49bb13cfcd0"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-3-baseline/result.json",
+        "sha256": "c94c6de1f702f182af8d3948a33180238bbade1633811d61eb60f8ea4a860644"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 48,
+            "text": "- `0x485adc` = `00 00 80 3f` = **1.0f**（此前误判为 0.0f，已纠正）"
+          },
+          {
+            "line": 59,
+            "text": "1. **`0x485adc` = 1.0f**（不是 0.0f）。这影响 `sky_color` 和 `trace` 中多处常量。"
+          },
+          {
+            "line": 60,
+            "text": "2. **球体半径**：`sphere_intersect` 使用 `0x480004`=4.0 作为半径²，故半径=2.0；但场景数据 `0x485adc`=1.0 可能表示半径=1.0。**待核实**。"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-4-baseline",
+      "case": "later_correction",
+      "repeat": 4,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 26.175651250057854,
+      "summary_tokens_local_estimate": 1460,
+      "before_tokens": 32479,
+      "after_tokens": 6499,
+      "usage": {
+        "input": 31948,
+        "hit": 31872,
+        "miss": 76,
+        "output": 2128,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.009929568,
+        "timestamp_priced_cost_usd": 0.004964784,
+        "cache_hit_rate": 0.9976211343433079,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-4-baseline/summary.md",
+        "sha256": "94381c506657ae672fd3f4111894d867211d03213bcae64fd38e211191f18938"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-4-baseline/result.json",
+        "sha256": "cc43617bc4a3e8f7433ca965675f47c2863dd32cde7a7cb23bc262e56472efe1"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 22,
+            "text": "`.rodata` at 0x485ad0–0x485adc:"
+          },
+          {
+            "line": 26,
+            "text": "- `0x485adc` = `00 00 80 3f` = **1.0f** (NOT 0.0f — this was the key error)"
+          },
+          {
+            "line": 28,
+            "text": "So sphere center = (0, -0.5, -5.0), and `0x485adc` = 1.0f is a general \"1.0\" constant."
+          },
+          {
+            "line": 79,
+            "text": "- Earlier summary incorrectly recorded `0x485adc` = 0.0f (actually 1.0f) — caused sky color error"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-4-improved",
+      "case": "later_correction",
+      "repeat": 4,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "isolated",
+      "prefix_failure": "上下文摘要缺少章节: Critical Context",
+      "duration_seconds": 45.91059124993626,
+      "summary_tokens_local_estimate": 1453,
+      "before_tokens": 32566,
+      "after_tokens": 6519,
+      "usage": {
+        "input": 62822,
+        "hit": 62592,
+        "miss": 230,
+        "output": 4111,
+        "requests": 2,
+        "usage_complete": 2,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.019337208,
+        "timestamp_priced_cost_usd": 0.009668604,
+        "cache_hit_rate": 0.9963388621820382,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-4-improved/summary.md",
+        "sha256": "45a38249b0f069b60f91288ddcd9f77a1e3c33f1e4f4839f43db3e0e10a5221a"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-4-improved/result.json",
+        "sha256": "4ea079f03399a5c06f242ac528290394fa000263f839f347e2f63c40e75a4ef1"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 50,
+            "text": "- `0x485adc`: 1.0f (NOT 0.0f — corrected from earlier error)"
+          },
+          {
+            "line": 97,
+            "text": "  - `0x485adc` was misread as 0.0f (actually 1.0f)"
+          },
+          {
+            "line": 121,
+            "text": "- `0x485adc` = 1.0f (used as constant \"1.0\" in many places)"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-5-improved",
+      "case": "later_correction",
+      "repeat": 5,
+      "arm": "improved",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 24.95687704102602,
+      "summary_tokens_local_estimate": 1549,
+      "before_tokens": 32566,
+      "after_tokens": 6726,
+      "usage": {
+        "input": 32361,
+        "hit": 32256,
+        "miss": 105,
+        "output": 2261,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.010511423999999998,
+        "timestamp_priced_cost_usd": 0.005255711999999999,
+        "cache_hit_rate": 0.9967553536664504,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-5-improved/summary.md",
+        "sha256": "b2bf403cf29223b550ee75ebc7e006f611e0af6e91a1e8e434ed5e9c9dc50058"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-5-improved/result.json",
+        "sha256": "08ad0314f124402a6ec094073ba9948504d9ac8d01355b584d44adfda353d3c1"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 21,
+            "text": "- 关键纠正：`0x485adc` 的字节为 `00 00 80 3f` = **1.0f**（此前摘要误记为 0.0f）。这导致 sky_color 与 sphere 半径解码错误。"
+          },
+          {
+            "line": 34,
+            "text": "- 早期摘要将 `0x485adc` 误记为 0.0f，实际为 1.0f（`00 00 80 3f`），已纠正。"
+          },
+          {
+            "line": 38,
+            "text": "2. 修正 sphere 半径为 1.0（`0x485adc`=1.0f，`0x480004`=4.0f 是 radius²，radius=2.0 待核实——需重新确认 sphere_intersect 中 4.0 是 radius² 还是其他用途；若 radius=1.0 则 radius²=1.0，与 4.0 冲突，需核实）。"
+          },
+          {
+            "line": 70,
+            "text": "- `0x485adc` = `00 00 80 3f` = **1.0f**（重要纠正，此前误记 0.0f）"
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    },
+    {
+      "trial": "later_correction-5-baseline",
+      "case": "later_correction",
+      "repeat": 5,
+      "arm": "baseline",
+      "published": true,
+      "adopted_path": "prefix",
+      "prefix_failure": null,
+      "duration_seconds": 23.83819112495985,
+      "summary_tokens_local_estimate": 1328,
+      "before_tokens": 32479,
+      "after_tokens": 6315,
+      "usage": {
+        "input": 31948,
+        "hit": 31872,
+        "miss": 76,
+        "output": 1953,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.009236567999999999,
+        "timestamp_priced_cost_usd": 0.004618283999999999,
+        "cache_hit_rate": 0.9976211343433079,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "summary": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-5-baseline/summary.md",
+        "sha256": "d2e703b840b1d90a7a94f0a50030142a08e6c72fae7af8a6fcbe01969712427b"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-5-baseline/result.json",
+        "sha256": "776c1f1b58669ad72d9b52e53b4086b9b9a76a0f341e6edf482a434b50f1f9e6"
+      },
+      "manual_review": {
+        "target_constant": "corrected_to_1.0f",
+        "target_quotes": [
+          {
+            "line": 28,
+            "text": "- `0x485adc` = **1.0f** (NOT 0.0f — this was a key error in prior analysis)"
+          },
+          {
+            "line": 85,
+            "text": "- Earlier summary incorrectly recorded `0x485adc` = 0.0f (actually 1.0f) and sphere radius = 2.0 (actually 1.0)"
+          },
+          {
+            "line": 89,
+            "text": "2. Resolve sphere radius: verify whether sphere_intersect uses radius 1.0 (from 0x485adc) or 2.0 (from 0x480004=4.0). The 4.0f constant usage in sphere_intersect needs re-examination."
+          }
+        ],
+        "initial_retained_tail_1444_byte_draft_duplicated": null,
+        "initial_target_uncertainty": null,
+        "invented_zero_raw_bytes_at_target": false
+      }
+    }
+  ],
+  "heading_counterfactual": [
+    {
+      "trial": "initial-1-improved",
+      "actual_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "raw_response": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-1-improved/response-1.jsonl",
+        "sha256": "8577fc40ae3dde94c2be04e1f09a46ef5831778fe83e8d06066c933ec9d54e0e"
+      },
+      "original_headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints（用户硬约束，原样保留）",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context（关键常量，已从 .rodata 提取）"
+      ],
+      "normalized_candidate": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-1-improved/prefix-heading-normalized.md",
+        "sha256": "c4e6998563a4914d98d6abbb6fe3f0d6660b32b3acd414e3ab74e7d6ccc34041"
+      },
+      "candidate_validation_passed": true,
+      "finish_reason": "stop",
+      "tool_delta_count": 0,
+      "initial_target_constant_manual_review": "corrected_to_1.0f"
+    },
+    {
+      "trial": "initial-2-improved",
+      "actual_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "raw_response": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-2-improved/response-1.jsonl",
+        "sha256": "77e6c9d2f9d13c8d5a8f0e11ccc4204e4b6fd274682042f688b81dfb0a2c74a8"
+      },
+      "original_headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints（用户硬约束，原样）",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context（关键数值，需精确保留）"
+      ],
+      "normalized_candidate": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-2-improved/prefix-heading-normalized.md",
+        "sha256": "8fec1ba58c60c4d1d048ccbcbcf1126b5d5257d974d9772646d593feda2c8a04"
+      },
+      "candidate_validation_passed": true,
+      "finish_reason": "stop",
+      "tool_delta_count": 0,
+      "initial_target_constant_manual_review": "corrected_to_1.0f"
+    },
+    {
+      "trial": "initial-3-improved",
+      "actual_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "raw_response": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-3-improved/response-1.jsonl",
+        "sha256": "40014d2f1d23ce9053d8e4fb7b81d263be232284c61ec6d894f314980dd4daed"
+      },
+      "original_headings": [
+        "# 交接摘要",
+        "## Goal",
+        "## Constraints（用户硬约束，原样）",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context（关键数值，勿重复散落）"
+      ],
+      "normalized_candidate": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-3-improved/prefix-heading-normalized.md",
+        "sha256": "96d56c68103ff5498551966359be38b6e72f0aeb2198d17d60fd6bd47832293a"
+      },
+      "candidate_validation_passed": true,
+      "finish_reason": "stop",
+      "tool_delta_count": 0,
+      "initial_target_constant_manual_review": "corrected_to_1.0f"
+    },
+    {
+      "trial": "initial-4-improved",
+      "actual_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "raw_response": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-4-improved/response-1.jsonl",
+        "sha256": "0886763fe078748c30220417aa21c5a0a6d061e1ae51ee8da3d44cf22b2f5193"
+      },
+      "original_headings": [
+        "# Handoff Summary",
+        "## Goal",
+        "## Constraints (user hard requirements, verbatim intent)",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Critical Context (key values — do not re-derive)",
+        "## Next Steps",
+        "## Note"
+      ],
+      "normalized_candidate": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-4-improved/prefix-heading-normalized.md",
+        "sha256": "2281b188b3d04244c5abd79353a5b740d2daefe4036647120e1b175f94654fa1"
+      },
+      "candidate_validation_passed": true,
+      "finish_reason": "stop",
+      "tool_delta_count": 0,
+      "initial_target_constant_manual_review": "corrected_to_1.0f"
+    },
+    {
+      "trial": "initial-5-improved",
+      "actual_failure": "上下文摘要缺少章节: Constraints, Critical Context",
+      "raw_response": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-5-improved/response-1.jsonl",
+        "sha256": "84d454e35c9af9ff3d6b844757c1aa1b7748e239c7dc5fab8166ee27158f1861"
+      },
+      "original_headings": [
+        "# Handoff Summary",
+        "## Goal",
+        "## Constraints (user hard requirements, verbatim intent)",
+        "## Progress",
+        "## Key Decisions",
+        "## Relevant Files",
+        "## Failures",
+        "## Critical Context (key values, must preserve)",
+        "## Next Steps",
+        "## Note"
+      ],
+      "normalized_candidate": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/initial-5-improved/prefix-heading-normalized.md",
+        "sha256": "eefd5cca6ccde5610ee4db24eb4cd0b45c8beb651bc7f851ce3c0cd82366d18a"
+      },
+      "candidate_validation_passed": true,
+      "finish_reason": "stop",
+      "tool_delta_count": 0,
+      "initial_target_constant_manual_review": "corrected_to_1.0f"
+    },
+    {
+      "trial": "later_correction-3-improved",
+      "actual_failure": "上下文摘要缺少章节: Critical Context",
+      "raw_response": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-3-improved/response-1.jsonl",
+        "sha256": "8fded57b509bb604ae445325b9eb4677679507eb9815d784309100fb82f3bcaf"
+      },
+      "original_headings": [
+        "# Handoff Summary",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Critical Context (verified constants from `.rodata`)",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context (unresolved conflicts to preserve)"
+      ],
+      "normalized_candidate": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-3-improved/prefix-heading-normalized.md",
+        "sha256": "1005de72f55e1066c1c7841050062e9de9088ac9194d32e80cf5739667017c04"
+      },
+      "candidate_validation_passed": true,
+      "finish_reason": "stop",
+      "tool_delta_count": 0,
+      "initial_target_constant_manual_review": null
+    },
+    {
+      "trial": "later_correction-4-improved",
+      "actual_failure": "上下文摘要缺少章节: Critical Context",
+      "raw_response": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-4-improved/response-1.jsonl",
+        "sha256": "1ab511be858f742f953ea57e72646227a20adccff703bb5dc13d73bb0240e67d"
+      },
+      "original_headings": [
+        "# Handoff Summary",
+        "## Goal",
+        "## Constraints",
+        "## Progress",
+        "## Key Decisions",
+        "## Critical Context (verified tool evidence)",
+        "### Corrected constants (from `.rodata` dumps)",
+        "### `.rodata` at 0x480000 (float constants)",
+        "### sky_color decoded (0x402620)",
+        "### Original first pixel (tool evidence)",
+        "## Relevant Files",
+        "## Failures",
+        "## Next Steps",
+        "## Critical Context (unresolved / to verify)"
+      ],
+      "normalized_candidate": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/live/replays/later_correction-4-improved/prefix-heading-normalized.md",
+        "sha256": "eb5c335e526d7f8bb2194e3e9fc2f217c337bf7394e471487e6675850b83f5bd"
+      },
+      "candidate_validation_passed": true,
+      "finish_reason": "stop",
+      "tool_delta_count": 0,
+      "initial_target_constant_manual_review": null
+    }
+  ],
+  "continuations": [
+    {
+      "arm": "baseline",
+      "selected_repeat": 1,
+      "steps": 12,
+      "termination_reason": "max_steps",
+      "model_requests": 13,
+      "duration_seconds": 182.380731,
+      "usage": {
+        "input": 601613,
+        "hit": 464384,
+        "miss": 137229,
+        "output": 12075,
+        "requests": 13,
+        "usage_complete": 13,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.24939217599999997,
+        "timestamp_priced_cost_usd": 0.12469608799999998,
+        "cache_hit_rate": 0.7718982136356761,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "selected_summary_cost_usd": 0.010769879999999999,
+      "summary_plus_continuation_cost_usd": 0.260162056,
+      "summary_plus_continuation_seconds": 207.91579216592325,
+      "tool_counts": {
+        "run_shell": 12
+      },
+      "additional_compaction_events": 0,
+      "manual_review": {
+        "first_task_tool_call_writing_source": null,
+        "first_assistant_target_constant": "corrected_to_1.0f",
+        "first_assistant_excerpt": "I now have the correct constants. Let me decode them precisely:\n\n- `0x485ac0` = `ff ff ff 7f` = 0x7fffffff (NaN/abs mask)\n- `0x485ac4` = `00 00 00 00` = 0.0f\n- `0x485ac8` = `00 00 00 00` = 0.0f\n- `0x485acc` = `00 00 00 00` = 0.0f\n- `0x485ad0` = `00 00 00 00` = 0.0f (sphere center x)\n- `0x485ad4` = `00 00 00 bf` = -0.5f (sphere center y)\n- `0x485ad8` = `00 00 a0 c0` = -5.0f (sphere center z)\n- `0x485adc` = `00 00 80 3f` = 1.0f (sphere radius)\n\nSo `0x485adc` = **1.0f**, not 0.0f! This is the sphere radius = 1.0, and the sphere center is (0, -0.5, -5.0).\n\nNow let me re-decode `sky_color` with `xmm1 = 1.0f`:\n\n1. `xmm1 = 1.0f` (from 0x485adc)\n2. `xmm2 = d.y`\n3. `xmm3 = (0.5, 0.7)`\n4. `xmm2 = d.y + 1.0`\n5. `xmm2 = (d.y + 1.0) * 0.5` → `t = 0.5*(d.y + 1.0)`\n6. `xmm0 = t`\n7. `xmm1 = 1.0 - t`\n8. `xmm0 = broadcast(t) * (0.5, 0.7) = (0.5t, 0.7t)`\n9.",
+        "raw_tail_already_contained_correct_bytes": true,
+        "historical_retrieval_tool_called": false,
+        "retrieval_prompt_incremental_benefit": "not_exercised"
+      },
+      "verifier": {
+        "tests": 3,
+        "failures": 1,
+        "errors": 0,
+        "passed": 2,
+        "cosine_similarity": 0.9777514616864713,
+        "required_similarity": 0.995,
+        "xml": {
+          "path": "artifacts/compaction-fidelity-eval-20260912/continuation/baseline/verifier.xml",
+          "sha256": "d799c613e8dff9e9aa56c80c7607f37b2c4803d2e909bd7cc4c55e0c238fd10d"
+        },
+        "log": {
+          "path": "artifacts/compaction-fidelity-eval-20260912/continuation/baseline/verifier.log",
+          "sha256": "dba3bced03cafcb2b15d3b6c3e30aee5965e606c8710a169a0102cd0aefc5b83"
+        },
+        "test_source": {
+          "path": "artifacts/compaction-fidelity-eval-20260912/continuation/baseline/test_outputs.py",
+          "sha256": "c4477b901887dcbc788eed138f30e32675a8c14710410733009071c11aa783c7"
+        },
+        "method": "Original task pytest copied and invoked after AgentRunner stopped; not a Harbor job."
+      },
+      "source": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/continuation/baseline/mystery.c",
+        "sha256": "011e84104005b16af830d05f65e2033adb16d2c798a34e97a42dd000d5af6d52",
+        "bytes": 3643,
+        "gzip_bytes_python_mtime0": 1445,
+        "zlib_bytes": 1432
+      },
+      "events": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/continuation/baseline/events.jsonl",
+        "sha256": "2188db67d2106ac5ee3fef8f454a64225153ea872f395871b473cc6578a84e4f"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/continuation/baseline/result.json",
+        "sha256": "75f565a9179474e9b3752f496d356b2dc0e7fd91a311a37ae09722ec9fcb80c7"
+      }
+    },
+    {
+      "arm": "improved",
+      "selected_repeat": 1,
+      "steps": 12,
+      "termination_reason": "max_steps",
+      "model_requests": 13,
+      "duration_seconds": 156.660477,
+      "usage": {
+        "input": 569539,
+        "hit": 443648,
+        "miss": 125891,
+        "output": 9218,
+        "requests": 13,
+        "usage_complete": 13,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.22219991199999997,
+        "timestamp_priced_cost_usd": 0.11109995599999999,
+        "cache_hit_rate": 0.7789598254026502,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "selected_summary_cost_usd": 0.088189552,
+      "summary_plus_continuation_cost_usd": 0.310389464,
+      "summary_plus_continuation_seconds": 212.3587757920055,
+      "tool_counts": {
+        "run_shell": 12
+      },
+      "additional_compaction_events": 0,
+      "manual_review": {
+        "first_task_tool_call_writing_source": 8,
+        "first_assistant_target_constant": "corrected_to_1.0f",
+        "first_assistant_excerpt": "I found the key error. `0x485adc` = `00 00 80 3f` = **1.0f**, not 0.0f. This changes the sky_color formula significantly.\n\nLet me re-decode `sky_color` with the correct constant:\n\n1. `xmm1 = 1.0f` (from 0x485adc)\n2. `xmm2 = d.y`\n3. `xmm3 = (0.5, 0.7)`\n4. `xmm2 = d.y + 1.0`\n5. `xmm2 = (d.y + 1.0) * 0.5` → `t = 0.5*(d.y + 1.0)`\n6. `xmm0 = t`\n7. `xmm1 = 1.0 - t`\n8. `xmm0 = t * (0.5, 0.7) = (0.5t, 0.7t)`\n9. `xmm3 = 1.0 - t`\n10. `xmm1 = (1.0 - t) + t = 1.0`\n11. `xmm3 = broadcast(1.0 - t)`\n12. `xmm0 = (0.5t, 0.7t) + (1-t, 1-t) = (0.5t + 1 - t, 0.7t + 1 - t) = (1 - 0.5t, 1 - 0.3t)`\n\nSo the sky color is:\n- **r = 1 - 0.5t**\n- **g = 1 - 0.3t**\n- **b = 1.0** (from xmm1 = 1.0)\n\nwhere `t = 0.5*(d.y + 1.0)`.\n\nThis is `mix((1,1,1), (0.5,0.7,1.0), t)` = `(1,1,1)*(1-t) + (0.5,0.7,1.0)*t`.\n\nLet me verify with the first pixel: top-left, d.y ≈ 0.5 (pointing ",
+        "raw_tail_already_contained_correct_bytes": true,
+        "historical_retrieval_tool_called": false,
+        "retrieval_prompt_incremental_benefit": "not_exercised"
+      },
+      "verifier": {
+        "tests": 3,
+        "failures": 1,
+        "errors": 0,
+        "passed": 2,
+        "cosine_similarity": 0.9887691551703899,
+        "required_similarity": 0.995,
+        "xml": {
+          "path": "artifacts/compaction-fidelity-eval-20260912/continuation/improved/verifier.xml",
+          "sha256": "6b65366e164e480fe4e948eb40a8e487abaaf25d7fec1d686f184a2b1018f7d7"
+        },
+        "log": {
+          "path": "artifacts/compaction-fidelity-eval-20260912/continuation/improved/verifier.log",
+          "sha256": "49e019dfca43e718b82e788c0ff2187d42e51b0d1c2dcf0b9000a6353f410691"
+        },
+        "test_source": {
+          "path": "artifacts/compaction-fidelity-eval-20260912/continuation/improved/test_outputs.py",
+          "sha256": "c4477b901887dcbc788eed138f30e32675a8c14710410733009071c11aa783c7"
+        },
+        "method": "Original task pytest copied and invoked after AgentRunner stopped; not a Harbor job."
+      },
+      "source": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/continuation/improved/mystery.c",
+        "sha256": "792c6512fe15b0096fb33f5e5510517397ca2e754cb071ab2537b174733ed4cc",
+        "bytes": 2972,
+        "gzip_bytes_python_mtime0": 1265,
+        "zlib_bytes": 1253
+      },
+      "events": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/continuation/improved/events.jsonl",
+        "sha256": "de09005136f20c2cdde2409cb3b026ed1e5c88e677bba9db6a5e890f4f4499a6"
+      },
+      "result": {
+        "path": "artifacts/compaction-fidelity-eval-20260912/continuation/improved/result.json",
+        "sha256": "408179b8095e01de70ff9dd4996435438251ac9e0b783a8d2af6c68951e90a1b"
+      }
+    }
+  ],
+  "all_model_requests_usage": {
+    "input": 2800439,
+    "hit": 2355072,
+    "miss": 445367,
+    "output": 97603,
+    "requests": 63,
+    "usage_complete": 63,
+    "usage_missing": 0,
+    "normalized_peak_cost_usd": 1.0780154880000001,
+    "timestamp_priced_cost_usd": 0.5390077440000001,
+    "cache_hit_rate": 0.8409652915132234,
+    "usage_coverage": 1.0,
+    "cost_is_lower_bound": false
+  }
+}
