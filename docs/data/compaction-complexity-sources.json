@@ -1,0 +1,120 @@
+{
+  "checked_at": "2026-09-12T08:31:47.341953+00:00",
+  "requested_context_date": "2026-09-12",
+  "repositories": [
+    {
+      "repo": "SWE-agent/SWE-agent",
+      "sha": "3ea751c087f32b16e039a2233dd6eefecef325d5",
+      "commit_date": "2026-07-16T15:21:18Z",
+      "files": [
+        {
+          "path": "sweagent/agent/history_processors.py",
+          "local": "artifacts/compaction-complexity-20260912/SWE-agent__SWE-agent__sweagent__agent__history_processors.py",
+          "sha256": "8e3621a9b7d94761d184c57dc2ab1028f7eb04b01fdfcbe8ba122977d19e477a",
+          "url": "https://github.com/SWE-agent/SWE-agent/blob/3ea751c087f32b16e039a2233dd6eefecef325d5/sweagent/agent/history_processors.py"
+        }
+      ],
+      "discovered_paths": []
+    },
+    {
+      "repo": "OpenHands/software-agent-sdk",
+      "sha": "9c3571a694547734002518bd94b3cb41a187f9b6",
+      "commit_date": "2026-09-12T03:46:10Z",
+      "files": [
+        {
+          "path": "openhands-sdk/openhands/sdk/context/condenser/README.md",
+          "local": "artifacts/compaction-complexity-20260912/OpenHands__software-agent-sdk__openhands-sdk__openhands__sdk__context__condenser__README.md",
+          "sha256": "66d1f0f6002f82ac610d478880b2c3f49215a062955aff4a2777f2698a4c21ff",
+          "url": "https://github.com/OpenHands/software-agent-sdk/blob/9c3571a694547734002518bd94b3cb41a187f9b6/openhands-sdk/openhands/sdk/context/condenser/README.md"
+        },
+        {
+          "path": "openhands-sdk/openhands/sdk/context/condenser/__init__.py",
+          "local": "artifacts/compaction-complexity-20260912/OpenHands__software-agent-sdk__openhands-sdk__openhands__sdk__context__condenser____init__.py",
+          "sha256": "bef82cc40feefce68ce6e413bcefc6cb2b8e0c426393e4ff9860c81f80ee589c",
+          "url": "https://github.com/OpenHands/software-agent-sdk/blob/9c3571a694547734002518bd94b3cb41a187f9b6/openhands-sdk/openhands/sdk/context/condenser/__init__.py"
+        },
+        {
+          "path": "openhands-sdk/openhands/sdk/context/condenser/llm_summarizing_condenser.py",
+          "local": "artifacts/compaction-complexity-20260912/OpenHands__software-agent-sdk__openhands-sdk__openhands__sdk__context__condenser__llm_summarizing_condenser.py",
+          "sha256": "e567d2cb523819b7be486e0e7b49ef91aa8ba02ed8e90ae1b8358440f8d46b71",
+          "url": "https://github.com/OpenHands/software-agent-sdk/blob/9c3571a694547734002518bd94b3cb41a187f9b6/openhands-sdk/openhands/sdk/context/condenser/llm_summarizing_condenser.py"
+        },
+        {
+          "path": "openhands-sdk/openhands/sdk/context/condenser/prompts/summarizing_prompt.j2",
+          "local": "artifacts/compaction-complexity-20260912/OpenHands__software-agent-sdk__openhands-sdk__openhands__sdk__context__condenser__prompts__summarizing_prompt.j2",
+          "sha256": "88cfcc443636ee2df8aa267417a22c0f1c9e3caa73c4edce10fe4ad6b03dd3f3",
+          "url": "https://github.com/OpenHands/software-agent-sdk/blob/9c3571a694547734002518bd94b3cb41a187f9b6/openhands-sdk/openhands/sdk/context/condenser/prompts/summarizing_prompt.j2"
+        }
+      ],
+      "discovered_paths": [
+        "openhands-sdk/openhands/sdk/context/condenser/README.md",
+        "openhands-sdk/openhands/sdk/context/condenser/__init__.py",
+        "openhands-sdk/openhands/sdk/context/condenser/base.py",
+        "openhands-sdk/openhands/sdk/context/condenser/llm_summarizing_condenser.py",
+        "openhands-sdk/openhands/sdk/context/condenser/no_op_condenser.py",
+        "openhands-sdk/openhands/sdk/context/condenser/pipeline_condenser.py",
+        "openhands-sdk/openhands/sdk/context/condenser/prompts/summarizing_prompt.j2",
+        "openhands-sdk/openhands/sdk/context/condenser/utils.py"
+      ]
+    },
+    {
+      "repo": "earendil-works/pi",
+      "sha": "71dca871bc80b6bc97be37f0ca3189399d651fff",
+      "commit_date": "2026-09-11T17:42:45Z",
+      "files": [
+        {
+          "path": "packages/coding-agent/src/core/compaction/compaction.ts",
+          "local": "artifacts/compaction-complexity-20260912/earendil-works__pi__packages__coding-agent__src__core__compaction__compaction.ts",
+          "sha256": "d3f639c21c4b91ebbe9d5716914636c3eb37a19d434e11bd6653fef8050f1357",
+          "url": "https://github.com/earendil-works/pi/blob/71dca871bc80b6bc97be37f0ca3189399d651fff/packages/coding-agent/src/core/compaction/compaction.ts"
+        }
+      ],
+      "discovered_paths": []
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "sha": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "commit_date": "2026-09-11T13:16:41Z",
+      "files": [
+        {
+          "path": "packages/core/src/session/compaction.ts",
+          "local": "artifacts/compaction-complexity-20260912/anomalyco__opencode__packages__core__src__session__compaction.ts",
+          "sha256": "35bc2da1578b6bb80a3c39c1d6c51f234f34ce6586dd4f9d230e2a31b257138d",
+          "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/core/src/session/compaction.ts"
+        }
+      ],
+      "discovered_paths": []
+    },
+    {
+      "repo": "google-gemini/gemini-cli",
+      "sha": "9c1b0a610534d6f8120964cf2672c07807d8fc90",
+      "commit_date": "2026-09-11T21:00:49Z",
+      "files": [
+        {
+          "path": "packages/core/src/context/chatCompressionService.ts",
+          "local": "artifacts/compaction-complexity-20260912/google-gemini__gemini-cli__packages__core__src__context__chatCompressionService.ts",
+          "sha256": "796b43770e9de160c2aa2db8f729eb3141072b82d5cfc380543e0e95bdb0567e",
+          "url": "https://github.com/google-gemini/gemini-cli/blob/9c1b0a610534d6f8120964cf2672c07807d8fc90/packages/core/src/context/chatCompressionService.ts"
+        }
+      ],
+      "discovered_paths": []
+    }
+  ],
+  "papers": [
+    {
+      "title": "The Complexity Trap: Simple Observation Masking Is as Efficient as LLM Summarization for Agent Context Management",
+      "url": "https://arxiv.org/html/2508.21433v3",
+      "version": "v3",
+      "version_date": "2025-10-27",
+      "local": "artifacts/compaction-complexity-20260912/the-complexity-trap-v3.html",
+      "sha256": "74c763b760b90638eb5fb2ce0fa7193fbef8d6bbf95448a2b202496bb728b330",
+      "notes": [
+        "Main results compare five model configurations on SWE-bench Verified; these are task outcomes, not per-summary factuality scores.",
+        "D.3 reports no solve-rate improvement from a joint critic-summary prompt; not equivalent to Gemini separate source-aware verification.",
+        "Appendix D introduction says Lite-50 for the critic experiment, while Figure 7 and D.3 say 150 Verified samples; do not present a single sample count as unambiguous.",
+        "Do not carry v1 critic cost/trajectory percentages into v3 findings."
+      ]
+    }
+  ],
+  "previous_sources_manifest": "docs/data/compaction-factuality-sources.json"
+}
