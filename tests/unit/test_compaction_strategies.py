@@ -364,6 +364,32 @@ async def test_prefix_success_preserves_32k_and_uses_only_one_request(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_annotated_headings_publish_from_prefix_and_preserve_both_conflict_sections(tmp_path):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["ok"])
+    try:
+        provider.summary = (
+            SUMMARY.replace("# Constraints", "# Constraints（用户硬约束，原样保留）").replace(
+                "# Critical Context", "# Critical Context (verified evidence)"
+            )
+            + "\n\n## Critical Context (unresolved conflicts)"
+            "\n- Radius interpretation is unverified."
+        )
+        before = instance.compactor._digest(store.load_positioned_messages(instance.session_id))
+        result = await instance.compact(12, [1])
+        assert result.compacted, result.error
+        assert result.request_count == 1 and len(provider.requests) == 1
+        assert instance.last_metrics["adopted_path"] == "prefix"
+        active = instance.compactor.projection(instance.session_id)["compaction"]
+        assert active["summary_text"] == provider.summary
+        assert instance.compactor._digest(store.load_positioned_messages(instance.session_id)) == (
+            before
+        )
+    finally:
+        await instance.close()
+        store.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "failure",
     [

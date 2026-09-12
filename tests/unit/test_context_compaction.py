@@ -168,6 +168,81 @@ def append_history(store: SQLiteSessionStore, session_id: str) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "# Constraints（用户硬约束，原样保留）",
+        "## Constraints (user hard requirements, verbatim intent)",
+        "### constraints\t(unverified)\t",
+    ],
+)
+def test_summary_accepts_known_heading_annotation_without_changing_content(tmp_path, heading):
+    compactor, _, store, _ = make_compactor(tmp_path)
+    try:
+        summary = CompactionProvider._summary(1, 4).replace("# Constraints", heading)
+        normalized = compactor._normalize_summary(summary)
+        assert normalized == summary
+        assert compactor._validate_candidate(
+            normalized, finish_reason="stop", covered_start=1, covered_end=4
+        ) == ["[m:1-4]"]
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "# Constraints extra",
+        "# Constraints (unclosed",
+        "# Constraints（mismatched)",
+        "# Constraints (note) trailing text",
+        "# Constraints (nested (note))",
+        "# Constraints (first\nsecond)",
+        "#### Constraints (wrong level)",
+        "#\nConstraints (not a heading)",
+    ],
+)
+def test_summary_annotation_compatibility_still_requires_a_real_known_heading(tmp_path, heading):
+    compactor, _, store, _ = make_compactor(tmp_path)
+    try:
+        summary = CompactionProvider._summary(1, 4).replace("# Constraints", heading)
+        with pytest.raises(ValueError, match="缺少章节: Constraints"):
+            compactor._validate_candidate(
+                compactor._normalize_summary(summary),
+                finish_reason="stop",
+                covered_start=1,
+                covered_end=4,
+            )
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize("problem", ["empty", "missing", "length", "budget", "source"])
+def test_heading_compatibility_does_not_bypass_candidate_guards(tmp_path, problem):
+    compactor, _, store, _ = make_compactor(tmp_path)
+    try:
+        summary = CompactionProvider._summary(1, 4).replace(
+            "# Critical Context", "# Critical Context（待核实）"
+        )
+        if problem == "empty":
+            summary = ""
+        elif problem == "missing":
+            summary = summary.replace("# Failures", "# Other")
+        elif problem == "budget":
+            summary += "\n" + "evidence " * 10_000
+        elif problem == "source":
+            summary += "\n- 越界证据 [m:5]"
+        with pytest.raises(ValueError):
+            compactor._validate_candidate(
+                summary,
+                finish_reason="length" if problem == "length" else "stop",
+                covered_start=1,
+                covered_end=4,
+            )
+    finally:
+        store.close()
+
+
 @pytest.mark.asyncio
 async def test_compaction_publishes_one_summary_without_deleting_source(
     tmp_path: Path,

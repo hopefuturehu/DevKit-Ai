@@ -1659,7 +1659,11 @@ class ContextCompactor:
             section
             for section in _REQUIRED_SECTIONS
             if re.search(
-                rf"(?im)^#{{1,3}}\s+{re.escape(section)}\s*$",
+                # Accept a single same-line annotation on a known heading. Keep
+                # the original text: labels such as "unverified" carry meaning,
+                # and repeated sections may contain different evidence.
+                rf"(?im)^#{{1,3}}[ \t]+{re.escape(section)}[ \t]*"
+                rf"(?:\([^()（）\r\n]+\)|（[^()（）\r\n]+）)?[ \t]*\r?$",
                 summary,
             )
             is None
