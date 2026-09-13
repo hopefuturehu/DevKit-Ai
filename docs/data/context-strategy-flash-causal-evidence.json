@@ -1,0 +1,1432 @@
+{
+  "scope": "Post-hoc explanation of 12 effective trials plus one documented environmental exclusion; no new agent trials or causal identification.",
+  "source_reports": [
+    {
+      "path": "docs/data/context-strategy-flash-results.json",
+      "sha256": "c775010faf3aa4160d19b3a2b0b0922d55857240d82c877d8088b2c24730f802"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-repeat-2-results.json",
+      "sha256": "90e504f851cb665765e0b7a1203d02efc8c8755ba9e092d85ab7538e8f13981e"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-repeat-3-results.json",
+      "sha256": "c6fb4233156f4e9ba8904113ba1a6ede8dd565a97bdd3edfab921095ef01f762"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-current-replacement-results.json",
+      "sha256": "7ca45c7eb7c518a64c868b98e274f9e0b1ac8b9537f6eb900c06c8f2c7615de7"
+    }
+  ],
+  "trajectories": [
+    {
+      "label": "r1-b",
+      "first_compaction_start_after_step": 52,
+      "publication_after_steps": [
+        52,
+        86,
+        120,
+        153,
+        186,
+        219
+      ],
+      "publication_paths": [
+        "b",
+        "b",
+        "b",
+        "b",
+        "b",
+        "b"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 6 /app/mystery | grep -i -E \"ppm|ffmpeg|image|render|downsampl|\\\\.c$|\\\\.h$|mystery|ray|sphere|scene\" | head -100'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -v -E \"^[A-Za-z_./]*\\\\.(c|h)$\" | grep -i -E \"sphere|ray|vec|color|light|camera|scene|hit|material|lambert|diffuse|specular|ambient|shadow|plane|box|triangle|world|render|pixel|width|height|samples|depth|bounce|reflect|refract|normal|origin|direction|center|radius|albedo|emission|sky|ground|checker|noise|"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -v -E \"^[A-Za-z_./]*\\\\.(c|h)$\" | grep -i -E \"sphere|ray|vec|color|light|camera|scene|hit|material|lambert|diffuse|specular|ambient|shadow|plane|box|triangle|world|render|pixel|width|height|samples|depth|bounce|reflect|refract|normal|origin|direction|center|radius|albedo|emission|sky|ground|checker|noise|"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -v -E \"^[A-Za-z_./]*\\\\.(c|h)$\" | grep -i -E \"sphere|ray|vec|color|light|camera|scene|hit|material|lambert|diffuse|specular|ambient|shadow|plane|box|triangle|world|render|pixel|width|height|samples|depth|bounce|reflect|refract|normal|origin|direction|center|radius|albedo|emission|sky|ground|checker|noise|"
+        }
+      ],
+      "events_sha256": "53c5eb523c1565a5983eb5315468138aa52241e925d3bca9dd2fa003db318243",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/b/035880d7ef5554b217e53a75ce5e87e4__SDDNQSe/agent/trace/state.db",
+        "sha256": "7cf7e583029cba52864ae610dc87759fa8340856e05813730e2cf95c6a63487f"
+      }
+    },
+    {
+      "label": "r1-a_fallback",
+      "first_compaction_start_after_step": 12,
+      "publication_after_steps": [
+        12,
+        38,
+        57,
+        71
+      ],
+      "publication_paths": [
+        "prefix",
+        "prefix",
+        "isolated",
+        "isolated"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -iE \"ppm|render|ray|sphere|image|pixel|color|scene|camera|light|material|vec|trace|shade|ffmpeg|downsample|progress\" | sort -u | head -100'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'_invalid_json': '{\"script\": \"nm /app/mystery 2>/dev/null | grep -iE \\\\\" T | t | D | d | R | r | B | b \\\\\" | grep -viE \\\\\"^.* (__|_IO|_dl|_nl|_Unwind|str|mem|wcs|printf|malloc|free|exit|abort|assert|ctype|locale|fopen|fclose|fwrite|fread|fprintf|sprintf|snprintf|puts|putchar|clock|time|getenv|setenv|environ|errno|signal|sig|pthread|sys|open|read|w"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | grep -E \" [TtDdBbRr] \" | grep -viE \"(__|_IO|_dl|_nl|_Unwind|^[0-9a-f]+ [TtDdBbRr] (str|mem|wcs|printf|malloc|free|exit|abort|assert|ctype|locale|fopen|fclose|fwrite|fread|fprintf|sprintf|snprintf|puts|putchar|clock|time|getenv|setenv|environ|errno|signal|sig|pthread|sys|open|read|write|close|lseek|mmap|munm"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | grep -E \" (ray_at|ray_create|sky_color|sphere_intersect|vector_add|vector_create|vector_dot|vector_length|vector_multiply|vector_normalize|vector_subtract|write_image|allocate_image|free_image|main|render|scene|camera|light|shade|trace|color|pixel)\"'}"
+        }
+      ],
+      "events_sha256": "54aa504bfa2ab34e5115738e28ca2cbbc6d027959681aba3fd05e5cb5a5d62de",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/a_fallback/035880d7ef5554b217e53a75ce5e87e4__ZLHTGFL/agent/trace/state.db",
+        "sha256": "27f5a0382a99edbf0b66096baf492d20a0cb46a7fc69ac000f6356793e4d1f34"
+      }
+    },
+    {
+      "label": "r1-a",
+      "first_compaction_start_after_step": 29,
+      "publication_after_steps": [
+        29,
+        44,
+        54,
+        81
+      ],
+      "publication_paths": [
+        "a",
+        "a",
+        "a",
+        "a"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 6 /app/mystery | head -200'}"
+        },
+        {
+          "step": 4,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 6 /app/mystery | wc -l; strings -n 6 /app/mystery | grep -iE \"sphere|plane|camera|light|material|ray|vec|color|scene|render|ppm|ffmpeg|downsample\" | head -80'}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm -C /app/mystery 2>/dev/null | grep -iE \" [TtWw] \" | head -100'}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -iE \"\\\\.c$|\\\\.h$|\\\\.cpp$\" | head -50'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | grep -iE \"vector_|ray_|sphere_|plane_|sky_|main|render|scene|material|light|camera|color|clamp|random|noise\" | head -60'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | awk \\'$1>=\"0000000000400000\" && $1<=\"0000000000410000\"\\' | head -80'}"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'objdump -d --start-address=0x401fd0 --stop-address=0x402700 /app/mystery 2>/dev/null | head -400'}"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'objdump -d --start-address=0x401740 --stop-address=0x401fd0 /app/mystery 2>/dev/null'}"
+        }
+      ],
+      "events_sha256": "9638aa3dc004648e5fdd179fe3dfe8a9f55387f4d99c4751c6bb24de2bd52735",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/a/035880d7ef5554b217e53a75ce5e87e4__maKJzFc/agent/trace/state.db",
+        "sha256": "b733b9aa07166e3263627a9e3264ea3836f8a4138c33536e6d9b15588efd41fc"
+      }
+    },
+    {
+      "label": "r1-current",
+      "first_compaction_start_after_step": 26,
+      "publication_after_steps": [
+        26,
+        34,
+        46,
+        54,
+        68,
+        79,
+        86
+      ],
+      "publication_paths": [
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -iE \"ppm|image|render|shadow|sphere|plane|camera|light|color|ray|vector|material|scene|object|hit|trace|pixel|width|height|sample|reflect|refract|diffuse|specular|ambient\" | sort -u | head -100'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | grep -iE \" [tT] \" | grep -viE \"^.*_dl_|_IO_|__|_nl_|glibc|libc\" | head -80'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | grep -iE \" [tT] \" | wc -l; echo \"---\"; nm /app/mystery 2>/dev/null | grep -iE \" [tT] \" | grep -iE \"main|render|scene|trace|shade|light|material|color|hit|intersect|ray|vector|image|shadow|sky|plane|sphere|camera|pixel\"'}"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'which objdump gdb readelf gcc python3 2>&1; echo \"---\"; objdump --version 2>&1 | head -1'}"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'objdump -d --no-show-raw-insn /app/mystery --start-address=0x401fd0 --stop-address=0x402170 2>/dev/null'}"
+        }
+      ],
+      "events_sha256": "3216949ec5c16a1086612534157eb32c63c900e3d17c6b55ee699abd4402a0ce",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HTrbLEX/agent/trace/state.db",
+        "sha256": "4dfc7dbe864d988da8c65a7d0d8c36768991c506f7e92122caecf4f800e2ff5f"
+      }
+    },
+    {
+      "label": "r2-a_fallback",
+      "first_compaction_start_after_step": 21,
+      "publication_after_steps": [
+        21,
+        39
+      ],
+      "publication_paths": [
+        "prefix",
+        "prefix"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '-C', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': \"nm /app/mystery | grep -v -E ' (t|r|d|b|i) ' | grep -iE ' T | W ' | grep -viE '_IO|__|_dl|glibc|pthread|str|mem|printf|malloc|free|exit|abort|assert|ctype|locale|wcs|mb|iconv|gconv|nptl|dl-|tunable|nss|resolv|get|set|sig|time|clock|rand|qsort|bsearch|search|tsearch|fnmatch|glob|regex|argp|getopt|env|err|error|fopen|fclose|fread|fwrite|f"
+        },
+        {
+          "step": 6,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['objdump', '-d', '--start-address=0x401740', '--stop-address=0x401ea0', '/app/mystery']}"
+        },
+        {
+          "step": 7,
+          "name": "load_context_reference",
+          "arguments_excerpt": "{'reference': 'blob:f9a1c93ded4d701f133e59ef5f9b9d154da10b1f31fd453a08987d06a801e7ad', 'offset': 4000, 'limit': 12000}"
+        },
+        {
+          "step": 8,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['objdump', '-d', '--start-address=0x4020f0', '--stop-address=0x402c30', '/app/mystery']}"
+        }
+      ],
+      "events_sha256": "24d15134f06b21bfbd7d1cf467e76be0c586f7cef81080ffe462e8e467969802",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a_fallback/035880d7ef5554b217e53a75ce5e87e4__XKfEBi7/agent/trace/state.db",
+        "sha256": "6b274518ca4b818a3c62099c2834ce36df70924d57a4f6d9a25d69166082c39c"
+      }
+    },
+    {
+      "label": "r2-a",
+      "first_compaction_start_after_step": 7,
+      "publication_after_steps": [
+        39,
+        138,
+        221
+      ],
+      "publication_paths": [
+        "a",
+        "a",
+        "a"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'_invalid_json': '{\"script\": \"strings -n 6 /app/mystery | grep -iE \\\\\"ppm|ffmpeg|image|render|progress|downsampl|\\\\\\\\.c$|\\\\\\\\.h$|\\\\\\\\.cpp|\\\\\\\\.cc$|\\\\\\\\.o$|\\\\\\\\.so$|\\\\\\\\.a$|\\\\\\\\.py$|\\\\\\\\.rs$|\\\\\\\\.go$|\\\\\\\\.js$|\\\\\\\\.java$|\\\\\\\\.sh$|\\\\\\\\.txt$|\\\\\\\\.md$|\\\\\\\\.json$|\\\\\\\\.xml$|\\\\\\\\.png$|\\\\\\\\.jpg$|\\\\\\\\.bmp$|\\\\\\\\.tga$|\\\\\\\\.hdr$|\\\\\\\\.exr$|\\\\\\\\.obj$|\\\\\\\\.mtl$|\\"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 6 /app/mystery | grep -iE \"ppm|ffmpeg|image|render|progress|downsampl\" | head -50'}"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'_invalid_json': '{\"script\": \"strings -n 4 /app/mystery | grep -iE \\\\\"\\\\\\\\.c$|\\\\\\\\.h$|\\\\\\\\.cpp|\\\\\\\\.cc$|\\\\\\\\.o$|\\\\\\\\.so$|\\\\\\\\.a$|\\\\\\\\.py$|\\\\\\\\.rs$|\\\\\\\\.go$|\\\\\\\\.js$|\\\\\\\\.java$|\\\\\\\\.sh$|\\\\\\\\.txt$|\\\\\\\\.md$|\\\\\\\\.json$|\\\\\\\\.xml$|\\\\\\\\.png$|\\\\\\\\.jpg$|\\\\\\\\.bmp$|\\\\\\\\.tga$|\\\\\\\\.hdr$|\\\\\\\\.exr$|\\\\\\\\.obj$|\\\\\\\\.mtl$|\\\\\\\\.stl$|\\\\\\\\.ply$|\\\\\\\\.svg$|\\\\\\\\.gif$|\\\\\\\\"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -E \"\\\\.(c|h|cpp|cc|o|so|a|py|rs|go|js|java|sh|txt|md|json|xml|png|jpg|bmp|tga|hdr|exr|obj|mtl|stl|ply|svg|gif|tif|webp|qoi|dds|ktx|pvr|astc|basis|zstd|gz|zip|tar|7z|xz|bz2|lz4|zst|br|lzma|lzo|lz|z|rar|cab|iso|dmg|vhd|vmdk|vdi|qcow2|vbox|ova|ovf|vdf)$\" | sort -u | head -60'}"
+        }
+      ],
+      "events_sha256": "b980ea2eff8f276755f1767a465b80fcf228950d9c12d7f4504c41efc53fa568",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a/035880d7ef5554b217e53a75ce5e87e4__QQdgthU/agent/trace/state.db",
+        "sha256": "41825ab50b87761ad8118e752aa3a67bc42cff2819dbfd4e5b4f6d411509fd75"
+      }
+    },
+    {
+      "label": "r2-current",
+      "first_compaction_start_after_step": 20,
+      "publication_after_steps": [
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70,
+        75,
+        80,
+        85,
+        90,
+        95,
+        100,
+        105,
+        110
+      ],
+      "publication_paths": [
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery'], 'wait_seconds': 5}"
+        },
+        {
+          "step": 2,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'head -c 64 /app/mystery | xxd'}"
+        },
+        {
+          "step": 3,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && ls -la && head -c 32 mystery | od -c | head'}"
+        },
+        {
+          "step": 3,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'which gcc objdump readelf strings nm python3 gzip; echo \"---\"; gcc --version 2>&1 | head -2'}"
+        },
+        {
+          "step": 4,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && strings -n 6 mystery | head -100'}"
+        },
+        {
+          "step": 4,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && strings -n 6 mystery | wc -l; echo ---; strings -n 6 mystery | grep -iE \"ffmpeg|ppm|png|image|render|downsample|usage|error\" | head -50'}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && nm mystery 2>/dev/null | grep -iE \" [Tt] \" | grep -viE \"^0|_dl|__\" | head -80'}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && nm mystery 2>/dev/null | grep -iE \" [Tt] \" | awk \\'{print $3}\\' | grep -viE \"^_|^__\" | head -100'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && nm mystery 2>/dev/null | grep -iE \" [Tt] \" | awk \\'{print $3}\\' | grep -viE \"^_|^__\" | grep -iE \"main|render|image|write|alloc|free|scene|ray|trace|sphere|vec|color|pixel|ppm|light|material|camera\" '}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && nm mystery 2>/dev/null | grep -iE \" [Tt] \" | awk \\'{print $3}\\' | grep -viE \"^_|^__\" | tail -120'}"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && nm mystery 2>/dev/null | grep -iE \" [RrDd] \" | awk \\'{print $3}\\' | grep -viE \"^_|^__\" | head -60'}"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': \"cd /app && objdump -d --no-show-raw-insn mystery | awk '/<main>:/,/^$/' | head -200\"}"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': \"cd /app && objdump -d --no-show-raw-insn mystery | awk '/<main>:/,/^$/' | sed -n '200,500p'\"}"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'cd /app && objdump -s -j .rodata mystery | head -40'}"
+        }
+      ],
+      "events_sha256": "80f9ab575a120d1cda12a8ee347b519d2cae0f7fea84cf9943ce5977791dc9b8",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HV74SVN/agent/trace/state.db",
+        "sha256": "d4302ecb7e2206b1606ea47cc01ce49fa2f6c53f19e5cf92c2c7b72a55039ffd"
+      }
+    },
+    {
+      "label": "r2-b",
+      "first_compaction_start_after_step": 7,
+      "publication_after_steps": [],
+      "publication_paths": [],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['which', 'gcc', 'objdump', 'readelf', 'strings', 'nm', 'python3', 'gdb', 'ltrace', 'strace']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['readelf', '-h', '/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '/app/mystery']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['readelf', '-S', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '/app/mystery'], 'wait_seconds': 30}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'_invalid_json': '{\"script\": \"nm /app/mystery | grep -v -E \\' (W|w|i|V|v) \\' | awk \\'{print $2, $3}\\' | sort | uniq -c | sort -rn | head -5; echo ---; nm /app/mystery | grep -E \\' [TtDdBbRr] \\' | grep -v -E \\'^0[0-9a-f]+ [TtDdBbRr] (_|__|IO_|io_|str|mem|wcs|printf|scanf|malloc|free|realloc|calloc|abort|exit|atexit|qsort|bsearch|rand|srand|time|clo"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'_invalid_json': '{\"script\": \"nm /app/mystery | grep -E \\' [Tt] \\' | grep -v -E \\'^0[0-9a-f]+ [Tt] (_|__|IO_|io_|str|mem|wcs|printf|scanf|malloc|free|realloc|calloc|abort|exit|atexit|qsort|bsearch|rand|srand|time|clock|getenv|setenv|locale|nl_|argp|obstack|fnmatch|glob|regex|re_|reg|tsearch|tdelete|twalk|trecurse|trans|tunable|unsecure|version_|dl"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'_invalid_json': '{\"script\": \"nm /app/mystery | grep -E \\' [Tt] \\' | grep -v -E \\'^0[0-9a-f]+ [Tt] (_|__|IO_|io_|str|mem|wcs|printf|scanf|malloc|free|realloc|calloc|abort|exit|atexit|qsort|bsearch|rand|srand|time|clock|getenv|setenv|locale|nl_|argp|obstack|fnmatch|glob|regex|re_|reg|tsearch|tdelete|twalk|trecurse|trans|tunable|unsecure|version_|dl"
+        }
+      ],
+      "events_sha256": "1f6b805ed8b390b66dbba7f59a15c1acf7638ccf99e12d88bdea72543fb14139",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/b/035880d7ef5554b217e53a75ce5e87e4__PAYTzuA/agent/trace/state.db",
+        "sha256": "29662e1f6d501b36dfc2dfa08eb42fd769899fad22cab65e3098006bd6cf1277"
+      }
+    },
+    {
+      "label": "r3-a",
+      "first_compaction_start_after_step": 22,
+      "publication_after_steps": [
+        22,
+        35,
+        61
+      ],
+      "publication_paths": [
+        "a",
+        "a",
+        "a"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['which', 'gcc', 'objdump', 'readelf', 'strings', 'nm', 'python3', 'gdb', 'ltrace', 'strace']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['readelf', '-h', '/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '/app/mystery']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['readelf', '-S', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '/app/mystery']}"
+        },
+        {
+          "step": 6,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '/app/mystery']}"
+        },
+        {
+          "step": 7,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '/app/mystery']}"
+        },
+        {
+          "step": 8,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['nm', '/app/mystery']}"
+        }
+      ],
+      "events_sha256": "a2f4fb1321b25cd6d5c222dd921bdf54475bd66863390267c8c25907df92ad71",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/a/035880d7ef5554b217e53a75ce5e87e4__K4mWFZj/agent/trace/state.db",
+        "sha256": "a1c6353969c892a70b73ee9b4a85b6911b808d1e8c88615f444fdcb7115ec099"
+      }
+    },
+    {
+      "label": "r3-current",
+      "first_compaction_start_after_step": 28,
+      "publication_after_steps": [
+        28,
+        42,
+        66,
+        94,
+        108,
+        144,
+        177
+      ],
+      "publication_paths": [
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current",
+        "current"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery'], 'wait_seconds': 5}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -iE \"ppm|render|ray|sphere|shadow|vector|image|color|light|scene|camera|material|plane|triangle|reflect|refract|diffuse|specular|ambient|ffmpeg|downsample|progress\" | sort -u | head -100'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'which objdump gdb nm readelf gcc python3 2>/dev/null; echo \"---\"; nm /app/mystery 2>/dev/null | grep -iE \" T | t \" | grep -viE \"^.*_dl_|_IO_|__libc|__printf|__str|__mem|__wcs|__gconv|__malloc|__realloc|__free|__sbrk|__get|__set|__unset|__clearenv|__register|__vasprintf|__vfprintf|__open|__new_fopen|__valloc|__sysinfo|__cache|__handle|__"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery | grep -iE \" (T|t) (main|allocate_image|free_image|is_in_shadow|plane_intersect|ray_at|ray_create|sky_color|sphere_intersect|vector_add|vector_create|vector_dot|vector_length|vector_multiply|vector_normalize|vector_subtract|write_image)$\"'}"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'objdump -d --start-address=0x401fd0 --stop-address=0x402170 /app/mystery'}"
+        }
+      ],
+      "events_sha256": "2b8433221f4006f06540ed1355494013a0f8e3975c99d21eb29b6902f5835ef2",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/current/035880d7ef5554b217e53a75ce5e87e4__aKqf4TN/agent/trace/state.db",
+        "sha256": "15ff5541b67ed7ef99fab39e1c7b48f908198047a15cca3a748e0f544ab10685"
+      }
+    },
+    {
+      "label": "r3-b",
+      "first_compaction_start_after_step": 35,
+      "publication_after_steps": [
+        35
+      ],
+      "publication_paths": [
+        "b"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': \"nm /app/mystery 2>/dev/null | grep -i ' [TtWw] ' | grep -v -E '^.* (__|_IO|_dl|_nl|_Unwind|_r_|_s_|_p_|_i_|_f_|_a_|_e_|_g_|_h_|_j_|_k_|_l_|_m_|_n_|_o_|_q_|_t_|_u_|_v_|_w_|_x_|_y_|_z_)' | head -100\"}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | awk \\'$1 < \"0000000000402de0\"\\' | sort | head -80'}"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | awk \\'$1 >= \"0000000000401740\" && $1 < \"0000000000402de0\"\\' | sort'}"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'objdump -d --start-address=0x401740 --stop-address=0x401ea0 /app/mystery 2>/dev/null | head -400'}"
+        }
+      ],
+      "events_sha256": "a6ce1fbf1d2c92262b27b11fee1648fc7b6530cc72f20533b4f3419f8cad196b",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/b/035880d7ef5554b217e53a75ce5e87e4__5BGJbPA/agent/trace/state.db",
+        "sha256": "72fa988fd207b528647df97fa654410980ebca0025ef91620c646aa3152b92f4"
+      }
+    },
+    {
+      "label": "r3-a_fallback",
+      "first_compaction_start_after_step": 14,
+      "publication_after_steps": [
+        14,
+        23,
+        32,
+        44,
+        72,
+        98,
+        118
+      ],
+      "publication_paths": [
+        "prefix",
+        "prefix",
+        "prefix",
+        "prefix",
+        "prefix",
+        "prefix",
+        "isolated"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '4', '/app/mystery']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '4', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '4', '/app/mystery']}"
+        },
+        {
+          "step": 6,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '4', '/app/mystery']}"
+        },
+        {
+          "step": 7,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '4', '/app/mystery']}"
+        },
+        {
+          "step": 8,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '4', '/app/mystery']}"
+        }
+      ],
+      "events_sha256": "b78eb6a25902e3ac3ef92f2be1dded49b6bfcbd8afea4aca367eecbbea776518",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/a_fallback/035880d7ef5554b217e53a75ce5e87e4__qD3bLoB/agent/trace/state.db",
+        "sha256": "ffda342609471809a70d5e3ea2bb592c93131db9a549046410834e9e2b78731b"
+      }
+    },
+    {
+      "label": "r3-current-replacement",
+      "first_compaction_start_after_step": 26,
+      "publication_after_steps": [
+        26
+      ],
+      "publication_paths": [
+        "current"
+      ],
+      "first_eight_steps_tool_calls": [
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 1,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['file', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '64', '/app/mystery']}"
+        },
+        {
+          "step": 2,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['/app/mystery']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['ls', '-la', '/app/']}"
+        },
+        {
+          "step": 3,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['head', '-c', '200', '/app/image.ppm']}"
+        },
+        {
+          "step": 4,
+          "name": "run_command",
+          "arguments_excerpt": "{'argv': ['strings', '-n', '6', '/app/mystery']}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'strings -n 4 /app/mystery | grep -iE \"ppm|render|image|ray|sphere|vec|color|scene|camera|light|material|hit|trace|ffmpeg|downsample|progress|\\\\.c$|\\\\.h$\" | sort -u | head -100'}"
+        },
+        {
+          "step": 5,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | grep -iE \" [tT] \" | head -80; echo \"---\"; nm /app/mystery 2>/dev/null | wc -l'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'nm /app/mystery 2>/dev/null | grep -iE \"ray_at|ray_create|sky_color|sphere_intersect|vector_add|vector_create|allocate_image|free_image|is_in_shadow|vector_length|main|render|scene|camera|light|material|hit|trace|color|clamp|normalize|dot|cross|reflect|refract\" | sort -u'}"
+        },
+        {
+          "step": 6,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'readelf -S /app/mystery 2>/dev/null | grep -iE \"debug|symtab\" ; echo \"===\"; readelf --debug-dump=info /app/mystery 2>/dev/null | head -50'}"
+        },
+        {
+          "step": 7,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'objdump -d --start-address=0x401740 --stop-address=0x402e50 /app/mystery 2>/dev/null | head -400'}"
+        },
+        {
+          "step": 8,
+          "name": "run_shell",
+          "arguments_excerpt": "{'script': 'objdump -d --start-address=0x401fd0 --stop-address=0x402e50 /app/mystery 2>/dev/null'}"
+        }
+      ],
+      "events_sha256": "3ce33f6db4b3ba0b06366868cd928ed2e9af1ebca83c6a5dd6fe2409e825af59",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3-current-replacement/jobs/current/035880d7ef5554b217e53a75ce5e87e4__9Sn9dfz/agent/trace/state.db",
+        "sha256": "2b2489029838e51bb148426f804f096c670670a0dde4fe50ae600cbd23c7463d"
+      }
+    }
+  ],
+  "summary_excerpt_evidence": [
+    {
+      "label": "r3-a_fallback",
+      "summary_index": 3,
+      "summary_id": "eb53aef0c33147cc9e1615b2881fb901",
+      "summary_sha256": "787b46e9437980a1c0d14917316155a3ea849ce1db63f216f43c0891fb0113ee",
+      "published_after_step": 32,
+      "excerpts": [
+        "- 助手连续多次重复调用同一命令 `strings -n 4 /app/mystery`（约 18 次），每次返回内容与上一轮完全相同，输出被外部化到同一 `context_ref=blob:d15ae6d7725baa2962fabd99b8f418be1b9ef5909e280497ee68101ea08a5fc4`。这些调用未产生任何新信息，属于无效重复尝试。",
+        "- `strings` 多次调用（`-n 6`、`-n 4`，含本轮约 18 次重复）返回内容高度重复且被外部化，未能直接获得程序语义；重复调用同一命令未产生新信息，属于低效尝试，续跑时应避免重复相同调用。"
+      ]
+    },
+    {
+      "label": "r2-a_fallback",
+      "summary_index": 2,
+      "summary_id": "068c1621a95a46a9a8cba2ccf8ed9ca0",
+      "summary_sha256": "12b563f5c9a589d20c428da37bc169a1df85c5fbbd4a0222745dc37b91045a96",
+      "published_after_step": 39,
+      "excerpts": [
+        "- 已用自写 C 工具 `/tmp/t1/diff.c` 逐 token 比对：**1440000 token 中 721461 处不同，首个差异在 idx=649170（pixel 216390，row 270，col 390）**。即天空区域（row<270）已匹配，球体/地面区域不匹配。"
+      ]
+    },
+    {
+      "label": "r2-a_fallback",
+      "summary_index": 1,
+      "summary_id": "77c6af609e9c411bab44cbeaf678ce1d",
+      "summary_sha256": "da4d7ade77c779eceab6add6ff51a56aea88a46e673e1591ffd3dbc25858fbb7",
+      "published_after_step": 21,
+      "excerpts": [
+        "- 手工追踪 `main` 像素循环栈偏移时出现混乱：循环内 `sub $0x20,%rsp`（0x401961）与 `add $0x20,%rsp`（0x401a91）导致内层偏移与外层偏移相差 0x20，助手对 `0x50(%rsp)`、`0x54(%rsp)` 等归属的推断自相矛盾（曾推断出 `py=0` 等不合理结果）。**该部分结论不可信，待核实。**"
+      ]
+    },
+    {
+      "label": "r3-b",
+      "summary_index": 1,
+      "summary_id": "30185ca1266c403481d6f2f59033b7b3",
+      "summary_sha256": "decd56c2d4dbc3484936ce872e846bee5caf17811127970c15aa23e284b56c80",
+      "published_after_step": 35,
+      "excerpts": [
+        "- 相机位于原点，方向 = normalize(1,1,-1)。"
+      ]
+    }
+  ],
+  "summary_response_limits": [
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 2385
+    },
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 3475
+    },
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_prefix",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 5925
+    },
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_isolated",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 4684
+    },
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_prefix",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 7762
+    },
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_isolated",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 5585
+    },
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_prefix",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 8463
+    },
+    {
+      "label": "r1-a_fallback",
+      "phase": "a_isolated",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 8008
+    },
+    {
+      "label": "r1-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 2562
+    },
+    {
+      "label": "r1-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 3328
+    },
+    {
+      "label": "r1-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 4266
+    },
+    {
+      "label": "r1-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 4678
+    },
+    {
+      "label": "r2-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 3225
+    },
+    {
+      "label": "r2-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 4739
+    },
+    {
+      "label": "r2-a_fallback",
+      "phase": "a_prefix",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6688
+    },
+    {
+      "label": "r2-a_fallback",
+      "phase": "a_isolated",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6107
+    },
+    {
+      "label": "r2-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 1838
+    },
+    {
+      "label": "r2-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 1841
+    },
+    {
+      "label": "r2-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 1841
+    },
+    {
+      "label": "r3-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 3422
+    },
+    {
+      "label": "r3-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 5209
+    },
+    {
+      "label": "r3-a",
+      "phase": "a_generate",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 5452
+    },
+    {
+      "label": "r3-a",
+      "phase": "a_generate",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6243
+    },
+    {
+      "label": "r3-a",
+      "phase": "a_generate",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6370
+    },
+    {
+      "label": "r3-a",
+      "phase": "a_generate",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6138
+    },
+    {
+      "label": "r3-a",
+      "phase": "a_generate",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6197
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 2507
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 2470
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 2644
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 3643
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 5318
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 4681
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6426
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_isolated",
+      "status": "completed",
+      "finish_reason": "stop",
+      "completion_tokens": 5253
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_prefix",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 6603
+    },
+    {
+      "label": "r3-a_fallback",
+      "phase": "a_isolated",
+      "status": "failed",
+      "finish_reason": "stop",
+      "completion_tokens": 7607
+    }
+  ],
+  "key_counterexamples": [
+    "New repetition 2 passed with two prefix publications and zero adopted isolated summaries.",
+    "A repetition 3 left an nm loop immediately after its first publication too.",
+    "B repetition 3 wrote its final source at step 22 before its first publication after step 35.",
+    "CURRENT excluded trial passed; source still passes independent isolated replay."
+  ],
+  "notes": [
+    "A publication followed by a different action is an observed sequence, not a proof of cause.",
+    "Summary failure retries differ in role/prompt/input assembly; not a clean single-variable comparison.",
+    "Final correctness is verified independently for produced sources; summary semantic accuracy was not exhaustively labelled."
+  ]
+}

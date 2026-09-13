@@ -1,0 +1,89 @@
+{
+  "image": "alexgshaw/path-tracing-reverse:20251031",
+  "image_id": "sha256:158e1425861e7daff35d76555db6bc9df63ac411a856b3b83c433ec331bee1cf",
+  "reference_image_sha256": "0d115b98f899dbfafed4a3e57c62a7182d6639861bb73d6965ec956a27d94ea7",
+  "frozen_original_source_sha256": "26ce745d2921d8e1e9df3e162733a6cf5eceac5b9cb2ffa6a5ff5c4e4d049752",
+  "reference_matches_frozen_source_build": true,
+  "network_disabled": true,
+  "candidate_runs_in_empty_chroot": true,
+  "rows": [
+    {
+      "label": "r1-a_fallback",
+      "source_sha256": "0a793db6359812fd12d4734b1b3a57c06641a973cbc4991f068b0d8130f02e21",
+      "source_bytes": 2414,
+      "gzip_bytes": 1098,
+      "zlib_bytes": 1086,
+      "cosine_similarity": 0.999999999995492,
+      "differing_channels": 0,
+      "passes_image_threshold": true,
+      "image_sha256": "0d115b98f899dbfafed4a3e57c62a7182d6639861bb73d6965ec956a27d94ea7"
+    },
+    {
+      "label": "r2-a_fallback",
+      "source_sha256": "b9e52d38b07500af90fb595868294d363b0150f2193e89760697648ed560f33e",
+      "source_bytes": 4158,
+      "gzip_bytes": 1358,
+      "zlib_bytes": 1357,
+      "cosine_similarity": 0.999999999995492,
+      "differing_channels": 0,
+      "passes_image_threshold": true,
+      "image_sha256": "0d115b98f899dbfafed4a3e57c62a7182d6639861bb73d6965ec956a27d94ea7"
+    },
+    {
+      "label": "r3-a",
+      "source_sha256": "9ee2e08689ef381cb259999179efd76da7d6068ff015717f7f6f70ac17d4a5f7",
+      "source_bytes": 4395,
+      "gzip_bytes": 1559,
+      "zlib_bytes": 1548,
+      "cosine_similarity": 0.9203337438018013,
+      "differing_channels": 1202204,
+      "passes_image_threshold": false,
+      "image_sha256": "dede1c63279e090dd4002c1cd500a52957f9e21b9fa360faf430e2258ec3ddd3"
+    },
+    {
+      "label": "r3-a_fallback",
+      "source_sha256": "8099e7a7ade3b46ca4406bde5d97fde09b4c1f2fee3c659004a54a9822f67fc3",
+      "source_bytes": 2515,
+      "gzip_bytes": 1086,
+      "zlib_bytes": 1074,
+      "cosine_similarity": 0.999999999995492,
+      "differing_channels": 0,
+      "passes_image_threshold": true,
+      "image_sha256": "0d115b98f899dbfafed4a3e57c62a7182d6639861bb73d6965ec956a27d94ea7"
+    },
+    {
+      "label": "r3-b",
+      "source_sha256": "042365c3720093efffd5dd8558dc24318385e1112429e2d8dc0d3b318a182fbe",
+      "source_bytes": 5684,
+      "gzip_bytes": 1735,
+      "zlib_bytes": 1723,
+      "cosine_similarity": 0.9213562431559301,
+      "differing_channels": 1187231,
+      "passes_image_threshold": false,
+      "image_sha256": "4cd56444e853ef08bffb40c97f5732e891fbb52e1a839ea0afe43f830eeaa614"
+    },
+    {
+      "label": "r3-current-replacement",
+      "source_sha256": "f6e506105006726ebd7538425d5fd94dcfdc6f3e6feae88b9effec58917c2a09",
+      "source_bytes": 4105,
+      "gzip_bytes": 1547,
+      "zlib_bytes": 1534,
+      "cosine_similarity": 0.9111596339826715,
+      "differing_channels": 1431309,
+      "passes_image_threshold": false,
+      "image_sha256": "a4ad1d01e8d4a5b3ffa246564fe5fd52f90df1c50e01d5e3e78406c69097af96"
+    },
+    {
+      "label": "r3-current",
+      "source_sha256": "45205f74063e10785c5ab382f6226f69d58593a340db0475cf8595dba5c02932",
+      "source_bytes": 4233,
+      "gzip_bytes": 1486,
+      "zlib_bytes": 1475,
+      "cosine_similarity": 0.9999964935665577,
+      "differing_channels": 46,
+      "passes_image_threshold": true,
+      "image_sha256": "bd39977a88c1d6d7da8f340baba87ba15b74131824499c95b9facc1abefc3768"
+    }
+  ],
+  "note": "Independent post-hoc replay; no model calls, no feedback to benchmark agents. Compare isolated renders against original task source rebuilt in a clean container; not a new agent trial."
+}
