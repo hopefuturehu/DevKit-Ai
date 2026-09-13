@@ -6,7 +6,7 @@
 > 日期：2026-08-18；缓存命中率补充：2026-08-19；落地验证补充：2026-08-25
 >
 > 代码基线：`f78d911 fix(context): bound and recover compaction backlog`
-> 关联设计：[recoverable-context-compaction.md](../recoverable-context-compaction.md)
+> 关联设计：[recoverable-context-compaction.md](../architecture/recoverable-context-compaction.md)
 
 > 2026-08-31 后续：第 16 节中的“至少三轮 user”也是当时的历史方案。当前实现已把它改为
 > 强制路径的预算内停止条件（收集到 3 条 user 即停，否则在下一组会使 tail 超过 20K 时停止），
@@ -14,8 +14,8 @@
 
 除第 16 节外，文中的“当前机制”“当前配置”和“待决策”都指 `f78d911` 历史基线，不是当前
 仓库默认值。当前请求组装与硬上限动作见
-[模型上下文分块与组装顺序](../context-assembly.md)，当前压缩状态机见
-[可恢复的单摘要上下文压缩](../recoverable-context-compaction.md)。
+[模型上下文分块与组装顺序](../architecture/context-assembly.md)，当前压缩状态机见
+[可恢复的单摘要上下文压缩](../architecture/recoverable-context-compaction.md)。
 
 ## 1. 摘要
 
@@ -406,7 +406,7 @@ completion 开销中。因此不能通过“把最终摘要再裁短一点”单
 
 > 本节保留 2026-08-24 为压缩失败分析所做的摘要合同调研。包含 OpenCode、reasoning 回传、
 > 请求组装、长对话切分和最新源码快照的完整端到端对比，见
-> [本地开源 Agent 框架上下文管理对比](../context-framework-comparison.md)。
+> [本地开源 Agent 框架上下文管理对比](../research/context-framework-comparison.md)。
 
 本次只读分析了 `codespace` 中的以下 checkout：
 
@@ -847,7 +847,7 @@ CLI 可展示：
 ## 16. 实施与验证记录（2026-08-25）
 
 推荐的混合方案已在提交 `cff6338` 中落地。可复用的评测入口、产物格式和后续运行方法见
-[上下文压缩有效性评测](../context-compaction-effectiveness.md)。本节补充实际执行过程，包括没有
+[上下文压缩有效性评测](../evaluations/context-compaction-effectiveness.md)。本节补充实际执行过程，包括没有
 通过的中间方案和为此做出的修正，避免只保留最终成功数字。
 
 ### 16.1 被验证的最终配置

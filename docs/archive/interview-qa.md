@@ -1,7 +1,7 @@
 # 面试问答
 
-> 已于 2026-09-08 归档：本题已由[面试手册](../context-management-interview-guide.md)覆盖。
-> 下文保留旧回答；默认自动记忆注入方式和 user 锚点以[当前请求组装说明](../context-assembly.md)为准。
+> 已于 2026-09-08 归档：本题已由[面试手册](../career/context-management-interview-guide.md)覆盖。
+> 下文保留旧回答；默认自动记忆注入方式和 user 锚点以[当前请求组装说明](../architecture/context-assembly.md)为准。
 
 本文档用于记录面试问题及经过讨论后确认的回答。
 

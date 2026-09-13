@@ -1,0 +1,156 @@
+# Markdown 长期记忆
+
+## 边界
+
+系统将历史事实和派生记忆分开保存：
+
+- SQLite 是会话、Run、消息、Tool Result 和证据位置的事实源；
+- Markdown 是当前长期记忆的可读投影；
+- SQLite 的 `memory_extraction_runs` 只保存提取状态、源哈希、模型、用量和错误，
+  不保存记忆正文。
+
+默认目录为工作区的 `.bot/memory`。该目录对普通 Agent 文件和 Shell Tool 整体拒绝访问，
+模型只能通过受限的记忆 Tool 检索。用户仍可在 Agent 外直接查看和编辑文件。
+
+## 文件布局
+
+```text
+.bot/memory/
+├── USER.md
+├── MEMORY.md
+├── CONFLICTS.md
+├── FORGET.md
+├── topics/<kind>/*.md
+└── conflicts/*.md
+```
+
+- `USER.md`：`/remember` 和用户手工维护的显式记忆，是 User 信任域。
+- `topics/`：自动提取器维护的原子记忆，是 Untrusted 信任域的正文事实源。
+- `MEMORY.md`：由活动主题文件原子重建的短索引，不是第二份可独立编辑的事实源。
+- `conflicts/`：同一个稳定 key 出现不同内容时保存新观察。
+- `CONFLICTS.md`：冲突的可读投影；冲突内容不作为确定事实注入。
+- `FORGET.md`：`/forget` 写入的自动记忆 key，阻止提取器重新创建。
+
+文件位置而不是 frontmatter 的 `origin/status` 决定信任。自动提取器没有写入
+`USER.md` 的接口，普通 Tool 也不能通过修改 Markdown 自行提升信任。
+
+## 提取生命周期
+
+`AgentRunner` 为当前 Run 生成 ID 后，启动一次后台扫描并显式排除当前 ID。因此扫描只会
+处理启动前已经完成的历史 Run，不会与本次 `run.completed` 产生竞态。
+
+候选 Run 必须满足：
+
+- `runs.status = completed`；
+- Session 没有 `parent_session_id`，即不是 Subagent；
+- 工作区与当前 Runtime 一致；
+- 尚未成功提取，或失败次数没有达到 `memory.max_attempts`。
+
+提取输入只包含带位置的用户、Assistant 和有限 Tool 消息，不包含 reasoning。真实用户消息和
+最终 Assistant 正文优先进入 `memory.max_source_tokens` 预算。每条消息还受
+`memory.max_message_chars` 限制。
+
+模型最多返回 `memory.max_candidates_per_run` 条候选，类型限定为：
+
+- `user_preference`
+- `workspace_fact`
+- `decision`
+- `procedure`
+- `pitfall`
+
+程序随后验证置信度、长度、证据位置、用户偏好的 User 证据和敏感信息。`user_preference`
+只保留 `PositionedMessage.is_real_user` 判定为真的证据位置：角色为 `user` 且没有内部 Skill
+交付来源。显式或恢复的 Skill 合成消息即使使用 `role=user`，也不成为用户偏好证据；旧的未知
+记录保留兼容处理，不按正文自报身份。“用户曾说过/贴出/发送/否认/同意/授权”一类会话事件
+无论模型给出什么 kind 都被确定性拒绝，因为它们应从原始 Transcript 查询，而不是固化成长期
+记忆。这条规则直接阻止 Assistant 的错误归因借用一条 User 否认消息成为“证据”。模型只能建议
+稳定 key，不能决定信任级别、目标路径或覆盖旧内容。
+
+## 巩固规则
+
+稳定 key 由 `kind + memory_key` 规范化得到：
+
+- key 和正文都相同：合并证据、置信度和更新时间；
+- key 相同但正文不同：保留旧活动记忆，将新观察写入冲突区；
+- key 在 `FORGET.md`：跳过；
+- 没有同 key：创建新的活动主题文件。
+
+主题和索引使用临时文件、`fsync`、原子 rename，并通过进程级文件锁串行化。提取失败不
+影响用户 Run；SQLite 记录失败原因并在后续周期有界重试。Runtime 关闭时取消后台任务，
+未完成工作留给下次启动。
+
+## 读取路径与信任
+
+每次 Run 开始时，默认只在 `context.memory_tokens` 预算内加载：
+
+1. `USER.md` 中的显式条目，`ContextTrust.USER`，优先级 500；
+2. 不加载 `MEMORY.md` 自动索引；它由确定性 Memory Router 按当前真实用户轮次决定是否检索。
+
+Router 的四种结果是 `NONE`、`SUGGEST_SEARCH`、`REQUIRE_SEARCH` 和
+`REQUIRE_EVIDENCE`。明确引用“上次/之前的约定”时必须检索；询问“我是否说过/贴过/授权过”
+时先检索，命中带证据的自动记忆后还必须读取原始证据。`REQUIRE_*` 不只靠提示：Provider 支持时
+请求使用命名 `tool_choice`；不支持时 Agent 在执行和持久化前校验指定 Tool。提前回答或错误 Tool
+响应会被丢弃并有界重试，仍不遵守则结束 Run。
+
+`search_memory` 和 `load_memory_evidence` 的完整正文都以 `role=tool` 只交付给紧随其后的一次
+模型请求，SQLite Transcript 从一开始只保存不含正文的收据；下一请求后，内存中的正文也替换为
+同一收据。检索结果显式标注为历史参考，只有证据结果中原始 `role=user` 消息能支撑用户归因。
+
+`memory.context_mode="eager"` 只保留作回滚和 A/B：此时自动索引仍为
+`role=user(name=automatic_memory)`/`ContextTrust.UNTRUSTED`，但带“不是用户消息”边界并置于
+Transcript 前，不再追加到最新真人用户消息之后。完整顺序及与本地开源框架的差异见
+[Role 分配与最终消息位置](../research/context-framework-comparison.md#53-role-分配与最终消息位置)。
+
+模型还可调用：
+
+- `search_memory(query, limit)`：检索显式与自动记忆，并返回分数、命中词和覆盖率；
+- `load_memory_evidence(memory)`：按记忆绑定的 session/run/position 回读同工作区 SQLite
+  原文，不能任意跨工作区浏览历史。
+
+自动记忆不能覆盖 Core Policy、项目指令或用户输入。涉及版本、路径、命令和配置的内容
+应在当前工作区重新验证。
+
+## 命令
+
+```text
+/remember <text>
+/memories
+/forget <id-or-key>
+/memory extract [run-id]
+```
+
+`/forget` 删除显式条目；对于自动记忆，它会把同 key 的活动和冲突记录标记为
+`forgotten`，并写入 `FORGET.md`。直接手工删除主题文件只删除当前副本，未来仍可能重新
+学习同一个 key。
+
+旧版 SQLite `memories` 中的未删除条目在 Runtime 构建时幂等导入 `USER.md`，成功后对旧行
+软删除，防止下次重复迁移。
+
+## 配置
+
+```toml
+[memory]
+enabled = true
+path = "./.bot/memory"
+auto_extract = true
+context_mode = "on_demand" # eager 仅用于回滚或对照实验
+# model = "low-cost-memory-model"
+max_runs_per_cycle = 3
+max_attempts = 3
+max_candidates_per_run = 5
+max_source_tokens = 24000
+max_message_chars = 8000
+max_output_tokens = 2048
+min_confidence = 0.75
+index_tokens = 2000
+search_limit = 8
+router_enabled = true
+router_min_score = 2
+router_min_term_coverage = 0.25
+router_max_candidates = 3
+router_enforce_required = true
+router_max_gate_retries = 1
+```
+
+聚焦验收用例和每条猜想可由什么测试证伪，见
+[Memory Router 设计与验收](memory-routing.md)。

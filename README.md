@@ -3,9 +3,9 @@
 `bot` 是一个通用的本地优先 CLI Agent。核心通过 OpenAI-compatible API 调用模型，并以
 Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 
-文档入口见 [docs/README.md](docs/README.md)，按当前实现、评测、设计提案和历史归档分类。
-项目设计目标和边界见 [docs/design.md](docs/design.md)，已实现能力与待验收项见
-[实现状态](docs/implementation-status.md)。
+文档入口见 [docs/README.md](docs/README.md)，按使用指南、架构、设计演进、评测、调研、求职资料和历史归档分类。
+项目设计目标和边界见 [docs/architecture/design.md](docs/architecture/design.md)，已实现能力与待验收项见
+[实现状态](docs/architecture/implementation-status.md)。
 
 ## 已实现能力
 
@@ -41,7 +41,7 @@ python3 -m venv .venv
 .venv/bin/python -m bot.providers.install_tokenizer
 ```
 
-正常请求不会下载词表；计数口径及验证结果见[输入 token 校准](docs/input-token-calibration.md)。
+正常请求不会下载词表；计数口径及验证结果见[输入 token 校准](docs/architecture/input-token-calibration.md)。
 
 Web 工作台使用相同的模型配置与工作区：
 
@@ -50,7 +50,7 @@ Web 工作台使用相同的模型配置与工作区：
 .venv/bin/bot -C . web start --host 127.0.0.1 --port 8080
 ```
 
-打开 `http://127.0.0.1:8080`。使用方法和状态说明见 [Web 任务工作台](docs/web-workbench.md)。
+打开 `http://127.0.0.1:8080`。使用方法和状态说明见 [Web 任务工作台](docs/guides/web-workbench.md)。
 
 ## 最小配置
 
@@ -190,7 +190,7 @@ state_path = "./.bot/state.db"
 正常任务默认不受固定步骤数或总运行时长限制。Tool 通过结构化 `progress` 信号报告强/弱进展
 或外部等待；运行器识别重复失败和短周期循环，进展状态会写入 SQLite 并在 `resume` 时恢复。
 所有非取消终态统一生成一次无 Tool 或静态收尾。完整状态机见
-[docs/termination.md](docs/termination.md)。
+[docs/architecture/termination.md](docs/architecture/termination.md)。
 
 复制示例环境文件并填写模型 API Key（源码仓库和 `bot init` 创建的工作区均包含
 `.env.example`；`.env` 已加入 `.gitignore`，不会被 Git 提交）：
@@ -266,7 +266,7 @@ bot eval run evals/kunpeng.jsonl --disable-skills \
 
 每个 Case 在独立的 fixture 副本和状态库中运行，可验收新产物、JSON Schema、禁止修改、
 真实 Tool 执行结果，以及独立容器中的测试。结果区分运行状态与验收结论，保存失败类别、
-版本/输入哈希、轨迹和用量指标。字段、隔离边界与验收器协议见[通用任务评测](docs/evaluation.md)。
+版本/输入哈希、轨迹和用量指标。字段、隔离边界与验收器协议见[通用任务评测](docs/evaluations/evaluation.md)。
 
 通过 Harbor 在 Terminal-Bench 2.1 的一次性任务容器中运行 smoke test：
 
@@ -276,7 +276,7 @@ bot eval run evals/kunpeng.jsonl --disable-skills \
 ```
 
 适配器会构建本项目 wheel、注入任务容器并保存完整诊断产物。全量运行、预算、并发、
-结果目录和 ARM64 限制见 [Terminal-Bench 2.1 评测文档](docs/terminalbench-evaluation.md)。
+结果目录和 ARM64 限制见 [Terminal-Bench 2.1 评测文档](docs/evaluations/terminalbench-evaluation.md)。
 
 运行结束后，一键归档最新 Job 并生成检测汇总：
 
@@ -290,18 +290,18 @@ bot eval run evals/kunpeng.jsonl --disable-skills \
 Tool 原子组边界生成一个活动摘要，
 并以事务方式推进游标。原始消息不会因压缩而删除，模型可通过
 `search_session_history` 和 `load_compaction_source` 检索、回溯。完整设计见
-[可恢复的单摘要上下文压缩](docs/recoverable-context-compaction.md)，故障回放与真实 Provider
-门禁见[上下文压缩有效性评测](docs/context-compaction-effectiveness.md)，与本地 Codex、OpenCode、
+[可恢复的单摘要上下文压缩](docs/architecture/recoverable-context-compaction.md)，故障回放与真实 Provider
+门禁见[上下文压缩有效性评测](docs/evaluations/context-compaction-effectiveness.md)，与本地 Codex、OpenCode、
 Pi、Hermes Agent、DeepSeek Harness、Nanobot 的架构差异见
-[开源 Agent 框架上下文管理对比](docs/context-framework-comparison.md)。
+[开源 Agent 框架上下文管理对比](docs/research/context-framework-comparison.md)。
 
 会话和证据继续保存在 SQLite；显式记忆写入受保护的 `USER.md` 并以 `USER` 信任加载，
 已完成 Root Run 会在后续运行开始时异步提取为 Markdown 自动记忆。自动记忆不需要逐条
 审核，但默认不再 eager 注入：Memory Router 只在当前真实用户轮次需要历史时建议或强制
 `search_memory`，涉及用户历史归因时继续强制 `load_memory_evidence`。检索正文按一次性 Tool
-Result 交付，冲突不会静默覆盖。详见 [Markdown 长期记忆](docs/markdown-memory.md)。
+Result 交付，冲突不会静默覆盖。详见 [Markdown 长期记忆](docs/architecture/markdown-memory.md)。
 Router 的可证伪门禁、真实 DeepSeek 成对 A/B 结果和适用边界见
-[Memory Router 设计与验收](docs/memory-routing.md)。
+[Memory Router 设计与验收](docs/architecture/memory-routing.md)。
 
 Agent 运行期间输入的普通文本会作为 steering 在下一个安全边界生效；输入 `/cancel`
 可取消当前运行。
@@ -309,7 +309,7 @@ Agent 运行期间输入的普通文本会作为 steering 在下一个安全边�
 父 Agent 首选通过 `task` 以前台或后台方式调用 Markdown 自定义 Agent，并可以使用
 `send_task_message`、`get_agent_status`、`await_agents`、`cancel_agent`、`apply_agent_patch`
 和 `cleanup_agent_worktree`。完整定义格式、信任模型和父子交互协议见
-[Markdown 自定义 Agent](docs/custom-agents.md)。
+[Markdown 自定义 Agent](docs/guides/custom-agents.md)。
 子 Agent 使用独立会话、Runner、Skill 激活状态和 Tool allowlist，默认最大委托深度为 1；
 父会话历史不会被复制，只有任务目标和显式授权的 `context_ref` 会进入子会话。`required=true`
 的任务会在父 Agent 最终回答前有界等待并作为不可信结构化结果回流；工作区内的
@@ -333,7 +333,7 @@ Skill 激活只对当前 Run 生效：一次用户请求及其后续模型、工
 修改配置不会切换已有会话，fork 继承原模式。默认配置下用 `/new` 开始历史交付模式。
 `/skills reload` 重新扫描目录，正在执行的 Run 继续使用启动时的 Catalog 快照。
 实际布局和当前绑定可在 `/status` 的 `context.skill_context_mode`、`active_skills` 查看。
-实现、迁移与验证结果见 [Skill 历史交付实施与验证](docs/skill-context-validation.md)。
+实现、迁移与验证结果见 [Skill 历史交付实施与验证](docs/evaluations/skill-context-validation.md)。
 
 ## 验证
 

@@ -1,7 +1,7 @@
 # Terminal-Bench 上下文中等任务集结果
 
 > 已于 2026-09-08 归档：本文保留固定版本的运行与复测结果，不代表现版本重新实测。
-> 当前运行方法见 [Terminal-Bench 评测](../terminalbench-evaluation.md)。
+> 当前运行方法见 [Terminal-Bench 评测](../evaluations/terminalbench-evaluation.md)。
 
 本报告记录 `context-medium-six` 的首次完整运行，目标是测量 Bot 当前上下文管理链路在六个
 中等长度工具任务上的任务完成率，并检查真实运行是否触发自动压缩。

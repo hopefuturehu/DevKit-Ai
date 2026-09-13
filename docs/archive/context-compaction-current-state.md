@@ -17,8 +17,8 @@
 有界之后，压缩仍然有 57.7% 的失败率和数分钟级停顿。下文未特别标注的“当前”均指该快照
 时点，不代表 2026-08-26 的仓库行为。
 
-当前实现应以[模型上下文分块与组装顺序](../context-assembly.md)和
-[可恢复的单摘要上下文压缩](../recoverable-context-compaction.md)为准。关键差异如下：
+当前实现应以[模型上下文分块与组装顺序](../architecture/context-assembly.md)和
+[可恢复的单摘要上下文压缩](../architecture/recoverable-context-compaction.md)为准。关键差异如下：
 
 | 项目 | 本文历史基线 `f930a19` | 当前实现 `2035795` |
 |---|---|---|
@@ -31,9 +31,9 @@
 | 时间门禁 | 只有 HTTP 层超时 | 每个压缩请求 90 秒墙钟；显式命令另有请求数、总时间和费用预算 |
 
 端到端开源框架对比见
-[本地开源 Agent 框架上下文管理对比](../context-framework-comparison.md)；历史演进、失败归因和候选
+[本地开源 Agent 框架上下文管理对比](../research/context-framework-comparison.md)；历史演进、失败归因和候选
 改造方案见 [context-compaction-failure-analysis.md](context-compaction-failure-analysis.md)；可恢复
-压缩的原始设计见 [recoverable-context-compaction.md](../recoverable-context-compaction.md)。
+压缩的原始设计见 [recoverable-context-compaction.md](../architecture/recoverable-context-compaction.md)。
 
 ## 1. 快照结论摘要
 
