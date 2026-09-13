@@ -435,6 +435,27 @@ async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_pa
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
+async def test_both_summary_paths_follow_captured_main_thinking(tmp_path, thinking):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["length", "ok"])
+    try:
+        instance.frame.request.thinking = thinking
+        instance.frame.prefix_request.thinking = thinking
+        # Neither a legacy override nor a later config edit may change the
+        # fallback away from the main request captured at this boundary.
+        instance.config.context.compaction_thinking = "disabled"
+        instance.config.model.thinking = "disabled" if thinking != "disabled" else "enabled"
+        result = await instance.compact(12, [1])
+        assert result.compacted, result.error
+        assert len(provider.requests) == 2
+        assert [request.thinking for request in provider.requests] == [thinking, thinking]
+        assert instance.last_metrics["adopted_path"] == "isolated"
+    finally:
+        await instance.close()
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_fallback_preserves_parent_tail_and_scoped_source_recovery(tmp_path):
     """Check transport/recovery across two compactions, not model factual accuracy."""
     instance, provider, store, sink = fallback_engine(tmp_path, ["ok", "tool", "ok"])

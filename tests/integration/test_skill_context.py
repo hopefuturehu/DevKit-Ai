@@ -107,7 +107,8 @@ def make_runner(root, provider, *, context=None, agent=None, skills=None, compac
         {
             "model": {"name": "mock", "base_url": "https://unused"},
             "skills": {"path": str(root / "skills"), **(skills or {})},
-            "context": context or {},
+            # The separate summary provider implements the legacy protocol.
+            "context": {"compaction_strategy": "current", **(context or {})},
             "agent": agent or {},
         }
     )

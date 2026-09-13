@@ -803,6 +803,8 @@ def _benchmark_config(
                 "network": "deny",
             },
             "context": {
+                # This benchmark compares the established CURRENT implementation.
+                "compaction_strategy": "current",
                 "max_input_tokens": max_input,
                 "auto_compact_threshold": threshold,
                 "output_reserve_tokens": profile.output_reserve_tokens,

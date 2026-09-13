@@ -9,7 +9,6 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from time import monotonic
 from typing import Any, Literal
-from urllib.parse import urlsplit
 
 from bot.compaction.models import CompactionErrorClass, ContextCompactionResult
 from bot.config.models import AppConfig
@@ -162,10 +161,13 @@ class ContextCompactor:
         self.event_bus = event_bus
         self._estimator = TokenEstimator()
         self._verified_ids: set[str] = set()
-        # Freeze the fallback at construction time so an interactive /model switch
-        # cannot silently move compaction onto a reasoning-heavy agent model.
+        # Legacy strategies keep their summary model fixed. Dual-path requests
+        # use the current main model from their request frame instead.
         self.model_name = config.context.compaction_model or config.model.name
-        self.thinking_mode = self._resolve_thinking_mode()
+
+    @property
+    def thinking_mode(self) -> Literal["enabled", "disabled"] | None:
+        return self._resolve_thinking_mode()
 
     def projection(self, session_id: str) -> dict[str, Any]:
         active = self._recover_latest_valid(session_id)
@@ -1547,15 +1549,14 @@ class ContextCompactor:
 
     def _resolve_thinking_mode(self) -> Literal["enabled", "disabled"] | None:
         configured = self.config.context.compaction_thinking
+        if self.config.context.compaction_strategy == "a_fallback" or configured == "auto":
+            return self.config.model.thinking
         if configured == "enabled":
             return "enabled"
         if configured == "disabled":
             return "disabled"
         if configured == "provider_default":
             return None
-        hostname = (urlsplit(self.config.model.base_url).hostname or "").lower()
-        if hostname == "api.deepseek.com" or hostname.endswith(".deepseek.com"):
-            return "disabled"
         return None
 
     def _summary_system_prompt(self) -> str:

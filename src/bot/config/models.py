@@ -135,7 +135,7 @@ class PermissionsConfig(StrictModel):
 
 
 class ContextConfig(StrictModel):
-    compaction_strategy: Literal["current", "a", "b", "a_fallback"] = "current"
+    compaction_strategy: Literal["current", "a", "b", "a_fallback"] = "a_fallback"
     compaction_low_water_tokens: int = Field(default=40_000, ge=512)
     compaction_leaf_input_tokens: int = Field(default=24_000, ge=2_048)
     compaction_merge_fanout: int = Field(default=4, ge=2, le=16)
@@ -172,6 +172,7 @@ class ContextConfig(StrictModel):
     compaction_command_max_cost_usd: float | None = Field(default=0.25, gt=0)
     compaction_min_recent_user_turns: int = Field(default=3, ge=1, le=100)
     compaction_source_refs: Literal["range", "item"] = "range"
+    # Legacy strategy override; dual-path compaction always follows the main request.
     compaction_thinking: Literal["auto", "provider_default", "enabled", "disabled"] = "auto"
     compaction_max_message_chars: int = Field(default=12_000, ge=500)
     compaction_rebuild_every: int = Field(default=5, ge=1, le=100)

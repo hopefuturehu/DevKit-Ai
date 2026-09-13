@@ -121,12 +121,13 @@ workspace_only = true
 network = "ask"
 
 [context]
+compaction_strategy = "a_fallback"
 max_input_tokens = 120000
 auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
-# 可选；留空时冻结启动时的主模型，后续 /model 不影响压缩
+# 仅旧 current/B 策略使用；双路径始终使用当前主模型
 # compaction_model = "<summary-model-id>"
 # 连续 raw tail 按 token 有界；强制恢复收集到三条 user 即停，也不加入会使 tail 超预算的更旧组
 recent_conversation_tokens = 20000
@@ -154,8 +155,8 @@ compaction_command_max_requests = 8
 compaction_command_max_seconds = 600
 compaction_command_max_cost_usd = 0.25
 compaction_source_refs = "range"
-# auto 仅对 DeepSeek 官方端点关闭思考；也可设为 provider_default/enabled/disabled
-compaction_thinking = "auto"
+# 双路径两次摘要的 thinking 都跟随 model.thinking；未设置时沿用供应商默认值
+# 旧 compaction_thinking 配置可继续加载，但不会覆盖双路径的主请求设置
 compaction_max_message_chars = 12000
 compaction_rebuild_every = 5
 

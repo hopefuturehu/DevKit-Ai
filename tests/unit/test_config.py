@@ -181,6 +181,7 @@ def test_execution_has_no_fixed_global_limit_by_default() -> None:
     assert config.context.compaction_summary_target_tokens is None
     assert config.context.compaction_summary_tokens == 4_000
     assert config.context.compaction_source_refs == "range"
+    assert config.context.compaction_strategy == "a_fallback"
     assert config.context.compaction_thinking == "auto"
 
 

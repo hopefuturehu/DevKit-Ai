@@ -303,7 +303,10 @@ async def test_update_plan_persists_and_rehydrates_after_compaction(tmp_path: Pa
             ],
         ]
     )
-    runner, store = make_test_runner(tmp_path, provider, tools=[UpdatePlanTool()])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[UpdatePlanTool()],
+        context_config={"compaction_strategy": "current"},
+    )
 
     first = await runner.run(RunRequest(prompt="实现功能"))
 
@@ -327,9 +330,7 @@ async def test_update_plan_persists_and_rehydrates_after_compaction(tmp_path: Pa
     assert "实现 TODO" in second_request_context
 
     runner.context_compactor = CompactedPlanProjection()
-    resumed = await runner.run(
-        RunRequest(prompt="继续处理未完成项", session_id=first.session_id)
-    )
+    resumed = await runner.run(RunRequest(prompt="继续处理未完成项", session_id=first.session_id))
 
     assert resumed.status == "completed"
     resumed_context = "\n".join(message.content or "" for message in provider.requests[2].messages)
@@ -2168,8 +2169,10 @@ async def test_agent_rechecks_final_request_budget_before_provider_call(tmp_path
     finally:
         store.close()
 
+
 @pytest.mark.asyncio
-async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path):
+@pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
+async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path, thinking):
     from bot.compaction.service import ContextCompactor
 
     summary = "\n\n".join(
@@ -2211,9 +2214,12 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
         tmp_path,
         provider,
         tools=[ReadFileTool()],
-        model_config={"max_output_tokens": 32768, "context_window_tokens": 131072},
+        model_config={
+            "max_output_tokens": 32768,
+            "context_window_tokens": 131072,
+            "thinking": thinking,
+        },
         context_config={
-            "compaction_strategy": "a_fallback",
             "recent_conversation_tokens": 512,
             "compaction_low_water_tokens": 12000,
             "compaction_max_output_tokens": 512,
@@ -2241,6 +2247,8 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
         assert result.status == "completed", result
         assert len(provider.requests) == 4
         main, prefix, isolated, continued = provider.requests
+        assert runner.config.context.compaction_strategy == "a_fallback"
+        assert all(request.thinking == thinking for request in provider.requests)
         assert prefix.messages[: len(main.messages)] == main.messages
         assert prefix.tools == main.tools and prefix.max_output_tokens == 32768
         assert prefix.tool_choice == main.tool_choice
@@ -2256,5 +2264,91 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
         assert sum(e["type"] == EventType.TOOL_REQUESTED.value for e in events) == 1
         completed = [e for e in events if e["type"] == EventType.CONTEXT_COMPACTION_COMPLETED.value]
         assert len(completed) == 1 and completed[0]["payload"]["adopted_path"] == "isolated"
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
+@pytest.mark.parametrize("finish_reason", ["stop", "length"])
+async def test_idle_compact_uses_default_fallback_and_current_main_thinking(
+    tmp_path, thinking, finish_reason
+):
+    from bot.compaction.service import ContextCompactor
+
+    summary = "\n\n".join(
+        f"# {name}\n- Preserve the verified observations."
+        for name in (
+            "Goal",
+            "Constraints",
+            "Progress",
+            "Key Decisions",
+            "Relevant Files",
+            "Failures",
+            "Next Steps",
+            "Critical Context",
+        )
+    )
+    provider = ScriptedProvider(
+        [
+            [
+                ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=summary),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason=finish_reason),
+            ]
+        ]
+    )
+    runner, store = make_test_runner(
+        tmp_path,
+        provider,
+        model_config={"max_output_tokens": 32768, "context_window_tokens": 131072},
+        context_config={
+            "recent_conversation_tokens": 512,
+            "compaction_low_water_tokens": 12000,
+            "compaction_max_output_tokens": 512,
+            "compaction_command_max_requests": 1,
+            "compaction_thinking": "disabled",
+        },
+        memory_config={"enabled": False},
+    )
+    runner.context_compactor = ContextCompactor(
+        config=runner.config, provider=provider, store=store, event_bus=runner.event_bus
+    )
+    # Read the main setting at compression time, not at compactor construction.
+    runner.config.model.thinking = thinking
+    runner.config.model.name = "switched-main-model"
+    session = store.create_session(tmp_path)
+    store.start_run(session, "seed")
+    for i in range(24):
+        store.append_message(
+            session,
+            "seed",
+            ChatMessage(
+                role=Role.USER if i == 0 else Role.ASSISTANT,
+                content=f"Evidence {i}: " + "verified observation " * 180,
+            ),
+        )
+    store.finish_run("seed", "completed")
+    before = runner.context_compactor._digest(store.load_positioned_messages(session))
+    try:
+        result = await runner.compact_session(session)
+        assert result["compacted"] is (finish_reason == "stop"), result
+        assert result["request_count"] == 1
+        assert len(provider.requests) == 1
+        request = provider.requests[0]
+        assert request.model == "switched-main-model" and request.thinking == thinking
+        assert not request.tools and request.messages[0].role == Role.SYSTEM
+        payload = json.loads(request.messages[1].content)
+        assert payload["kind"] == "isolated_handoff"
+        assert runner.context_compactor._digest(store.load_positioned_messages(session)) == before
+        events = store.list_events(session)
+        assert not any(e["type"] == EventType.TOOL_REQUESTED.value for e in events)
+        completed = [e for e in events if e["type"] == EventType.CONTEXT_COMPACTION_COMPLETED.value]
+        if finish_reason == "stop":
+            assert completed[0]["payload"]["adopted_path"] == "isolated"
+            assert completed[0]["payload"]["prefix_skip_reason"] == "idle_session_snapshot_missing"
+        else:
+            assert not completed
+            assert result["cursor_position"] == 0
+            assert not store.list_context_compactions(session)
     finally:
         store.close()

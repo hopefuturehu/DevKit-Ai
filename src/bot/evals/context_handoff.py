@@ -179,6 +179,7 @@ def experiment_config(base: AppConfig) -> AppConfig:
     payload["skills"]["auto_activate"] = False
     payload["context"].update(
         {
+            "compaction_strategy": "current",
             "auto_compact_threshold": 0.99,
             "max_input_tokens": 120000,
             "compaction_source_refs": "range",

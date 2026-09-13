@@ -115,6 +115,7 @@ def make_compactor(
                 "context_window_tokens": 32_000,
             },
             "context": {
+                "compaction_strategy": "current",
                 "compaction_summary_tokens": 2_048,
                 "compaction_max_output_tokens": 2_048,
                 "compaction_rebuild_every": 2,
@@ -907,6 +908,7 @@ async def test_compaction_model_is_frozen_across_runtime_model_switch(tmp_path: 
     session_id = store.create_session(tmp_path)
     store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
     compactor.config.model.name = "reasoning-agent-model"
+    compactor.config.model.thinking = "enabled"
 
     result = await compactor.compact(
         session_id,
@@ -916,7 +918,7 @@ async def test_compaction_model_is_frozen_across_runtime_model_switch(tmp_path: 
 
     assert result.compacted is True
     assert provider.requests[0].model == "compaction-model"
-    assert provider.requests[0].thinking == "disabled"
+    assert provider.requests[0].thinking == "enabled"
     assert store.list_context_compactions(session_id)[0]["model"] == "compaction-model"
     store.close()
 

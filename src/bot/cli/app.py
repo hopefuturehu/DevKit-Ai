@@ -779,6 +779,7 @@ name = ""
 context_window_tokens = 131072
 
 [context]
+compaction_strategy = "a_fallback"
 max_input_tokens = 120000
 auto_compact_threshold = 0.8
 output_reserve_tokens = 4096
@@ -787,14 +788,13 @@ safety_margin_tokens = 2048
 # 近期原文尾部按 token 有界；强制压缩收集到三条 user 即停，也不加入会使 tail 超预算的更旧组
 recent_conversation_tokens = 20000
 compaction_min_recent_user_turns = 3
-# 可选：单独指定上下文压缩模型；留空则冻结启动时的 model.name
+# 仅旧 current/B 策略使用；双路径始终使用当前主模型
 # compaction_model = ""
 compaction_summary_target_tokens = 3000
 compaction_summary_tokens = 4000
 compaction_max_output_tokens = 8192
 compaction_source_refs = "range"
-# auto 仅对 DeepSeek 官方端点关闭思考；其他兼容端点沿用 Provider 默认值
-compaction_thinking = "auto"
+# 双路径两次摘要的 thinking 都跟随 model.thinking；未设置时沿用供应商默认值
 compaction_request_timeout_seconds = 90
 compaction_repair_attempts = 1
 compaction_transport_retries = 1

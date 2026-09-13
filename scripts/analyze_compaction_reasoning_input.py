@@ -35,7 +35,7 @@ def main():
     compactor = object.__new__(ContextCompactor)
     compactor.config = AppConfig()
     compactor.model_name = "deepseek-v4-flash"
-    compactor.thinking_mode = "disabled"
+    compactor.config.model.thinking = "disabled"
     estimator = TokenEstimator()
     provider = OpenAICompatibleProvider(
         base_url="https://api.deepseek.com/v1", api_key="offline-unused"

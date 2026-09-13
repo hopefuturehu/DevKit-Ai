@@ -144,6 +144,7 @@ async def test_recoverable_compaction_keeps_one_summary_recent_tail_and_raw_sour
                 "context_window_tokens": 32_000,
             },
             "context": {
+                "compaction_strategy": "current",
                 "max_input_tokens": 26_000,
                 "auto_compact_threshold": 0.55,
                 "recent_conversation_tokens": 5_000,
@@ -245,6 +246,7 @@ async def test_single_large_turn_splits_at_assistant_boundary_with_raw_user_anch
                 "context_window_tokens": 32_000,
             },
             "context": {
+                "compaction_strategy": "current",
                 "recent_conversation_tokens": 300,
                 "compaction_min_recent_user_turns": 3,
                 "compaction_summary_tokens": 4_000,
@@ -402,6 +404,7 @@ async def test_compaction_usage_is_subject_to_run_cost_limit(tmp_path: Path) -> 
             },
             "agent": {"max_cost_usd": 0.0005},
             "context": {
+                "compaction_strategy": "current",
                 "max_input_tokens": 26_000,
                 "auto_compact_threshold": 0.55,
                 "recent_conversation_tokens": 5_000,
@@ -463,6 +466,7 @@ async def test_explicit_compaction_bounds_tail_instead_of_forcing_three_user_tur
                 "context_window_tokens": 32_000,
             },
             "context": {
+                "compaction_strategy": "current",
                 "recent_conversation_tokens": 1_000,
                 "compaction_min_recent_user_turns": 3,
                 "compaction_summary_tokens": 4_000,

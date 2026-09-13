@@ -4,6 +4,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from bot.cli.app import app
+from bot.config.loader import load_config
 
 runner = CliRunner()
 
@@ -12,6 +13,7 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     initialized = runner.invoke(app, ["-C", str(tmp_path), "init"])
     assert initialized.exit_code == 0, initialized.output
     assert (tmp_path / ".bot" / "config.toml").exists()
+    assert load_config(tmp_path).context.compaction_strategy == "a_fallback"
     assert (
         (tmp_path / ".env.example")
         .read_text(encoding="utf-8")

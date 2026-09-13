@@ -304,16 +304,25 @@ class AgentRunner:
         try:
             async with asyncio.timeout(self.config.context.compaction_command_max_seconds):
                 while cursor < target and total_requests < max_requests:
-                    result = await self.context_compactor.compact(
-                        session_id,
-                        trigger="explicit_compaction",
-                        through_position=target,
-                        active_run_ids=(),
-                        anchor_positions=(
-                            [latest_user_position] if latest_user_position is not None else None
-                        ),
-                        request_limit=max_requests - total_requests,
-                    )
+                    anchors = [latest_user_position] if latest_user_position is not None else []
+                    if self.config.context.compaction_strategy == "a_fallback":
+                        result = await self._compact_idle_with_fallback(
+                            session_id,
+                            through=target,
+                            anchors=anchors,
+                            spent_cost_usd=self._calculate_cost(
+                                total_input_tokens, total_output_tokens
+                            ),
+                        )
+                    else:
+                        result = await self.context_compactor.compact(
+                            session_id,
+                            trigger="explicit_compaction",
+                            through_position=target,
+                            active_run_ids=(),
+                            anchor_positions=anchors or None,
+                            request_limit=max_requests - total_requests,
+                        )
                     total_input_tokens += result.input_tokens
                     total_output_tokens += result.output_tokens
                     total_requests += result.request_count
@@ -384,6 +393,87 @@ class AgentRunner:
             "rebuilt_from_raw": result.rebuilt_from_raw,
             "budget": self._token_budget.as_dict(),
         }
+
+    async def _compact_idle_with_fallback(
+        self,
+        session_id: str,
+        *,
+        through: int,
+        anchors: list[int],
+        spent_cost_usd: float | None,
+    ) -> ContextCompactionResult:
+        """Use the dual-path publisher for /compact, without inventing a warm prefix."""
+        assert self.context_compactor is not None
+        run_id = f"compact:{uuid4().hex}"
+        strategy = StrategyCompactor(self.context_compactor, self.provider, session_id, run_id)
+        skill_state = RunSkillState(
+            self.skills,
+            session_id=session_id,
+            run_id=run_id,
+            mode=self.store.claim_skill_context_mode(session_id, self.config.skills.context_mode),
+            store=self.store,
+            body_budget=self.config.context.active_skill_tokens,
+            redactor=self.redactor,
+        )
+        try:
+            projection = self.context_compactor.projection(session_id)
+            cursor = int(projection["cursor_position"])
+            conversation = [
+                replace(
+                    entry,
+                    message=(
+                        entry.message
+                        if entry.skill_delivery is not None
+                        else self._externalize_message(
+                            entry.message, session_id=session_id, run_id=run_id
+                        )
+                    ),
+                )
+                for entry in self.store.load_positioned_messages(session_id, after_position=cursor)
+            ]
+            conversation = skill_state.prepare_history(conversation, cursor=cursor)
+            environment = await self.execution_target.probe(["ksys", "devkit"])
+            request_tools = self.tool_registry.definitions()
+            if self.config.skills.auto_activate and skill_state.catalog.skills:
+                request_tools.append(skill_state.catalog.activation_tool_definition())
+            if skill_state.catalog.skills:
+                request_tools.append(skill_state.catalog.resource_tool_definition())
+            request_tools, tool_catalog_note = self._select_tool_definitions(
+                session_id, request_tools
+            )
+            runtime_notes = [tool_catalog_note] if tool_catalog_note else []
+            self._refresh_plan_note(runtime_notes, session_id)
+            self._prepare_strategy_frame(
+                strategy,
+                skill_state=skill_state,
+                base_items=self.context.ledger_items(
+                    environment, skill_catalog=skill_state.catalog
+                ),
+                memory_items=self._memory_context_items(),
+                conversation=conversation,
+                compaction_items=self._compaction_context_items(projection, run_id=run_id),
+                runtime_notes=runtime_notes,
+                request_tools=request_tools,
+                run_id=run_id,
+            )
+            assert strategy.frame is not None
+            # Sent request frames are run-owned and retired when the task ends.
+            # With no reusable frame, this policy issues one isolated request.
+            strategy.frame.prefix_skip_reason = "idle_session_snapshot_missing"
+            limits = [
+                limit
+                for limit in (
+                    self.config.context.compaction_command_max_cost_usd,
+                    self.config.agent.max_cost_usd,
+                )
+                if limit is not None
+            ]
+            if limits:
+                strategy.frame.remaining_cost_usd = max(0.0, min(limits) - (spent_cost_usd or 0.0))
+            return await strategy.compact(through, anchors)
+        finally:
+            await strategy.close()
+            skill_state.close()
 
     async def steer(self, session_id: str, text: str, *, message_id: str | None = None) -> bool:
         queue = self._steering_queues.get(session_id)

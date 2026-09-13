@@ -927,6 +927,8 @@ def _benchmark_config(
     payload.setdefault("context", {})
     payload["context"].update(
         {
+            # Preserve the established CURRENT benchmark across default changes.
+            "compaction_strategy": "current",
             "max_input_tokens": max_input,
             "auto_compact_threshold": threshold,
             "output_reserve_tokens": 2_048,
