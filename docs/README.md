@@ -49,6 +49,7 @@
 
 | 文档 | 状态与用途 |
 |---|---|
+| [重复工具调用：四项调整与开源方案比较](repeated-tool-execution-plan.md) | 待实施：稳定证据、新证据进展、独立检测和执行前限制；含误拦边界与验收方案 |
 | [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 原始完整提案；Run 隔离、历史交付和恢复已落地，通用投影与微裁剪待实施 |
 | [Skill 卸载与缓存复用调研](skill-unloading-cache-comparison.md) | 首版与后续裁剪设计的源码依据；固定 checkout 调研，区分历史建议与当前实现 |
 | [历史会话裁剪容量分析](history-pruning-analysis.md) | 2026-09-08 的离线容量回放，支撑待实施设计；不代表生产裁剪收益 |
