@@ -282,6 +282,69 @@ async def test_run_command_yields_and_polls_managed_process(tmp_path: Path) -> N
 
 
 @pytest.mark.asyncio
+async def test_fresh_process_ids_do_not_change_completed_evidence(tmp_path: Path) -> None:
+    target = LocalExecutionTarget()
+    context = ToolContext(workspace=tmp_path, execution_target=target)
+    try:
+        results = [
+            await RunCommandTool().execute(
+                context, {"argv": ["/bin/sh", "-c", "printf stable"], "wait_seconds": 1}
+            )
+            for _ in range(3)
+        ]
+        assert all(result.success for result in results)
+        assert len({result.metadata["process_id"] for result in results}) == 3
+        assert len({result.progress.evidence_key for result in results}) == 1
+    finally:
+        await target.aclose()
+
+
+@pytest.mark.asyncio
+async def test_terminal_evidence_includes_output_consumed_by_earlier_polls(tmp_path):
+    target = LocalExecutionTarget()
+    context = ToolContext(workspace=tmp_path, execution_target=target)
+    args = {"argv": ["/bin/sh", "-c", "printf first; sleep 0.04; printf last >&2"]}
+    try:
+        complete = await RunCommandTool().execute(context, {**args, "wait_seconds": 1})
+        started = await RunCommandTool().execute(context, {**args, "wait_seconds": 0})
+        assert started.status == ToolResultStatus.RUNNING
+        finished = await PollProcessTool().execute(context, {
+            "process_id": started.metadata["process_id"], "wait_seconds": 1,
+        })
+        consumed = await PollProcessTool().execute(context, {
+            "process_id": started.metadata["process_id"], "wait_seconds": 0,
+        })
+        assert complete.progress.evidence_complete
+        assert complete.progress.evidence_key == finished.progress.evidence_key
+        assert finished.progress.evidence_key == consumed.progress.evidence_key
+        assert consumed.output == ""
+    finally:
+        await target.aclose()
+
+
+@pytest.mark.asyncio
+async def test_managed_and_streamed_command_evidence_match(tmp_path):
+    class StreamedTarget(LocalExecutionTarget):
+        @property
+        def supports_managed_processes(self):
+            return False
+
+    managed = LocalExecutionTarget()
+    streamed = StreamedTarget()
+    try:
+        for command in ["printf same; printf error >&2", "exit 3", "true"]:
+            results = [await RunCommandTool().execute(
+                ToolContext(workspace=tmp_path, execution_target=target),
+                {"argv": ["/bin/sh", "-c", command], "wait_seconds": 1},
+            ) for target in (managed, streamed)]
+            assert all(result.progress.evidence_complete for result in results)
+            assert results[0].progress.evidence_key == results[1].progress.evidence_key
+    finally:
+        await managed.aclose()
+        await streamed.aclose()
+
+
+@pytest.mark.asyncio
 async def test_completed_managed_process_duration_stops_increasing(tmp_path: Path) -> None:
     target = LocalExecutionTarget()
     process_id = await target.start_process(

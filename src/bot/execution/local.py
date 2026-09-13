@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import platform
 import shutil
 import signal
+import socket
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,6 +50,12 @@ class _ManagedProcess:
 
 
 class LocalExecutionTarget(ExecutionTarget):
+    @property
+    def progress_scope(self) -> str:
+        from bot.core.termination.identity import fingerprint
+
+        return fingerprint("local", socket.gethostname(), self._safe_environment())
+
     def __init__(self, *, max_managed_processes: int = 16) -> None:
         if max_managed_processes < 1:
             raise ValueError("max_managed_processes 必须大于 0")
@@ -369,6 +377,8 @@ class LocalExecutionTarget(ExecutionTarget):
             returncode=managed.returncode,
             stdout=stdout,
             stderr=stderr,
+            stdout_sha256=hashlib.sha256(stdout_all.encode()).hexdigest(),
+            stderr_sha256=hashlib.sha256(stderr_all.encode()).hexdigest(),
             truncated=managed.truncated,
             last_output_seconds_ago=last_output_seconds_ago,
             termination_reason=managed.termination_reason,

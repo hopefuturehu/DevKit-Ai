@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from bot.core.progress import ProgressKind, ProgressSignal
+from bot.core.termination.identity import process_evidence
 from bot.execution import ProcessEventKind, ProcessSnapshot, ProcessSpec, ProcessStatus
 from bot.tools.base import (
     Tool,
@@ -45,7 +46,8 @@ class ReadFileTool(Tool):
             path = resolve_path(context, str(arguments["path"]), must_exist=True)
             if not path.is_file():
                 return ToolResult(success=False, error=f"不是文件: {path}")
-            text = path.read_text(encoding="utf-8", errors="replace")
+            file_bytes = path.read_bytes()
+            text = file_bytes.decode("utf-8", errors="replace")
             lines = text.splitlines(keepends=True)
             start = int(arguments.get("start_line", 1))
             end = int(arguments.get("end_line", len(lines)))
@@ -63,7 +65,10 @@ class ReadFileTool(Tool):
                 metadata={"path": str(path), "start_line": start, "end_line": end},
                 progress=ProgressSignal(
                     kind=ProgressKind.WEAK,
-                    summary=f"读取了 {path.name} 的新证据",
+                    summary=f"读取了 {path.name}",
+                    subject_key=f"file:{path}",
+                    resource_version=hashlib.sha256(file_bytes).hexdigest(),
+                    evidence_complete=not truncated,
                     evidence_key=(
                         f"read:{path}:{start}:{end}:"
                         f"{hashlib.sha256(selected.encode()).hexdigest()}"
@@ -124,7 +129,9 @@ class SearchTextTool(Tool):
                                     output="\n".join(results),
                                     truncated=True,
                                     metadata={"result_count": len(results)},
-                                    progress=self._progress_signal(query, root, results),
+                                    progress=self._progress_signal(
+                                        query, root, results, complete=False,
+                                    ),
                                 )
                 except (OSError, UnicodeError, ValueError):
                     continue
@@ -146,12 +153,16 @@ class SearchTextTool(Tool):
                 yield Path(directory) / filename
 
     @staticmethod
-    def _progress_signal(query: str, root: Path, results: list[str]) -> ProgressSignal:
+    def _progress_signal(
+        query: str, root: Path, results: list[str], *, complete: bool = True,
+    ) -> ProgressSignal:
         digest = hashlib.sha256("\n".join(results).encode()).hexdigest()
         return ProgressSignal(
             kind=ProgressKind.WEAK,
             summary=f"搜索得到 {len(results)} 条证据",
             evidence_key=f"search:{root}:{query}:{digest}",
+            subject_key=f"tree:{root}",
+            evidence_complete=complete,
         )
 
 
@@ -229,6 +240,9 @@ class ApplyPatchTool(Tool):
                         else f"文件 {path.name} 内容未变化"
                     ),
                     evidence_key=f"file:{path}:{after_hash}",
+                    subject_key=f"file:{path}",
+                    resource_version=after_hash,
+                    evidence_complete=True,
                 ),
             )
         except (KeyError, OSError, UnicodeError, ValueError) as exc:
@@ -262,19 +276,21 @@ def _process_progress(snapshot: ProcessSnapshot) -> ProgressSignal:
             evidence_key=f"process:{snapshot.process_id}",
             inactivity_seconds=snapshot.last_output_seconds_ago or 0,
         )
-    if snapshot.status == ProcessStatus.COMPLETED:
-        return ProgressSignal(
-            kind=ProgressKind.WEAK,
-            summary=f"进程 {snapshot.process_id} 已完成",
-            evidence_key=(
-                f"process:{snapshot.process_id}:completed:{snapshot.returncode}:"
-                f"{hashlib.sha256((snapshot.stdout + snapshot.stderr).encode()).hexdigest()}"
-            ),
-        )
     return ProgressSignal(
-        kind=ProgressKind.NONE,
+        kind=(
+            ProgressKind.WEAK if snapshot.status == ProcessStatus.COMPLETED else ProgressKind.NONE
+        ),
         summary=f"进程 {snapshot.process_id} 以 {snapshot.status.value} 结束",
-        evidence_key=f"process:{snapshot.process_id}:{snapshot.status.value}",
+        subject_key=f"process:{snapshot.process_id}",
+        evidence_key=process_evidence(
+            snapshot.status.value, snapshot.returncode,
+            snapshot.stdout_sha256 or hashlib.sha256(snapshot.stdout.encode()).hexdigest(),
+            snapshot.stderr_sha256 or hashlib.sha256(snapshot.stderr.encode()).hexdigest(),
+        ),
+        evidence_complete=(
+            not snapshot.truncated
+            and snapshot.stdout_sha256 is not None and snapshot.stderr_sha256 is not None
+        ),
     )
 
 
@@ -467,10 +483,12 @@ class RunCommandTool(Tool):
                 progress=ProgressSignal(
                     kind=(ProgressKind.WEAK if returncode == 0 else ProgressKind.NONE),
                     summary=f"命令以退出码 {returncode} 结束",
-                    evidence_key=(
-                        f"command:{hashlib.sha256(repr(argv).encode()).hexdigest()}:"
-                        f"{returncode}:{hashlib.sha256(combined.encode()).hexdigest()}"
+                    evidence_key=process_evidence(
+                        "completed" if returncode == 0 else "failed", returncode,
+                        hashlib.sha256(output.encode()).hexdigest(),
+                        hashlib.sha256(error_output.encode()).hexdigest(),
                     ),
+                    evidence_complete=not truncated,
                 ),
             )
         except (

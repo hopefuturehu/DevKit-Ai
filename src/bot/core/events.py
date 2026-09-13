@@ -53,6 +53,8 @@ class EventType(StrEnum):
     RUN_STEERED = "run.steered"
     RUN_PROGRESS = "run.progress"
     RUN_PROGRESS_RESTORED = "run.progress_restored"
+    TOOL_REPEAT_OBSERVED = "tool.repeat_observed"
+    TOOL_REPEAT_BLOCKED = "tool.repeat_blocked"
     RUN_STALL_WARNING = "run.stall_warning"
     RUN_RECOVERY_STARTED = "run.recovery_started"
     RUN_FINALIZING = "run.finalizing"

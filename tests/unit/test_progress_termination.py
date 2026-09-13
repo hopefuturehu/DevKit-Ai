@@ -97,6 +97,26 @@ def test_failed_tool_cannot_claim_strong_progress() -> None:
     assert controller.epoch == 0
 
 
+def test_repeated_explicit_weak_evidence_is_not_new_progress() -> None:
+    controller = ProgressController(ProgressConfig())
+    reports = []
+    for _ in range(2):
+        controller.observe_tool(
+            tool_name="run_command",
+            arguments={"argv": ["true"]},
+            success=True,
+            result_content="操作成功，无输出。",
+            metadata={},
+            progress_signal=ProgressSignal(kind=ProgressKind.WEAK, evidence_key="exit:0"),
+            read_only=False,
+            idempotent=False,
+        )
+        reports.append(controller.finish_step())
+    assert reports[0].progress == ProgressKind.WEAK
+    assert reports[1].progress == ProgressKind.NONE
+    assert reports[1].no_progress_steps == 1
+
+
 def test_live_quiet_process_warns_and_recovers_without_default_finalization() -> None:
     controller = ProgressController(
         ProgressConfig(

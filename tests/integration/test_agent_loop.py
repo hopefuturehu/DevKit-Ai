@@ -31,7 +31,7 @@ from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
 from bot.tools import Tool, ToolAnnotations, ToolRegistry, ToolResult
-from bot.tools.builtins import ReadFileTool
+from bot.tools.builtins import ApplyPatchTool, ReadFileTool, RunCommandTool, RunShellTool
 from bot.tools.plan import UpdatePlanTool
 
 
@@ -1535,6 +1535,401 @@ async def test_agent_stops_repeated_idempotent_results(tmp_path: Path) -> None:
     assert EventType.RUN_FINALIZING in event_types
     assert EventType.RUN_BLOCKED in event_types
     store.close()
+
+
+class CountingExecutionTarget(LocalExecutionTarget):
+    def __init__(self):
+        super().__init__()
+        self.launches = 0
+
+    async def start_process(self, spec):
+        self.launches += 1
+        return await super().start_process(spec)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("shell", [False, True])
+@pytest.mark.parametrize("outcome", ["stable", "empty", "failure"])
+async def test_repeat_guard_prevents_actual_process_launches(tmp_path, shell, outcome):
+    tool = RunShellTool() if shell else RunCommandTool()
+    script = {"stable": "printf stable", "empty": "true", "failure": "exit 3"}[outcome]
+    args = {"script": script} if shell else {"argv": {
+        "stable": ["printf", "stable"], "empty": ["true"], "failure": ["false"],
+    }[outcome]}
+    provider = ScriptedProvider([
+        *[tool_turn(f"repeat-{n}", tool.name, json.dumps({**args, "wait_seconds": n}))
+          for n in range(1, 6)],
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="blocked summary"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[tool],
+        agent_config={
+            "progress": {"repeat_guard_mode": "enforce"},
+            "max_consecutive_failures": None if outcome == "failure" else 1,
+        },
+    )
+    runner.config.permissions.mode = "full-access"
+    target = CountingExecutionTarget()
+    runner.execution_target = target
+    try:
+        result = await runner.run(RunRequest(prompt="Inspect the fixed output."))
+        assert target.launches == 3
+        assert result.status == "blocked"
+        assert result.termination_reason == "repeated_observation_after_recovery"
+        assert len(provider.requests) == 6
+        assert provider.requests[-1].tool_choice == "none"
+        events = store.list_events(result.session_id)
+        results = [e["payload"] for e in events if e["type"] == EventType.TOOL_RESULT.value]
+        assert [r["executed"] for r in results] == [True, True, True, False, False]
+        assert all(r["process_id"] is None for r in results[-2:])
+        assert sum(e["type"] == EventType.TOOL_STARTED.value for e in events) == 3
+        assert sum(e["type"] == EventType.TOOL_REPEAT_BLOCKED.value for e in events) == 2
+        messages = store.load_messages(result.session_id)
+        calls = [call.id for message in messages for call in message.tool_calls]
+        answers = [message.tool_call_id for message in messages if message.role == Role.TOOL]
+        assert sorted(calls) == sorted(answers)
+    finally:
+        await target.aclose()
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_repeat_guard_closes_batch_and_allows_a_new_operation(tmp_path):
+    batch = [ModelEvent(
+        kind=ModelEventKind.TOOL_CALL_DELTA, tool_index=i,
+        tool_call_id=f"batch-repeat-{i}", tool_name="run_command",
+        arguments_delta='{"argv":["printf","stable"]}',
+    ) for i in range(6)]
+    batch.append(ModelEvent(kind=ModelEventKind.FINISH, finish_reason="tool_calls"))
+    provider = ScriptedProvider([
+        batch,
+        tool_turn("different", "run_command", '{"argv":["printf","new evidence"]}'),
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="completed"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[RunCommandTool()],
+        agent_config={"progress": {"repeat_guard_mode": "enforce"}},
+    )
+    runner.config.permissions.mode = "full-access"
+    target = CountingExecutionTarget()
+    runner.execution_target = target
+    try:
+        result = await runner.run(RunRequest(prompt="Inspect and find new evidence."))
+        assert result.status == "completed"
+        assert target.launches == 4
+        second = provider.requests[1].messages
+        assert len([m for m in second if m.role == Role.TOOL]) == 6
+        assert sum("工具未执行" in (m.content or "") for m in second) == 3
+    finally:
+        await target.aclose()
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("external_edit", [False, True])
+async def test_repeat_guard_allows_reading_changed_file(tmp_path, external_edit):
+    file = tmp_path / "input.txt"
+    file.write_text("before")
+
+    class EditingProvider(ScriptedProvider):
+        async def stream(self, request):
+            if external_edit and len(self.requests) == 3:
+                file.write_text("after")
+            async for event in super().stream(request):
+                yield event
+
+    turns = [tool_turn(f"read-{i}", "read_file", '{"path":"input.txt"}') for i in range(3)]
+    if not external_edit:
+        turns.append(tool_turn("edit", "apply_patch", json.dumps({
+            "path": "input.txt", "old_text": "before", "new_text": "after",
+        })))
+    turns.extend([
+        tool_turn("read-after-edit", "read_file", '{"path":"input.txt"}'),
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ])
+    provider = EditingProvider(turns)
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[ReadFileTool(), ApplyPatchTool()],
+        agent_config={"progress": {"repeat_guard_mode": "enforce"}},
+    )
+    try:
+        result = await runner.run(RunRequest(prompt="Read the updated content."))
+        assert result.status == "completed"
+        assert file.read_text() == "after"
+        assert not any(e["type"] == EventType.TOOL_REPEAT_BLOCKED.value
+                       for e in store.list_events(result.session_id))
+        assert any("after" in (m.content or "") for m in provider.requests[-1].messages
+                   if m.tool_call_id == "read-after-edit")
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_repeat_guard_survives_run_and_execution_target_recreation(tmp_path):
+    args = '{"argv":["printf","stable"]}'
+    ending = [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="summary"),
+              ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")]
+    first_provider = ScriptedProvider([
+        *[tool_turn(f"first-{n}", "run_command", args) for n in range(3)], ending,
+    ])
+    runner, store = make_test_runner(
+        tmp_path, first_provider, tools=[RunCommandTool()],
+        agent_config={"max_steps": 3, "progress": {"repeat_guard_mode": "enforce"}},
+    )
+    runner.config.permissions.mode = "full-access"
+    first = await runner.run(RunRequest(prompt="Inspect the output."))
+    assert first.status == "limit_reached"
+    store.close()
+    provider = ScriptedProvider([
+        tool_turn("again-1", "run_command", args),
+        tool_turn("again-2", "run_command", args), ending,
+    ])
+    resumed, store = make_test_runner(
+        tmp_path, provider, tools=[RunCommandTool()],
+        agent_config={"progress": {"repeat_guard_mode": "enforce"}},
+    )
+    resumed.config.permissions.mode = "full-access"
+    target = CountingExecutionTarget()
+    resumed.execution_target = target
+    try:
+        result = await resumed.run(RunRequest(prompt="Continue.", session_id=first.session_id))
+        assert result.status == "blocked"
+        assert target.launches == 0
+        assert any(e["type"] == EventType.RUN_PROGRESS_RESTORED.value
+                   for e in store.list_events(first.session_id))
+    finally:
+        await target.aclose()
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_repeat_guard_preserves_limits_but_restores_read_after_real_compaction(tmp_path):
+    from bot.compaction.service import ContextCompactor
+
+    (tmp_path / "input.txt").write_text("verified evidence " * 200)
+    summary = "\n\n".join(f"# {name}\n- Keep verified observations." for name in (
+        "Goal", "Constraints", "Progress", "Key Decisions", "Relevant Files",
+        "Failures", "Next Steps", "Critical Context",
+    ))
+
+    def text_turn(text):
+        return [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text=text),
+                ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")]
+
+    provider = ScriptedProvider([
+        *[tool_turn(f"read-{n}", "read_file", '{"path":"input.txt"}') for n in range(3)],
+        text_turn("paused"), text_turn(summary),
+        *[tool_turn(f"restore-{n}", "read_file", '{"path":"input.txt"}') for n in range(3)],
+        text_turn("blocked"),
+    ])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[ReadFileTool()],
+        agent_config={"max_steps": 3, "progress": {"repeat_guard_mode": "enforce"}},
+        context_config={
+            "recent_conversation_tokens": 512, "compaction_low_water_tokens": 12000,
+            "compaction_max_output_tokens": 512, "compaction_command_max_requests": 1,
+            "compaction_min_recent_user_turns": 1,
+        },
+        memory_config={"enabled": False},
+    )
+    runner.context_compactor = ContextCompactor(
+        config=runner.config, provider=provider, store=store, event_bus=runner.event_bus,
+    )
+    try:
+        first = await runner.run(RunRequest(prompt="Read the evidence."))
+        before = store.load_progress_state(first.session_id)["state"]["repeat_guard"]
+        assert sum(r["limited"] for r in before["records"].values()) == 1
+        store.start_run(first.session_id, "tail")
+        store.append_message(first.session_id, "tail", ChatMessage(
+            role=Role.USER, content="Later instructions: " + "retain context " * 800,
+        ))
+        store.finish_run("tail", "completed")
+        compacted = await runner.compact_session(first.session_id)
+        assert compacted["compacted"], compacted
+        assert compacted["cursor_position"] >= 7
+        assert store.load_progress_state(first.session_id)["state"]["repeat_guard"] == before
+        runner.config.agent.max_steps = None
+        result = await runner.run(RunRequest(prompt="Continue.", session_id=first.session_id))
+        assert result.status == "blocked"
+        results = [e["payload"] for e in store.list_events(first.session_id)
+                   if e["type"] == EventType.TOOL_RESULT.value
+                   and e["payload"]["tool_call_id"].startswith("restore-")]
+        assert [r["executed"] for r in results] == [True, False, False]
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_repeat_guard_blocks_before_repeated_permission_prompts(tmp_path):
+    provider = ScriptedProvider([
+        *[tool_turn(f"ask-{n}", "run_command", '{"argv":["printf","stable"]}') for n in range(5)],
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="blocked"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[RunCommandTool()],
+        agent_config={"progress": {"repeat_guard_mode": "enforce"}},
+    )
+    runner.approval_handler = AllowApprovalHandler()
+    try:
+        result = await runner.run(RunRequest(prompt="Inspect the output."))
+        assert result.status == "blocked"
+        events = store.list_events(result.session_id)
+        assert sum(e["type"] == EventType.APPROVAL_REQUESTED.value for e in events) == 3
+        blocked = [e for e in events if e["type"] == EventType.TOOL_REPEAT_BLOCKED.value]
+        assert len(blocked) == 2
+        assert all(e["payload"]["evidence_reference"] is None for e in blocked)
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_trusted_repeat_allowance_completes_silent_mutations(tmp_path):
+    import sys
+
+    script = (
+        "from pathlib import Path; p=Path('counter.txt'); "
+        "p.write_text(str(int(p.read_text())+1 if p.exists() else 1))"
+    )
+    args = json.dumps({"argv": [sys.executable, "-c", script]})
+    provider = ScriptedProvider([
+        *[tool_turn(f"consume-{n}", "run_command", args) for n in range(5)],
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="done"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[RunCommandTool()],
+        agent_config={"progress": {
+            "repeat_guard_mode": "enforce", "repeat_tool_limits": {"run_command": 5},
+        }},
+    )
+    runner.config.permissions.mode = "full-access"
+    try:
+        result = await runner.run(RunRequest(prompt="Apply five silent increments."))
+        assert result.status == "completed"
+        assert (tmp_path / "counter.txt").read_text() == "5"
+        assert not any(e["type"] == EventType.TOOL_REPEAT_BLOCKED.value
+                       for e in store.list_events(result.session_id))
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_policy_denied_shell_alias_cannot_clear_an_existing_repeat_limit(tmp_path):
+    shell_args = '{"script":"printf stable"}'
+    provider = ScriptedProvider([
+        *[tool_turn(f"shell-{n}", "run_shell", shell_args) for n in range(3)],
+        tool_turn("denied-alias", "run_command", '{"argv":["/bin/sh","-c","printf stable"]}'),
+        tool_turn("still-blocked-1", "run_shell", shell_args),
+        tool_turn("still-blocked-2", "run_shell", shell_args),
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="blocked"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[RunCommandTool(), RunShellTool()],
+        agent_config={"progress": {"repeat_guard_mode": "enforce"}},
+    )
+    runner.config.permissions.mode = "full-access"
+    target = CountingExecutionTarget()
+    runner.execution_target = target
+    try:
+        result = await runner.run(RunRequest(prompt="Inspect the output."))
+        assert result.status == "blocked"
+        assert target.launches == 3
+        results = [e["payload"] for e in store.list_events(result.session_id)
+                   if e["type"] == EventType.TOOL_RESULT.value]
+        assert results[3]["reason_code"] == "policy_denied"
+        assert [r["executed"] for r in results] == [True, True, True, False, False, False]
+    finally:
+        await target.aclose()
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_zero_wait_launches_cannot_hide_completed_repetition(tmp_path):
+    target = CountingExecutionTarget()
+
+    class Provider(ScriptedProvider):
+        async def stream(self, request):
+            # Let the prior real process finish, but never issue poll_process
+            # as a model tool call. Output remains available for later retrieval.
+            processes = await target.list_processes()
+            for process in processes:
+                await target.poll_process(process.process_id, wait_seconds=1, consume_output=False)
+            async for event in super().stream(request):
+                yield event
+
+    provider = Provider([
+        *[tool_turn(f"launch-{n}", "run_command", '{"argv":["printf","same"],"wait_seconds":0}')
+          for n in range(6)],
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="blocked"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ])
+    runner, store = make_test_runner(
+        tmp_path, provider, tools=[RunCommandTool()],
+        agent_config={"progress": {"repeat_guard_mode": "enforce"}},
+    )
+    runner.config.permissions.mode = "full-access"
+    runner.execution_target = target
+    try:
+        result = await runner.run(RunRequest(prompt="Inspect the output."))
+        assert target.launches == 3
+        assert result.status == "blocked"
+        results = [e for e in store.list_events(result.session_id) if e["type"] == "tool.result"]
+        requests = [
+            e for e in store.list_events(result.session_id) if e["type"] == "tool.requested"
+        ]
+        assert len(results) == len(requests)
+        assert all(e["payload"]["name"] == "run_command" for e in requests)
+    finally:
+        await target.aclose()
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_context_reference_repeat_guard_preserves_session_authorization(tmp_path):
+    from bot.core.termination import ProgressController
+
+    provider = ScriptedProvider([])
+    runner, store = make_test_runner(
+        tmp_path, provider, agent_config={"progress": {"repeat_guard_mode": "enforce"}},
+    )
+    session = store.create_session(tmp_path)
+    store.start_run(session, "seed")
+    reference = store.put_context_blob(
+        session_id=session, run_id="seed", content="private fixture evidence",
+    )
+    store.finish_run("seed", "completed")
+    args = json.dumps({"reference": reference})
+    provider.turns = [
+        *[tool_turn(f"load-{n}", "load_context_reference", args) for n in range(5)],
+        [ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="blocked"),
+         ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")],
+    ]
+    try:
+        result = await runner.run(
+            RunRequest(prompt="Read the stored evidence.", session_id=session)
+        )
+        assert result.status == "blocked"
+        results = [e["payload"] for e in store.list_events(session) if e["type"] == "tool.result"]
+        assert [r["executed"] for r in results] == [True, True, True, False, False]
+        state = store.load_progress_state(session)["state"]
+        controller = ProgressController(runner.config.agent.progress, state, scope=state["scope"])
+        other_session = store.create_session(tmp_path)
+        denied = await runner._guarded_context_reference(
+            ToolCall(
+                id="foreign", name="load_context_reference", arguments={"reference": reference},
+            ),
+            other_session, "foreign", controller, cursor=0,
+        )
+        assert not denied.success
+        assert "private fixture evidence" not in denied.model_content()
+        assert reference not in denied.model_content()
+    finally:
+        store.close()
 
 
 @pytest.mark.asyncio

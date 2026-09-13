@@ -1,0 +1,137 @@
+{
+  "date": "2026-09-13",
+  "status": "implemented_default_observe",
+  "baseline_targeted_tests_passed": 96,
+  "red_regressions": [
+    "test_repeated_explicit_weak_evidence_is_not_new_progress",
+    "test_fresh_process_ids_do_not_change_completed_evidence"
+  ],
+  "pytest": {
+    "tests": 610,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 10,
+    "passed": 600,
+    "duration_seconds": 12.19
+  },
+  "targeted_test_counts": {
+    "test_progress_termination": 7,
+    "test_repeat_identity": 18,
+    "test_execution_tools_policy": 33,
+    "test_agent_loop": 76
+  },
+  "lint": "passed",
+  "source_sha256": {
+    "src/bot/config/models.py": "e1bea882807ebbc72bda11ea221b0d07ebac9a417df58129917679adf3e14cf1",
+    "src/bot/core/agent.py": "b0c3a48d7fc2fcb241f88c8f2fed7c99c314971ef354b724fe071dc5e1f2c953",
+    "src/bot/core/events.py": "cbb4a4d611fb0db6cd6d53da7090a5d9ce40baf1aeea9f50fb4967ee5455c550",
+    "src/bot/core/progress.py": "f1f2fb3bca5e0844e687db55453118d4f248bb4849e93c0950eb0e473d5d86ae",
+    "src/bot/core/termination/controller.py": "a1baa8bc0fb9620b3c24fca4101868b36a41515a45cff6fd623ea6f1174f1e79",
+    "src/bot/core/termination/identity.py": "9feeefb33b5388812cfc1fe337843b689d735320d42a47e84a2151473ea6e5dd",
+    "src/bot/core/termination/repetition.py": "00e6323ae0db4da2454ee4dfa26dd78ae9e17654a86b0e602e4941527572d171",
+    "src/bot/execution/base.py": "4c372aa3fa6ec17696f72eb7db1aaea88542981c7ccbe55dd63ebae1f08c9c51",
+    "src/bot/execution/local.py": "ce16bf5f92b9765a84ecb97a9c5c776109c20ab9e01731309d6788e548c46367",
+    "src/bot/tools/base.py": "b9f60b18d820bb4055063c8d6cce848de2b9322b1d60eee85d14d3c8f581787a",
+    "src/bot/tools/builtins.py": "be9edc4f22886c390f346c840c1cb1688cd3484d4c64ef1c33916f4a7ce1917b"
+  },
+  "pytest_xml_sha256": "f951e96fdb06d6cb6cbf4eaa90f32db2e951f8c782a3c526233efab2486e7433",
+  "live": {
+    "model": "deepseek-v4-flash",
+    "method": "four_scripted_reads_then_live_continuation",
+    "rates_from_local_config": {
+      "input_per_million": 1.0,
+      "output_per_million": 2.0
+    },
+    "budget": {
+      "limit_usd": 0.1,
+      "reserved_usd": 0.08819200000000002
+    },
+    "limitations": [
+      "The first four model responses are scripted; subsequent responses use the live model.",
+      "These are small fixture continuations, not public benchmark success-rate measurements.",
+      "Cost uses frozen local config rates, not a verified provider invoice."
+    ],
+    "trials": [
+      {
+        "mode": "observe",
+        "repetition": 1,
+        "status": "completed",
+        "passed": true,
+        "decoy_executions": 4,
+        "blocked_calls": 0,
+        "live_requests": 2,
+        "input_tokens": 4016,
+        "output_tokens": 47,
+        "estimated_cost_usd": 0.00411,
+        "termination_reason": null
+      },
+      {
+        "mode": "enforce",
+        "repetition": 1,
+        "status": "completed",
+        "passed": true,
+        "decoy_executions": 3,
+        "blocked_calls": 1,
+        "live_requests": 2,
+        "input_tokens": 4170,
+        "output_tokens": 47,
+        "estimated_cost_usd": 0.004264,
+        "termination_reason": null
+      },
+      {
+        "mode": "enforce",
+        "repetition": 2,
+        "status": "completed",
+        "passed": true,
+        "decoy_executions": 3,
+        "blocked_calls": 1,
+        "live_requests": 2,
+        "input_tokens": 4169,
+        "output_tokens": 46,
+        "estimated_cost_usd": 0.004261,
+        "termination_reason": null
+      },
+      {
+        "mode": "observe",
+        "repetition": 2,
+        "status": "completed",
+        "passed": true,
+        "decoy_executions": 4,
+        "blocked_calls": 0,
+        "live_requests": 2,
+        "input_tokens": 4038,
+        "output_tokens": 69,
+        "estimated_cost_usd": 0.004176,
+        "termination_reason": null
+      }
+    ]
+  },
+  "live_estimated_cost_usd": 0.016811,
+  "lookup_microbenchmark": {
+    "scope": "canonical_identity_and_in_memory_lookup_only",
+    "excludes": [
+      "file_version_reads",
+      "process_scan",
+      "checkpoint_serialization",
+      "model_calls"
+    ],
+    "active_records": 128,
+    "samples": 2000,
+    "median_us": 2.542,
+    "p95_us": 2.667,
+    "repeat_checkpoint_bytes": 37950
+  },
+  "limits": [
+    "Default observe retains legacy stall finalization; enforce is opt-in.",
+    "No public benchmark full-task rerun or large-scale false-positive estimate.",
+    "Seven Docker verifier and three soak tests were skipped by their explicit opt-in guards.",
+    "Live continuation uses four scripted prefix responses followed by real model calls.",
+    "Initial sandbox transport failure retained separately; four network-enabled trials completed."
+  ],
+  "wheel": {
+    "path": "artifacts/repeat-guard-validation-20260913/dist/kunpeng_cli_agent-0.1.0-py3-none-any.whl",
+    "sha256": "438af9304414405aa37912750185f31a0f750a584b4504d45e440f01b0c7184a",
+    "isolated_import": "passed",
+    "new_module_contents_match_source": true
+  }
+}

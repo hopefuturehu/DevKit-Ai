@@ -24,6 +24,9 @@ class ProgressSignal(BaseModel):
     kind: ProgressKind
     summary: str = ""
     evidence_key: str | None = None
+    subject_key: str | None = None
+    resource_version: str | None = None
+    evidence_complete: bool = False
     inactivity_seconds: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")

@@ -1,0 +1,401 @@
+{
+  "baseline_revision": "1f9053cc48eba26471ab2882aea5e4bdfa1dbc91",
+  "baseline_controller_sha256": "78f8bd44ffae7082a00ad4f95748b0fb4db62ced9cb12f4849fb688de356cd2a",
+  "method": "fixed_trace_command_observations_only",
+  "lookup_microbenchmark": {
+    "scope": "canonical_identity_and_in_memory_lookup_only",
+    "excludes": [
+      "file_version_reads",
+      "process_scan",
+      "checkpoint_serialization",
+      "model_calls"
+    ],
+    "active_records": 128,
+    "samples": 2000,
+    "median_us": 2.542,
+    "p95_us": 2.667,
+    "repeat_checkpoint_bytes": 37950
+  },
+  "limitations": [
+    "Commands are never executed. Decisions stop at first finalization; historical requests are counted in full.",
+    "Non-command results and unavailable results are excluded and counted.",
+    "Complete combined output is compared; separate historical stream digests are unavailable.",
+    "This does not measure post-intervention task success or realized cost savings."
+  ],
+  "runs": [
+    {
+      "variant": "legacy",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a/035880d7ef5554b217e53a75ce5e87e4__QQdgthU/agent/trace",
+      "events_sha256": "b980ea2eff8f276755f1767a465b80fcf228950d9c12d7f4504c41efc53fa568",
+      "tool_runs_sha256": "caf24979dc743b9dd1b2d726db048ccf026d033c328e6a21c9b3287d826f1383",
+      "unknown_or_noncommand_results": 2,
+      "first_finalize_step": null,
+      "first_would_deny": null,
+      "decisions": [],
+      "most_repeated": [
+        {
+          "call_key": "29be3bc0e27e83f7551e4cb51f8345fa7ff39f0ac7f3d8f07ad6f9be6a3e0b51",
+          "historical_executions": 230,
+          "distinct_process_ids": 230,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "0b662dbd2ef358a0fce15b3d9117cc36d380b876d8fd43ebcb52e24a9fd6070c",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 2
+        },
+        {
+          "call_key": "c783102eaa9c7370b7a6703cb3b383e3f375c0a3add4c069ce3b9c4b87837455",
+          "historical_executions": 1,
+          "distinct_process_ids": 0,
+          "distinct_combined_observations": 1
+        }
+      ]
+    },
+    {
+      "variant": "stable_evidence_only",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a/035880d7ef5554b217e53a75ce5e87e4__QQdgthU/agent/trace",
+      "events_sha256": "b980ea2eff8f276755f1767a465b80fcf228950d9c12d7f4504c41efc53fa568",
+      "tool_runs_sha256": "caf24979dc743b9dd1b2d726db048ccf026d033c328e6a21c9b3287d826f1383",
+      "unknown_or_noncommand_results": 2,
+      "first_finalize_step": 16,
+      "first_would_deny": null,
+      "decisions": [
+        {
+          "step": 12,
+          "action": "warn",
+          "reason": "tool_cycle",
+          "no_progress_steps": 0
+        },
+        {
+          "step": 13,
+          "action": "recover",
+          "reason": "tool_cycle",
+          "no_progress_steps": 0
+        },
+        {
+          "step": 15,
+          "action": "warn",
+          "reason": "tool_cycle",
+          "no_progress_steps": 0
+        },
+        {
+          "step": 16,
+          "action": "finalize",
+          "reason": "tool_cycle_after_recovery",
+          "no_progress_steps": 0
+        }
+      ],
+      "most_repeated": [
+        {
+          "call_key": "29be3bc0e27e83f7551e4cb51f8345fa7ff39f0ac7f3d8f07ad6f9be6a3e0b51",
+          "historical_executions": 230,
+          "distinct_process_ids": 230,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "0b662dbd2ef358a0fce15b3d9117cc36d380b876d8fd43ebcb52e24a9fd6070c",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 2
+        },
+        {
+          "call_key": "c783102eaa9c7370b7a6703cb3b383e3f375c0a3add4c069ce3b9c4b87837455",
+          "historical_executions": 1,
+          "distinct_process_ids": 0,
+          "distinct_combined_observations": 1
+        }
+      ]
+    },
+    {
+      "variant": "observe",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a/035880d7ef5554b217e53a75ce5e87e4__QQdgthU/agent/trace",
+      "events_sha256": "b980ea2eff8f276755f1767a465b80fcf228950d9c12d7f4504c41efc53fa568",
+      "tool_runs_sha256": "caf24979dc743b9dd1b2d726db048ccf026d033c328e6a21c9b3287d826f1383",
+      "unknown_or_noncommand_results": 2,
+      "first_finalize_step": 16,
+      "first_would_deny": null,
+      "decisions": [
+        {
+          "step": 12,
+          "action": "warn",
+          "reason": "tool_cycle",
+          "no_progress_steps": 1
+        },
+        {
+          "step": 13,
+          "action": "recover",
+          "reason": "tool_cycle",
+          "no_progress_steps": 2
+        },
+        {
+          "step": 15,
+          "action": "warn",
+          "reason": "tool_cycle",
+          "no_progress_steps": 4
+        },
+        {
+          "step": 16,
+          "action": "finalize",
+          "reason": "tool_cycle_after_recovery",
+          "no_progress_steps": 5
+        }
+      ],
+      "most_repeated": [
+        {
+          "call_key": "29be3bc0e27e83f7551e4cb51f8345fa7ff39f0ac7f3d8f07ad6f9be6a3e0b51",
+          "historical_executions": 230,
+          "distinct_process_ids": 230,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "0b662dbd2ef358a0fce15b3d9117cc36d380b876d8fd43ebcb52e24a9fd6070c",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 2
+        },
+        {
+          "call_key": "c783102eaa9c7370b7a6703cb3b383e3f375c0a3add4c069ce3b9c4b87837455",
+          "historical_executions": 1,
+          "distinct_process_ids": 0,
+          "distinct_combined_observations": 1
+        }
+      ]
+    },
+    {
+      "variant": "enforce",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a/035880d7ef5554b217e53a75ce5e87e4__QQdgthU/agent/trace",
+      "events_sha256": "b980ea2eff8f276755f1767a465b80fcf228950d9c12d7f4504c41efc53fa568",
+      "tool_runs_sha256": "caf24979dc743b9dd1b2d726db048ccf026d033c328e6a21c9b3287d826f1383",
+      "unknown_or_noncommand_results": 2,
+      "first_finalize_step": 15,
+      "first_would_deny": {
+        "step": 14,
+        "call_key": "29be3bc0e27e83f7551e4cb51f8345fa7ff39f0ac7f3d8f07ad6f9be6a3e0b51",
+        "count": 3
+      },
+      "decisions": [
+        {
+          "step": 12,
+          "action": "warn",
+          "reason": "repeated_observation",
+          "no_progress_steps": 1
+        },
+        {
+          "step": 13,
+          "action": "recover",
+          "reason": "repeated_observation",
+          "no_progress_steps": 2
+        },
+        {
+          "step": 15,
+          "action": "finalize",
+          "reason": "repeated_observation_after_recovery",
+          "no_progress_steps": 4
+        }
+      ],
+      "most_repeated": [
+        {
+          "call_key": "29be3bc0e27e83f7551e4cb51f8345fa7ff39f0ac7f3d8f07ad6f9be6a3e0b51",
+          "historical_executions": 230,
+          "distinct_process_ids": 230,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "0b662dbd2ef358a0fce15b3d9117cc36d380b876d8fd43ebcb52e24a9fd6070c",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 2
+        },
+        {
+          "call_key": "c783102eaa9c7370b7a6703cb3b383e3f375c0a3add4c069ce3b9c4b87837455",
+          "historical_executions": 1,
+          "distinct_process_ids": 0,
+          "distinct_combined_observations": 1
+        }
+      ]
+    },
+    {
+      "variant": "legacy",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HV74SVN/agent/trace",
+      "events_sha256": "80f9ab575a120d1cda12a8ee347b519d2cae0f7fea84cf9943ce5977791dc9b8",
+      "tool_runs_sha256": "573da8e727d49675fcf7d8bc6d130e89da0a0144bb7489693026f9ce1c494651",
+      "unknown_or_noncommand_results": 0,
+      "first_finalize_step": null,
+      "first_would_deny": null,
+      "decisions": [],
+      "most_repeated": [
+        {
+          "call_key": "aec1aa15cbfe9e263b591324fbe6a64dda419b0f36a51142e238f576f964b6cb",
+          "historical_executions": 186,
+          "distinct_process_ids": 186,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "79f619c6b156975811fa88f197794a5c80f3f515682ef42fa8c29a9321099943",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "590a710e40c73ed31e789ab8d7de5d9d96dacd0f8648a8a48805e0749a601381",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        }
+      ]
+    },
+    {
+      "variant": "stable_evidence_only",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HV74SVN/agent/trace",
+      "events_sha256": "80f9ab575a120d1cda12a8ee347b519d2cae0f7fea84cf9943ce5977791dc9b8",
+      "tool_runs_sha256": "573da8e727d49675fcf7d8bc6d130e89da0a0144bb7489693026f9ce1c494651",
+      "unknown_or_noncommand_results": 0,
+      "first_finalize_step": 21,
+      "first_would_deny": null,
+      "decisions": [
+        {
+          "step": 19,
+          "action": "recover",
+          "reason": "tool_cycle",
+          "no_progress_steps": 0
+        },
+        {
+          "step": 20,
+          "action": "warn",
+          "reason": "tool_cycle",
+          "no_progress_steps": 0
+        },
+        {
+          "step": 21,
+          "action": "finalize",
+          "reason": "tool_cycle_after_recovery",
+          "no_progress_steps": 0
+        }
+      ],
+      "most_repeated": [
+        {
+          "call_key": "aec1aa15cbfe9e263b591324fbe6a64dda419b0f36a51142e238f576f964b6cb",
+          "historical_executions": 186,
+          "distinct_process_ids": 186,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "79f619c6b156975811fa88f197794a5c80f3f515682ef42fa8c29a9321099943",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "590a710e40c73ed31e789ab8d7de5d9d96dacd0f8648a8a48805e0749a601381",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        }
+      ]
+    },
+    {
+      "variant": "observe",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HV74SVN/agent/trace",
+      "events_sha256": "80f9ab575a120d1cda12a8ee347b519d2cae0f7fea84cf9943ce5977791dc9b8",
+      "tool_runs_sha256": "573da8e727d49675fcf7d8bc6d130e89da0a0144bb7489693026f9ce1c494651",
+      "unknown_or_noncommand_results": 0,
+      "first_finalize_step": 21,
+      "first_would_deny": null,
+      "decisions": [
+        {
+          "step": 19,
+          "action": "recover",
+          "reason": "tool_cycle",
+          "no_progress_steps": 1
+        },
+        {
+          "step": 20,
+          "action": "warn",
+          "reason": "tool_cycle",
+          "no_progress_steps": 2
+        },
+        {
+          "step": 21,
+          "action": "finalize",
+          "reason": "tool_cycle_after_recovery",
+          "no_progress_steps": 3
+        }
+      ],
+      "most_repeated": [
+        {
+          "call_key": "aec1aa15cbfe9e263b591324fbe6a64dda419b0f36a51142e238f576f964b6cb",
+          "historical_executions": 186,
+          "distinct_process_ids": 186,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "79f619c6b156975811fa88f197794a5c80f3f515682ef42fa8c29a9321099943",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "590a710e40c73ed31e789ab8d7de5d9d96dacd0f8648a8a48805e0749a601381",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        }
+      ]
+    },
+    {
+      "variant": "enforce",
+      "trace": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HV74SVN/agent/trace",
+      "events_sha256": "80f9ab575a120d1cda12a8ee347b519d2cae0f7fea84cf9943ce5977791dc9b8",
+      "tool_runs_sha256": "573da8e727d49675fcf7d8bc6d130e89da0a0144bb7489693026f9ce1c494651",
+      "unknown_or_noncommand_results": 0,
+      "first_finalize_step": 21,
+      "first_would_deny": {
+        "step": 19,
+        "call_key": "aec1aa15cbfe9e263b591324fbe6a64dda419b0f36a51142e238f576f964b6cb",
+        "count": 3
+      },
+      "decisions": [
+        {
+          "step": 18,
+          "action": "warn",
+          "reason": "repeated_observation",
+          "no_progress_steps": 0
+        },
+        {
+          "step": 19,
+          "action": "recover",
+          "reason": "repeated_observation",
+          "no_progress_steps": 1
+        },
+        {
+          "step": 21,
+          "action": "finalize",
+          "reason": "repeated_observation_after_recovery",
+          "no_progress_steps": 3
+        }
+      ],
+      "most_repeated": [
+        {
+          "call_key": "aec1aa15cbfe9e263b591324fbe6a64dda419b0f36a51142e238f576f964b6cb",
+          "historical_executions": 186,
+          "distinct_process_ids": 186,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "79f619c6b156975811fa88f197794a5c80f3f515682ef42fa8c29a9321099943",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        },
+        {
+          "call_key": "590a710e40c73ed31e789ab8d7de5d9d96dacd0f8648a8a48805e0749a601381",
+          "historical_executions": 2,
+          "distinct_process_ids": 2,
+          "distinct_combined_observations": 1
+        }
+      ]
+    }
+  ]
+}

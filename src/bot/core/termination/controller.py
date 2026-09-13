@@ -9,6 +9,8 @@ from typing import Any
 
 from bot.config.models import ProgressConfig
 from bot.core.progress import ProgressKind, ProgressSignal
+from bot.core.termination.identity import call_identity, fingerprint
+from bot.core.termination.repetition import RepeatGuard
 
 
 class TerminationAction(StrEnum):
@@ -66,10 +68,16 @@ class ProgressController:
     moves the run to a one-shot finalization phase.
     """
 
-    STATE_VERSION = 1
+    STATE_VERSION = 2
 
-    def __init__(self, config: ProgressConfig, state: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, config: ProgressConfig, state: dict[str, Any] | None = None, *, scope: str = "",
+    ) -> None:
         self.config = config
+        self.scope = scope
+        self.migration: str | None = None
+        self.repeat_guard = RepeatGuard(config)
+        self._pending_process_calls: dict[str, tuple[str, str]] = {}
         self.epoch = 0
         self.no_progress_steps = 0
         self.recovery_attempts = 0
@@ -94,8 +102,29 @@ class ProgressController:
         progress_signal: ProgressSignal | None = None,
         read_only: bool,
         idempotent: bool,
+        call_signature: str | None = None,
+        repeat_eligible: bool = False,
+        result_position: int = 0,
+        result_reference: str | None = None,
     ) -> None:
-        call_signature = self._fingerprint(tool_name, arguments)
+        not_executed = (metadata or {}).get("executed") is False
+        if not_executed and (metadata or {}).get("reason_code") == "repeated_observation":
+            # Guard decisions are not observations of the requested operation.
+            return
+        call_signature = call_signature or call_identity(tool_name, arguments, scope=self.scope)
+        effective_name = tool_name
+        process_id = (metadata or {}).get("process_id")
+        if isinstance(process_id, str):
+            process_key = fingerprint(process_id)
+            if progress_signal is not None and progress_signal.kind == ProgressKind.WAITING:
+                if tool_name in {"run_command", "run_shell"}:
+                    if len(self._pending_process_calls) >= self.config.repeat_capacity:
+                        self._pending_process_calls.pop(next(iter(self._pending_process_calls)))
+                    self._pending_process_calls[process_key] = (call_signature, tool_name)
+            elif tool_name == "poll_process":
+                pending = self._pending_process_calls.pop(process_key, None)
+                if pending is not None:
+                    call_signature, effective_name = pending
         result_signature = self._fingerprint(
             progress_signal.evidence_key
             if progress_signal is not None and progress_signal.evidence_key
@@ -110,6 +139,26 @@ class ProgressController:
             result_signature=result_signature,
             progress_signal=progress_signal,
         )
+
+        if progress == ProgressKind.STRONG and progress_signal is not None:
+            if progress_signal.subject_key:
+                self.repeat_guard.invalidate_subject(
+                    progress_signal.subject_key, progress_signal.resource_version,
+                )
+        if progress != ProgressKind.WAITING and not not_executed:
+            new_evidence = self.repeat_guard.observe(
+                call_signature, result_signature, tool_name=effective_name,
+                eligible=repeat_eligible,
+                complete=bool(progress_signal and progress_signal.evidence_complete),
+                subject_key=progress_signal.subject_key if progress_signal else None,
+                resource_version=progress_signal.resource_version if progress_signal else None,
+                position=result_position, reference=result_reference, success=success,
+            )
+            if (
+                progress == ProgressKind.WEAK and not new_evidence
+                and not (metadata or {}).get("truncated", False)
+            ):
+                progress = ProgressKind.NONE
 
         exact_failure_count = 0
         same_tool_failure_count = 0
@@ -127,7 +176,8 @@ class ProgressController:
             self._same_tool_failure_counts[tool_name] = same_tool_failure_count
 
         idempotent_repeat_count = 0
-        if success and idempotent:
+        repetition_safe = not (metadata or {}).get("truncated", False)
+        if success and idempotent and repetition_safe:
             previous_result, previous_count = self._idempotent_results.get(
                 call_signature,
                 ("", 0),
@@ -140,8 +190,11 @@ class ProgressController:
                 idempotent_repeat_count,
             )
 
-        if progress != ProgressKind.WAITING:
+        if progress != ProgressKind.WAITING and repetition_safe:
             self._recent_calls.append(self._fingerprint(call_signature, result_signature))
+        for cache in (self._idempotent_results, self._exact_failures):
+            while len(cache) > self.config.repeat_capacity:
+                cache.pop(next(iter(cache)))
         self._step_observations.append(
             _Observation(
                 tool_name=tool_name,
@@ -163,6 +216,26 @@ class ProgressController:
 
         if progress == ProgressKind.STRONG:
             self._record_strong_progress()
+        elif progress == ProgressKind.WEAK:
+            self.no_progress_steps = max(0, self.no_progress_steps - 1)
+        elif progress != ProgressKind.WAITING:
+            self.no_progress_steps += 1
+
+        repeat_report = self.repeat_guard.finish_step(useful=progress != ProgressKind.NONE)
+        if repeat_report is not None:
+            action, reason, pattern = repeat_report
+            if action == "recover":
+                self.recovery_attempts = max(self.recovery_attempts, 1)
+            messages = {
+                "warn": "相同调用没有提供新证据，请使用已有结果或改变调查方向。",
+                "recover": "相同调用达到重复额度，后续执行将被限制；请使用已有证据继续。",
+                "finalize": "重复调用限制后仍无新进展，进入单次收尾。",
+                "continue": "重复调用限制保持有效，其他操作可以继续。",
+            }
+            return self._report(
+                TerminationAction(action), progress, reason, messages[action], pattern=pattern,
+            )
+        if progress == ProgressKind.STRONG:
             return self._report(
                 TerminationAction.CONTINUE,
                 progress,
@@ -171,10 +244,6 @@ class ProgressController:
             )
         if progress == ProgressKind.WAITING:
             return self._finish_waiting(observations)
-        if progress == ProgressKind.WEAK:
-            self.no_progress_steps = max(0, self.no_progress_steps - 1)
-        else:
-            self.no_progress_steps += 1
 
         signal = self._strongest_signal(observations)
         cycle = self._detect_cycle()
@@ -266,6 +335,9 @@ class ProgressController:
             "下一步应获取新信息、改变参数或执行可验证的状态变更。"
         )
 
+    def has_pending_process(self, process_id: str) -> bool:
+        return fingerprint(process_id) in self._pending_process_calls
+
     def recovery_guidance(self, report: ProgressReport) -> str:
         return (
             f"进入恢复阶段（第 {report.recovery_attempt} 次）：{report.message} "
@@ -302,7 +374,8 @@ class ProgressController:
             if previous and previous[0] == result_signature:
                 return ProgressKind.NONE
             return ProgressKind.WEAK
-        return ProgressKind.WEAK if read_only else ProgressKind.STRONG
+        # Successful execution alone does not prove a state transition.
+        return ProgressKind.WEAK
 
     def _step_progress(self, observations: list[_Observation]) -> ProgressKind:
         if any(item.progress == ProgressKind.STRONG for item in observations):
@@ -483,6 +556,9 @@ class ProgressController:
     def snapshot(self) -> dict[str, Any]:
         return {
             "version": self.STATE_VERSION,
+            "scope": self.scope,
+            "repeat_guard": self.repeat_guard.snapshot(),
+            "pending_process_calls": self._pending_process_calls,
             "config_fingerprint": self._config_fingerprint(),
             "epoch": self.epoch,
             "no_progress_steps": self.no_progress_steps,
@@ -502,6 +578,9 @@ class ProgressController:
             "no_progress_steps": self.no_progress_steps,
             "recovery_attempts": self.recovery_attempts,
             "recent_call_count": len(self._recent_calls),
+            "repeat_record_count": len(self.repeat_guard.records),
+            "repeat_limited_count": sum(r.limited for r in self.repeat_guard.records.values()),
+            "migration": self.migration,
             "waiting_subject_count": len(
                 self._waiting_warnings | set(self._waiting_recoveries)
             ),
@@ -510,18 +589,34 @@ class ProgressController:
     def _restore(self, state: dict[str, Any] | None) -> bool:
         if not isinstance(state, dict):
             return False
-        if state.get("version") != self.STATE_VERSION:
+        version = state.get("version")
+        if version not in {1, self.STATE_VERSION}:
             return False
-        if state.get("config_fingerprint") != self._config_fingerprint():
+        if version == self.STATE_VERSION and state.get("scope", "") != self.scope:
             return False
         try:
             self.epoch = max(0, int(state.get("epoch", 0)))
             self.no_progress_steps = max(0, int(state.get("no_progress_steps", 0)))
             self.recovery_attempts = max(0, int(state.get("recovery_attempts", 0)))
             self._warning_emitted = bool(state.get("warning_emitted", False))
+            if version == 1:
+                self.migration = "v1_to_v2_discarded_volatile_fingerprints"
+                return True
+            self.repeat_guard.restore(state.get("repeat_guard"))
+            self._pending_process_calls = {
+                str(key): (str(pair[0]), str(pair[1]))
+                for key, pair in state.get("pending_process_calls", {}).items()
+                if isinstance(pair, (list, tuple)) and len(pair) == 2
+            }
+            if state.get("config_fingerprint") != self._config_fingerprint():
+                self.migration = "config_changed_preserved_repeat_limits"
+                return True
             self._recent_calls.extend(str(value) for value in state.get("recent_calls", []))
             self._exact_failures = self._restore_pairs(state.get("exact_failures"))
             self._idempotent_results = self._restore_pairs(state.get("idempotent_results"))
+            for cache in (self._idempotent_results, self._exact_failures):
+                while len(cache) > self.config.repeat_capacity:
+                    cache.pop(next(iter(cache)))
             self._same_tool_failure_counts = self._restore_counts(
                 state.get("same_tool_failure_counts")
             )
@@ -531,7 +626,7 @@ class ProgressController:
             self._waiting_recoveries = self._restore_counts(
                 state.get("waiting_recoveries")
             )
-        except (TypeError, ValueError):
+        except (AttributeError, TypeError, ValueError):
             self._clear_repetition_evidence()
             self.epoch = 0
             self.no_progress_steps = 0

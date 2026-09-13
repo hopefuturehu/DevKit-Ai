@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from enum import StrEnum
 from pathlib import Path
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -59,6 +60,9 @@ class ProcessSnapshot(BaseModel):
     returncode: int | None = None
     stdout: str = ""
     stderr: str = ""
+    # Digests cover retained output since launch, not just the latest poll.
+    stdout_sha256: str | None = None
+    stderr_sha256: str | None = None
     truncated: bool = False
     last_output_seconds_ago: float | None = Field(default=None, ge=0)
     termination_reason: str | None = None
@@ -73,6 +77,11 @@ class EnvironmentCapabilities(BaseModel):
 
 
 class ExecutionTarget(ABC):
+    @property
+    def progress_scope(self) -> str:
+        """Override with a stable target/environment identity for cross-run restore."""
+        return self.__dict__.setdefault("_progress_scope", uuid4().hex)
+
     @abstractmethod
     async def probe(self, executables: list[str] | None = None) -> EnvironmentCapabilities:
         raise NotImplementedError

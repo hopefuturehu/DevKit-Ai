@@ -70,6 +70,8 @@ class ToolResult(BaseModel):
         return self
 
     def model_content(self) -> str:
+        if self.metadata.get("executed") is False:
+            return f"工具未执行: {self.error or '运行器限制了该调用'}"
         if self.status == ToolResultStatus.RUNNING:
             return self.output or "进程已启动并仍在运行。"
         if self.success:

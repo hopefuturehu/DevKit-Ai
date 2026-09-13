@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
@@ -37,6 +37,13 @@ class ProgressConfig(StrictModel):
     same_tool_failure_recovery: int = Field(default=5, ge=2)
     idempotent_repeat_warning: int = Field(default=2, ge=1)
     idempotent_repeat_recovery: int = Field(default=3, ge=2)
+    repeat_guard_mode: Literal["observe", "enforce"] = "observe"
+    repeat_warning: int = Field(default=2, ge=1)
+    repeat_limit: int = Field(default=3, ge=2)
+    repeat_blocked_turns: int = Field(default=2, ge=2)
+    repeat_capacity: int = Field(default=256, ge=16, le=4096)
+    # Trusted deployment configuration, never supplied in model tool arguments.
+    repeat_tool_limits: dict[str, Annotated[int, Field(ge=2)]] = Field(default_factory=dict)
     cycle_window_size: int = Field(default=16, ge=4, le=256)
     max_cycle_period: int = Field(default=4, ge=1, le=32)
     cycles_before_warning: int = Field(default=2, ge=2)
@@ -68,6 +75,7 @@ class ProgressConfig(StrictModel):
                 "idempotent_repeat",
             ),
             (self.cycles_before_warning, self.cycles_before_recovery, "cycles"),
+            (self.repeat_warning, self.repeat_limit, "repeat"),
         ):
             if warning >= recovery:
                 raise ValueError(f"progress.{name} 的 warning 必须小于 recovery")
@@ -75,6 +83,8 @@ class ProgressConfig(StrictModel):
             raise ValueError(
                 "progress.cycle_window_size 必须容纳 max_cycle_period * cycles_before_recovery"
             )
+        if any(limit <= self.repeat_warning for limit in self.repeat_tool_limits.values()):
+            raise ValueError("repeat_tool_limits 必须大于 repeat_warning")
         if self.process_inactivity_warning_seconds >= self.process_inactivity_recovery_seconds:
             raise ValueError("process inactivity 的 warning 必须小于 recovery")
         if (

@@ -13,6 +13,7 @@
 | [实现状态](implementation-status.md) | 已完成能力、环境验收和延期项 |
 | [总体设计](design.md) | 产品边界、模块职责和设计基线；落地进度参照实现状态 |
 | [自动终止与长任务控制](termination.md) | 进展检测、恢复、硬预算和统一收尾 |
+| [重复工具调用修复验证报告](repeat-guard-validation.md) | 四项调整的回归、真实进程、历史回放、真实模型续跑及边界 |
 | [Markdown 自定义 Agent](custom-agents.md) | 定义格式、信任、父子交互和 worktree 交付 |
 | [Web 任务工作台](web-workbench.md) | 启动与使用、状态语义、历史恢复、文件产物、协议和验证 |
 | [Web 实时任务工作台设计](web-execution-workbench-design.md) | 已落地的界面设计与原始交互原型 |
@@ -49,7 +50,7 @@
 
 | 文档 | 状态与用途 |
 |---|---|
-| [重复工具调用：四项调整与开源方案比较](repeated-tool-execution-plan.md) | 待实施：稳定证据、新证据进展、独立检测和执行前限制；含误拦边界与验收方案 |
+| [重复工具调用：四项调整与开源方案比较](repeated-tool-execution-plan.md) | 首版已落地，默认观测；保留设计、开源比较、误拦边界与验收方案 |
 | [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 原始完整提案；Run 隔离、历史交付和恢复已落地，通用投影与微裁剪待实施 |
 | [Skill 卸载与缓存复用调研](skill-unloading-cache-comparison.md) | 首版与后续裁剪设计的源码依据；固定 checkout 调研，区分历史建议与当前实现 |
 | [历史会话裁剪容量分析](history-pruning-analysis.md) | 2026-09-08 的离线容量回放，支撑待实施设计；不代表生产裁剪收益 |

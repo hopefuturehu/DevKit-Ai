@@ -46,6 +46,7 @@ from bot.core.models import (
 from bot.core.plan import PlanStatus, validate_plan_payload
 from bot.core.progress import ProgressKind, ProgressSignal
 from bot.core.termination import ProgressController, TerminationAction
+from bot.core.termination.identity import call_identity, fingerprint
 from bot.execution import ExecutionTarget, ProcessStatus
 from bot.memory.routing import (
     MemoryRetrievalDecision,
@@ -60,6 +61,15 @@ from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillManager
 from bot.skills.runtime import RunSkillState, SkillContextError
 from bot.tools import ToolContext, ToolRegistry, ToolResult
+from bot.tools.base import resolve_path
+from bot.tools.builtins import (
+    PollProcessTool,
+    ReadFileTool,
+    RunCommandTool,
+    RunShellTool,
+    SearchTextTool,
+    _process_progress,
+)
 
 
 @dataclass
@@ -894,6 +904,7 @@ class AgentRunner:
         progress_controller = ProgressController(
             self.config.agent.progress,
             state=stored_progress["state"] if stored_progress is not None else None,
+            scope=fingerprint(str(self.workspace), self.execution_target.progress_scope),
         )
         if not self.config.agent.progress.enabled:
             self.store.clear_progress_state(session_id)
@@ -1702,7 +1713,10 @@ class AgentRunner:
                 elif tool_call.name == "activate_tools":
                     result = self._activate_tools(tool_call, session_id)
                 elif tool_call.name == "load_context_reference":
-                    result = self._load_context_reference(tool_call, session_id)
+                    result = await self._guarded_context_reference(
+                        tool_call, session_id, run_id, progress_controller,
+                        cursor=int(compaction_projection["cursor_position"]),
+                    )
                 elif tool_call.name == "search_session_history":
                     result = self._search_session_history(tool_call, session_id)
                 elif tool_call.name == "load_compaction_source":
@@ -1720,7 +1734,11 @@ class AgentRunner:
                         parent_run_id=run_id,
                     )
                 else:
-                    result = await self._execute_tool(tool_call, session_id, run_id)
+                    result = await self._execute_tool(
+                        tool_call, session_id, run_id,
+                        progress_controller=progress_controller,
+                        compaction_cursor=int(compaction_projection["cursor_position"]),
+                    )
 
                 # Uniform execution evidence for built-in, internal and delegated Tools.
                 # A successful launch with status=running is not task completion.
@@ -1744,6 +1762,8 @@ class AgentRunner:
                         "process_status": result.metadata.get("process_status"),
                         "error": result.error,
                         "truncated": result.truncated,
+                        "executed": result.metadata.get("executed", True),
+                        "reason_code": result.metadata.get("reason_code"),
                         "context_ref": result_reference,
                         "output_excerpt": self._inline_reference(
                             result.output or result.model_content(), result_reference
@@ -1900,7 +1920,12 @@ class AgentRunner:
                         cost_usd=cost_usd,
                     )
 
-                if result.success:
+                if (
+                    result.metadata.get("executed") is False
+                    and result.metadata.get("reason_code") == "repeated_observation"
+                ):
+                    pass
+                elif result.success:
                     failures = 0
                 else:
                     failures += 1
@@ -1925,8 +1950,12 @@ class AgentRunner:
                         arguments=tool_call.arguments,
                         success=result.success,
                         result_content=raw_model_content,
-                        metadata=result.metadata,
+                        metadata={**result.metadata, "truncated": result.truncated},
                         progress_signal=result.progress,
+                        call_signature=self._repeat_call_identity(tool_call),
+                        repeat_eligible=self._repeat_eligible(tool_call),
+                        result_position=result_position,
+                        result_reference=result_reference,
                         read_only=(
                             registered_tool.annotations.read_only
                             if registered_tool is not None
@@ -1948,6 +1977,15 @@ class AgentRunner:
                             }
                         ),
                     )
+                    if (
+                        result.success and result.progress is not None
+                        and result.progress.kind == ProgressKind.STRONG
+                        and result.progress.subject_key
+                        and result.progress.subject_key.startswith("file:")
+                    ):
+                        changed = Path(result.progress.subject_key.removeprefix("file:"))
+                        for path in (changed, *changed.parents):
+                            progress_controller.repeat_guard.invalidate_subject(f"tree:{path}")
 
             steered_after_tools = await self._drain_steering(
                 conversation,
@@ -4332,14 +4370,148 @@ class AgentRunner:
             ),
         )
 
-    async def _execute_tool(self, tool_call: ToolCall, session_id: str, run_id: str) -> ToolResult:
+    def _repeat_call_identity(self, tool_call: ToolCall) -> str:
+        try:
+            return call_identity(
+                tool_call.name, tool_call.arguments, workspace=str(self.workspace),
+                scope=self.execution_target.progress_scope,
+                hard_timeout=self.config.agent.process_hard_timeout_seconds,
+            )
+        except (TypeError, ValueError):
+            # Malformed arguments still belong to normal schema validation.
+            return fingerprint(tool_call.name, tool_call.arguments)
+
+    def _repeat_eligible(self, tool_call: ToolCall) -> bool:
+        if tool_call.name == "load_context_reference":
+            return True
+        return isinstance(
+            self.tool_registry.get(tool_call.name),
+            (ReadFileTool, SearchTextTool, RunCommandTool, RunShellTool, PollProcessTool),
+        )
+
+    async def _repeat_preflight(
+        self, tool_call: ToolCall, session_id: str, run_id: str,
+        controller: ProgressController, *, cursor: int, inspect_resource: bool,
+    ) -> ToolResult | None:
+        if not self.config.agent.progress.enabled or not self._repeat_eligible(tool_call):
+            return None
+        if tool_call.name in {"run_command", "run_shell"}:
+            # A caller may launch with wait_seconds=0 and never poll. Reconcile
+            # completed launches before allowing another one, without consuming
+            # their output or manufacturing extra tool-call/result messages.
+            for snapshot in await self.execution_target.list_processes():
+                if controller.has_pending_process(snapshot.process_id):
+                    signal = _process_progress(snapshot)
+                    if signal.kind != ProgressKind.WAITING and not signal.evidence_complete:
+                        continue
+                    controller.observe_tool(
+                        tool_name="poll_process", arguments={"process_id": snapshot.process_id},
+                        success=snapshot.status in {ProcessStatus.COMPLETED, ProcessStatus.RUNNING},
+                        result_content="", metadata={
+                            "process_id": snapshot.process_id, "truncated": snapshot.truncated,
+                        },
+                        progress_signal=signal, read_only=True,
+                        idempotent=False, repeat_eligible=True,
+                    )
+                    await self.event_bus.emit(
+                        EventType.PROCESS_UPDATED, session_id=session_id, run_id=run_id,
+                        payload={
+                            "process_id": snapshot.process_id, "status": snapshot.status.value,
+                            "source": "repeat_guard_process_observation",
+                        },
+                    )
+        call_key = self._repeat_call_identity(tool_call)
+        record = controller.repeat_guard.records.get(call_key)
+        if record is None:
+            return None
+        if tool_call.name == "read_file" and inspect_resource and record.limited:
+            context = ToolContext(
+                workspace=self.workspace, execution_target=self.execution_target,
+                workspace_only=self.config.permissions.workspace_only,
+                denied_paths=self.denied_tool_paths,
+            )
+            try:
+                path = resolve_path(context, tool_call.arguments["path"], must_exist=True)
+                # Check external edits as well as changes made through apply_patch.
+                version = hashlib.sha256(path.read_bytes()).hexdigest()
+            except (OSError, ValueError):
+                return None
+            controller.repeat_guard.invalidate_subject(f"file:{path}", version)
+        check = controller.repeat_guard.check(
+            call_key, cursor=cursor,
+            allow_redelivery=(
+                inspect_resource and tool_call.name in {"read_file", "load_context_reference"}
+            ),
+        )
+        if check is None:
+            return None
+        reference = check.reference if inspect_resource else None
+        payload = {
+            "tool_call_id": tool_call.id, "name": tool_call.name,
+            "call_key": check.call_key, "count": check.count,
+            "executed": not check.denied, "reason_code": "repeated_observation",
+            "evidence_reference": reference,
+        }
+        await self.event_bus.emit(
+            EventType.TOOL_REPEAT_BLOCKED if check.denied else EventType.TOOL_REPEAT_OBSERVED,
+            session_id=session_id, run_id=run_id, payload=payload,
+        )
+        if not check.denied:
+            return None
+        evidence_hint = (
+            f"已有结果可用 load_context_reference 读取：{reference}。" if reference else ""
+        )
+        return ToolResult(
+            success=False,
+            error=(
+                f"相同调用已得到 {check.count} 次相同完整结果，本次未执行。"
+                f"{evidence_hint}请使用已有证据、缩小查询范围或检查相关状态变化。"
+            ),
+            metadata=payload,
+        )
+
+    async def _guarded_context_reference(
+        self, tool_call: ToolCall, session_id: str, run_id: str,
+        controller: ProgressController, *, cursor: int,
+    ) -> ToolResult:
+        try:
+            jsonschema.validate(tool_call.arguments, self._load_reference_definition().input_schema)
+        except jsonschema.ValidationError as exc:
+            return ToolResult(success=False, error=f"Tool 参数校验失败: {exc.message}")
+        # Perform the existing session grant check before referring to any old result.
+        authorized = self.store.read_context_blob(
+            session_id, tool_call.arguments["reference"], offset=0, limit=1,
+        )
+        if authorized is None:
+            return ToolResult(success=False, error="上下文引用不存在或不可访问")
+        blocked = await self._repeat_preflight(
+            tool_call, session_id, run_id, controller, cursor=cursor, inspect_resource=True,
+        )
+        if blocked is not None:
+            return blocked
+        result = self._load_context_reference(tool_call, session_id)
+        if result.success and result.progress is not None:
+            result.progress.evidence_complete = not result.truncated
+        return result
+
+    async def _execute_tool(
+        self, tool_call: ToolCall, session_id: str, run_id: str, *,
+        progress_controller: ProgressController | None = None,
+        compaction_cursor: int = 0,
+    ) -> ToolResult:
         tool = self.tool_registry.get(tool_call.name)
         if tool is None:
-            return ToolResult(success=False, error=f"未知 Tool: {tool_call.name}")
+            return ToolResult(
+                success=False, error=f"未知 Tool: {tool_call.name}",
+                metadata={"executed": False, "reason_code": "unknown_tool"},
+            )
         try:
             jsonschema.validate(tool_call.arguments, tool.input_schema)
         except jsonschema.ValidationError as exc:
-            return ToolResult(success=False, error=f"Tool 参数校验失败: {exc.message}")
+            return ToolResult(
+                success=False, error=f"Tool 参数校验失败: {exc.message}",
+                metadata={"executed": False, "reason_code": "invalid_arguments"},
+            )
 
         action = ToolAction(
             tool_name=tool.name,
@@ -4352,7 +4524,20 @@ class AgentRunner:
         )
         decision = self.policy.evaluate(action)
         if decision.kind == PolicyDecisionKind.DENY:
-            return ToolResult(success=False, error=f"策略拒绝: {decision.reason}")
+            return ToolResult(
+                success=False, error=f"策略拒绝: {decision.reason}",
+                metadata={"executed": False, "reason_code": "policy_denied"},
+            )
+        if progress_controller is not None:
+            # A loop must not repeatedly prompt for permission. Before an ASK
+            # is approved, do not inspect resource contents or disclose references.
+            blocked = await self._repeat_preflight(
+                tool_call, session_id, run_id, progress_controller,
+                cursor=compaction_cursor,
+                inspect_resource=decision.kind == PolicyDecisionKind.ALLOW,
+            )
+            if blocked is not None:
+                return blocked
         if decision.kind == PolicyDecisionKind.ASK:
             approval_pattern = self.policy.approval_pattern(action)
             decision = decision.model_copy(update={"approval_pattern": approval_pattern})
@@ -4417,7 +4602,10 @@ class AgentRunner:
                 },
             )
             if not approved:
-                return ToolResult(success=False, error="用户未批准该操作")
+                return ToolResult(
+                    success=False, error="用户未批准该操作",
+                    metadata={"executed": False, "reason_code": "approval_denied"},
+                )
 
         self.store.record_tool_run(
             session_id=session_id,
