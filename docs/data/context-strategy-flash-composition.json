@@ -1,0 +1,328 @@
+{
+  "source_report": {
+    "path": "docs/data/context-strategy-flash-results.json",
+    "sha256": "c775010faf3aa4160d19b3a2b0b0922d55857240d82c877d8088b2c24730f802"
+  },
+  "tokenizer_sha256": "8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf",
+  "sample": "first successful publication of each strategy in pilot repetition; not group averages",
+  "method": "offline tokenization of persisted/externalized transcript and rendered summary; fixed/runtime/protocol remainder is residual, not directly observed layer counts",
+  "rows": [
+    {
+      "strategy": "current",
+      "compaction_id": "ff489aaa760843c1b386a74bac97ca94",
+      "after_step": 26,
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HTrbLEX/agent/trace/state.db",
+        "sha256": "4dfc7dbe864d988da8c65a7d0d8c36768991c506f7e92122caecf4f800e2ff5f"
+      },
+      "source_end_position": 57,
+      "covered_end_position": 31,
+      "before_provenance": "offline reconstruction: previous request local estimate + completed turn; runtime prefix assumed unchanged",
+      "before_total": 73308,
+      "after_total": 42171,
+      "before_parts": {
+        "user": 131,
+        "assistant_and_calls": 14227,
+        "tool_result": 55167,
+        "fixed_runtime_and_residual": 3783
+      },
+      "after_parts": {
+        "user": 131,
+        "summary": 1601,
+        "assistant_and_calls": 12559,
+        "tool_result": 24097,
+        "fixed_runtime_and_residual": 3783
+      },
+      "before_percent": {
+        "user": 0.17869809570578926,
+        "assistant_and_calls": 19.407158836689035,
+        "tool_result": 75.2537240137502,
+        "fixed_runtime_and_residual": 5.160419053854968
+      },
+      "after_percent": {
+        "user": 0.31064001327926777,
+        "summary": 3.7964477958786844,
+        "assistant_and_calls": 29.78112921201774,
+        "tool_result": 57.141163358706216,
+        "fixed_runtime_and_residual": 8.970619620118091
+      },
+      "retained_tail_heuristic_tokens": 19119,
+      "retained_tail_tokenizer_tokens": 36656,
+      "summary_body_tokens": 1454,
+      "summary_body_heuristic_tokens": 1258,
+      "measured_after_api_input": 42086,
+      "recorded_before_budget": null,
+      "recorded_after_budget": null,
+      "restored_pending_deliveries": []
+    },
+    {
+      "strategy": "a",
+      "compaction_id": "d8bd07cb37e444d7859413efd0f29094",
+      "after_step": 29,
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/a/035880d7ef5554b217e53a75ce5e87e4__maKJzFc/agent/trace/state.db",
+        "sha256": "b733b9aa07166e3263627a9e3264ea3836f8a4138c33536e6d9b15588efd41fc"
+      },
+      "source_end_position": 70,
+      "covered_end_position": 43,
+      "before_provenance": "recorded same-state input budget, inverted 5% margin",
+      "before_total": 74180,
+      "after_total": 27524,
+      "before_parts": {
+        "user": 131,
+        "assistant_and_calls": 5080,
+        "tool_result": 65186,
+        "fixed_runtime_and_residual": 3783
+      },
+      "after_parts": {
+        "user": 131,
+        "summary": 2711,
+        "assistant_and_calls": 2958,
+        "tool_result": 17941,
+        "fixed_runtime_and_residual": 3783
+      },
+      "before_percent": {
+        "user": 0.17659746562415746,
+        "assistant_and_calls": 6.8482070638986245,
+        "tool_result": 87.87543812348342,
+        "fixed_runtime_and_residual": 5.0997573469937985
+      },
+      "after_percent": {
+        "user": 0.4759482633338178,
+        "summary": 9.849585816015113,
+        "assistant_and_calls": 10.746984449934603,
+        "tool_result": 65.18311291963379,
+        "fixed_runtime_and_residual": 13.744368551082692
+      },
+      "retained_tail_heuristic_tokens": 10786,
+      "retained_tail_tokenizer_tokens": 20899,
+      "summary_body_tokens": 2562,
+      "summary_body_heuristic_tokens": 1928,
+      "measured_after_api_input": 27439,
+      "recorded_before_budget": 77889,
+      "recorded_after_budget": 28894,
+      "restored_pending_deliveries": []
+    },
+    {
+      "strategy": "b",
+      "compaction_id": "0af08798c6a343d9853f91f041471a72",
+      "after_step": 52,
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/b/035880d7ef5554b217e53a75ce5e87e4__SDDNQSe/agent/trace/state.db",
+        "sha256": "7cf7e583029cba52864ae610dc87759fa8340856e05813730e2cf95c6a63487f"
+      },
+      "source_end_position": 108,
+      "covered_end_position": 68,
+      "before_provenance": "recorded same-state input budget, inverted 5% margin",
+      "before_total": 72841,
+      "after_total": 30751,
+      "before_parts": {
+        "user": 131,
+        "assistant_and_calls": 9847,
+        "tool_result": 59080,
+        "fixed_runtime_and_residual": 3783
+      },
+      "after_parts": {
+        "user": 131,
+        "summary": 2037,
+        "assistant_and_calls": 4000,
+        "tool_result": 20800,
+        "fixed_runtime_and_residual": 3783
+      },
+      "before_percent": {
+        "user": 0.17984376930574814,
+        "assistant_and_calls": 13.51848546834887,
+        "tool_result": 81.1081671036916,
+        "fixed_runtime_and_residual": 5.19350365865378
+      },
+      "after_percent": {
+        "user": 0.42600240642580733,
+        "summary": 6.624174823582973,
+        "assistant_and_calls": 13.007707066436863,
+        "tool_result": 67.64007674547169,
+        "fixed_runtime_and_residual": 12.302038958082665
+      },
+      "retained_tail_heuristic_tokens": 17180,
+      "retained_tail_tokenizer_tokens": 24800,
+      "summary_body_tokens": 1880,
+      "summary_body_heuristic_tokens": 1762,
+      "measured_after_api_input": 30624,
+      "recorded_before_budget": 76484,
+      "recorded_after_budget": 32282,
+      "restored_pending_deliveries": []
+    },
+    {
+      "strategy": "a_fallback",
+      "compaction_id": "8c4a86b422d849499d1f5bd2148e517a",
+      "after_step": 12,
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/a_fallback/035880d7ef5554b217e53a75ce5e87e4__ZLHTGFL/agent/trace/state.db",
+        "sha256": "27f5a0382a99edbf0b66096baf492d20a0cb46a7fc69ac000f6356793e4d1f34"
+      },
+      "source_end_position": 28,
+      "covered_end_position": 18,
+      "before_provenance": "recorded same-state input budget, inverted 5% margin",
+      "before_total": 72446,
+      "after_total": 30349,
+      "before_parts": {
+        "user": 131,
+        "assistant_and_calls": 34208,
+        "tool_result": 34324,
+        "fixed_runtime_and_residual": 3783
+      },
+      "after_parts": {
+        "user": 131,
+        "summary": 2619,
+        "assistant_and_calls": 586,
+        "tool_result": 23230,
+        "fixed_runtime_and_residual": 3783
+      },
+      "before_percent": {
+        "user": 0.1808243381277089,
+        "assistant_and_calls": 47.21861800513486,
+        "tool_result": 47.37873726637772,
+        "fixed_runtime_and_residual": 5.221820390359716
+      },
+      "after_percent": {
+        "user": 0.43164519424033737,
+        "summary": 8.629608883323996,
+        "assistant_and_calls": 1.930870868891891,
+        "tool_result": 76.542884444298,
+        "fixed_runtime_and_residual": 12.464990609245774
+      },
+      "retained_tail_heuristic_tokens": 11651,
+      "retained_tail_tokenizer_tokens": 23816,
+      "summary_body_tokens": 2385,
+      "summary_body_heuristic_tokens": 1945,
+      "measured_after_api_input": 30312,
+      "recorded_before_budget": 76069,
+      "recorded_after_budget": 31857,
+      "restored_pending_deliveries": [
+        {
+          "position": 28,
+          "reference": "blob:382cfccd7dfc1782d2c9309e70aedc013e91b3a4358a510c04d76174ec2793a3",
+          "tokens": 11387
+        }
+      ]
+    }
+  ],
+  "aggregate_input_budget_metrics": {
+    "a": {
+      "publications": 10,
+      "median_before_budget_tokens": 77596.5,
+      "median_after_budget_tokens": 32831.5,
+      "median_net_release_budget_tokens": 44301.5,
+      "median_release_fraction_of_before": 0.5700411267413951,
+      "median_release_fraction_of_hard_input_limit": 0.47025199558423914
+    },
+    "b": {
+      "publications": 7,
+      "median_before_budget_tokens": 76484,
+      "median_after_budget_tokens": 32487,
+      "median_net_release_budget_tokens": 43302,
+      "median_release_fraction_of_before": 0.569427511264246,
+      "median_release_fraction_of_hard_input_limit": 0.45964249320652173
+    },
+    "a_fallback": {
+      "publications": 13,
+      "median_before_budget_tokens": 76600,
+      "median_after_budget_tokens": 32205,
+      "median_net_release_budget_tokens": 44081,
+      "median_release_fraction_of_before": 0.5754699738903394,
+      "median_release_fraction_of_hard_input_limit": 0.4679114300271739
+    }
+  },
+  "aggregate_report_sources": [
+    {
+      "path": "docs/data/context-strategy-flash-results.json",
+      "sha256": "c775010faf3aa4160d19b3a2b0b0922d55857240d82c877d8088b2c24730f802"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-repeat-2-results.json",
+      "sha256": "90e504f851cb665765e0b7a1203d02efc8c8755ba9e092d85ab7538e8f13981e"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-repeat-3-results.json",
+      "sha256": "c6fb4233156f4e9ba8904113ba1a6ede8dd565a97bdd3edfab921095ef01f762"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-current-replacement-results.json",
+      "sha256": "7ca45c7eb7c518a64c868b98e274f9e0b1ac8b9537f6eb900c06c8f2c7615de7"
+    }
+  ],
+  "limitations": [
+    "First-publication component shares are not group averages and use different run states.",
+    "Components are offline local tokenizer estimates, not provider-billed layer usage.",
+    "Fixed/runtime/protocol remainder is not separately instrumented; all four examples reconcile to 3783 tokens before and after.",
+    "CURRENT before total is reconstructed from the previous request plus completed-turn content; it is not a historical same-state budget pair.",
+    "A/B/new recorded after budgets use a placeholder record ID during projection; actual published IDs cause small tokenizer differences.",
+    "32K output reserve and input estimator safety margin are excluded from the composition table.",
+    "The newly delivered load_context_reference body is restored from its immutable blob, not counted as its short persisted receipt."
+  ],
+  "reconstruction_script_sha256": "417e2915e59e3e93621a9b626a89eb707aafd4d8e62220370a1b3a6a03f1e6df",
+  "hypothetical_retention_comparison": {
+    "baseline_input_tokens": 72446,
+    "fixed_and_user_tokens": 3914,
+    "summary_tokens": 2619,
+    "not_cross_framework_measurements": true,
+    "rows": [
+      {
+        "label": "observed_bot_first_dual_path",
+        "tail_tokens": 23816,
+        "total_tokens": 30349,
+        "fixed_and_user_fraction": 0.12896635803486112,
+        "summary_fraction": 0.08629608883323997,
+        "tail_fraction": 0.7847375531318989,
+        "release_fraction": 0.5810810810810811
+      },
+      {
+        "label": "hypothetical_15k_tail",
+        "tail_tokens": 15000,
+        "total_tokens": 21533,
+        "fixed_and_user_fraction": 0.18176751962104676,
+        "summary_fraction": 0.1216272697719779,
+        "tail_fraction": 0.6966052106069753,
+        "release_fraction": 0.7027717196256522
+      },
+      {
+        "label": "hypothetical_user_only",
+        "tail_tokens": 0,
+        "total_tokens": 6533,
+        "fixed_and_user_fraction": 0.5991121996020206,
+        "summary_fraction": 0.4008878003979795,
+        "tail_fraction": 0.0,
+        "release_fraction": 0.9098224884741739
+      }
+    ]
+  },
+  "framework_comparison_sources": {
+    "codex_local_snapshot": {
+      "commit": "02a8f038b87ad34d4a1dc5058eda26972ed7aa6c",
+      "files": [
+        {
+          "path": "codex-rs/core/src/compact.rs",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__compact.rs",
+          "sha256": "da4a0ab1ebc2f52c49d08d3d76a9dcec23bf7f85794f3f88a09854f4cddb2f23",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact.rs"
+        },
+        {
+          "path": "codex-rs/core/src/compact_remote_v2.rs",
+          "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__compact_remote_v2.rs",
+          "sha256": "c5c268efb64c35d84f9c3922b4380f751ec2f010ae96a620c02c546454a62b8d",
+          "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact_remote_v2.rs"
+        }
+      ]
+    },
+    "opencode_v1_snapshot": {
+      "commit": "193de13a88d62a6409c6d385831180f1def527dc",
+      "path": "artifacts/compaction-research-20260911/anomalyco__opencode-193de13a88d6/packages/opencode/src/session/compaction.ts",
+      "sha256": "8d478570a7e4ad32b746030d4f86a1c673949b1e2259bd716b3885d99283289a"
+    },
+    "official_pages_opened_2026_09_13": [
+      "https://developers.openai.com/api/docs/guides/compaction",
+      "https://code.claude.com/docs/en/context-window",
+      "https://code.claude.com/docs/en/agent-sdk/agent-loop",
+      "https://opencode.ai/v2/docs/compaction"
+    ]
+  }
+}
