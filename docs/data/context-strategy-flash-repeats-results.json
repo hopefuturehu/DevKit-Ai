@@ -1,0 +1,3211 @@
+{
+  "schema_version": 1,
+  "frozen_controls": {
+    "revision": "99d70d8f611f7a8d6e0ca3c4836a8a3c5066ce2e",
+    "task_files": {
+      "README.md": "d08c1bd5061e8e14ce75bd326308013d84ce11305e30156168c50d23c339efa7",
+      "environment/Dockerfile": "35b7e409b40098d84a5ca88edb49d8be67ef7410e391dd36b2f89ddf916a3d8f",
+      "environment/orig.c": "26ce745d2921d8e1e9df3e162733a6cf5eceac5b9cb2ffa6a5ff5c4e4d049752",
+      "instruction.md": "03e4ef347c1b6bde7ad020b297571cf22c74cfb0434b399b267f3d87462e1176",
+      "solution/solve.sh": "3489e31c60b7ad7ea1c22035143b6d130cc864427db867234ae8c416b296a2d2",
+      "task.toml": "f609310c99bd5f379eea2711f4af8eca79b5bcd1178a034b2285b1171c031b5b",
+      "tests/test.sh": "a719dbb1ba7ae76df095e9d815941dfa4c55edaf11f173b9c3c3097afa838548",
+      "tests/test_outputs.py": "c4477b901887dcbc788eed138f30e32675a8c14710410733009071c11aa783c7"
+    },
+    "model": "deepseek-v4-flash",
+    "main_max_output_tokens": 32768,
+    "summary_max_output_tokens": 8192,
+    "max_steps": 240,
+    "worker_wall_seconds": 1740,
+    "max_cost_usd_conservative_per_run": 10,
+    "pricing": {
+      "source": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "as_of": "2026-09-09",
+      "usd_per_million_peak": {
+        "hit": 0.014,
+        "miss": 0.44,
+        "output": 1.32
+      },
+      "note": "Frozen comparison rates, not current prices or an invoice.",
+      "off_peak_multiplier": 0.5,
+      "peak_utc": "Monday-Friday [01:00,04:00), [06:00,10:00)"
+    },
+    "concurrency": 1,
+    "model_host": "api.deepseek.com",
+    "assets": {
+      "wheel": "d36fd61bd44499567262faeb50c834dc58e7768b471d72a1dc4035ad6963ddd2",
+      "tokenizer": "8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf"
+    },
+    "configs": {
+      "current": "61d086c2c72f8f2a474d286f1b4910939b9d7ee48683343505673632632e541c",
+      "a": "6170bcac46abd4404223ce4aff9bcf32f9370f1831cd0c2fd480b45d3e6ee676",
+      "b": "f30ee030f942087ff473dcbe88aca8a88655106b63f38f953fd7cd94835bdddb",
+      "a_fallback": "1a391b5872febf02e5043e628d47fa7254a90c41fb8d50b479449ea617ce33dd"
+    }
+  },
+  "strategies": {
+    "current": {
+      "all_trials": {
+        "trials": 3,
+        "official_successes": 0,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 0,
+        "termination_reasons": {
+          "model_output_limit": 3
+        },
+        "totals": {
+          "input": 14139047,
+          "hit": 11113984,
+          "miss": 3025063,
+          "output": 376997,
+          "requests": 285,
+          "usage_complete": 285,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 1.9842595360000017,
+          "timestamp_priced_cost_usd": 0.9921297680000009,
+          "cache_hit_rate": 0.7860490173064705,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "observed_total_cost_per_success_usd": null,
+        "summary_usage": {
+          "input": 995775,
+          "hit": 3328,
+          "miss": 992447,
+          "output": 67116,
+          "requests": 27,
+          "usage_complete": 27,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.5253163919999999,
+          "timestamp_priced_cost_usd": 0.26265819599999995,
+          "cache_hit_rate": 0.0033421204589390175,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "generate": {
+            "input": 995775,
+            "hit": 3328,
+            "miss": 992447,
+            "output": 67116,
+            "requests": 27,
+            "usage_complete": 27,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.5253163919999999,
+            "timestamp_priced_cost_usd": 0.26265819599999995,
+            "cache_hit_rate": 0.0033421204589390175,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 3,
+          "median": 0.64769816,
+          "min": 0.21895291999999994,
+          "max": 1.1176084560000001
+        },
+        "cost_distribution_contains_lower_bounds": false,
+        "successful_run_cost_usd": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "agent_minutes": {
+          "count": 3,
+          "median": 18.836966183333335,
+          "min": 7.0981475,
+          "max": 18.917209
+        },
+        "trial_minutes": {
+          "count": 3,
+          "median": 21.331742249999998,
+          "min": 9.781820616666666,
+          "max": 21.41907796666667
+        },
+        "steps": {
+          "count": 3,
+          "median": 88,
+          "min": 49,
+          "max": 118
+        },
+        "publications": 27,
+        "compaction_triggers": 27,
+        "compaction_failures": 0,
+        "summary_requests_by_phase_and_status": {
+          "generate:completed": 27
+        },
+        "publication_paths": {
+          "current": 27
+        },
+        "first_continuation_completed": 27,
+        "post_publication_input_tokens": {
+          "count": 27,
+          "median": 45339,
+          "min": 36858,
+          "max": 45405
+        },
+        "net_release_rate_same_budget": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "runs_with_output_limit_response": 3,
+        "dominant_identical_command_count": {
+          "count": 3,
+          "median": 2,
+          "min": 2,
+          "max": 186
+        }
+      },
+      "follow_up_only": {
+        "trials": 2,
+        "official_successes": 0,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 0,
+        "termination_reasons": {
+          "model_output_limit": 2
+        },
+        "totals": {
+          "input": 9510886,
+          "hit": 7165824,
+          "miss": 2345062,
+          "output": 154858,
+          "requests": 189,
+          "usage_complete": 189,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 1.3365613760000004,
+          "timestamp_priced_cost_usd": 0.6682806880000002,
+          "cache_hit_rate": 0.7534339072090654,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "observed_total_cost_per_success_usd": null,
+        "summary_usage": {
+          "input": 738518,
+          "hit": 2560,
+          "miss": 735958,
+          "output": 42966,
+          "requests": 20,
+          "usage_complete": 20,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.38057248,
+          "timestamp_priced_cost_usd": 0.19028624,
+          "cache_hit_rate": 0.0034664016313752676,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "generate": {
+            "input": 738518,
+            "hit": 2560,
+            "miss": 735958,
+            "output": 42966,
+            "requests": 20,
+            "usage_complete": 20,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.38057248,
+            "timestamp_priced_cost_usd": 0.19028624,
+            "cache_hit_rate": 0.0034664016313752676,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 2,
+          "median": 0.6682806880000001,
+          "min": 0.21895291999999994,
+          "max": 1.1176084560000001
+        },
+        "cost_distribution_contains_lower_bounds": false,
+        "successful_run_cost_usd": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "agent_minutes": {
+          "count": 2,
+          "median": 13.00767825,
+          "min": 7.0981475,
+          "max": 18.917209
+        },
+        "trial_minutes": {
+          "count": 2,
+          "median": 15.600449291666667,
+          "min": 9.781820616666666,
+          "max": 21.41907796666667
+        },
+        "steps": {
+          "count": 2,
+          "median": 83.5,
+          "min": 49,
+          "max": 118
+        },
+        "publications": 20,
+        "compaction_triggers": 20,
+        "compaction_failures": 0,
+        "summary_requests_by_phase_and_status": {
+          "generate:completed": 20
+        },
+        "publication_paths": {
+          "current": 20
+        },
+        "first_continuation_completed": 20,
+        "post_publication_input_tokens": {
+          "count": 20,
+          "median": 45345.0,
+          "min": 42803,
+          "max": 45405
+        },
+        "net_release_rate_same_budget": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "runs_with_output_limit_response": 2,
+        "dominant_identical_command_count": {
+          "count": 2,
+          "median": 94.0,
+          "min": 2,
+          "max": 186
+        }
+      }
+    },
+    "a": {
+      "all_trials": {
+        "trials": 3,
+        "official_successes": 0,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 0,
+        "termination_reasons": {
+          "model_output_limit": 1,
+          "max_steps": 1,
+          "max_wall_time_seconds": 1
+        },
+        "totals": {
+          "input": 26161836,
+          "hit": 23677696,
+          "miss": 2484140,
+          "output": 362648,
+          "requests": 493,
+          "usage_complete": 492,
+          "usage_missing": 1,
+          "normalized_peak_cost_usd": 1.9032047039999997,
+          "timestamp_priced_cost_usd": 0.9516023519999999,
+          "cache_hit_rate": 0.9050471839973311,
+          "usage_coverage": 0.9979716024340771,
+          "cost_is_lower_bound": true
+        },
+        "observed_total_cost_per_success_usd": null,
+        "summary_usage": {
+          "input": 1128910,
+          "hit": 1032448,
+          "miss": 96462,
+          "output": 59385,
+          "requests": 14,
+          "usage_complete": 14,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.13528575199999998,
+          "timestamp_priced_cost_usd": 0.06764287599999999,
+          "cache_hit_rate": 0.9145529758793881,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "a_generate": {
+            "input": 1128910,
+            "hit": 1032448,
+            "miss": 96462,
+            "output": 59385,
+            "requests": 14,
+            "usage_complete": 14,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.13528575199999998,
+            "timestamp_priced_cost_usd": 0.06764287599999999,
+            "cache_hit_rate": 0.9145529758793881,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 3,
+          "median": 0.6327173280000001,
+          "min": 0.37352522400000004,
+          "max": 0.8969621519999998
+        },
+        "cost_distribution_contains_lower_bounds": true,
+        "successful_run_cost_usd": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "agent_minutes": {
+          "count": 3,
+          "median": 25.162726866666667,
+          "min": 14.4374506,
+          "max": 29.89533105
+        },
+        "trial_minutes": {
+          "count": 3,
+          "median": 27.628777083333333,
+          "min": 16.90345345,
+          "max": 32.58134508333333
+        },
+        "steps": {
+          "count": 3,
+          "median": 147,
+          "min": 88,
+          "max": 240
+        },
+        "publications": 10,
+        "compaction_triggers": 15,
+        "compaction_failures": 5,
+        "summary_requests_by_phase_and_status": {
+          "a_generate:completed": 10,
+          "a_generate:failed": 4
+        },
+        "publication_paths": {
+          "a": 10
+        },
+        "first_continuation_completed": 10,
+        "post_publication_input_tokens": {
+          "count": 10,
+          "median": 31084.5,
+          "min": 22316,
+          "max": 33833
+        },
+        "net_release_rate_same_budget": {
+          "count": 10,
+          "median": 0.5700411267413951,
+          "min": 0.5322161225079457,
+          "max": 0.7927521109717923
+        },
+        "runs_with_output_limit_response": 2,
+        "dominant_identical_command_count": {
+          "count": 3,
+          "median": 80,
+          "min": 2,
+          "max": 230
+        }
+      },
+      "follow_up_only": {
+        "trials": 2,
+        "official_successes": 0,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 0,
+        "termination_reasons": {
+          "max_steps": 1,
+          "max_wall_time_seconds": 1
+        },
+        "totals": {
+          "input": 21783480,
+          "hit": 19612160,
+          "miss": 2171320,
+          "output": 227067,
+          "requests": 399,
+          "usage_complete": 399,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 1.5296794799999998,
+          "timestamp_priced_cost_usd": 0.7648397399999999,
+          "cache_hit_rate": 0.9003226298093785,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": true
+        },
+        "observed_total_cost_per_success_usd": null,
+        "summary_usage": {
+          "input": 830247,
+          "hit": 739200,
+          "miss": 91047,
+          "output": 44551,
+          "requests": 10,
+          "usage_complete": 10,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.10921680000000002,
+          "timestamp_priced_cost_usd": 0.05460840000000001,
+          "cache_hit_rate": 0.890337453793871,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "a_generate": {
+            "input": 830247,
+            "hit": 739200,
+            "miss": 91047,
+            "output": 44551,
+            "requests": 10,
+            "usage_complete": 10,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.10921680000000002,
+            "timestamp_priced_cost_usd": 0.05460840000000001,
+            "cache_hit_rate": 0.890337453793871,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 2,
+          "median": 0.76483974,
+          "min": 0.6327173280000001,
+          "max": 0.8969621519999998
+        },
+        "cost_distribution_contains_lower_bounds": true,
+        "successful_run_cost_usd": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "agent_minutes": {
+          "count": 2,
+          "median": 27.529028958333335,
+          "min": 25.162726866666667,
+          "max": 29.89533105
+        },
+        "trial_minutes": {
+          "count": 2,
+          "median": 30.105061083333332,
+          "min": 27.628777083333333,
+          "max": 32.58134508333333
+        },
+        "steps": {
+          "count": 2,
+          "median": 193.5,
+          "min": 147,
+          "max": 240
+        },
+        "publications": 6,
+        "compaction_triggers": 11,
+        "compaction_failures": 5,
+        "summary_requests_by_phase_and_status": {
+          "a_generate:completed": 6,
+          "a_generate:failed": 4
+        },
+        "publication_paths": {
+          "a": 6
+        },
+        "first_continuation_completed": 6,
+        "post_publication_input_tokens": {
+          "count": 6,
+          "median": 30528.5,
+          "min": 22316,
+          "max": 33746
+        },
+        "net_release_rate_same_budget": {
+          "count": 6,
+          "median": 0.5721097611149739,
+          "min": 0.5366140344003448,
+          "max": 0.7927521109717923
+        },
+        "runs_with_output_limit_response": 1,
+        "dominant_identical_command_count": {
+          "count": 2,
+          "median": 155.0,
+          "min": 80,
+          "max": 230
+        }
+      }
+    },
+    "b": {
+      "all_trials": {
+        "trials": 3,
+        "official_successes": 0,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 0,
+        "termination_reasons": {
+          "max_steps": 1,
+          "max_wall_time_seconds": 2
+        },
+        "totals": {
+          "input": 22661588,
+          "hit": 18874496,
+          "miss": 3787092,
+          "output": 379687,
+          "requests": 450,
+          "usage_complete": 450,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 2.4317502639999975,
+          "timestamp_priced_cost_usd": 1.2158751319999987,
+          "cache_hit_rate": 0.8328849681672794,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": true
+        },
+        "observed_total_cost_per_success_usd": null,
+        "summary_usage": {
+          "input": 573136,
+          "hit": 48000,
+          "miss": 525136,
+          "output": 93034,
+          "requests": 43,
+          "usage_complete": 43,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.35453672,
+          "timestamp_priced_cost_usd": 0.17726836,
+          "cache_hit_rate": 0.08374975572987912,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "b_leaf": {
+            "input": 477466,
+            "hit": 0,
+            "miss": 477466,
+            "output": 33067,
+            "requests": 30,
+            "usage_complete": 30,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.25373347999999996,
+            "timestamp_priced_cost_usd": 0.12686673999999998,
+            "cache_hit_rate": 0.0,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          },
+          "b_merge": {
+            "input": 95670,
+            "hit": 48000,
+            "miss": 47670,
+            "output": 59967,
+            "requests": 13,
+            "usage_complete": 13,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.10080323999999999,
+            "timestamp_priced_cost_usd": 0.050401619999999994,
+            "cache_hit_rate": 0.5017246785826278,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 3,
+          "median": 0.6931068000000001,
+          "min": 0.6088168239999995,
+          "max": 1.12982664
+        },
+        "cost_distribution_contains_lower_bounds": true,
+        "successful_run_cost_usd": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "agent_minutes": {
+          "count": 3,
+          "median": 29.23564168333333,
+          "min": 19.751193333333333,
+          "max": 29.354763716666664
+        },
+        "trial_minutes": {
+          "count": 3,
+          "median": 31.811434233333333,
+          "min": 22.294592116666667,
+          "max": 31.90576533333333
+        },
+        "steps": {
+          "count": 3,
+          "median": 105,
+          "min": 59,
+          "max": 240
+        },
+        "publications": 7,
+        "compaction_triggers": 15,
+        "compaction_failures": 8,
+        "summary_requests_by_phase_and_status": {
+          "b_leaf:completed": 30,
+          "b_merge:completed": 7,
+          "b_merge:failed": 6
+        },
+        "publication_paths": {
+          "b": 7
+        },
+        "first_continuation_completed": 7,
+        "post_publication_input_tokens": {
+          "count": 7,
+          "median": 30819,
+          "min": 30624,
+          "max": 31597
+        },
+        "net_release_rate_same_budget": {
+          "count": 7,
+          "median": 0.569427511264246,
+          "min": 0.5654552814740333,
+          "max": 0.578157451310788
+        },
+        "runs_with_output_limit_response": 1,
+        "dominant_identical_command_count": {
+          "count": 3,
+          "median": 2,
+          "min": 2,
+          "max": 235
+        }
+      },
+      "follow_up_only": {
+        "trials": 2,
+        "official_successes": 0,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 0,
+        "termination_reasons": {
+          "max_wall_time_seconds": 2
+        },
+        "totals": {
+          "input": 10838886,
+          "hit": 7861120,
+          "miss": 2977766,
+          "output": 305046,
+          "requests": 184,
+          "usage_complete": 184,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 1.8229334399999995,
+          "timestamp_priced_cost_usd": 0.9114667199999997,
+          "cache_hit_rate": 0.7252701061714276,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": true
+        },
+        "observed_total_cost_per_success_usd": null,
+        "summary_usage": {
+          "input": 241625,
+          "hit": 48000,
+          "miss": 193625,
+          "output": 64808,
+          "requests": 18,
+          "usage_complete": 18,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.17141356,
+          "timestamp_priced_cost_usd": 0.08570678,
+          "cache_hit_rate": 0.19865494050698396,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "b_leaf": {
+            "input": 176810,
+            "hit": 0,
+            "miss": 176810,
+            "output": 17067,
+            "requests": 11,
+            "usage_complete": 11,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.10032484,
+            "timestamp_priced_cost_usd": 0.05016242,
+            "cache_hit_rate": 0.0,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          },
+          "b_merge": {
+            "input": 64815,
+            "hit": 48000,
+            "miss": 16815,
+            "output": 47741,
+            "requests": 7,
+            "usage_complete": 7,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.07108872,
+            "timestamp_priced_cost_usd": 0.03554436,
+            "cache_hit_rate": 0.7405693126591066,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 2,
+          "median": 0.9114667200000002,
+          "min": 0.6931068000000001,
+          "max": 1.12982664
+        },
+        "cost_distribution_contains_lower_bounds": true,
+        "successful_run_cost_usd": {
+          "count": 0,
+          "median": null,
+          "min": null,
+          "max": null
+        },
+        "agent_minutes": {
+          "count": 2,
+          "median": 29.295202699999997,
+          "min": 29.23564168333333,
+          "max": 29.354763716666664
+        },
+        "trial_minutes": {
+          "count": 2,
+          "median": 31.858599783333332,
+          "min": 31.811434233333333,
+          "max": 31.90576533333333
+        },
+        "steps": {
+          "count": 2,
+          "median": 82.0,
+          "min": 59,
+          "max": 105
+        },
+        "publications": 1,
+        "compaction_triggers": 9,
+        "compaction_failures": 8,
+        "summary_requests_by_phase_and_status": {
+          "b_leaf:completed": 11,
+          "b_merge:completed": 1,
+          "b_merge:failed": 6
+        },
+        "publication_paths": {
+          "b": 1
+        },
+        "first_continuation_completed": 1,
+        "post_publication_input_tokens": {
+          "count": 1,
+          "median": 31597,
+          "min": 31597,
+          "max": 31597
+        },
+        "net_release_rate_same_budget": {
+          "count": 1,
+          "median": 0.5654552814740333,
+          "min": 0.5654552814740333,
+          "max": 0.5654552814740333
+        },
+        "runs_with_output_limit_response": 1,
+        "dominant_identical_command_count": {
+          "count": 2,
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        }
+      }
+    },
+    "a_fallback": {
+      "all_trials": {
+        "trials": 3,
+        "official_successes": 3,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 3,
+        "termination_reasons": {
+          "normal_completion": 3
+        },
+        "totals": {
+          "input": 19201880,
+          "hit": 17340288,
+          "miss": 1861592,
+          "output": 405950,
+          "requests": 361,
+          "usage_complete": 361,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 1.5977185119999995,
+          "timestamp_priced_cost_usd": 0.7988592559999997,
+          "cache_hit_rate": 0.9030515761998305,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "observed_total_cost_per_success_usd": 0.5325728373333332,
+        "summary_usage": {
+          "input": 1497583,
+          "hit": 1128064,
+          "miss": 369519,
+          "output": 114198,
+          "requests": 22,
+          "usage_complete": 22,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.32912261600000003,
+          "timestamp_priced_cost_usd": 0.16456130800000002,
+          "cache_hit_rate": 0.7532564138348259,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "a_isolated": {
+            "input": 295638,
+            "hit": 1920,
+            "miss": 293718,
+            "output": 37244,
+            "requests": 6,
+            "usage_complete": 6,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.17842488,
+            "timestamp_priced_cost_usd": 0.08921244,
+            "cache_hit_rate": 0.006494428997625474,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          },
+          "a_prefix": {
+            "input": 1201945,
+            "hit": 1126144,
+            "miss": 75801,
+            "output": 76954,
+            "requests": 16,
+            "usage_complete": 16,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.15069773600000003,
+            "timestamp_priced_cost_usd": 0.07534886800000001,
+            "cache_hit_rate": 0.936934718310738,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 3,
+          "median": 0.513510696,
+          "min": 0.5069524799999999,
+          "max": 0.5772553359999998
+        },
+        "cost_distribution_contains_lower_bounds": false,
+        "successful_run_cost_usd": {
+          "count": 3,
+          "median": 0.513510696,
+          "min": 0.5069524799999999,
+          "max": 0.5772553359999998
+        },
+        "agent_minutes": {
+          "count": 3,
+          "median": 16.923007016666666,
+          "min": 13.820346166666667,
+          "max": 20.4701321
+        },
+        "trial_minutes": {
+          "count": 3,
+          "median": 19.568692316666667,
+          "min": 16.519153,
+          "max": 23.132123850000003
+        },
+        "steps": {
+          "count": 3,
+          "median": 105,
+          "min": 83,
+          "max": 151
+        },
+        "publications": 13,
+        "compaction_triggers": 16,
+        "compaction_failures": 3,
+        "summary_requests_by_phase_and_status": {
+          "a_prefix:completed": 10,
+          "a_prefix:failed": 6,
+          "a_isolated:completed": 3,
+          "a_isolated:failed": 3
+        },
+        "publication_paths": {
+          "prefix": 10,
+          "isolated": 3
+        },
+        "first_continuation_completed": 13,
+        "post_publication_input_tokens": {
+          "count": 13,
+          "median": 30613,
+          "min": 27949,
+          "max": 34518
+        },
+        "net_release_rate_same_budget": {
+          "count": 13,
+          "median": 0.5754699738903394,
+          "min": 0.5297925420168067,
+          "max": 0.6322866586538461
+        },
+        "runs_with_output_limit_response": 1,
+        "dominant_identical_command_count": {
+          "count": 3,
+          "median": 2,
+          "min": 2,
+          "max": 30
+        }
+      },
+      "follow_up_only": {
+        "trials": 2,
+        "official_successes": 2,
+        "infrastructure_exceptions": 0,
+        "normal_completions": 2,
+        "termination_reasons": {
+          "normal_completion": 2
+        },
+        "totals": {
+          "input": 13433513,
+          "hit": 12044928,
+          "miss": 1388585,
+          "output": 235727,
+          "requests": 248,
+          "usage_complete": 248,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 1.0907660319999997,
+          "timestamp_priced_cost_usd": 0.5453830159999998,
+          "cache_hit_rate": 0.8966327720827754,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "observed_total_cost_per_success_usd": 0.5453830159999998,
+        "summary_usage": {
+          "input": 977086,
+          "hit": 777088,
+          "miss": 199998,
+          "output": 67911,
+          "requests": 14,
+          "usage_complete": 14,
+          "usage_missing": 0,
+          "normalized_peak_cost_usd": 0.188520872,
+          "timestamp_priced_cost_usd": 0.094260436,
+          "cache_hit_rate": 0.7953117739891883,
+          "usage_coverage": 1.0,
+          "cost_is_lower_bound": false
+        },
+        "summary_by_phase": {
+          "a_isolated": {
+            "input": 149407,
+            "hit": 1152,
+            "miss": 148255,
+            "output": 18967,
+            "requests": 3,
+            "usage_complete": 3,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.09028476800000002,
+            "timestamp_priced_cost_usd": 0.04514238400000001,
+            "cache_hit_rate": 0.007710482105925425,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          },
+          "a_prefix": {
+            "input": 827679,
+            "hit": 775936,
+            "miss": 51743,
+            "output": 48944,
+            "requests": 11,
+            "usage_complete": 11,
+            "usage_missing": 0,
+            "normalized_peak_cost_usd": 0.09823610399999999,
+            "timestamp_priced_cost_usd": 0.049118051999999995,
+            "cache_hit_rate": 0.9374842179153996,
+            "usage_coverage": 1.0,
+            "cost_is_lower_bound": false
+          }
+        },
+        "cost_usd": {
+          "count": 2,
+          "median": 0.5453830159999999,
+          "min": 0.513510696,
+          "max": 0.5772553359999998
+        },
+        "cost_distribution_contains_lower_bounds": false,
+        "successful_run_cost_usd": {
+          "count": 2,
+          "median": 0.5453830159999999,
+          "min": 0.513510696,
+          "max": 0.5772553359999998
+        },
+        "agent_minutes": {
+          "count": 2,
+          "median": 17.145239133333334,
+          "min": 13.820346166666667,
+          "max": 20.4701321
+        },
+        "trial_minutes": {
+          "count": 2,
+          "median": 19.825638425,
+          "min": 16.519153,
+          "max": 23.132123850000003
+        },
+        "steps": {
+          "count": 2,
+          "median": 117.0,
+          "min": 83,
+          "max": 151
+        },
+        "publications": 9,
+        "compaction_triggers": 11,
+        "compaction_failures": 2,
+        "summary_requests_by_phase_and_status": {
+          "a_prefix:completed": 8,
+          "a_prefix:failed": 3,
+          "a_isolated:failed": 2,
+          "a_isolated:completed": 1
+        },
+        "publication_paths": {
+          "prefix": 8,
+          "isolated": 1
+        },
+        "first_continuation_completed": 9,
+        "post_publication_input_tokens": {
+          "count": 9,
+          "median": 30613,
+          "min": 27949,
+          "max": 34027
+        },
+        "net_release_rate_same_budget": {
+          "count": 9,
+          "median": 0.5754699738903394,
+          "min": 0.5297925420168067,
+          "max": 0.6322866586538461
+        },
+        "runs_with_output_limit_response": 0,
+        "dominant_identical_command_count": {
+          "count": 2,
+          "median": 16.0,
+          "min": 2,
+          "max": 30
+        }
+      }
+    }
+  },
+  "runs": [
+    {
+      "strategy": "current",
+      "repetition_index": 1,
+      "manifest_sha256": "1c8a7b7084fc573995d8587db88b2294799c103022dba90272aae1a58e1528cc",
+      "events_sha256": "3216949ec5c16a1086612534157eb32c63c900e3d17c6b55ee699abd4402a0ce",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HTrbLEX/agent/trace/state.db",
+        "sha256": "4dfc7dbe864d988da8c65a7d0d8c36768991c506f7e92122caecf4f800e2ff5f"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 0,
+        "failed": 3,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789235003.3278458,
+        "stop": 1789235006.4222379
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "model_output_limit",
+      "steps": 88,
+      "agent_minutes": 18.836966183333335,
+      "trial_minutes": 21.331742249999998,
+      "totals": {
+        "input": 4628161,
+        "hit": 3948160,
+        "miss": 680001,
+        "output": 222139,
+        "requests": 96,
+        "usage_complete": 96,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.64769816,
+        "timestamp_priced_cost_usd": 0.32384908,
+        "cache_hit_rate": 0.8530731752849566,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 257257,
+        "hit": 768,
+        "miss": 256489,
+        "output": 24150,
+        "requests": 7,
+        "usage_complete": 7,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.14474391199999997,
+        "timestamp_priced_cost_usd": 0.07237195599999999,
+        "cache_hit_rate": 0.002985341506742285,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 7,
+      "compaction_triggers": 7,
+      "compaction_failures": [],
+      "summary_request_failures": [],
+      "stagnation": {
+        "tool_calls": 91,
+        "distinct_call_signatures": 89,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "ls",
+              "-la",
+              "/app/"
+            ]
+          },
+          "count": 2,
+          "first_step": 1
+        },
+        "dominant_successful_results": 2,
+        "dominant_result_context_refs": {
+          "blob:0171e8761eca96e6104269bb6b7b04422d16bfd1d158d433bca97ca645b35fa2": 1,
+          "blob:3f1f5f1a0d3674678c2792943946e4969ba5f0fba6fc38249210aef317f2ca10": 1
+        },
+        "dominant_distinct_process_ids": 2,
+        "progress_kinds": {
+          "weak": 82,
+          "none": 5
+        },
+        "progress_actions": {
+          "continue": 87
+        },
+        "max_no_progress_steps": 2,
+        "first_publication_step": 27
+      },
+      "main_output_peak": 32768,
+      "model_output_limit_events": [
+        {
+          "step": 88,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 0,
+          "turn_usage": {
+            "prompt_tokens": 45742,
+            "completion_tokens": 32768,
+            "total_tokens": 78510,
+            "prompt_tokens_details": {
+              "cached_tokens": 45312
+            },
+            "prompt_cache_hit_tokens": 45312,
+            "prompt_cache_miss_tokens": 430
+          }
+        }
+      ],
+      "captured_source": null
+    },
+    {
+      "strategy": "current",
+      "repetition_index": 2,
+      "manifest_sha256": "857bbe732a93b9d19042898c2dc12025a03fadb5a8f4b357f93ade87a1152f3b",
+      "events_sha256": "80f9ab575a120d1cda12a8ee347b519d2cae0f7fea84cf9943ce5977791dc9b8",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/current/035880d7ef5554b217e53a75ce5e87e4__HV74SVN/agent/trace/state.db",
+        "sha256": "d4302ecb7e2206b1606ea47cc01ce49fa2f6c53f19e5cf92c2c7b72a55039ffd"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 0,
+        "failed": 3,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789266590.250511,
+        "stop": 1789266593.3096232
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "model_output_limit",
+      "steps": 118,
+      "agent_minutes": 18.917209,
+      "trial_minutes": 21.41907796666667,
+      "totals": {
+        "input": 7059750,
+        "hit": 4956544,
+        "miss": 2103206,
+        "output": 93035,
+        "requests": 138,
+        "usage_complete": 138,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 1.1176084560000001,
+        "timestamp_priced_cost_usd": 0.5588042280000001,
+        "cache_hit_rate": 0.7020849180211763,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 704389,
+        "hit": 2432,
+        "miss": 701957,
+        "output": 41124,
+        "requests": 19,
+        "usage_complete": 19,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.36317880799999996,
+        "timestamp_priced_cost_usd": 0.18158940399999998,
+        "cache_hit_rate": 0.003452637676056838,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 19,
+      "compaction_triggers": 19,
+      "compaction_failures": [],
+      "summary_request_failures": [],
+      "stagnation": {
+        "tool_calls": 233,
+        "distinct_call_signatures": 46,
+        "dominant_command": {
+          "name": "run_shell",
+          "arguments": {
+            "script": "cd /app && objdump -d --no-show-raw-insn mystery | awk '/<trace>:/,/^$/' | sed -n '/402b78/,/402b82/p'"
+          },
+          "count": 186,
+          "first_step": 16
+        },
+        "dominant_successful_results": 186,
+        "dominant_result_context_refs": {
+          "blob:765cffae40e3c8594da6ac9a7054fab31519d011f3e937367887e7a964773300": 186
+        },
+        "dominant_distinct_process_ids": 186,
+        "progress_kinds": {
+          "weak": 117
+        },
+        "progress_actions": {
+          "continue": 117
+        },
+        "max_no_progress_steps": 0,
+        "first_publication_step": 21
+      },
+      "main_output_peak": 32768,
+      "model_output_limit_events": [
+        {
+          "step": 118,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 0,
+          "turn_usage": {
+            "prompt_tokens": 70053,
+            "completion_tokens": 32768,
+            "total_tokens": 102821,
+            "prompt_tokens_details": {
+              "cached_tokens": 67456
+            },
+            "prompt_cache_hit_tokens": 67456,
+            "prompt_cache_miss_tokens": 2597
+          }
+        }
+      ],
+      "captured_source": null
+    },
+    {
+      "strategy": "current",
+      "repetition_index": 3,
+      "manifest_sha256": "844087bb742ab937e9fa8c5a68d0814e0c4a5e689aded5630265eada354f3bf4",
+      "events_sha256": "3ce33f6db4b3ba0b06366868cd928ed2e9af1ebca83c6a5dd6fe2409e825af59",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3-current-replacement/jobs/current/035880d7ef5554b217e53a75ce5e87e4__9Sn9dfz/agent/trace/state.db",
+        "sha256": "2b2489029838e51bb148426f804f096c670670a0dde4fe50ae600cbd23c7463d"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 2,
+        "failed": 1,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789279073.902661,
+        "stop": 1789279088.8127773
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "model_output_limit",
+      "steps": 49,
+      "agent_minutes": 7.0981475,
+      "trial_minutes": 9.781820616666666,
+      "totals": {
+        "input": 2451136,
+        "hit": 2209280,
+        "miss": 241856,
+        "output": 61823,
+        "requests": 51,
+        "usage_complete": 51,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.21895291999999994,
+        "timestamp_priced_cost_usd": 0.10947645999999997,
+        "cache_hit_rate": 0.9013290164234053,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 34129,
+        "hit": 128,
+        "miss": 34001,
+        "output": 1842,
+        "requests": 1,
+        "usage_complete": 1,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.017393672,
+        "timestamp_priced_cost_usd": 0.008696836,
+        "cache_hit_rate": 0.003750476134665534,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 1,
+      "compaction_triggers": 1,
+      "compaction_failures": [],
+      "summary_request_failures": [],
+      "stagnation": {
+        "tool_calls": 59,
+        "distinct_call_signatures": 57,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "ls",
+              "-la",
+              "/app/"
+            ]
+          },
+          "count": 2,
+          "first_step": 1
+        },
+        "dominant_successful_results": 2,
+        "dominant_result_context_refs": {
+          "blob:4133a3bb0b4ab59f2c7c38578af366d15c03e6ab2de632747cfea60d2d1ffbfe": 1,
+          "blob:dac95a8053a2ccd23682300e4a60db7d9a3ca1719c1c115f3ec1a74ca13d82b9": 1
+        },
+        "dominant_distinct_process_ids": 2,
+        "progress_kinds": {
+          "weak": 41,
+          "strong": 3,
+          "none": 4
+        },
+        "progress_actions": {
+          "continue": 47,
+          "warn": 1
+        },
+        "max_no_progress_steps": 3,
+        "first_publication_step": 27
+      },
+      "main_output_peak": 32768,
+      "model_output_limit_events": [
+        {
+          "step": 49,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 0,
+          "turn_usage": {
+            "prompt_tokens": 68454,
+            "completion_tokens": 32768,
+            "total_tokens": 101222,
+            "prompt_tokens_details": {
+              "cached_tokens": 67328
+            },
+            "prompt_cache_hit_tokens": 67328,
+            "prompt_cache_miss_tokens": 1126
+          }
+        }
+      ],
+      "captured_source": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3-current-replacement/live/current/mystery.c",
+        "sha256": "f6e506105006726ebd7538425d5fd94dcfdc6f3e6feae88b9effec58917c2a09"
+      }
+    },
+    {
+      "strategy": "a",
+      "repetition_index": 1,
+      "manifest_sha256": "1c8a7b7084fc573995d8587db88b2294799c103022dba90272aae1a58e1528cc",
+      "events_sha256": "9638aa3dc004648e5fdd179fe3dfe8a9f55387f4d99c4751c6bb24de2bd52735",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/a/035880d7ef5554b217e53a75ce5e87e4__maKJzFc/agent/trace/state.db",
+        "sha256": "b733b9aa07166e3263627a9e3264ea3836f8a4138c33536e6d9b15588efd41fc"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 0,
+        "failed": 3,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789233717.1177444,
+        "stop": 1789233720.4798267
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "model_output_limit",
+      "steps": 88,
+      "agent_minutes": 14.4374506,
+      "trial_minutes": 16.90345345,
+      "totals": {
+        "input": 4378356,
+        "hit": 4065536,
+        "miss": 312820,
+        "output": 135581,
+        "requests": 94,
+        "usage_complete": 93,
+        "usage_missing": 1,
+        "normalized_peak_cost_usd": 0.37352522400000004,
+        "timestamp_priced_cost_usd": 0.18676261200000002,
+        "cache_hit_rate": 0.9285530916170361,
+        "usage_coverage": 0.9893617021276596,
+        "cost_is_lower_bound": true,
+        "interruption_or_retry_may_hide_usage": true
+      },
+      "summary_usage": {
+        "input": 298663,
+        "hit": 293248,
+        "miss": 5415,
+        "output": 14834,
+        "requests": 4,
+        "usage_complete": 4,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.026068952,
+        "timestamp_priced_cost_usd": 0.013034476,
+        "cache_hit_rate": 0.9818691970548745,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 4,
+      "compaction_triggers": 4,
+      "compaction_failures": [],
+      "summary_request_failures": [],
+      "stagnation": {
+        "tool_calls": 98,
+        "distinct_call_signatures": 95,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "ls",
+              "-la",
+              "/app"
+            ]
+          },
+          "count": 2,
+          "first_step": 1
+        },
+        "dominant_successful_results": 2,
+        "dominant_result_context_refs": {
+          "blob:443085dcd099175dae132fdcff9d0ea19dd3754bcae6e3a8dcd55281a62e0041": 1,
+          "blob:5e4ff73d61cb82278532e3d30c79f9803df88a3d2b68d4d5f716f3ce7916cb1d": 1
+        },
+        "dominant_distinct_process_ids": 2,
+        "progress_kinds": {
+          "weak": 81,
+          "none": 4,
+          "waiting": 1,
+          "strong": 1
+        },
+        "progress_actions": {
+          "continue": 87
+        },
+        "max_no_progress_steps": 1,
+        "first_publication_step": 30
+      },
+      "main_output_peak": 32768,
+      "model_output_limit_events": [
+        {
+          "step": 88,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 0,
+          "turn_usage": {
+            "prompt_tokens": 53762,
+            "completion_tokens": 32768,
+            "total_tokens": 86530,
+            "prompt_tokens_details": {
+              "cached_tokens": 51968
+            },
+            "prompt_cache_hit_tokens": 51968,
+            "prompt_cache_miss_tokens": 1794
+          }
+        }
+      ],
+      "captured_source": null
+    },
+    {
+      "strategy": "a",
+      "repetition_index": 2,
+      "manifest_sha256": "857bbe732a93b9d19042898c2dc12025a03fadb5a8f4b357f93ade87a1152f3b",
+      "events_sha256": "b980ea2eff8f276755f1767a465b80fcf228950d9c12d7f4504c41efc53fa568",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a/035880d7ef5554b217e53a75ce5e87e4__QQdgthU/agent/trace/state.db",
+        "sha256": "41825ab50b87761ad8118e752aa3a67bc42cff2819dbfd4e5b4f6d411509fd75"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 0,
+        "failed": 3,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789265299.0497844,
+        "stop": 1789265302.3917134
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "max_steps",
+      "steps": 240,
+      "agent_minutes": 25.162726866666667,
+      "trial_minutes": 27.628777083333333,
+      "totals": {
+        "input": 12206445,
+        "hit": 11644032,
+        "miss": 562413,
+        "output": 168363,
+        "requests": 244,
+        "usage_complete": 244,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.6327173280000001,
+        "timestamp_priced_cost_usd": 0.31635866400000007,
+        "cache_hit_rate": 0.953924914256362,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 251181,
+        "hit": 188800,
+        "miss": 62381,
+        "output": 5520,
+        "requests": 3,
+        "usage_complete": 3,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.037377240000000006,
+        "timestamp_priced_cost_usd": 0.018688620000000003,
+        "cache_hit_rate": 0.7516492091360414,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 3,
+      "compaction_triggers": 4,
+      "compaction_failures": [
+        {
+          "strategy": "a",
+          "compacted": false,
+          "trigger": "strategy:a",
+          "compaction_id": null,
+          "parent_id": null,
+          "covered_start_position": 1,
+          "covered_end_position": 16,
+          "requested_end_position": 16,
+          "previous_end_position": 0,
+          "messages_compacted": 16,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 90391,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 328.4300419909414,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "fixed_context_exceeds_low_water",
+          "error_class": "unknown"
+        }
+      ],
+      "summary_request_failures": [],
+      "stagnation": {
+        "tool_calls": 243,
+        "distinct_call_signatures": 13,
+        "dominant_command": {
+          "name": "run_shell",
+          "arguments": {
+            "script": "strings -n 4 /app/mystery | grep -E \"\\.(c|h|cpp|cc|o|so|a|py|rs|go|js|java|sh|txt|md|json|xml|png|jpg|bmp|tga|hdr|exr|obj|mtl|stl|ply|svg|gif|tif|webp|qoi|dds|ktx|pvr|astc|basis|zstd|gz|zip|tar|7z|xz|bz2|lz4|zst|br|lzma|lzo|lz|z|rar|cab|iso|dmg|vhd|vmdk|vdi|qcow2|vbox|ova|ovf|vdf)$\" | sort -u | grep -vE \"^(\\.\\./|dl|Xprintf|C-|crt|abort|arena|cxa|dcigettext|getcwd|getpagesize|getsysstats|sysconf|elf|iconv|stdio|sysdeps|gconv|iof|libc|load|malloc|mem|nptl|orig|plural|printf|find|grouping|errname|dlinfo|dlmopen|dlopen|dlsym|dlvsym|get-|ioget|locale|pthread|qsort|reg-|rtld|setenv|setlocale|setup|setvmaname|stdfiles|stpcpy|str|strops|tpp|translated|tsearch|unwind|vfprintf|wcrtomb|wcs|wfileops|wgenops|wmemchr|wprintf)\" | head -60"
+          },
+          "count": 230,
+          "first_step": 11
+        },
+        "dominant_successful_results": 230,
+        "dominant_result_context_refs": {
+          "blob:c54caced5935045af1b8dfd49de716be92549c3994eb54c45a26298e50ee52fc": 230
+        },
+        "dominant_distinct_process_ids": 230,
+        "progress_kinds": {
+          "weak": 238,
+          "none": 2
+        },
+        "progress_actions": {
+          "continue": 240
+        },
+        "max_no_progress_steps": 1,
+        "first_publication_step": 40
+      },
+      "main_output_peak": 32768,
+      "model_output_limit_events": [
+        {
+          "step": 5,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 1,
+          "turn_usage": {
+            "prompt_tokens": 13716,
+            "completion_tokens": 32768,
+            "total_tokens": 46484,
+            "prompt_tokens_details": {
+              "cached_tokens": 8576
+            },
+            "prompt_cache_hit_tokens": 8576,
+            "prompt_cache_miss_tokens": 5140
+          }
+        },
+        {
+          "step": 7,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 1,
+          "turn_usage": {
+            "prompt_tokens": 46831,
+            "completion_tokens": 32768,
+            "total_tokens": 79599,
+            "prompt_tokens_details": {
+              "cached_tokens": 46592
+            },
+            "prompt_cache_hit_tokens": 46592,
+            "prompt_cache_miss_tokens": 239
+          }
+        }
+      ],
+      "captured_source": null
+    },
+    {
+      "strategy": "a",
+      "repetition_index": 3,
+      "manifest_sha256": "ce2e8a2cdd5d190c020dbfb4af4a2ce31a29b950b26a33422f151c62caa44b3c",
+      "events_sha256": "a2f4fb1321b25cd6d5c222dd921bdf54475bd66863390267c8c25907df92ad71",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/a/035880d7ef5554b217e53a75ce5e87e4__K4mWFZj/agent/trace/state.db",
+        "sha256": "a1c6353969c892a70b73ee9b4a85b6911b808d1e8c88615f444fdcb7115ec099"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 2,
+        "failed": 1,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789270453.1995416,
+        "stop": 1789270468.1822262
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "max_wall_time_seconds",
+      "steps": 147,
+      "agent_minutes": 29.89533105,
+      "trial_minutes": 32.58134508333333,
+      "totals": {
+        "input": 9577035,
+        "hit": 7968128,
+        "miss": 1608907,
+        "output": 58704,
+        "requests": 155,
+        "usage_complete": 155,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.8969621519999998,
+        "timestamp_priced_cost_usd": 0.4484810759999999,
+        "cache_hit_rate": 0.8320036420457897,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": true,
+        "interruption_or_retry_may_hide_usage": true
+      },
+      "summary_usage": {
+        "input": 579066,
+        "hit": 550400,
+        "miss": 28666,
+        "output": 39031,
+        "requests": 7,
+        "usage_complete": 7,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.07183956000000001,
+        "timestamp_priced_cost_usd": 0.035919780000000005,
+        "cache_hit_rate": 0.9504961437901724,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 3,
+      "compaction_triggers": 7,
+      "compaction_failures": [
+        {
+          "strategy": "a",
+          "compacted": false,
+          "trigger": "strategy:a",
+          "compaction_id": null,
+          "parent_id": "d63d72c8b14743349408422999210aac",
+          "covered_start_position": 1,
+          "covered_end_position": 161,
+          "requested_end_position": 143,
+          "previous_end_position": 87,
+          "messages_compacted": 161,
+          "summary_tokens": 0,
+          "input_tokens": 143402,
+          "output_tokens": 12613,
+          "source_chars": 398641,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 2,
+          "duration_ms": 49757.773730991175,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 4494 > 4000",
+          "error_class": "unknown",
+          "operation_id": "a8d86741e260464aab5a32f7f9b85420",
+          "tail_target_end_position": 143,
+          "selected_end_position": 161,
+          "reserved_after_tokens": 39441
+        },
+        {
+          "strategy": "a",
+          "compacted": false,
+          "trigger": "strategy:a",
+          "compaction_id": null,
+          "parent_id": "d63d72c8b14743349408422999210aac",
+          "covered_start_position": 1,
+          "covered_end_position": 225,
+          "requested_end_position": 207,
+          "previous_end_position": 87,
+          "messages_compacted": 225,
+          "summary_tokens": 0,
+          "input_tokens": 214826,
+          "output_tokens": 12335,
+          "source_chars": 485105,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 2,
+          "duration_ms": 50752.34773100237,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 4298 > 4000",
+          "error_class": "unknown",
+          "operation_id": "ed182712897c40df8ab6631d0a00cf43",
+          "tail_target_end_position": 207,
+          "selected_end_position": 225,
+          "reserved_after_tokens": 39441
+        },
+        {
+          "strategy": "a",
+          "compacted": false,
+          "trigger": "strategy:a",
+          "compaction_id": null,
+          "parent_id": "d63d72c8b14743349408422999210aac",
+          "covered_start_position": 1,
+          "covered_end_position": 241,
+          "requested_end_position": 223,
+          "previous_end_position": 87,
+          "messages_compacted": 241,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 506721,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 8079.937462025555,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "summary_input_budget: 122790 > 118784",
+          "error_class": "unknown",
+          "operation_id": "835d4ecc612c4f76a460e80c416d6f12",
+          "tail_target_end_position": 223,
+          "selected_end_position": 241,
+          "reserved_after_tokens": 39441
+        },
+        {
+          "strategy": "a",
+          "compacted": false,
+          "trigger": "strategy:a",
+          "compaction_id": null,
+          "parent_id": "d63d72c8b14743349408422999210aac",
+          "covered_start_position": 1,
+          "covered_end_position": 253,
+          "requested_end_position": 235,
+          "previous_end_position": 87,
+          "messages_compacted": 253,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 522933,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 8003.844087012112,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "summary_input_budget: 129858 > 118784",
+          "error_class": "unknown",
+          "operation_id": "48ba685996f2479d9064f28c6fc083b9",
+          "tail_target_end_position": 235,
+          "selected_end_position": 253,
+          "reserved_after_tokens": 39441
+        }
+      ],
+      "summary_request_failures": [
+        {
+          "phase": "a_generate",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4385 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            161
+          ]
+        },
+        {
+          "phase": "a_generate",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4494 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            161
+          ]
+        },
+        {
+          "phase": "a_generate",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4286 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            225
+          ]
+        },
+        {
+          "phase": "a_generate",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4298 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            225
+          ]
+        }
+      ],
+      "stagnation": {
+        "tool_calls": 151,
+        "distinct_call_signatures": 51,
+        "dominant_command": {
+          "name": "run_shell",
+          "arguments": {
+            "script": "cd /tmp/run2 && head -c 120 image.ppm | od -c; echo \"=== stderr head ===\"; head -c 200 err.txt | od -c | head -12; echo \"=== stderr tail ===\"; tail -c 120 err.txt | od -c"
+          },
+          "count": 80,
+          "first_step": 68
+        },
+        "dominant_successful_results": 80,
+        "dominant_result_context_refs": {
+          "blob:c65be1dce9a6c88bcf68847534cda35ce377a36a5031e6091ffb0d5cb7a1d290": 80
+        },
+        "dominant_distinct_process_ids": 80,
+        "progress_kinds": {
+          "weak": 142,
+          "none": 2,
+          "strong": 3
+        },
+        "progress_actions": {
+          "continue": 146,
+          "warn": 1
+        },
+        "max_no_progress_steps": 1,
+        "first_publication_step": 23
+      },
+      "main_output_peak": 1965,
+      "model_output_limit_events": [],
+      "captured_source": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/live/a/mystery.c",
+        "sha256": "9ee2e08689ef381cb259999179efd76da7d6068ff015717f7f6f70ac17d4a5f7"
+      }
+    },
+    {
+      "strategy": "b",
+      "repetition_index": 1,
+      "manifest_sha256": "1c8a7b7084fc573995d8587db88b2294799c103022dba90272aae1a58e1528cc",
+      "events_sha256": "53c5eb523c1565a5983eb5315468138aa52241e925d3bca9dd2fa003db318243",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/b/035880d7ef5554b217e53a75ce5e87e4__SDDNQSe/agent/trace/state.db",
+        "sha256": "7cf7e583029cba52864ae610dc87759fa8340856e05813730e2cf95c6a63487f"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 0,
+        "failed": 3,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789231512.5782728,
+        "stop": 1789231515.6598449
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "max_steps",
+      "steps": 240,
+      "agent_minutes": 19.751193333333333,
+      "trial_minutes": 22.294592116666667,
+      "totals": {
+        "input": 11822702,
+        "hit": 11013376,
+        "miss": 809326,
+        "output": 74641,
+        "requests": 266,
+        "usage_complete": 266,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.6088168239999995,
+        "timestamp_priced_cost_usd": 0.30440841199999974,
+        "cache_hit_rate": 0.9315447517834755,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 331511,
+        "hit": 0,
+        "miss": 331511,
+        "output": 28226,
+        "requests": 25,
+        "usage_complete": 25,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.18312316,
+        "timestamp_priced_cost_usd": 0.09156158,
+        "cache_hit_rate": 0.0,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 6,
+      "compaction_triggers": 6,
+      "compaction_failures": [],
+      "summary_request_failures": [],
+      "stagnation": {
+        "tool_calls": 243,
+        "distinct_call_signatures": 8,
+        "dominant_command": {
+          "name": "run_shell",
+          "arguments": {
+            "script": "strings -n 4 /app/mystery | grep -v -E \"^[A-Za-z_./]*\\.(c|h)$\" | grep -i -E \"sphere|ray|vec|color|light|camera|scene|hit|material|lambert|diffuse|specular|ambient|shadow|plane|box|triangle|world|render|pixel|width|height|samples|depth|bounce|reflect|refract|normal|origin|direction|center|radius|albedo|emission|sky|ground|checker|noise|random|seed|fov|aspect|gamma|clamp|tone|map|max_|min_\" | head -80"
+          },
+          "count": 235,
+          "first_step": 6
+        },
+        "dominant_successful_results": 235,
+        "dominant_result_context_refs": {
+          "blob:a221566abc0a4fe59d553fe1c1daf3d436a6d72714d8569bc326097e3c5f6f93": 235
+        },
+        "dominant_distinct_process_ids": 235,
+        "progress_kinds": {
+          "weak": 240
+        },
+        "progress_actions": {
+          "continue": 240
+        },
+        "max_no_progress_steps": 0,
+        "first_publication_step": 53
+      },
+      "main_output_peak": 193,
+      "model_output_limit_events": [],
+      "captured_source": null
+    },
+    {
+      "strategy": "b",
+      "repetition_index": 2,
+      "manifest_sha256": "857bbe732a93b9d19042898c2dc12025a03fadb5a8f4b357f93ade87a1152f3b",
+      "events_sha256": "1f6b805ed8b390b66dbba7f59a15c1acf7638ccf99e12d88bdea72543fb14139",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/b/035880d7ef5554b217e53a75ce5e87e4__PAYTzuA/agent/trace/state.db",
+        "sha256": "29662e1f6d501b36dfc2dfa08eb42fd769899fad22cab65e3098006bd6cf1277"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 0,
+        "failed": 3,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789268504.4427032,
+        "stop": 1789268507.566492
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "max_wall_time_seconds",
+      "steps": 59,
+      "agent_minutes": 29.354763716666664,
+      "trial_minutes": 31.811434233333333,
+      "totals": {
+        "input": 4352187,
+        "hit": 3373440,
+        "miss": 978747,
+        "output": 163053,
+        "requests": 60,
+        "usage_complete": 60,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.6931068000000001,
+        "timestamp_priced_cost_usd": 0.34655340000000007,
+        "cache_hit_rate": 0.7751137531544485,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": true,
+        "interruption_or_retry_may_hide_usage": true
+      },
+      "summary_usage": {
+        "input": 0,
+        "hit": 0,
+        "miss": 0,
+        "output": 0,
+        "requests": 0,
+        "usage_complete": 0,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.0,
+        "timestamp_priced_cost_usd": 0.0,
+        "cache_hit_rate": null,
+        "usage_coverage": null,
+        "cost_is_lower_bound": false
+      },
+      "publications": 0,
+      "compaction_triggers": 5,
+      "compaction_failures": [
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": null,
+          "covered_start_position": 1,
+          "covered_end_position": 17,
+          "requested_end_position": 17,
+          "previous_end_position": 0,
+          "messages_compacted": 17,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 78176,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 280.2798330085352,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "fixed_context_exceeds_low_water",
+          "error_class": "unknown"
+        },
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": null,
+          "covered_start_position": 1,
+          "covered_end_position": 44,
+          "requested_end_position": 39,
+          "previous_end_position": 0,
+          "messages_compacted": 44,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 268325,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 1403.9736260019708,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "atomic_group_exceeds_leaf_budget",
+          "error_class": "unknown",
+          "operation_id": "540d9ec997eb4ae79ac14bbff576f3c7",
+          "tail_target_end_position": 39,
+          "selected_end_position": 44,
+          "reserved_after_tokens": 27855
+        },
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": null,
+          "covered_start_position": 1,
+          "covered_end_position": 62,
+          "requested_end_position": 50,
+          "previous_end_position": 0,
+          "messages_compacted": 62,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 328173,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 4499.18604400591,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "atomic_group_exceeds_leaf_budget",
+          "error_class": "unknown",
+          "operation_id": "ff7ead0a9aa34b17ba69450d85b83cdd",
+          "tail_target_end_position": 50,
+          "selected_end_position": 62,
+          "reserved_after_tokens": 35887
+        },
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": null,
+          "covered_start_position": 1,
+          "covered_end_position": 76,
+          "requested_end_position": 66,
+          "previous_end_position": 0,
+          "messages_compacted": 76,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 370249,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 3979.863293992821,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "atomic_group_exceeds_leaf_budget",
+          "error_class": "unknown",
+          "operation_id": "2fe564f6f38045859c8f70cb800e3b17",
+          "tail_target_end_position": 66,
+          "selected_end_position": 76,
+          "reserved_after_tokens": 34488
+        },
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": null,
+          "covered_start_position": 1,
+          "covered_end_position": 93,
+          "requested_end_position": 76,
+          "previous_end_position": 0,
+          "messages_compacted": 93,
+          "summary_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "source_chars": 395565,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 0,
+          "duration_ms": 6467.153628997039,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "ValueError",
+          "error": "atomic_group_exceeds_leaf_budget",
+          "error_class": "unknown",
+          "operation_id": "4d13644f45d140388eb1c406b3671136",
+          "tail_target_end_position": 76,
+          "selected_end_position": 93,
+          "reserved_after_tokens": 38594
+        }
+      ],
+      "summary_request_failures": [],
+      "stagnation": {
+        "tool_calls": 73,
+        "distinct_call_signatures": 65,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "ls",
+              "-la",
+              "/app"
+            ]
+          },
+          "count": 2,
+          "first_step": 1
+        },
+        "dominant_successful_results": 2,
+        "dominant_result_context_refs": {
+          "blob:0817c55a16e2f5b73c64740c914c60e3c0ed120fe14585cef744c5eb9088e691": 1,
+          "blob:9fb26ae6d1148d86c0c9259693be2d6f04e397f873de6587c36a6dd559178253": 1
+        },
+        "dominant_distinct_process_ids": 2,
+        "progress_kinds": {
+          "weak": 54,
+          "none": 5
+        },
+        "progress_actions": {
+          "continue": 58,
+          "warn": 1
+        },
+        "max_no_progress_steps": 3,
+        "first_publication_step": null
+      },
+      "main_output_peak": 32768,
+      "model_output_limit_events": [
+        {
+          "step": 6,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 1,
+          "turn_usage": {
+            "prompt_tokens": 18171,
+            "completion_tokens": 32768,
+            "total_tokens": 50939,
+            "prompt_tokens_details": {
+              "cached_tokens": 14848
+            },
+            "prompt_cache_hit_tokens": 14848,
+            "prompt_cache_miss_tokens": 3323
+          }
+        },
+        {
+          "step": 7,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 1,
+          "turn_usage": {
+            "prompt_tokens": 51048,
+            "completion_tokens": 32768,
+            "total_tokens": 83816,
+            "prompt_tokens_details": {
+              "cached_tokens": 18048
+            },
+            "prompt_cache_hit_tokens": 18048,
+            "prompt_cache_miss_tokens": 33000
+          }
+        },
+        {
+          "step": 8,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 1,
+          "turn_usage": {
+            "prompt_tokens": 83925,
+            "completion_tokens": 32768,
+            "total_tokens": 116693,
+            "prompt_tokens_details": {
+              "cached_tokens": 50944
+            },
+            "prompt_cache_hit_tokens": 50944,
+            "prompt_cache_miss_tokens": 32981
+          }
+        },
+        {
+          "step": 17,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 2,
+          "turn_usage": {
+            "prompt_tokens": 65100,
+            "completion_tokens": 32768,
+            "total_tokens": 97868,
+            "prompt_tokens_details": {
+              "cached_tokens": 61952
+            },
+            "prompt_cache_hit_tokens": 61952,
+            "prompt_cache_miss_tokens": 3148
+          }
+        }
+      ],
+      "captured_source": null
+    },
+    {
+      "strategy": "b",
+      "repetition_index": 3,
+      "manifest_sha256": "ce2e8a2cdd5d190c020dbfb4af4a2ce31a29b950b26a33422f151c62caa44b3c",
+      "events_sha256": "a6ce1fbf1d2c92262b27b11fee1648fc7b6530cc72f20533b4f3419f8cad196b",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/b/035880d7ef5554b217e53a75ce5e87e4__5BGJbPA/agent/trace/state.db",
+        "sha256": "72fa988fd207b528647df97fa654410980ebca0025ef91620c646aa3152b92f4"
+      },
+      "official_success": false,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 2,
+        "failed": 1,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789277083.8523972,
+        "stop": 1789277098.982432
+      },
+      "exception": null,
+      "status": "limit_reached",
+      "termination_reason": "max_wall_time_seconds",
+      "steps": 105,
+      "agent_minutes": 29.23564168333333,
+      "trial_minutes": 31.90576533333333,
+      "totals": {
+        "input": 6486699,
+        "hit": 4487680,
+        "miss": 1999019,
+        "output": 141993,
+        "requests": 124,
+        "usage_complete": 124,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 1.12982664,
+        "timestamp_priced_cost_usd": 0.56491332,
+        "cache_hit_rate": 0.6918280006517953,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": true,
+        "interruption_or_retry_may_hide_usage": true
+      },
+      "summary_usage": {
+        "input": 241625,
+        "hit": 48000,
+        "miss": 193625,
+        "output": 64808,
+        "requests": 18,
+        "usage_complete": 18,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.17141356,
+        "timestamp_priced_cost_usd": 0.08570678,
+        "cache_hit_rate": 0.19865494050698396,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 1,
+      "compaction_triggers": 4,
+      "compaction_failures": [
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": "30185ca1266c403481d6f2f59033b7b3",
+          "covered_start_position": 1,
+          "covered_end_position": 105,
+          "requested_end_position": 91,
+          "previous_end_position": 45,
+          "messages_compacted": 105,
+          "summary_tokens": 0,
+          "input_tokens": 45999,
+          "output_tokens": 18639,
+          "source_chars": 199183,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 4,
+          "duration_ms": 70188.12832504045,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 5729 > 4000",
+          "error_class": "unknown",
+          "operation_id": "5f538cf7612244248dc5408dbacf2935",
+          "tail_target_end_position": 91,
+          "selected_end_position": 105,
+          "reserved_after_tokens": 39487
+        },
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": "30185ca1266c403481d6f2f59033b7b3",
+          "covered_start_position": 1,
+          "covered_end_position": 173,
+          "requested_end_position": 159,
+          "previous_end_position": 45,
+          "messages_compacted": 173,
+          "summary_tokens": 0,
+          "input_tokens": 45182,
+          "output_tokens": 17316,
+          "source_chars": 299435,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 4,
+          "duration_ms": 68717.19848999055,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 5479 > 4000",
+          "error_class": "unknown",
+          "operation_id": "44acf1d115454fae984851e25f02d8a0",
+          "tail_target_end_position": 159,
+          "selected_end_position": 173,
+          "reserved_after_tokens": 39265
+        },
+        {
+          "strategy": "b",
+          "compacted": false,
+          "trigger": "strategy:b",
+          "compaction_id": null,
+          "parent_id": "30185ca1266c403481d6f2f59033b7b3",
+          "covered_start_position": 1,
+          "covered_end_position": 187,
+          "requested_end_position": 175,
+          "previous_end_position": 45,
+          "messages_compacted": 187,
+          "summary_tokens": 0,
+          "input_tokens": 34260,
+          "output_tokens": 15836,
+          "source_chars": 328686,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 3,
+          "duration_ms": 59413.734986039344,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 5436 > 4000",
+          "error_class": "unknown",
+          "operation_id": "ca4bdc64f128459d958f06f320778f70",
+          "tail_target_end_position": 175,
+          "selected_end_position": 187,
+          "reserved_after_tokens": 39301
+        }
+      ],
+      "summary_request_failures": [
+        {
+          "phase": "b_merge",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5587 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            105
+          ]
+        },
+        {
+          "phase": "b_merge",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5729 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            105
+          ]
+        },
+        {
+          "phase": "b_merge",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5719 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            105
+          ]
+        },
+        {
+          "phase": "b_merge",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5479 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            105
+          ]
+        },
+        {
+          "phase": "b_merge",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5456 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            105
+          ]
+        },
+        {
+          "phase": "b_merge",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5436 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            105
+          ]
+        }
+      ],
+      "stagnation": {
+        "tool_calls": 111,
+        "distinct_call_signatures": 109,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "ls",
+              "-la",
+              "/app/"
+            ]
+          },
+          "count": 2,
+          "first_step": 1
+        },
+        "dominant_successful_results": 2,
+        "dominant_result_context_refs": {
+          "blob:c35179a814d790cf3ba7f49aa320cba1d67d6a34f5abff22aa8a97e9c6e99f0b": 1,
+          "blob:71c8212d11eed70a1455148af093e894fd94c93bd701f646ffaf7a9a8bb94f66": 1
+        },
+        "dominant_distinct_process_ids": 2,
+        "progress_kinds": {
+          "weak": 91,
+          "none": 8,
+          "waiting": 5,
+          "strong": 1
+        },
+        "progress_actions": {
+          "continue": 104,
+          "warn": 1
+        },
+        "max_no_progress_steps": 2,
+        "first_publication_step": 36
+      },
+      "main_output_peak": 2370,
+      "model_output_limit_events": [],
+      "captured_source": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/live/b/mystery.c",
+        "sha256": "042365c3720093efffd5dd8558dc24318385e1112429e2d8dc0d3b318a182fbe"
+      }
+    },
+    {
+      "strategy": "a_fallback",
+      "repetition_index": 1,
+      "manifest_sha256": "1c8a7b7084fc573995d8587db88b2294799c103022dba90272aae1a58e1528cc",
+      "events_sha256": "54aa504bfa2ab34e5115738e28ca2cbbc6d027959681aba3fd05e5cb5a5d62de",
+      "database": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/jobs/a_fallback/035880d7ef5554b217e53a75ce5e87e4__ZLHTGFL/agent/trace/state.db",
+        "sha256": "27f5a0382a99edbf0b66096baf492d20a0cb46a7fc69ac000f6356793e4d1f34"
+      },
+      "official_success": true,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789232686.057301,
+        "stop": 1789232700.4622307
+      },
+      "exception": null,
+      "status": "completed",
+      "termination_reason": null,
+      "steps": 105,
+      "agent_minutes": 16.923007016666666,
+      "trial_minutes": 19.568692316666667,
+      "totals": {
+        "input": 5768367,
+        "hit": 5295360,
+        "miss": 473007,
+        "output": 170223,
+        "requests": 113,
+        "usage_complete": 113,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.5069524799999999,
+        "timestamp_priced_cost_usd": 0.25347623999999996,
+        "cache_hit_rate": 0.9179998429364844,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 520497,
+        "hit": 350976,
+        "miss": 169521,
+        "output": 46287,
+        "requests": 8,
+        "usage_complete": 8,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.140601744,
+        "timestamp_priced_cost_usd": 0.070300872,
+        "cache_hit_rate": 0.6743093620136139,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 4,
+      "compaction_triggers": 5,
+      "compaction_failures": [
+        {
+          "strategy": "a_fallback",
+          "compacted": false,
+          "trigger": "strategy:a_fallback",
+          "compaction_id": null,
+          "parent_id": "4c3b3fc96de24d6bab0e3f13aa90e9ff",
+          "covered_start_position": 1,
+          "covered_end_position": 164,
+          "requested_end_position": 150,
+          "previous_end_position": 130,
+          "messages_compacted": 164,
+          "summary_tokens": 0,
+          "input_tokens": 123098,
+          "output_tokens": 16471,
+          "source_chars": 482936,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 2,
+          "duration_ms": 62037.184487009654,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 5429 > 4000",
+          "error_class": "unknown",
+          "operation_id": "aa5f27170ecd4172aaaae34cadbef872",
+          "tail_target_end_position": 150,
+          "selected_end_position": 164,
+          "reserved_after_tokens": 38740,
+          "prefix_sha256": "4d573085c416631a320f11693fcaa10437dad3a4cd0caa053096ba7331fdc4f4",
+          "prefix_failure": "上下文摘要超过预算: 5623 > 4000"
+        }
+      ],
+      "summary_request_failures": [
+        {
+          "phase": "a_prefix",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4223 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            92
+          ]
+        },
+        {
+          "phase": "a_prefix",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5101 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            130
+          ]
+        },
+        {
+          "phase": "a_prefix",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5623 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            164
+          ]
+        },
+        {
+          "phase": "a_isolated",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5429 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            164
+          ]
+        }
+      ],
+      "stagnation": {
+        "tool_calls": 107,
+        "distinct_call_signatures": 104,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "ls",
+              "-la",
+              "/app/"
+            ]
+          },
+          "count": 2,
+          "first_step": 1
+        },
+        "dominant_successful_results": 2,
+        "dominant_result_context_refs": {
+          "blob:24263ef3f102a578704c1757c1b7026b93d4722c31d3d06533d5914f5b594a6c": 1,
+          "blob:a2f8cd335380bfaacfcafece92baf515d28708d9e9c44fbdea82bfe4cef8b271": 1
+        },
+        "dominant_distinct_process_ids": 2,
+        "progress_kinds": {
+          "weak": 95,
+          "none": 7,
+          "strong": 1,
+          "waiting": 1
+        },
+        "progress_actions": {
+          "continue": 103,
+          "warn": 1
+        },
+        "max_no_progress_steps": 1,
+        "first_publication_step": 13
+      },
+      "main_output_peak": 32768,
+      "model_output_limit_events": [
+        {
+          "step": 6,
+          "phase": null,
+          "finish_reason": "length",
+          "tool_call_count": 1,
+          "turn_usage": {
+            "prompt_tokens": 14255,
+            "completion_tokens": 32768,
+            "total_tokens": 47023,
+            "prompt_tokens_details": {
+              "cached_tokens": 13824
+            },
+            "prompt_cache_hit_tokens": 13824,
+            "prompt_cache_miss_tokens": 431
+          }
+        }
+      ],
+      "captured_source": {
+        "path": "artifacts/context-strategy-flash-20260913/full-task/live/a_fallback/mystery.c",
+        "sha256": "0a793db6359812fd12d4734b1b3a57c06641a973cbc4991f068b0d8130f02e21"
+      }
+    },
+    {
+      "strategy": "a_fallback",
+      "repetition_index": 2,
+      "manifest_sha256": "857bbe732a93b9d19042898c2dc12025a03fadb5a8f4b357f93ade87a1152f3b",
+      "events_sha256": "24d15134f06b21bfbd7d1cf467e76be0c586f7cef81080ffe462e8e467969802",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/jobs/a_fallback/035880d7ef5554b217e53a75ce5e87e4__XKfEBi7/agent/trace/state.db",
+        "sha256": "6b274518ca4b818a3c62099c2834ce36df70924d57a4f6d9a25d69166082c39c"
+      },
+      "official_success": true,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789263624.4884946,
+        "stop": 1789263638.6908464
+      },
+      "exception": null,
+      "status": "completed",
+      "termination_reason": null,
+      "steps": 83,
+      "agent_minutes": 13.820346166666667,
+      "trial_minutes": 16.519153,
+      "totals": {
+        "input": 5120085,
+        "hit": 4383744,
+        "miss": 736341,
+        "output": 97082,
+        "requests": 87,
+        "usage_complete": 87,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.513510696,
+        "timestamp_priced_cost_usd": 0.256755348,
+        "cache_hit_rate": 0.8561857859781624,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 273040,
+        "hit": 211456,
+        "miss": 61584,
+        "output": 20759,
+        "requests": 4,
+        "usage_complete": 4,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.057459224,
+        "timestamp_priced_cost_usd": 0.028729612,
+        "cache_hit_rate": 0.7744506299443304,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 2,
+      "compaction_triggers": 3,
+      "compaction_failures": [
+        {
+          "strategy": "a_fallback",
+          "compacted": false,
+          "trigger": "strategy:a_fallback",
+          "compaction_id": null,
+          "parent_id": "068c1621a95a46a9a8cba2ccf8ed9ca0",
+          "covered_start_position": 1,
+          "covered_end_position": 101,
+          "requested_end_position": 91,
+          "previous_end_position": 63,
+          "messages_compacted": 101,
+          "summary_tokens": 0,
+          "input_tokens": 124519,
+          "output_tokens": 12795,
+          "source_chars": 287811,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 2,
+          "duration_ms": 50920.34164801589,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 4090 > 4000",
+          "error_class": "unknown",
+          "operation_id": "34b9218630614a1999e8ad0f00f2fe6a",
+          "tail_target_end_position": 91,
+          "selected_end_position": 101,
+          "reserved_after_tokens": 38407,
+          "prefix_sha256": "8f46eae803d790ef4345ef388476a6731ea2e0101457ced2c9707fd5be19434b",
+          "prefix_failure": "上下文摘要超过预算: 4407 > 4000"
+        }
+      ],
+      "summary_request_failures": [
+        {
+          "phase": "a_prefix",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4407 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            101
+          ]
+        },
+        {
+          "phase": "a_isolated",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4090 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            101
+          ]
+        }
+      ],
+      "stagnation": {
+        "tool_calls": 90,
+        "distinct_call_signatures": 86,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "ls",
+              "-la",
+              "/app/"
+            ]
+          },
+          "count": 2,
+          "first_step": 1
+        },
+        "dominant_successful_results": 2,
+        "dominant_result_context_refs": {
+          "blob:9492fe1819de78d806d9f85551692248620f60870625f92942996a14182aa688": 1,
+          "blob:6c229bff0ab74b6e5fe50eb024778ea719440f2cd5cda5ca57bccfe2bb12a08e": 1
+        },
+        "dominant_distinct_process_ids": 2,
+        "progress_kinds": {
+          "weak": 74,
+          "none": 3,
+          "strong": 4,
+          "waiting": 1
+        },
+        "progress_actions": {
+          "continue": 81,
+          "warn": 1
+        },
+        "max_no_progress_steps": 1,
+        "first_publication_step": 22
+      },
+      "main_output_peak": 5383,
+      "model_output_limit_events": [],
+      "captured_source": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-2/live/a_fallback/mystery.c",
+        "sha256": "b9e52d38b07500af90fb595868294d363b0150f2193e89760697648ed560f33e"
+      }
+    },
+    {
+      "strategy": "a_fallback",
+      "repetition_index": 3,
+      "manifest_sha256": "ce2e8a2cdd5d190c020dbfb4af4a2ce31a29b950b26a33422f151c62caa44b3c",
+      "events_sha256": "b78eb6a25902e3ac3ef92f2be1dded49b6bfcbd8afea4aca367eecbbea776518",
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/a_fallback/035880d7ef5554b217e53a75ce5e87e4__qD3bLoB/agent/trace/state.db",
+        "sha256": "ffda342609471809a70d5e3ea2bb592c93131db9a549046410834e9e2b78731b"
+      },
+      "official_success": true,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789278478.3190722,
+        "stop": 1789278492.8768246
+      },
+      "exception": null,
+      "status": "completed",
+      "termination_reason": null,
+      "steps": 151,
+      "agent_minutes": 20.4701321,
+      "trial_minutes": 23.132123850000003,
+      "totals": {
+        "input": 8313428,
+        "hit": 7661184,
+        "miss": 652244,
+        "output": 138645,
+        "requests": 161,
+        "usage_complete": 161,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.5772553359999998,
+        "timestamp_priced_cost_usd": 0.2886276679999999,
+        "cache_hit_rate": 0.9215433152244777,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false,
+        "interruption_or_retry_may_hide_usage": false
+      },
+      "summary_usage": {
+        "input": 704046,
+        "hit": 565632,
+        "miss": 138414,
+        "output": 47152,
+        "requests": 10,
+        "usage_complete": 10,
+        "usage_missing": 0,
+        "normalized_peak_cost_usd": 0.131061648,
+        "timestamp_priced_cost_usd": 0.065530824,
+        "cache_hit_rate": 0.8034020504342045,
+        "usage_coverage": 1.0,
+        "cost_is_lower_bound": false
+      },
+      "publications": 7,
+      "compaction_triggers": 8,
+      "compaction_failures": [
+        {
+          "strategy": "a_fallback",
+          "compacted": false,
+          "trigger": "strategy:a_fallback",
+          "compaction_id": null,
+          "parent_id": "3617715173f542f8b34bdf10364ac9f9",
+          "covered_start_position": 1,
+          "covered_end_position": 261,
+          "requested_end_position": 249,
+          "previous_end_position": 217,
+          "messages_compacted": 261,
+          "summary_tokens": 0,
+          "input_tokens": 128597,
+          "output_tokens": 14210,
+          "source_chars": 739771,
+          "summary_chars": 0,
+          "source_refs": [],
+          "rebuilt_from_raw": false,
+          "attempts": 0,
+          "repair_attempts": 0,
+          "condense_attempts": 0,
+          "transport_retries": 0,
+          "request_count": 2,
+          "duration_ms": 53711.6739830235,
+          "planned_input_tokens": 0,
+          "input_limit": 118784,
+          "reason": "_CandidateValidationError",
+          "error": "上下文摘要超过预算: 5292 > 4000",
+          "error_class": "unknown",
+          "operation_id": "926479af40ec4aa79706015ed3fd2b97",
+          "tail_target_end_position": 249,
+          "selected_end_position": 261,
+          "reserved_after_tokens": 39229,
+          "prefix_sha256": "90fbba1620d0e71b1fa956da0bfea84e54202da1b495087955592f8efca5a30e",
+          "prefix_failure": "上下文摘要超过预算: 4675 > 4000"
+        }
+      ],
+      "summary_request_failures": [
+        {
+          "phase": "a_prefix",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4442 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            217
+          ]
+        },
+        {
+          "phase": "a_prefix",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 4675 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            261
+          ]
+        },
+        {
+          "phase": "a_isolated",
+          "status": "failed",
+          "error": "上下文摘要超过预算: 5292 > 4000",
+          "finish_reason": "stop",
+          "source_range": [
+            1,
+            261
+          ]
+        }
+      ],
+      "stagnation": {
+        "tool_calls": 156,
+        "distinct_call_signatures": 127,
+        "dominant_command": {
+          "name": "run_command",
+          "arguments": {
+            "argv": [
+              "strings",
+              "-n",
+              "4",
+              "/app/mystery"
+            ]
+          },
+          "count": 30,
+          "first_step": 3
+        },
+        "dominant_successful_results": 30,
+        "dominant_result_context_refs": {
+          "blob:d15ae6d7725baa2962fabd99b8f418be1b9ef5909e280497ee68101ea08a5fc4": 30
+        },
+        "dominant_distinct_process_ids": 30,
+        "progress_kinds": {
+          "weak": 144,
+          "none": 6
+        },
+        "progress_actions": {
+          "continue": 150
+        },
+        "max_no_progress_steps": 1,
+        "first_publication_step": 15
+      },
+      "main_output_peak": 4893,
+      "model_output_limit_events": [],
+      "captured_source": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/live/a_fallback/mystery.c",
+        "sha256": "8099e7a7ade3b46ca4406bde5d97fde09b4c1f2fee3c659004a54a9822f67fc3"
+      }
+    }
+  ],
+  "excluded_runs": [
+    {
+      "strategy": "current",
+      "repetition_index": 3,
+      "reason": "Multiple host sleep periods during this trial; wall time and provider-cache conditions contaminated.",
+      "original_manifest_sha256": "ce2e8a2cdd5d190c020dbfb4af4a2ce31a29b950b26a33422f151c62caa44b3c",
+      "replacement_manifest_sha256": "844087bb742ab937e9fa8c5a68d0814e0c4a5e689aded5630265eada354f3bf4",
+      "official_success": true,
+      "official_test_summary": {
+        "tests": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "pending": 0,
+        "other": 0,
+        "start": 1789275163.2978444,
+        "stop": 1789275177.671999
+      },
+      "totals": {
+        "input": 12997075,
+        "hit": 12078976,
+        "miss": 918099,
+        "output": 101678,
+        "requests": 251,
+        "usage_complete": 248,
+        "usage_missing": 3,
+        "normalized_peak_cost_usd": 0.7072841840000003,
+        "timestamp_priced_cost_usd": 0.35364209200000013,
+        "cache_hit_rate": 0.929361106248906,
+        "usage_coverage": 0.9880478087649402,
+        "cost_is_lower_bound": true,
+        "interruption_or_retry_may_hide_usage": true
+      },
+      "agent_seconds": 4542.489517,
+      "wall_seconds": 4703.323675,
+      "database": {
+        "path": "artifacts/context-strategy-flash-repeats-20260913/repeat-3/jobs/current/035880d7ef5554b217e53a75ce5e87e4__aKqf4TN/agent/trace/state.db",
+        "sha256": "15ff5541b67ed7ef99fab39e1c7b48f908198047a15cca3a748e0f544ab10685"
+      },
+      "events_sha256": "2b8433221f4006f06540ed1355494013a0f8e3975c99d21eb29b6902f5835ef2",
+      "stagnation": {
+        "tool_calls": 245,
+        "distinct_call_signatures": 157,
+        "dominant_command": {
+          "name": "run_shell",
+          "arguments": {
+            "script": "cd /tmp && objdump -d /app/mystery 2>/dev/null | grep -n \"402670\" | head -20"
+          },
+          "count": 49,
+          "first_step": 182
+        },
+        "dominant_successful_results": 49,
+        "dominant_result_context_refs": {
+          "blob:0d0f3efeb29bcfe3843a6c86c48dd3bff1e20752532d870ae4b571ca824c8ff1": 49
+        },
+        "dominant_distinct_process_ids": 49,
+        "progress_kinds": {
+          "weak": 220,
+          "none": 3,
+          "strong": 14,
+          "waiting": 3
+        },
+        "progress_actions": {
+          "continue": 238,
+          "warn": 2
+        },
+        "max_no_progress_steps": 1,
+        "first_publication_step": 29
+      },
+      "termination_reason": "max_steps"
+    }
+  ],
+  "notes": [
+    "Official task success is primary; low cost of failed early stops is not a win.",
+    "Cache rate is sum(cache_hit_tokens) / sum(prompt_tokens), not a mean of rates.",
+    "Unpriced requests remain unknown; cost distributions of lower bounds are flagged.",
+    "Pilot and follow-up are shown separately; one repeated task is not task generalization.",
+    "Total cost / observed successes includes failed runs; it is not an expected future cost.",
+    "Environmental exclusions remain in excluded_runs; replacement controls are checked."
+  ],
+  "source_reports": [
+    {
+      "path": "docs/data/context-strategy-flash-results.json",
+      "sha256": "c775010faf3aa4160d19b3a2b0b0922d55857240d82c877d8088b2c24730f802"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-repeat-2-results.json",
+      "sha256": "90e504f851cb665765e0b7a1203d02efc8c8755ba9e092d85ab7538e8f13981e"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-repeat-3-results.json",
+      "sha256": "c6fb4233156f4e9ba8904113ba1a6ede8dd565a97bdd3edfab921095ef01f762"
+    }
+  ],
+  "replacement_reports": [
+    {
+      "path": "docs/data/context-strategy-flash-current-replacement-results.json",
+      "sha256": "7ca45c7eb7c518a64c868b98e274f9e0b1ac8b9537f6eb900c06c8f2c7615de7"
+    }
+  ]
+}

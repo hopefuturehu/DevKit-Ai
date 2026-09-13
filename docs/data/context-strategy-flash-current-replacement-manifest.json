@@ -1,0 +1,85 @@
+{
+  "created_at": "2026-09-13T04:51:54.290434+00:00",
+  "revision": "99d70d8f611f7a8d6e0ca3c4836a8a3c5066ce2e",
+  "script_sha256": "fb8031a7bbb3f8eee1a98dfcd76d6adcdafdc035e9770e6cfded724bab7a14ca",
+  "task": "/Users/huyang/.cache/harbor/tasks/packages/terminal-bench/path-tracing-reverse/035880d7ef5554b217e53a75ce5e87e43193b7a44c30ad17226a6ab10fc11a6c",
+  "task_files": {
+    "README.md": "d08c1bd5061e8e14ce75bd326308013d84ce11305e30156168c50d23c339efa7",
+    "environment/Dockerfile": "35b7e409b40098d84a5ca88edb49d8be67ef7410e391dd36b2f89ddf916a3d8f",
+    "environment/orig.c": "26ce745d2921d8e1e9df3e162733a6cf5eceac5b9cb2ffa6a5ff5c4e4d049752",
+    "instruction.md": "03e4ef347c1b6bde7ad020b297571cf22c74cfb0434b399b267f3d87462e1176",
+    "solution/solve.sh": "3489e31c60b7ad7ea1c22035143b6d130cc864427db867234ae8c416b296a2d2",
+    "task.toml": "f609310c99bd5f379eea2711f4af8eca79b5bcd1178a034b2285b1171c031b5b",
+    "tests/test.sh": "a719dbb1ba7ae76df095e9d815941dfa4c55edaf11f173b9c3c3097afa838548",
+    "tests/test_outputs.py": "c4477b901887dcbc788eed138f30e32675a8c14710410733009071c11aa783c7"
+  },
+  "wheel": {
+    "path": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-20260913/full-task/wheel/kunpeng_cli_agent-0.1.0-py3-none-any.whl",
+    "sha256": "d36fd61bd44499567262faeb50c834dc58e7768b471d72a1dc4035ad6963ddd2"
+  },
+  "tokenizer": {
+    "path": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-20260913/full-task/tokenizer.json",
+    "sha256": "8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf"
+  },
+  "configs": {
+    "current": {
+      "path": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-20260913/full-task/current.toml",
+      "sha256": "61d086c2c72f8f2a474d286f1b4910939b9d7ee48683343505673632632e541c"
+    },
+    "a": {
+      "path": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-20260913/full-task/a.toml",
+      "sha256": "6170bcac46abd4404223ce4aff9bcf32f9370f1831cd0c2fd480b45d3e6ee676"
+    },
+    "b": {
+      "path": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-20260913/full-task/b.toml",
+      "sha256": "f30ee030f942087ff473dcbe88aca8a88655106b63f38f953fd7cd94835bdddb"
+    },
+    "a_fallback": {
+      "path": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-20260913/full-task/a_fallback.toml",
+      "sha256": "1a391b5872febf02e5043e628d47fa7254a90c41fb8d50b479449ea617ce33dd"
+    }
+  },
+  "order": [
+    "current"
+  ],
+  "seed": null,
+  "repeats": 1,
+  "concurrency": 1,
+  "max_steps": 240,
+  "worker_wall_seconds": 1740,
+  "max_cost_usd_conservative_per_run": 10,
+  "model": "deepseek-v4-flash",
+  "main_max_output_tokens": 32768,
+  "summary_max_output_tokens": 8192,
+  "model_host": "api.deepseek.com",
+  "pricing": {
+    "source": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "as_of": "2026-09-09",
+    "usd_per_million_peak": {
+      "hit": 0.014,
+      "miss": 0.44,
+      "output": 1.32
+    },
+    "note": "Frozen comparison rates, not current prices or an invoice.",
+    "off_peak_multiplier": 0.5,
+    "peak_utc": "Monday-Friday [01:00,04:00), [06:00,10:00)"
+  },
+  "limits": [
+    "One task and one repeat: pilot, not a statistically reliable strategy ranking.",
+    "No artificial cache warmup; cross-run provider cache effects cannot be eliminated.",
+    "Skills are disabled by the existing Harbor worker; tested separately in regression.",
+    "All groups use explicit thinking=disabled; enabled reasoning is outside this pilot.",
+    "Missing usage, including cancelled background calls, has unknown cost, not zero."
+  ],
+  "baseline_manifest": {
+    "path": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-20260913/full-task/manifest.json",
+    "sha256": "1c8a7b7084fc573995d8587db88b2294799c103022dba90272aae1a58e1528cc"
+  },
+  "repetition_index": 3,
+  "order_method": "Single CURRENT replacement after the original eight follow-up trials.",
+  "repeat_script_sha256": "b110d2d4bad4e6db9de737feaf786abdebfc7e4865627e52cd3e2b68c5808bcc",
+  "replacement_for": "/Users/huyang/codespace/bot/artifacts/context-strategy-flash-repeats-20260913/repeat-3/manifest.json",
+  "replacement_reason": "Multiple host sleep periods during this trial; wall time and provider-cache conditions contaminated.",
+  "replacement_for_manifest_sha256": "ce2e8a2cdd5d190c020dbfb4af4a2ce31a29b950b26a33422f151c62caa44b3c",
+  "exclusion_decision_sha256": "fb47f95cfef755c68f1ad83e513ec322087cd1b79f35b8673add5e4a64f27fc8"
+}

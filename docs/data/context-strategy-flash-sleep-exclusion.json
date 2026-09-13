@@ -1,0 +1,82 @@
+{
+  "recorded_at": "2026-09-13T04:51:54.283601+00:00",
+  "excluded_repetition": 3,
+  "excluded_strategy": "current",
+  "reason": "Multiple host sleep periods during this trial; wall time and provider-cache conditions contaminated.",
+  "decision_before_harbor_trial_ended": true,
+  "observed_event_sha256": "2b8433221f4006f06540ed1355494013a0f8e3975c99d21eb29b6902f5835ef2",
+  "host_sleep_windows": [
+    {
+      "start_utc": "2026-09-13T03:40:57+00:00",
+      "end_utc": "2026-09-13T03:46:46+00:00",
+      "reported_seconds": 349
+    },
+    {
+      "start_utc": "2026-09-13T03:48:06+00:00",
+      "end_utc": "2026-09-13T03:48:10+00:00",
+      "reported_seconds": 4
+    },
+    {
+      "start_utc": "2026-09-13T03:48:32+00:00",
+      "end_utc": "2026-09-13T03:48:33+00:00",
+      "reported_seconds": 1
+    },
+    {
+      "start_utc": "2026-09-13T03:48:35+00:00",
+      "end_utc": "2026-09-13T03:48:43+00:00",
+      "reported_seconds": 8
+    },
+    {
+      "start_utc": "2026-09-13T03:48:48+00:00",
+      "end_utc": "2026-09-13T03:48:53+00:00",
+      "reported_seconds": 5
+    },
+    {
+      "start_utc": "2026-09-13T03:49:10+00:00",
+      "end_utc": "2026-09-13T03:50:23+00:00",
+      "reported_seconds": 73
+    },
+    {
+      "start_utc": "2026-09-13T03:50:28+00:00",
+      "end_utc": "2026-09-13T03:50:35+00:00",
+      "reported_seconds": 7
+    },
+    {
+      "start_utc": "2026-09-13T03:50:43+00:00",
+      "end_utc": "2026-09-13T03:51:17+00:00",
+      "reported_seconds": 34
+    },
+    {
+      "start_utc": "2026-09-13T04:03:47+00:00",
+      "end_utc": "2026-09-13T04:11:11+00:00",
+      "reported_seconds": 444
+    },
+    {
+      "start_utc": "2026-09-13T04:13:37+00:00",
+      "end_utc": "2026-09-13T04:25:39+00:00",
+      "reported_seconds": 722
+    },
+    {
+      "start_utc": "2026-09-13T04:27:00+00:00",
+      "end_utc": "2026-09-13T04:42:17+00:00",
+      "reported_seconds": 917
+    },
+    {
+      "start_utc": "2026-09-13T04:42:58+00:00",
+      "end_utc": "2026-09-13T04:45:28+00:00",
+      "reported_seconds": 150
+    },
+    {
+      "start_utc": "2026-09-13T04:45:33+00:00",
+      "end_utc": "2026-09-13T04:48:40+00:00",
+      "reported_seconds": 187
+    }
+  ],
+  "reported_sleep_seconds": 2901,
+  "replacement_order": "After both remaining original trials; same frozen runtime and budgets.",
+  "keep_original_result": true,
+  "temporary_idle_sleep_prevention": {
+    "command": "caffeinate -i -w 7068",
+    "started_before_this_record": true
+  }
+}

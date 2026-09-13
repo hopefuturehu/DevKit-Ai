@@ -148,7 +148,7 @@ def prepare(
     print(json.dumps({"prepared": str(output), "order": order}, ensure_ascii=False), flush=True)
 
 
-def run(root: Path, output: Path) -> None:
+def run(root: Path, output: Path, *, stop_path: Path | None = None) -> None:
     manifest = json.loads((output / "manifest.json").read_text())
     for asset in [manifest["wheel"], manifest["tokenizer"], *manifest["configs"].values()]:
         if digest(Path(asset["path"])) != asset["sha256"]:
@@ -164,7 +164,7 @@ def run(root: Path, output: Path) -> None:
     if uvx is None:
         raise ValueError("uvx missing")
     for strategy in manifest["order"]:
-        if (output / "STOP").exists():
+        if (output / "STOP").exists() or (stop_path is not None and stop_path.exists()):
             print("STOP present: no further trials will start.", flush=True)
             return
         status_path = output / f"{strategy}-status.json"
