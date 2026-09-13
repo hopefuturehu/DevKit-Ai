@@ -790,8 +790,8 @@ recent_conversation_tokens = 20000
 compaction_min_recent_user_turns = 3
 # 仅旧 current/B 策略使用；双路径始终使用当前主模型
 # compaction_model = ""
+# 摘要长度软目标；发布时仍验证生成完整性与恢复后的总输入预算
 compaction_summary_target_tokens = 3000
-compaction_summary_tokens = 4000
 compaction_max_output_tokens = 8192
 compaction_source_refs = "range"
 # 双路径两次摘要的 thinking 都跟随 model.thinking；未设置时沿用供应商默认值

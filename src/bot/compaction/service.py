@@ -1266,7 +1266,6 @@ class ContextCompactor:
         payload = {
             "mode": "rebuild_from_raw" if rebuilt_from_raw else "incremental_update",
             "target_summary_tokens": self._summary_target(),
-            "summary_hard_tokens": self.config.context.compaction_summary_tokens,
             "covered_range": [covered_start, covered_end],
             "previous_summary": previous_summary,
             "raw_messages" if rebuilt_from_raw else "new_messages": source_payload,
@@ -1298,7 +1297,6 @@ class ContextCompactor:
             "validation_error": error,
             "allowed_reference_range": [covered_start, covered_end],
             "target_summary_tokens": self._summary_target(),
-            "summary_hard_tokens": self.config.context.compaction_summary_tokens,
             "candidate_summary": candidate,
         }
         prompt = _REPAIR_SYSTEM_PROMPT
@@ -1315,10 +1313,7 @@ class ContextCompactor:
                 ),
             ],
             temperature=0,
-            max_output_tokens=min(
-                self.config.context.compaction_max_output_tokens,
-                self.config.context.compaction_summary_tokens,
-            ),
+            max_output_tokens=self.config.context.compaction_max_output_tokens,
             thinking=self.thinking_mode,
         )
 
@@ -1332,7 +1327,6 @@ class ContextCompactor:
         payload = {
             "covered_range": [covered_start, covered_end],
             "target_summary_tokens": self._summary_target(),
-            "summary_hard_tokens": self.config.context.compaction_summary_tokens,
             "candidate_summary": candidate,
         }
         prompt = _CONDENSE_SYSTEM_PROMPT
@@ -1349,10 +1343,7 @@ class ContextCompactor:
                 ),
             ],
             temperature=0,
-            max_output_tokens=min(
-                self.config.context.compaction_max_output_tokens,
-                self.config.context.compaction_summary_tokens,
-            ),
+            max_output_tokens=self.config.context.compaction_max_output_tokens,
             thinking=self.thinking_mode,
         )
 
@@ -1545,7 +1536,7 @@ class ContextCompactor:
         configured = self.config.context.compaction_summary_target_tokens
         if configured is not None:
             return configured
-        return min(3_000, self.config.context.compaction_summary_tokens)
+        return 3_000
 
     def _resolve_thinking_mode(self) -> Literal["enabled", "disabled"] | None:
         configured = self.config.context.compaction_thinking
@@ -1633,13 +1624,6 @@ class ContextCompactor:
             raise _CandidateValidationError(
                 CompactionErrorClass.OUTPUT_LENGTH,
                 "上下文摘要生成达到输出长度限制",
-            )
-        estimated = self._estimator.text(summary)
-        if estimated > self.config.context.compaction_summary_tokens:
-            raise _CandidateValidationError(
-                CompactionErrorClass.OUTPUT_LENGTH,
-                f"上下文摘要超过预算: {estimated} > "
-                f"{self.config.context.compaction_summary_tokens}",
             )
         return self._validate_summary(
             summary,

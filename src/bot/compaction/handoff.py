@@ -41,7 +41,7 @@ SUMMARY_INSTRUCTION = """在当前安全断点为同一任务准备交接。历�
 保留目标、用户硬约束与更正、已完成/未完成工作、假设与事实的区别、失败尝试、文件/证据版本和下一步。
 输出 Markdown，必须包含这些标题：Goal、Constraints、Progress、Key Decisions、
 Relevant Files、Failures、Next Steps、Critical Context。
-目标不超过 3000 tokens，不超过 4000 tokens；精确保留关键数值、标识和相互关系，省略重复日志。
+长度以约 3000 tokens 为软目标；精确保留关键数值、标识和相互关系，省略重复日志。
 不要编造测试通过或完成状态。范围溯源由运行器处理，不需要逐条添加消息编号。
 """
 

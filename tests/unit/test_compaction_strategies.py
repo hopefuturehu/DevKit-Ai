@@ -346,6 +346,56 @@ def fallback_engine(tmp_path, outcomes):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("outcomes", "adopted_path"),
+    [(["ok"], "prefix"), (["tool", "ok"], "isolated")],
+)
+async def test_long_complete_summary_publishes_without_body_limit(tmp_path, outcomes, adopted_path):
+    instance, provider, store, _ = fallback_engine(tmp_path, outcomes)
+    provider.summary = (SUMMARY + "\n- " + "verified evidence " * 1400).strip()
+    instance.config.context.compaction_low_water_tokens = 12000
+    try:
+        assert instance.compactor._estimator.text(provider.summary) > 4000
+        before = instance.compactor._digest(store.load_positioned_messages(instance.session_id))
+        result = await instance.compact(12, [1])
+        assert result.compacted, result.error
+        assert result.request_count == len(outcomes)
+        assert instance.last_metrics["adopted_path"] == adopted_path
+        active = instance.compactor.projection(instance.session_id)["compaction"]
+        assert active["summary_text"] == provider.summary
+        assert active["summary_token_estimate"] > 4000
+        assert (
+            instance.compactor._digest(store.load_positioned_messages(instance.session_id))
+            == before
+        )
+    finally:
+        await instance.close()
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["length", "full_request_budget"])
+async def test_long_summary_still_requires_complete_output_and_fitting_request(tmp_path, failure):
+    outcomes = ["length", "length"] if failure == "length" else ["ok", "ok"]
+    instance, provider, store, _ = fallback_engine(tmp_path, outcomes)
+    provider.summary = (SUMMARY + "\n- " + "verified evidence " * 1400).strip()
+    if failure == "length":
+        instance.config.context.compaction_low_water_tokens = 12000
+    try:
+        assert instance.compactor._estimator.text(provider.summary) > 4000
+        result = await instance.compact(12, [1])
+        assert not result.compacted
+        assert result.request_count == 2
+        expected = "达到输出长度限制" if failure == "length" else "low_water_not_met"
+        assert expected in result.error
+        assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
+        assert not store.list_context_compactions(instance.session_id)
+    finally:
+        await instance.close()
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_prefix_success_preserves_32k_and_uses_only_one_request(tmp_path):
     instance, provider, store, _ = fallback_engine(tmp_path, ["ok"])
     try:

@@ -138,8 +138,8 @@ tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
 tool_result_head_chars = 6000
 tool_result_tail_chars = 2000
+# 摘要长度软目标；完整摘要不会仅因超过该目标而被拒绝
 compaction_summary_target_tokens = 3000
-compaction_summary_tokens = 4000
 compaction_max_output_tokens = 8192
 compaction_max_input_tokens = 60000
 compaction_input_target_ratio = 0.8

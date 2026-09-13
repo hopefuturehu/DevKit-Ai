@@ -155,7 +155,12 @@ class ContextConfig(StrictModel):
     tool_result_tail_chars: int = Field(default=2_000, ge=0)
     compaction_model: str | None = None
     compaction_summary_target_tokens: int | None = Field(default=None, ge=512)
-    compaction_summary_tokens: int = Field(default=4_000, ge=512)
+    # Accepted for old configs/replay scripts; no longer limits summary publication.
+    compaction_summary_tokens: int = Field(
+        default=4_000,
+        ge=512,
+        description="旧配置兼容字段，已停用；使用 compaction_summary_target_tokens 设置软目标",
+    )
     compaction_max_output_tokens: int = Field(default=8_192, ge=512)
     compaction_max_input_tokens: int = Field(default=60_000, ge=2_048)
     compaction_input_target_ratio: float = Field(default=0.8, gt=0, le=1)
@@ -261,14 +266,6 @@ class AppConfig(StrictModel):
             raise ValueError(
                 "context 的 compaction output/protocol/safety reserve 总和必须小于 "
                 "model.context_window_tokens"
-            )
-        if (
-            self.context.compaction_summary_target_tokens is not None
-            and self.context.compaction_summary_target_tokens
-            > self.context.compaction_summary_tokens
-        ):
-            raise ValueError(
-                "context.compaction_summary_target_tokens 不能大于 compaction_summary_tokens"
             )
         if self.subagents.max_concurrent > self.subagents.max_queued:
             raise ValueError("subagents.max_concurrent 不能大于 max_queued")

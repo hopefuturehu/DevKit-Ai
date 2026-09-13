@@ -218,7 +218,7 @@ def test_summary_annotation_compatibility_still_requires_a_real_known_heading(tm
         store.close()
 
 
-@pytest.mark.parametrize("problem", ["empty", "missing", "length", "budget", "source"])
+@pytest.mark.parametrize("problem", ["empty", "missing", "length", "max_tokens", "source"])
 def test_heading_compatibility_does_not_bypass_candidate_guards(tmp_path, problem):
     compactor, _, store, _ = make_compactor(tmp_path)
     try:
@@ -229,14 +229,12 @@ def test_heading_compatibility_does_not_bypass_candidate_guards(tmp_path, proble
             summary = ""
         elif problem == "missing":
             summary = summary.replace("# Failures", "# Other")
-        elif problem == "budget":
-            summary += "\n" + "evidence " * 10_000
         elif problem == "source":
             summary += "\n- 越界证据 [m:5]"
         with pytest.raises(ValueError):
             compactor._validate_candidate(
                 summary,
-                finish_reason="length" if problem == "length" else "stop",
+                finish_reason=problem if problem in {"length", "max_tokens"} else "stop",
                 covered_start=1,
                 covered_end=4,
             )
@@ -637,6 +635,35 @@ async def test_length_failure_condenses_candidate_without_resending_source(
         "condense",
     ]
     store.close()
+
+
+@pytest.mark.asyncio
+async def test_legacy_compactor_publishes_complete_long_summary_without_condense(tmp_path):
+    compactor, _, store, _ = make_compactor(tmp_path)
+    compactor.config.context.compaction_max_output_tokens = 8192
+    summary = (CompactionProvider._summary(1, 1) + "\n- " + "verified evidence " * 1400).strip()
+    provider = SequenceCompactionProvider([summary])
+    compactor.provider = provider
+    session_id = store.create_session(tmp_path)
+    store.append_message(session_id, "run", ChatMessage(role=Role.USER, content="目标"))
+    try:
+        assert compactor._estimator.text(summary) > 4000
+        result = await compactor.compact(session_id, through_position=1, trigger="test")
+        assert result.compacted, result.error
+        assert result.request_count == 1 and result.condense_attempts == 0
+        active = compactor.projection(session_id)["compaction"]
+        assert active["summary_text"] == summary
+        payload = json.loads(provider.requests[0].messages[-1].content)
+        assert payload["target_summary_tokens"] == 3000
+        assert "summary_hard_tokens" not in payload
+        for request in (
+            compactor._repair_request(summary, error="format", covered_start=1, covered_end=1),
+            compactor._condense_request(summary, covered_start=1, covered_end=1),
+        ):
+            assert "summary_hard_tokens" not in json.loads(request.messages[-1].content)
+            assert request.max_output_tokens == 8192
+    finally:
+        store.close()
 
 
 @pytest.mark.asyncio

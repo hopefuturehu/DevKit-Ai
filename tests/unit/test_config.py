@@ -185,16 +185,16 @@ def test_execution_has_no_fixed_global_limit_by_default() -> None:
     assert config.context.compaction_thinking == "auto"
 
 
-def test_compaction_summary_target_cannot_exceed_visible_hard_limit() -> None:
-    with pytest.raises(ValueError, match="summary_target_tokens"):
-        AppConfig.model_validate(
-            {
-                "context": {
-                    "compaction_summary_target_tokens": 4_001,
-                    "compaction_summary_tokens": 4_000,
-                }
+def test_compaction_summary_target_accepts_legacy_body_limit_config() -> None:
+    config = AppConfig.model_validate(
+        {
+            "context": {
+                "compaction_summary_target_tokens": 5_000,
+                "compaction_summary_tokens": 4_000,
             }
-        )
+        }
+    )
+    assert config.context.compaction_summary_target_tokens == 5_000
 
 
 def test_progress_thresholds_must_be_ordered() -> None:
