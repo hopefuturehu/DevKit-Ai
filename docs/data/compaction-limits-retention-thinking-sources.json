@@ -1,0 +1,312 @@
+{
+  "checked_date": "2026-09-13",
+  "method": "Read-only source inspection, official documentation lookup, and reuse of existing bot experiment data. No new model calls or runtime changes.",
+  "bot_commit_before_report": "73845bd9185b62c3b51c6059485364496b65b85c",
+  "source_scope": "Pinned snapshots; not a claim that every deployed/latest release has the same behavior.",
+  "sources": [
+    {
+      "repo": "openai/codex",
+      "commit": "02a8f038b87ad34d4a1dc5058eda26972ed7aa6c",
+      "path": "codex-rs/codex-api/src/sse/responses.rs",
+      "local": "artifacts/compaction-limits-comparison-20260913/openai__codex__codex-rs__codex-api__src__sse__responses.rs",
+      "sha256": "38c1fbcfee732d1b9c3f8990cccf08f2043f4c8526143b939c11e318c57f6f01",
+      "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/codex-api/src/sse/responses.rs"
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "commit": "45a6101f36576367359c171cd5820ee76a3d047b",
+      "path": "agent/auxiliary_client.py",
+      "local": "artifacts/compaction-limits-comparison-20260913/NousResearch__hermes-agent__agent__auxiliary_client.py",
+      "sha256": "becbb3f3a6b9b847b95791e0c43d2689d5f07726f75b106f13afad8d45c5c9c7",
+      "url": "https://github.com/NousResearch/hermes-agent/blob/45a6101f36576367359c171cd5820ee76a3d047b/agent/auxiliary_client.py"
+    },
+    {
+      "repo": "earendil-works/pi",
+      "commit": "71dca871bc80b6bc97be37f0ca3189399d651fff",
+      "path": "packages/coding-agent/src/core/compaction/utils.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/earendil-works__pi__packages__coding-agent__src__core__compaction__utils.ts",
+      "sha256": "6e9d2c0b6076d5cac5fd444e5381a1fc01da5acf30eb776319a6b562fc42a02c",
+      "url": "https://github.com/earendil-works/pi/blob/71dca871bc80b6bc97be37f0ca3189399d651fff/packages/coding-agent/src/core/compaction/utils.ts"
+    },
+    {
+      "repo": "earendil-works/pi",
+      "commit": "71dca871bc80b6bc97be37f0ca3189399d651fff",
+      "path": "packages/coding-agent/src/core/agent-session.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/earendil-works__pi__packages__coding-agent__src__core__agent-session.ts",
+      "sha256": "17116255610ad2a3f3a7f6870a12b14b993ace65fbfa461c4a43d0ad9a013237",
+      "url": "https://github.com/earendil-works/pi/blob/71dca871bc80b6bc97be37f0ca3189399d651fff/packages/coding-agent/src/core/agent-session.ts"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "path": "packages/compaction/compaction-basic/src/config.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/deepseek-ai__deepseek-harness__packages__compaction__compaction-basic__src__config.ts",
+      "sha256": "d4d63fe3a6e7b3d00c91aafcba86cf5a9f5417739c406b26d87dac470f738681",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/compaction/compaction-basic/src/config.ts"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "path": "packages/compaction/compaction-basic/src/index.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/deepseek-ai__deepseek-harness__packages__compaction__compaction-basic__src__index.ts",
+      "sha256": "f824fc6f586c6ec7ae26442656d789accd0b5124924886e91b480bc587b1491d",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/compaction/compaction-basic/src/index.ts"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "path": "packages/compaction/compaction-basic/src/region.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/deepseek-ai__deepseek-harness__packages__compaction__compaction-basic__src__region.ts",
+      "sha256": "b394cf3b3eaebb3b9dc220a5b58020f23031c56023e3b015e9928246cd28c2fb",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/compaction/compaction-basic/src/region.ts"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "path": "packages/compaction/compaction-tool-result-pruner/src/config.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/deepseek-ai__deepseek-harness__packages__compaction__compaction-tool-result-pruner__src__config.ts",
+      "sha256": "8538c8b2b3bd7b2b085a86119b694f7934e308a5c4b7f4406e963b190b6eaa98",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/compaction/compaction-tool-result-pruner/src/config.ts"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "path": "packages/compaction/compaction-tool-result-pruner/src/index.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/deepseek-ai__deepseek-harness__packages__compaction__compaction-tool-result-pruner__src__index.ts",
+      "sha256": "b51443d69d06c99983acd76855660807d5a549af75034a9dc3fb5c60aaae5c9e",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/compaction/compaction-tool-result-pruner/src/index.ts"
+    },
+    {
+      "repo": "openai/codex",
+      "commit": "02a8f038b87ad34d4a1dc5058eda26972ed7aa6c",
+      "path": "codex-rs/core/src/session/reasoning_effort.rs",
+      "local": "artifacts/compaction-limits-comparison-20260913/openai__codex__codex-rs__core__src__session__reasoning_effort.rs",
+      "sha256": "6db58fd803169ada192c884628e66245541c048cfa52f8329ce05b840ef3279c",
+      "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/session/reasoning_effort.rs"
+    },
+    {
+      "repo": "openai/codex",
+      "commit": "02a8f038b87ad34d4a1dc5058eda26972ed7aa6c",
+      "path": "codex-rs/core/src/compact_remote_history.rs",
+      "local": "artifacts/compaction-limits-comparison-20260913/openai__codex__codex-rs__core__src__compact_remote_history.rs",
+      "sha256": "05ea05de351fccf0db0896cb7999c6c80d3d5db887b7329c5fecefb6b6f091d7",
+      "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact_remote_history.rs"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/llm.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__llm.ts",
+      "sha256": "974e8bbab37e712bc58df24f76db9f3d66faf00929ad0782d3ca16db4451c2a7",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/llm.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/schema/options.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__schema__options.ts",
+      "sha256": "9ec1576ea68eeba00a85586a7671e3f49003a77af36032d6a3137f317a8103e0",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/schema/options.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/protocols/openai-chat.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__protocols__openai-chat.ts",
+      "sha256": "dd086d7ae33596a876256507dede7f5b9705aafb7cd4502155e9209bfdcc9148",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/protocols/openai-chat.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/protocols/anthropic-messages.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__protocols__anthropic-messages.ts",
+      "sha256": "7f9480cf92848569c0825726490582e1d627810fa46a58c3c474828cc65d0dd6",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/protocols/anthropic-messages.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/route/executor.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__route__executor.ts",
+      "sha256": "4482edc712c72c8c65a164b137223689e02e9672fbb64f0dcb42b3b1f80e08e0",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/route/executor.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/core/src/session/runner/llm.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__core__src__session__runner__llm.ts",
+      "sha256": "625134472e3c810fcf5b39f116950a5532bd24ae7ec0caa8b1c3198389fa5681",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/core/src/session/runner/llm.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/route/client.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__route__client.ts",
+      "sha256": "3daf129affd63941ca575f39b908bf2a6f528a0043854b730799850d89fc5541",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/route/client.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/protocols/utils/lifecycle.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__protocols__utils__lifecycle.ts",
+      "sha256": "14fa0bc933ff3a0010e45484287c0cbf8abf1bf4bc3b47e88b8eeef071cab519",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/protocols/utils/lifecycle.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/llm/src/protocols/utils/openai-options.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/anomalyco__opencode__packages__llm__src__protocols__utils__openai-options.ts",
+      "sha256": "dafb4c08cf29d903e0538faa5de23a477ea8a09733f371c9fc882e82868f91e6",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/llm/src/protocols/utils/openai-options.ts"
+    },
+    {
+      "repo": "earendil-works/pi",
+      "commit": "71dca871bc80b6bc97be37f0ca3189399d651fff",
+      "path": "packages/ai/src/api/simple-options.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/earendil-works__pi__packages__ai__src__api__simple-options.ts",
+      "sha256": "3a9ab7fa885d3a9c73a1aee8c8bf8bd7d205740edef0f0a5219714fd16e38e57",
+      "url": "https://github.com/earendil-works/pi/blob/71dca871bc80b6bc97be37f0ca3189399d651fff/packages/ai/src/api/simple-options.ts"
+    },
+    {
+      "repo": "earendil-works/pi",
+      "commit": "71dca871bc80b6bc97be37f0ca3189399d651fff",
+      "path": "packages/ai/src/api/anthropic-messages.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/earendil-works__pi__packages__ai__src__api__anthropic-messages.ts",
+      "sha256": "8e105cc5b2dd304547ed613b70de4740c4db93cee830dc452c2de945052b12b7",
+      "url": "https://github.com/earendil-works/pi/blob/71dca871bc80b6bc97be37f0ca3189399d651fff/packages/ai/src/api/anthropic-messages.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+      "path": "packages/core/src/session/compaction.ts",
+      "local": "artifacts/compaction-limits-comparison-20260913/opencode-core-compaction.ts",
+      "sha256": "35bc2da1578b6bb80a3c39c1d6c51f234f34ce6586dd4f9d230e2a31b257138d",
+      "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/core/src/session/compaction.ts"
+    },
+    {
+      "repo": "openai/codex",
+      "commit": "02a8f038b87ad34d4a1dc5058eda26972ed7aa6c",
+      "path": "codex-rs/core/src/compact.rs",
+      "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__compact.rs",
+      "sha256": "da4a0ab1ebc2f52c49d08d3d76a9dcec23bf7f85794f3f88a09854f4cddb2f23",
+      "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact.rs"
+    },
+    {
+      "repo": "openai/codex",
+      "commit": "02a8f038b87ad34d4a1dc5058eda26972ed7aa6c",
+      "path": "codex-rs/core/src/compact_remote_v2.rs",
+      "local": "artifacts/compaction-factuality-20260911/codex/codex-rs__core__src__compact_remote_v2.rs",
+      "sha256": "c5c268efb64c35d84f9c3922b4380f751ec2f010ae96a620c02c546454a62b8d",
+      "url": "https://github.com/openai/codex/blob/02a8f038b87ad34d4a1dc5058eda26972ed7aa6c/codex-rs/core/src/compact_remote_v2.rs"
+    },
+    {
+      "repo": "earendil-works/pi",
+      "commit": "71dca871bc80b6bc97be37f0ca3189399d651fff",
+      "path": "packages/coding-agent/src/core/compaction/compaction.ts",
+      "local": "artifacts/compaction-complexity-20260912/earendil-works__pi__packages__coding-agent__src__core__compaction__compaction.ts",
+      "sha256": "d3f639c21c4b91ebbe9d5716914636c3eb37a19d434e11bd6653fef8050f1357",
+      "url": "https://github.com/earendil-works/pi/blob/71dca871bc80b6bc97be37f0ca3189399d651fff/packages/coding-agent/src/core/compaction/compaction.ts"
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "commit": "45a6101f36576367359c171cd5820ee76a3d047b",
+      "path": "agent/context_compressor.py",
+      "local": "artifacts/compaction-research-20260911/NousResearch__hermes-agent-45a6101f3657/agent/context_compressor.py",
+      "sha256": "6bb74f3420a9aaa317b3390f57251517beac222e6bac76d1d0f7332f4519cd56",
+      "url": "https://github.com/NousResearch/hermes-agent/blob/45a6101f36576367359c171cd5820ee76a3d047b/agent/context_compressor.py"
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "path": "packages/compaction/compaction-basic/src/summarizer.ts",
+      "local": "artifacts/compaction-research-20260911/deepseek-ai__deepseek-harness-c291e7961a51/packages/compaction/compaction-basic/src/summarizer.ts",
+      "sha256": "fcf7fd42d1ea9b90fe259438431590abfb85a8a352f1fbc10b92d4dfcaf797bc",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/compaction/compaction-basic/src/summarizer.ts"
+    },
+    {
+      "repo": "anomalyco/opencode",
+      "commit": "193de13a88d62a6409c6d385831180f1def527dc",
+      "path": "packages/opencode/src/session/compaction.ts",
+      "local": "artifacts/compaction-research-20260911/anomalyco__opencode-193de13a88d6/packages/opencode/src/session/compaction.ts",
+      "sha256": "8d478570a7e4ad32b746030d4f86a1c673949b1e2259bd716b3885d99283289a",
+      "url": "https://github.com/anomalyco/opencode/blob/193de13a88d62a6409c6d385831180f1def527dc/packages/opencode/src/session/compaction.ts"
+    }
+  ],
+  "bot_files": [
+    {
+      "path": "src/bot/config/models.py",
+      "sha256": "e454c7074970749cb33f03b8c277f3913aa2557b0cbe400e4cee38064f3ab579"
+    },
+    {
+      "path": "src/bot/compaction/service.py",
+      "sha256": "12f19f3d202a681183f17e2ac7c0e8e6d2a8fa99b8a3ce5b5a2cdb9a63963877"
+    },
+    {
+      "path": "src/bot/compaction/strategies.py",
+      "sha256": "90bd1d620d811ca8483d4001bd4e891dbde8292e0c70e40ce63209dc870f77a1"
+    },
+    {
+      "path": "src/bot/core/agent.py",
+      "sha256": "80819bb0b78fdcfa270eca89066f41028f3948fb27423d93ec0b5b7cc8295bd6"
+    },
+    {
+      "path": "src/bot/core/context.py",
+      "sha256": "a31d946c9af8c9762f3e0ea5f859dadf448b551916238ca9834525640e0bbc25"
+    },
+    {
+      "path": "src/bot/providers/openai_compatible.py",
+      "sha256": "1bd18c18e073f06b4422a020bb1ee22d1e8416deda39b1ad08c12e5e23bd9f61"
+    },
+    {
+      "path": "docs/context-strategy-flash-repeats.md",
+      "sha256": "b19b9c1e7202853a714ad164a87ef65f2135dc5f196e7a3e5bef0579c242bec3"
+    },
+    {
+      "path": "docs/context-strategy-flash-composition.md",
+      "sha256": "6e6b767fbafe31b0bb7a77151491c1c73fd55c815759aca5db5269fe65129430"
+    },
+    {
+      "path": "docs/data/context-strategy-flash-composition.json",
+      "sha256": "11b6e1e71faef5f5e3d05baa7c70ad044795e84bdd936f0d1c9aa3ed942e335e"
+    }
+  ],
+  "official_pages": [
+    {
+      "url": "https://code.claude.com/docs/en/context-window",
+      "checked_date": "2026-09-13"
+    },
+    {
+      "url": "https://code.claude.com/docs/en/errors",
+      "checked_date": "2026-09-13"
+    },
+    {
+      "url": "https://opencode.ai/v2/docs/compaction",
+      "checked_date": "2026-09-13"
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/compaction",
+      "checked_date": "2026-09-13"
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/about-claude/models/extended-thinking-models",
+      "checked_date": "2026-09-13"
+    },
+    {
+      "url": "https://api-docs.deepseek.com/guides/thinking_mode/",
+      "checked_date": "2026-09-13"
+    }
+  ],
+  "caveats": [
+    "OpenCode core commit 95daf90670b7 and online V2 documentation disagree on summary request structure and keep budget; report separates them.",
+    "OpenCode length acceptance is static analysis of the pinned core and OpenAI Chat path, not an executed reproduction.",
+    "Hermes salvage_grown_transcript is documented as an available conditional helper; no claim that every compression invokes it.",
+    "Pi maxTokens at the compaction call is a base SDK allowance; traditional Anthropic thinking can enlarge it and available context can reduce it.",
+    "Claude Code compaction core and encrypted server compaction internals are not public source.",
+    "Token estimates, provider tokens, character caps, generation caps, and summary publication caps are distinct."
+  ]
+}
