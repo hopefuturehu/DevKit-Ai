@@ -1,414 +1,470 @@
-# 字节 9.3 Agent 一面：代码印证与口述手册
+# 赛文X 100+ 社招面经：Agent 高频题与代码印证手册
 
-> 来源：[用户提供的牛客帖子](https://www.nowcoder.com/discuss/921546202062000128?sourceSSR=search)，页面标题为“字节跳动 9.3 Agent 开发一面面经”；[牛客站内可访问页](https://ac.nowcoder.com/discuss/1672892?channel=-1&source_id=discuss_tags_discuss_hot_nctrack&type=0)。整理日期：2026-09-14，代码证据以本仓库提交 `31ff58c` 为基线。
+> 来源：[牛客《【0901更新】赛文Xの100+社招面经记录》](https://www.nowcoder.com/discuss/921546202062000128)，整理日期：2026-09-14。帖子持续更新；本文以当天页面中的 78 个唯一子帖链接为快照，代码证据以本仓库提交 `31ff58c` 为基线。
 
-这份手册只整理原帖里的 Agent 相关内容。原帖还包含一道数字构造算法题，本文不展开。回答中的“我”应替换成候选人真实经历；本仓库代码可以证明项目具备某项机制，但不能单独证明候选人本人负责了它。
+这不是一篇单场面经，而是一张社招面经索引。索引覆盖约 100 场面试，当时已整理 80 多家公司/场次，并链接到 78 篇可访问的独立记录；其中 43 篇标题直接包含 Agent、AI 或智搜岗位，更多全栈、平台和服务端面经也问到了 Agent。
 
-## 1. 原帖考查了什么
+本文遍历索引中的全部子帖，只提取并转述 Agent 相关考点。算法题、纯语言八股、HR 信息和与 Agent 无关的业务题不展开。来源问题均做了归纳而非逐字转载；第一人称回答仍须按候选人的真实职责调整。
 
-原帖的问题可以归为三组：项目真实性、Agent 运行时基本功、生产故障处理。
+## 1. 我实际看到了什么
 
-| 题组 | 面试问题（转述） | 真正考点 | 本地印证 |
-|---|---|---|---|
-| 项目 | 详细介绍一个 AI 项目 | 是否理解端到端链路、个人职责和工程取舍 | 有完整 Agent runtime，可直接讲主链路 |
-| 项目 | 简历如何做结构化评分，包含哪些维度 | 结构化输出、评分可解释性和防幻觉 | 未实现简历评分；有严格 JSON/schema 评测框架可类比 |
-| 项目 | RAG 离线知识构建与在线问答如何实现 | 检索链路、数据治理、召回与生成边界 | 有记忆检索和证据回载，不是完整文档 RAG |
-| 八股 | 什么是 Agent Harness | 是否把模型、工具、状态、策略、观测编排成系统 | `AgentRunner` 就是本地 Harness 主体 |
-| 故障 | 同一长任务从约 5 分钟变成 15—20 分钟，如何定位 | 能否按阶段、调用次数和外部依赖定位尾延迟 | 有事件、工具运行记录、进程状态、重试与压缩事件 |
-| 故障 | 定位后如何解决上述变慢问题 | 能否根据根因闭环，而不是罗列通用优化 | 可从重试、重复工具、上下文、慢进程、审批分别治理 |
-| 工具 | 工具参数固定时，如何保证调用可靠 | schema、策略、执行、幂等、协议修复与评测 | 有一条完整的多层防线 |
-| 上下文 | 多轮对话中上下文持续增长怎么办 | 预算、选择、压缩、外置与按需回读 | 有分层上下文、原子组装、压缩和 blob 引用 |
-| 压缩 | 如何尽量避免压缩或摘要造成信息损失 | 关键事实保留、可验证、可恢复和回归测试 | 有固定摘要结构、哈希、锚点、两阶段提交和回滚 |
+### 1.1 帖子的构成
 
-一个稳定的答题结构是：**先下定义，再说主链路，然后给代码或数据证据，最后主动交代边界与取舍。**
+原帖先给出作者的投递漏斗，然后列出每一轮面经的独立链接。Agent 相关样本包括：
 
-## 2. 面试前先背这一页
+- 360 Agent 一面、二面和 HR 面；
+- B 站 Agent 一面、二面、三面和 HR 面；
+- 阿里 Agent 开发、淘天 Agent、阿里国际 Agent 中台/业务 Agent、千问 Agent Infra；
+- 唯品会、深信服、虾皮、懂车帝、顺丰等 Agent 岗；
+- 平安银行、浦发银行、滴滴、千寻智能等 AI/全栈岗位中的 Agent 深挖；
+- 高德、小满科技等更偏 Agent runtime、上下文和工具系统的专场。
 
-### 2.1 30 秒项目介绍
+### 1.2 高频主题
 
-> 我做的是一个面向长任务的 Agent runtime。它不只是把 prompt 发给模型，而是负责上下文组装、结构化工具调用、权限审批、长进程管理、会话持久化、记忆检索、压缩恢复和事件观测。一次任务会在“组装请求—模型决策—校验并执行工具—保存结果—继续推理”之间循环。项目的难点不是单次调用，而是让长链路在上下文膨胀、工具失败、重复调用和进程超时的情况下仍然可控、可恢复、可审计。
+下面的次数来自对 78 篇子帖按关键词做的交叉归类。同一篇可以进入多个主题，数字用于判断复习优先级，不代表严谨的岗位统计。
 
-### 2.2 两分钟项目介绍
+| 主题 | 涉及子帖 | 相关问题行 | 典型追问 |
+|---|---:|---:|---|
+| Tool / MCP / Skill | 31 | 68 | 边界、冲突、召回、鉴权、版本与副作用 |
+| 模型、成本与延迟 | 29 | 41 | 模型选择、推理时延、并发和成本优化 |
+| RAG / 知识库 | 26 | 41 | 分块、向量化、rerank、更新与准召 |
+| Harness / Runtime / Loop | 25 | 32 | 组件、执行循环、状态和终止条件 |
+| 上下文 / Memory | 25 | 36 | 压缩、渐进披露、长短期记忆和缓存 |
+| 可靠性 / 评测 / 观测 | 25 | 36 | bad case、重试、回滚、trace 和指标 |
+| Coding Agent / 研发效能 | 23 | 39 | 代码质量、门禁、SDD/TDD 和灰度 |
+| 安全 / 权限 / 沙箱 | 22 | 33 | 越权、密钥、隔离、工具投毒和云沙箱 |
+| Multi-Agent / 编排 | 19 | 29 | 拆分依据、通信、冲突和 Leader 故障 |
 
-> 这个项目的核心是 `AgentRunner`。输入进入后，系统先加载会话、记忆和压缩状态，再由 `ContextPlanner` 在硬 token 预算内选择消息、工具 schema 和运行时上下文。模型返回结构化 tool call 后，系统依次做工具名检查、JSON Schema 校验、策略判断和必要审批，然后在受控执行器中执行并持久化结果，再进入下一轮。
->
-> 对长任务，我们没有只依赖 `max_steps`。系统还检查重复调用、连续失败、是否取得新进展和外部进程状态，并保存 checkpoint。上下文过长时，先裁剪低优先级内容和按需工具 schema，再做带固定字段的单摘要压缩；大结果外置为内容寻址 blob，只把引用留在模型上下文里。
->
-> 压缩不是不可逆覆盖。摘要带来源范围和哈希，候选摘要先校验，再通过短事务替换旧状态；失败时旧摘要仍然有效，并能回读原始消息或回滚。这使系统同时具备效率、可靠性和可审计性。边界上，本仓库有词法记忆检索与证据回载，但没有完整的文档切分、向量索引和 rerank 流水线，所以我会把它描述为 evidence-backed memory，而不是夸大成通用 RAG 平台。
+### 1.3 面试官反复确认的九件事
 
-### 2.3 一张主链路图
+1. 候选人能否画清一次 Agent 请求从输入到终止的完整数据流。
+2. 能否分清模型接口、Tool、MCP、Skill、CLI、RAG、Memory、Workflow 和 Harness。
+3. Multi-Agent 是否真的必要，而不是为了堆概念。
+4. 长任务如何保存状态、判断进展、处理失败并恢复。
+5. 上下文和 Skill 越来越多时如何控制 token、注意力和缓存。
+6. 工具调用、代码修改和数据访问怎样做到可验证、可审计、可回滚。
+7. Agent 效果如何用评测集、外部断言和线上指标证明。
+8. 云端沙箱、权限、多租户、并发和成本如何工程化。
+9. 候选人到底负责了什么，有没有规模、失败案例和量化结果。
 
-```text
-用户输入 / 历史会话 / 记忆 / Skill / 运行环境
-                    │
-                    ▼
-        ContextPlanner：预算、优先级、原子组
-                    │
-                    ▼
-          ModelRequest + 工具 schemas
-                    │
-                    ▼
-        模型文本响应或结构化 tool call
-                    │
-                    ▼
-  名称检查 → schema 校验 → Policy → 审批 → 执行器
-                    │
-                    ▼
-       结果脱敏、blob 外置、持久化、事件记录
-                    │
-        ┌───────────┴───────────┐
-        ▼                       ▼
-   继续下一轮             满足终止条件并回答
-```
+## 2. 本地代码能支撑到什么程度
 
-## 3. 项目类问题
+面试时应把“当前实现”“部分实现”和“设计题”分开。
 
-### Q1：详细介绍一个 AI 项目
-
-#### 建议回答
-
-不要按功能清单介绍，按“目标—架构—难点—行动—结果—边界”讲：
-
-1. **目标**：让需要多轮模型决策和工具操作的长任务稳定完成，而不是只做一次问答。
-2. **架构**：`AgentRunner` 编排 provider、tool registry、policy、execution target、context、memory、compactor、session store 和 event bus。
-3. **难点**：上下文会增长；工具会失败或重复；外部进程可能很慢；压缩后还要保真和可恢复。
-4. **行动**：硬 token 预算和原子消息组装；工具 schema 与策略双重校验；重复/失败/进展联合终止；摘要校验和两阶段提交；大输出内容寻址外置。
-5. **验证**：用单元、集成和行为基准分别验证协议、压缩、记忆路由、工具策略与终止行为。
-6. **边界**：准确说明哪些是当前实现，哪些只是设计能力；指标必须带样本、模型、日期和口径。
-
-#### 本地证据
-
-- [`AgentRunner`](../../src/bot/core/agent.py) 注入模型、工具、策略、执行器、上下文、存储、审批、压缩和记忆等依赖，并实现主循环。
-- [`ContextPlanner`](../../src/bot/core/context.py) 负责预算和上下文装配。
-- [`PolicyEngine`](../../src/bot/policy/engine.py) 负责路径、网络、敏感信息和危险命令等策略。
-- [`EventBus`](../../src/bot/core/events.py) 和 [`trace.py`](../../src/bot/observability/trace.py) 提供事件序列与导出能力。
-- [`tests/integration`](../../tests/integration) 与 [`tests/unit`](../../tests/unit) 覆盖压缩、上下文效率、记忆路由、策略、终止和评测。
-
-#### 容易被追问的点
-
-- “你本人负责哪部分？”——只说真实职责，使用“我实现/我主导/我参与/团队已有”区分贡献。
-- “最大的技术取舍？”——可答单摘要而非多摘要树：降低状态复杂度，但必须增加来源哈希、锚点、失败回退和原文回读。
-- “怎么证明有效？”——分正确性、效率和可靠性三个维度，不拿单个成功 demo 当结论。
-
-### Q2：简历如何做结构化评分？
-
-#### 先说明代码边界
-
-本仓库**没有实现简历评分产品**。下面是把仓库已有的严格结构化验证能力迁移到该场景的设计答案。面试时不要说“项目已经上线”，除非确有其他项目证据。
-
-#### 推荐评分维度
-
-| 维度 | 示例权重 | 评分依据 |
-|---|---:|---|
-| JD 硬条件与技能匹配 | 30% | 必备技能、年限、学历/地点等明确约束 |
-| 相关经历与技术深度 | 25% | 是否解决过同类问题，是否能说明原理和取舍 |
-| 业务结果与证据强度 | 20% | 指标、规模、上线效果及其可核验程度 |
-| 经历完整性与一致性 | 15% | 时间线、职责、技术栈是否互相矛盾 |
-| 表达清晰度与信息可提取性 | 10% | 是否具体、简洁，并能被招聘流程稳定解析 |
-
-权重只能作为示例，应由岗位标定。年龄、性别、民族、婚育等受保护或不相关属性不得进入评分。
-
-#### 建议输出结构
-
-```json
-{
-  "schema_version": "resume-score.v1",
-  "overall_score": 78,
-  "decision": "manual_review",
-  "dimensions": [
-    {
-      "name": "jd_match",
-      "weight": 0.30,
-      "score": 82,
-      "reason": "具备岗位要求的 Agent 工程经验",
-      "evidence_refs": ["resume:p2:project_1", "jd:must_have:3"]
-    }
-  ],
-  "strengths": ["有长任务可靠性实践"],
-  "risks": ["缺少线上规模信息"],
-  "missing_information": ["峰值并发与成本口径"],
-  "confidence": 0.72
-}
-```
-
-#### 可靠流水线
-
-```text
-简历/JD 解析
-  → 事实与证据抽取
-  → 硬条件规则检查
-  → 模型按维度给分并绑定证据
-  → JSON Schema 校验
-  → 代码重新计算加权总分
-  → 一致性/偏差/阈值检查
-  → 低置信度进入人工复核
-```
-
-关键点：让模型抽取事实、生成理由和维度分，不让它自由决定所有规则。权重求和、分数范围、总分计算、必填字段和决策阈值由代码执行；没有证据时输出 `missing_information`，而不是补全想象。
-
-#### 可引用的本地类比
-
-- [`JsonVerifier`](../../src/bot/evals/models.py) 和 [`verification.py`](../../src/bot/evals/verification.py) 已体现 schema、严格 JSON 解析和结果校验。
-- [`runner.py`](../../src/bot/evals/runner.py) 明确不把模型自称“完成”当成通过，仍要求外部断言成立。
-- [`test_evals.py`](../../tests/unit/test_evals.py) 验证缺字段、类型错误、越界分数、`NaN` 和非 JSON 输出会失败。
-
-### Q3：RAG 的离线知识构建与在线问答如何实现？
-
-#### 标准设计答案
-
-**离线链路：**
-
-1. 接入文件、网页或业务数据库，记录来源、版本、权限和更新时间。
-2. 解析并清洗正文，保留标题、章节、页码、表格和 ACL 等元数据。
-3. 按语义边界切分，并保留父子 chunk 与相邻关系。
-4. 生成 embedding，写入向量索引；同时建立关键词/BM25 索引以支持混合检索。
-5. 做去重、质量检查、增量更新和删除传播，避免旧版本与越权内容残留。
-6. 建立召回、排序、引用正确性与拒答测试集。
-
-**在线链路：**
-
-1. 识别问题、用户权限和是否需要检索，并进行必要的 query rewrite。
-2. 用 metadata/ACL 先过滤，再做向量与关键词混合召回。
-3. rerank、去重和扩展父 chunk，在 token 预算内选择证据。
-4. 把证据按不可信外部内容处理，要求回答绑定来源；证据不足则澄清或拒答。
-5. 记录 query、候选、最终证据、延迟和反馈，回流离线评测。
-
-#### 本仓库能证明什么
-
-本地实现的是较窄的 evidence-backed memory：
-
-- [`routing.py`](../../src/bot/memory/routing.py) 把查询分为无需检索、建议检索、必须搜索和必须加载证据。
-- [`store.py`](../../src/bot/memory/store.py) 使用 token、CJK bigram、子串和 key 匹配做可解释的词法评分。
-- [`AgentRunner`](../../src/bot/core/agent.py) 可以先返回检索解释，再按引用回载原始证据，并限制工作区访问。
-
-它**不等于完整文档 RAG**：当前没有通用文档摄取、embedding、向量数据库和 reranker。更准确的表述是：“仓库已经实现检索路由、作用域和证据回载这些 RAG 共性控制面；完整知识库数据面是后续扩展。”实现边界也记录在 [`implementation-status.md`](../architecture/implementation-status.md) 中。
-
-## 4. Agent 八股与生产故障题
-
-### Q4：什么是 Agent Harness？
-
-#### 一句话定义
-
-Agent Harness 是包在基础模型外面的**执行与控制运行时**：它把模型的概率性决策连接到工具、状态、权限、预算、终止条件、恢复与观测，使任务能够多轮、受控地完成。
-
-#### 它与几个相邻概念的区别
-
-| 概念 | 主要职责 | 是否等于 Harness |
+| 能力 | 本地状态 | 证据或缺口 |
 |---|---|---|
-| Base model | 生成文本或结构化调用意图 | 否，模型是被编排的推理组件 |
-| Prompt | 提供当前请求的指令和上下文 | 否，只是输入的一部分 |
-| Tool/MCP server | 暴露外部能力 | 否，是 Harness 调用的能力端 |
-| Workflow | 预定义步骤和分支 | 不完全；Harness 还要支持模型动态决策和恢复 |
-| Agent Harness | 编排模型、工具、上下文、策略、状态和生命周期 | 是控制面与运行时 |
+| Agent Harness / Runtime | 已实现 | [`AgentRunner`](../../src/bot/core/agent.py) 编排模型、工具、策略、上下文、存储、压缩、记忆和事件 |
+| 结构化 Tool Calling | 已实现 | [`models.py`](../../src/bot/core/models.py)、[`registry.py`](../../src/bot/tools/registry.py) 和 `_execute_tool` |
+| 工具策略、审批与审计 | 已实现 | [`PolicyEngine`](../../src/bot/policy/engine.py)、tool run、approval 与事件记录 |
+| 长进程、重试与终止 | 已实现 | [`local.py`](../../src/bot/execution/local.py)、[`repetition.py`](../../src/bot/core/termination/repetition.py) 和 progress checkpoint |
+| 上下文预算与压缩恢复 | 已实现 | [`context.py`](../../src/bot/core/context.py)、[`CompactionService`](../../src/bot/compaction/service.py) |
+| 记忆检索与证据回载 | 已实现 | [`routing.py`](../../src/bot/memory/routing.py) 和 [`memory/store.py`](../../src/bot/memory/store.py) |
+| 评测与外部验证 | 已实现 | [`evals`](../../src/bot/evals)、单元/集成测试和 trace 导出 |
+| Skill 发现与激活 | 已实现 | 本地 Skill catalog、激活状态和 token 预算 |
+| Multi-Agent | 部分实现 | 有进程内、深度最多为 1 的后台 Worker Pool；不是对等 Agent Team，也不支持递归委托 |
+| RAG | 部分实现 | 有词法记忆检索和证据加载；没有通用文档摄取、embedding、向量库和 reranker |
+| MCP | 未实现 | 设计中预留 Adapter；当前工具注册表不是 MCP client/server |
+| 云沙箱与多租户调度 | 未实现 | 有工作区和策略边界，但没有按任务创建的容器沙箱、分布式调度和租户配额 |
+| 动态模型路由/降级 | 未实现 | Provider 可配置且请求可重试，但没有按任务质量/成本自动切换模型 |
+| Coding Agent 全链路发布 | 未实现 | 有编码工具、验证和策略组件；没有完整 PRD→开发→预发→灰度→发布平台 |
 
-#### 60 秒口述
+完整边界以 [`implementation-status.md`](../architecture/implementation-status.md) 为准。
 
-> 我理解的 Harness 不是一段 system prompt，而是模型外面的运行时。以本项目为例，`AgentRunner` 负责循环，`ContextPlanner` 在预算内组装请求，工具注册表暴露结构化 schema，`PolicyEngine` 决定允许、拒绝或询问审批，执行器管理本地进程，会话库保存消息、tool run、checkpoint 和 compaction，事件总线提供审计与调试。模型负责决定“下一步做什么”，Harness 负责保证“这一步能否安全、可靠、可恢复地执行”。
+## 3. 开场：30 秒与 2 分钟项目介绍
 
-### Q5：长任务从 5 分钟变成 15—20 分钟，如何定位？
+### 3.1 30 秒版本
 
-#### 先把总耗时拆开
+> 我做的是一个面向长任务的 Agent runtime。它把模型、结构化工具、权限策略、上下文预算、会话状态、记忆、压缩恢复和可观测性串成一个执行闭环。系统会在“组装请求—模型决策—校验并执行工具—保存结果—继续推理”之间循环，并处理工具失败、重复调用、长进程和上下文膨胀。项目重点不是让模型能调用工具，而是让整个执行过程可控、可恢复、可验证。
+
+### 3.2 两分钟版本
+
+> 项目的核心是 `AgentRunner`。它先加载会话、压缩状态、记忆和运行环境，再由 `ContextPlanner` 在硬 token 预算内选择消息、工具 schema 和其他上下文。模型返回结构化 tool call 后，系统依次做名称检查、JSON Schema 校验、策略判断和必要审批，再通过执行器运行工具，脱敏并持久化结果，然后进入下一轮。
+>
+> 长任务不能只靠 `max_steps`。系统同时观察重复调用、连续失败、是否取得新进展和外部进程状态，并保存 checkpoint。上下文达到目标利用率时，会保留最近原文，把大输出外置成内容寻址 blob，再生成带固定字段、来源范围和哈希的单摘要。候选摘要校验通过才替换旧版本，失败不推进边界，还能回读原始消息或回滚。
+>
+> 可靠性方面，工具有 schema、策略、审批、超时、输出限制和审计；最终结果由 JSON、命令或产物断言验证，而不是只信模型说“完成”。边界上，本仓库没有完整 MCP、向量 RAG 和分布式云沙箱，所以这些内容我会作为扩展设计回答，不包装成已经落地的功能。
+
+## 4. 概念边界：最高频的一张表
+
+这组区别在 [360 一面](https://www.nowcoder.com/feed/main/detail/b1903a3fe061470694dd3e7d1c33bfab)、[B 站二面](https://www.nowcoder.com/feed/main/detail/794d53d2d5b4437eb47cb606910c8fa1)、[小满科技一面](https://www.nowcoder.com/feed/main/detail/5f3df51243ad425c83e81e359ce82c36)等多场反复出现。
+
+| 概念 | 本质 | 决定什么 | 典型误区 |
+|---|---|---|---|
+| Function Calling | 模型输出结构化调用意图的接口约定 | 模型怎样表达“调用哪个函数、传什么参数” | 把它当成实际执行器 |
+| Tool | 带名称、描述、schema 和执行实现的能力 | Agent 能做什么 | 只有参数校验，没有权限和结果验证 |
+| MCP | 工具/资源/提示的发现与调用协议 | 不同宿主怎样接入外部能力 | 把传输协议当成可信来源或业务流程 |
+| CLI | 进程级命令接口 | 人或 Agent 怎样调用本地程序 | 认为 CLI 不能做结构化输出、鉴权或幂等 |
+| Skill | 可按需加载的领域说明、流程知识和配套资源 | Agent 应当怎样完成一类任务 | 认为文本说明能强制模型逐步执行 |
+| Workflow | 代码或图定义的确定性节点和转移 | 哪些步骤必须固定 | 所有决策都交给 LLM，仍称作固定工作流 |
+| RAG | 从外部知识集合检索证据后生成 | 回答依据是什么 | 把所有上下文注入都叫 RAG |
+| Memory | 跨轮或跨任务保存、选择和回读状态 | 哪些历史值得继续使用 | 保存全部对话且每轮全部发送 |
+| Harness | 模型外的执行和控制运行时 | 安全、状态、预算、恢复、终止和观测 | 把 Harness 等同于 system prompt |
+| Agent | 在目标和约束下循环感知、决策、行动和验证的系统 | 下一步做什么以及何时结束 | 有一次 Function Call 就称为完整 Agent |
+
+### 4.1 Tool、MCP、Skill、知识库发生冲突怎么办
+
+不要背一个固定的“优先级”。MCP 是传输协议，Skill 是过程指导，知识库和工具结果是数据来源，它们不在同一语义层。
+
+建议回答：
+
+1. 系统/策略约束和用户明确授权不可被其他内容覆盖。
+2. Skill 只指导流程，不自动成为事实来源。
+3. 工具、MCP 和知识库返回都按不可信外部数据处理。
+4. 根据来源权威性、权限范围、版本、时间和可复验性选择证据。
+5. 高风险冲突通过二次查询、read-after-write 或人工审批解决。
+6. 最终请求保存选用证据和拒绝其他证据的理由，便于审计。
+
+本地 [`CORE_POLICY`](../../src/bot/core/context.py) 把工具和网页内容视为不可信数据；[`PolicyEngine`](../../src/bot/policy/engine.py) 决定操作是否能执行。但 MCP Adapter 当前未实现，回答时要主动说明。
+
+## 5. Harness、Runtime 与 Agent Loop
+
+[高德一面](https://www.nowcoder.com/feed/main/detail/0c02771670284a2cad2aab983294580b)问到了状态、渐进披露和观测，[顺丰一面](https://www.nowcoder.com/feed/main/detail/7cab90ca59084f64bc19d1cb13935937)继续追问循环、死循环、中断和上云。
+
+### 5.1 一次循环
 
 ```text
-T_total = ΣT_model + ΣT_tool + T_approval + T_queue/wait
+用户目标 / 历史 / 记忆 / 环境
+            │
+            ▼
+   上下文预算与工具选择
+            │
+            ▼
+       ModelRequest
+            │
+      ┌─────┴─────┐
+      ▼           ▼
+   文本回答     Tool Call
+                  │
+    schema → policy → approval → execute
+                  │
+        persist / observe / verify
+                  │
+        progress / retry / terminate
+```
+
+### 5.2 60 秒口述
+
+> Harness 是模型外面的控制面，Runtime 是这套控制面在运行时的具体实现。我的主循环会先构建预算受控的请求，再接收模型文本或结构化调用。工具调用经过 schema、策略和审批后执行，结果与事件持久化，再由进展和终止逻辑决定继续、恢复还是结束。模型决定下一步意图，Harness 保证这一步能否安全执行、怎样记录、失败后怎么办以及什么时候停止。
+
+### 5.3 模型挂了怎么办
+
+分四类处理：
+
+- 可重试的短暂错误：有限次数指数退避，丢弃不完整流式缓冲后重试。
+- context limit：重新组装或强制压缩，而不是原请求盲重试。
+- 配额/成本上限：停止或转人工，不制造重试风暴。
+- provider 长期不可用：需要模型路由、熔断和备用 provider；这是本地当前缺口。
+
+本地 [`_request_model_with_retries`](../../src/bot/core/agent.py) 已覆盖前三类中的重试、上下文恢复和成本门禁，但没有跨模型自动降级。
+
+## 6. 单 Agent、Workflow 与 Multi-Agent
+
+[B 站三面](https://www.nowcoder.com/feed/main/detail/14d7f7ffffe74f45a8b3bce4c677d927)比较了中心式与去中心式协作，[阿里国际业务 Agent 一面](https://www.nowcoder.com/feed/main/detail/3c305b0c1565458ba05c9906322f5327)追问通信模式和结果验证，[基动一面](https://www.nowcoder.com/feed/main/detail/64e31a28581b4e21a1e8e1aee236b6b4)重点追问并发改动冲突。
+
+### 6.1 选型原则
+
+| 方案 | 适用场景 | 主要代价 |
+|---|---|---|
+| 单 Agent | 共享上下文强、任务不宜拆、工具数量可控 | 上下文膨胀、能力耦合和长链路脆弱 |
+| Workflow | 合规步骤、发布门禁、固定数据处理 | 对开放问题适应差，维护分支成本高 |
+| Leader + Workers | 子任务可并行、权限/上下文需隔离、结果可合并 | 调度、通信、冲突、成本和失败恢复 |
+| 对等 Multi-Agent | 探索、协商或没有天然中心节点 | 难终止、难审计、共识和冲突处理复杂 |
+
+### 6.2 为什么不使用一个全能 Agent
+
+只有出现下列收益时才拆：并行缩短关键路径、隔离权限、缩小各自上下文、使用不同模型/工具，或让独立验证者降低自证偏差。如果任务高度共享状态、修改同一文件或协调成本超过推理成本，应继续用单 Agent 或确定性 Workflow。
+
+### 6.3 通信必须结构化
+
+子任务至少包含 `task_id`、目标、允许范围、输入引用、预算、截止条件和验收标准；返回包含状态、结论、证据/产物引用、未完成项和错误分类。自然语言可以解释，但调度状态不能只靠自然语言猜测。
+
+本地 [`subagents`](../../src/bot/subagents) 支持进程内 Worker Pool、事件和结果汇总，深度最多为 1。分布式租约、Leader 选举、跨机器容灾和递归委托没有实现，因此 Leader 故障恢复只能作为设计题回答：任务状态外置、worker lease、幂等提交、超时接管和产物内容寻址。
+
+## 7. 上下文、Skill 与 Memory
+
+[转转面经](https://www.nowcoder.com/feed/main/detail/6204344a50a04c46a6220b2d73c426bc)集中问了压缩、用户记忆和交付物，[高德一面](https://www.nowcoder.com/feed/main/detail/0c02771670284a2cad2aab983294580b)追问 Skill 膨胀、渐进披露和 KV Cache，[阿里一面](https://www.nowcoder.com/feed/main/detail/6b51e5798cd14717bdcb60ca54ca6f11)追问注意力稀释和 Skill 生命周期。
+
+### 7.1 核心区分
+
+**持久化真相**可以保存完整历史，**本轮请求视图**只发送完成当前决策所需的最小充分上下文。长窗口不是免费数据库；它仍有延迟、成本、注意力和缓存问题。
+
+### 7.2 五级治理
+
+1. **硬预算**：从模型窗口扣除输出、协议和安全余量，再确定输入上限。
+2. **选择**：按信任、优先级、保留策略和新旧程度装配；tool call/result 必须作为原子组。
+3. **渐进披露**：先给工具或 Skill 目录，只在相关时加载完整 schema 和说明。
+4. **外置**：大工具结果写入内容寻址 blob，请求中只放摘要、哈希和引用。
+5. **压缩与回读**：摘要旧历史、保留近期原文；细节问题再从原始消息、blob 或记忆证据回载。
+
+### 7.3 怎样减少摘要损失
+
+不要承诺零损失，应承诺可验证、可追溯和可恢复：
+
+- 摘要固定保留目标、约束、进展、决策、文件、失败、下一步和关键上下文；
+- 关键用户消息作为原始锚点回放；
+- 正在进行的工具组不跨边界压缩；
+- 候选摘要校验结构、长度、引用和来源范围；
+- 保存 source hash、parent 和 covered range；
+- 验证通过再短事务晋升，失败继续用旧摘要；
+- 用后续细节追问和端到端任务结果评测，而非只看摘要相似度。
+
+这些机制由 [`ContextPlanner`](../../src/bot/core/context.py)、[`CompactionService`](../../src/bot/compaction/service.py) 和 [`SessionStore`](../../src/bot/sessions/store.py) 共同实现。
+
+### 7.4 Memory 如何分层
+
+- Working state：当前 run 的计划、工具结果和未完成项。
+- Session memory：同一会话中的原始消息与压缩状态。
+- User/workspace memory：跨 run 的稳定偏好、事实和项目知识。
+- Evidence archive：可按引用加载的原始消息、文件或 blob。
+
+写入前要判定稳定性、来源、作用域、敏感性和冲突；读取时要有检索理由和证据。当前本地检索是词法匹配与路由，不是向量 RAG。
+
+## 8. RAG 与知识库
+
+[超参数一面](https://www.nowcoder.com/feed/main/detail/8e77c295f6cb4cd4b709d14804afb987)问到了 Hybrid Search、Metadata Filter、Graph RAG 和向量索引，[阿里千问 Infra 一面](https://www.nowcoder.com/feed/main/detail/10d5334563244bc4a248c155b71fb083)追问准召、向量空间与检索加速。
+
+### 8.1 离线链路
+
+```text
+数据接入 → 解析清洗 → 语义切分 → 元数据/ACL
+        → embedding + 关键词索引 → 质量检查 → 增量更新/删除传播
+```
+
+切分应保留标题、章节、页码、父子 chunk、相邻关系、来源版本和权限。高频更新不能只做全量重建；要用稳定文档 ID、版本、变更检测、增量索引和删除 tombstone。
+
+### 8.2 在线链路
+
+```text
+意图/权限 → query rewrite → metadata/ACL filter
+         → dense + sparse recall → fusion/rerank/dedup
+         → token-budget packing → 带引用生成 → 反馈与日志
+```
+
+准召优化不能只调 top-k：先按查询类型、语料和权限切片评测，再判断问题在解析、切分、embedding、召回、融合、rerank 还是生成引用。证据不足时澄清或拒答。
+
+### 8.3 本地印证与边界
+
+[`MemoryRouter`](../../src/bot/memory/routing.py) 能区分无需检索、建议检索、必须搜索和必须加载证据；[`memory/store.py`](../../src/bot/memory/store.py) 用 token、CJK bigram、子串和 key 做可解释评分；Agent 能回载原始证据。但通用摄取、向量索引和 rerank 尚未实现，不能把它描述成完整知识库平台。
+
+## 9. 工具可靠性、重试与终止
+
+[互动影游一面](https://www.nowcoder.com/feed/main/detail/24e01f1d510a486b92efa795b4835669)问了“工具显示成功但没有效果”，[浦发银行一面](https://www.nowcoder.com/feed/main/detail/c200fd35c881415086928e113028e4c8)问了重试/降级和权限，[顺丰一面](https://www.nowcoder.com/feed/main/detail/7cab90ca59084f64bc19d1cb13935937)追问死循环和中途停止。
+
+### 9.1 八层防线
+
+1. 工具名唯一，输入用 JSON Schema。
+2. 参数关系、资源存在性和路径做语义校验。
+3. 根据只读、网络、敏感、破坏性和作用域执行策略。
+4. 高风险动作绑定具体审批，不把一次允许扩成永久权限。
+5. 设置 soft wait、hard timeout、输出上限并规范化异常。
+6. 写操作使用 idempotency key 或可查询 operation id。
+7. tool call 与 result 成对保存，中断时修复协议。
+8. 记录状态、错误、耗时和产物引用，并做外部验证。
+
+本地执行链是：
+
+```text
+tool lookup → jsonschema → ToolAction → PolicyEngine → approval
+            → ToolContext → execute → redact/blob → persist/events
+```
+
+对应实现见 [`base.py`](../../src/bot/tools/base.py)、[`registry.py`](../../src/bot/tools/registry.py)、[`PolicyEngine`](../../src/bot/policy/engine.py) 和 [`AgentRunner._execute_tool`](../../src/bot/core/agent.py)。
+
+### 9.2 工具返回 success，但实际没效果
+
+`success` 可能只代表进程退出码为 0，不代表业务后置条件成立。排查顺序：
+
+1. 对齐调用 ID、参数、目标环境、身份和时间。
+2. 检查 transport、tool wrapper 与底层服务三层状态。
+3. 对写操作做 read-after-write 或查询 operation status。
+4. 检查事务是否提交、异步队列是否消费、缓存是否刷新。
+5. 校验工具是否把 warning 或业务失败错误映射成成功。
+6. 保存产物 hash 或状态 diff，让 verifier 判断真实效果。
+
+### 9.3 什么时候重试、降级或停止
+
+- Retry：限流、短暂网络失败、可确认幂等的超时。
+- Replan：参数/前置条件错误、工具不存在、结果不符合预期。
+- Degrade：非核心能力不可用且有明确低保真路径。
+- Ask：授权、歧义或副作用范围需要用户决定。
+- Stop：预算耗尽、策略拒绝、重复无进展或不可恢复错误。
+
+本地 [`RepeatGuard`](../../src/bot/core/termination/repetition.py) 与 progress controller 共同处理重复、失败和进展；模型请求只对可重试错误做有上限的指数退避。
+
+## 10. 评测、Bad Case 与可观测性
+
+[卓驭一面](https://www.nowcoder.com/feed/main/detail/f9be60e7b3c54750a57b37d5d200d1e5)问了评测集构建，[懂车帝一面](https://www.nowcoder.com/feed/main/detail/8d84590d7efe4c78943b28708b4395f2)问了 trace 与日志联合定位，[唯品会一面](https://www.nowcoder.com/feed/main/detail/64c0631bfa1d4dfa9be3d5956f8a3b97)追问 bad case、AB 和漏测修复。
+
+### 10.1 四层评测
+
+| 层级 | 检查内容 | 示例指标 |
+|---|---|---|
+| 组件契约 | schema、policy、协议和权限 | 非法调用拒绝率、协议完整率 |
+| 轨迹行为 | 工具选择、参数、顺序、重试和进展 | tool success、重复率、平均步骤数 |
+| 最终状态 | 文件、数据库、接口或 JSON 是否满足断言 | task success、回归通过率 |
+| 系统质量 | 成本、延迟、恢复和人工介入 | p50/p95、token、恢复率、接管率 |
+
+模型自称“完成”不能作为通过条件。[`verification.py`](../../src/bot/evals/verification.py) 支持严格 JSON、工具配对和外部产物验证，[`runner.py`](../../src/bot/evals/runner.py) 要求外部断言成立。
+
+### 10.2 评测集怎么建
+
+从真实任务和线上 bad case 开始，按任务类型、工具、权限、长度和失败模式分层；保留正常、边界、对抗和恢复用例。每次事故要落成最小可复现 fixture，并分别标记是模型、上下文、检索、工具、策略还是环境问题，避免用 prompt 修改掩盖系统缺陷。
+
+### 10.3 Trace 应记录什么
+
+至少记录 run/step/tool IDs、模型与配置、输入 token、选中的工具 schema、tool 参数摘要、审批、耗时、错误分类、重试、压缩版本、证据引用和最终 verifier。本地 [`events.py`](../../src/bot/core/events.py) 提供有序带时间事件，[`trace.py`](../../src/bot/observability/trace.py) 可以导出事件与状态包。
+
+## 11. 安全、权限与云沙箱
+
+[深信服一面](https://www.nowcoder.com/feed/main/detail/45b40914f438434b88b60a21e3d5ec1e)问了扫库、越权和大规模调度，[小满科技一面](https://www.nowcoder.com/feed/main/detail/5f3df51243ad425c83e81e359ce82c36)问了密钥隔离和 MCP 投毒，[顺丰二面](https://www.nowcoder.com/feed/main/detail/93a26b84a6634558b7228bf350c709b5)问了云端状态与沙箱生命周期。
+
+### 11.1 安全回答框架
+
+- Identity：用户、Agent、工具和服务都有明确身份。
+- Scope：workspace、tenant、资源类型、动作和时间窗口最小授权。
+- Secret：只传引用，密钥由执行侧注入，不进入 prompt 和 tool result。
+- Isolation：文件、网络、进程、CPU/内存/时间和并发配额隔离。
+- Approval：不可逆或外发动作在执行前绑定目标和参数确认。
+- Verification：写后验证，危险动作保留审计和可回滚路径。
+- Supply chain：MCP/Skill 版本、来源、签名、schema 和发布审批。
+
+本地 [`resolve_path`](../../src/bot/tools/base.py) 和 [`PolicyEngine`](../../src/bot/policy/engine.py) 能限制工作区、敏感信息、网络和危险命令；命令工具不用隐式 shell，并有超时和输出限制。它不是生产级容器沙箱，也没有 MCP 供应链治理，回答时应将后者标为设计扩展。
+
+## 12. Coding Agent 与研发交付
+
+[广发四面](https://www.nowcoder.com/feed/main/detail/6715d77233254a73b7d6b369b17927f4)追问 AI 写代码为何需要规范，[懂车帝一面](https://www.nowcoder.com/feed/main/detail/8d84590d7efe4c78943b28708b4395f2)问了只修一个 case 而不破坏其他模块，[深信服三面](https://www.nowcoder.com/feed/main/detail/b64e8fddbfc642ec9aa33bcdb9aab9aa)问了 TDD、门禁、监控和回滚。
+
+### 12.1 一条可信交付链
+
+```text
+需求澄清与验收标准
+  → 影响面/依赖/权限分析
+  → 隔离 workspace 或 branch
+  → 小步修改
+  → 静态检查 + 单测 + 集成/端到端
+  → diff/安全/兼容性审查
+  → 预发或影子流量
+  → 灰度、指标和自动回滚
+```
+
+AI 代码质量不能只靠更长 prompt。规范解决输入和边界，测试与 verifier 检查行为，review 检查可维护性，灰度与回滚控制未知风险。并发修改同一系统时，按文件/模块声明 ownership，独立 worktree 生成 patch，合并前重新基线化并跑受影响测试。
+
+本仓库已有工作区边界、编码工具、外部验证和丰富测试，但没有完整发布平台。因此可以用代码证明 Harness 层能力，不能声称已经实现企业 CI/CD、影子系统和自动灰度。
+
+## 13. 性能、成本与并发
+
+[阿里千问 Infra 一面](https://www.nowcoder.com/feed/main/detail/10d5334563244bc4a248c155b71fb083)问了访问多个服务的时延和成本，[顺丰二面](https://www.nowcoder.com/feed/main/detail/93a26b84a6634558b7228bf350c709b5)问了大量文件、并发 sub-agent 和沙箱启动。
+
+### 13.1 先拆总时延
+
+```text
+T_total = ΣT_model + ΣT_tool + T_queue/approval
         + T_compaction + T_retry/backoff + T_finalization
 ```
 
-先固定同一个任务输入、代码提交、模型、配置和执行环境，对比快慢两次运行；否则“变慢”可能只是任务难度变化。
+固定任务、模型、提交和环境，对比快慢两条 trace。先看调用次数是否增加，再看每次模型/工具是否变慢；分别检查上下文 token、schema 数量、缓存命中、外部服务、压缩、重试和终止。
 
-#### 排查顺序
+### 13.2 常见优化
 
-| 检查 | 要看什么 | 本地证据 |
+- 独立工具并行，存在依赖的调用保持顺序。
+- HTTP 连接池、长连接和批量接口减少握手与往返。
+- 工具 schema/Skill 按需加载，大结果外置。
+- 轻量模型负责分类、路由和格式化，强模型处理高难决策；必须用质量门禁校准。
+- 沙箱池预热和镜像分层减少冷启动；有写状态的沙箱不能盲目复用。
+- 为租户、模型、工具和 sub-agent 分别限流，避免单任务占满资源。
+
+本地能证明 schema 选择、上下文预算、模型重试、长进程轮询和事件观测；模型路由、沙箱池和分布式租户调度仍是设计题。
+
+## 14. 高频追问速答
+
+### 14.1 Skill 是文本，怎样保证一定执行？
+
+不能靠文本保证。强约束必须下沉为 Workflow、状态机、Policy、schema 和 verifier；Skill 只负责指导模型，偏离时由代码门禁阻止危险状态推进。
+
+### 14.2 Agent 必须有 Memory 吗？
+
+不必须。一次性短任务可以只有当前状态；跨轮目标、长期偏好或历史证据才需要 Memory。是否是 Agent 取决于是否围绕目标循环决策和行动，不取决于是否堆齐所有模块。
+
+### 14.3 ReAct 与 Plan-and-Execute 怎么选？
+
+ReAct 适合信息逐步暴露、每步结果会改变下一步的任务；Plan-and-Execute 适合目标明确且可拆分的长任务。生产系统常用混合方式：先给粗计划，每步执行后根据证据局部重规划。
+
+### 14.4 大量工具怎样召回？
+
+先按权限和环境过滤，再基于名称、描述、示例和历史成功率召回少量候选，只把候选 schema 发给模型；低置信度时澄清。工具图谱可表达依赖与前后置条件，但本地当前使用的是按需 schema 激活，不是完整工具图谱。
+
+### 14.5 如何定义 Agent 成功率？
+
+先定义分母和成功条件：一次跑通、允许自动重试后跑通、人工介入后完成不能混成一个数字。至少分别报告 autonomous success、assisted success、verifier pass、人工介入率、成本和 p95 延迟。
+
+### 14.6 Leader Agent 挂了怎么办？
+
+调度状态不能只在 Leader 内存里。任务、lease、checkpoint、工具副作用和产物引用要持久化；新 Leader 取得租约后从最后验证点恢复。提交必须幂等，超时 worker 的迟到结果不能覆盖新版本。
+
+### 14.7 Agent 如何避免越权目录或扫库？
+
+模型只产生意图；执行层使用规范化后的真实路径、workspace allowlist、ACL、最小凭据、查询模板、结果行列限制和审计。不能只在 prompt 里写“不要访问”。
+
+### 14.8 Agent 可观测性和普通日志有什么不同？
+
+普通日志看服务事件，Agent trace 还要重建“模型看到什么、为何选择某工具、状态如何变化、证据来自哪里”。两者用 run/trace/tool IDs 关联，不能互相替代。
+
+## 15. 代码证据速查
+
+| 面试主题 | 源码入口 | 可以证明什么 |
 |---|---|---|
-| 调用数量 | model turn、tool call、失败数、重复调用是否增加 | 事件序列、tool run、重复保护与进展状态 |
-| 单次模型延迟 | 首 token/整次请求是否变慢，是否限流或重试 | 模型重试事件与 backoff |
-| 输入规模 | prompt token、工具 schema、缓存命中是否变化 | ContextPlanner 预算与选中工具 schema |
-| 单次工具延迟 | 哪个命令或服务变慢，多久没有新输出 | managed process 的 elapsed 与 last output age |
-| 压缩 | 是否频繁触发 compaction，摘要是否重试 | compaction 事件和状态记录 |
-| 人工等待 | 是否卡在审批 | approval request/response 事件 |
-| 结束阶段 | 是否已经完成却继续循环，或反复验证 | repetition、failure、progress 与 checkpoint |
-
-#### 推荐口述
-
-> 我不会先猜是模型慢，而是把总耗时拆成模型、工具、等待、压缩、重试和收尾。先用同一输入和环境对齐快慢两条 trace，比较调用次数和每段耗时。如果总调用次数翻倍，优先查重复工具、失败重试和终止条件；如果次数不变但单次变慢，再查 provider 限流、上下文增长、外部工具和网络。对于长命令，我会看进程 elapsed、最后输出时间和退出状态，区分“仍在工作”“卡死”和“执行完但 Agent 没收敛”。定位到具体阶段后再做有针对性的修复，并用同一用例和尾延迟回归。
-
-### Q6：定位后如何解决变慢问题？
-
-这道题不能给一个万能答案，要按根因闭环：
-
-| 根因 | 处理方式 | 需要防止的副作用 |
-|---|---|---|
-| 模型/服务限流 | 指数退避、抖动、容量或模型路由；只重试可重试错误 | 重试风暴和重复计费 |
-| 工具重复调用 | 调用指纹、已完成结果复用、进展检测、明确终止条件 | 把参数相近但语义不同的调用误判为重复 |
-| 工具本身变慢 | 子阶段计时、合理超时、异步进程、缓存或批量化 | 粗暴缩短超时导致正常长任务失败 |
-| 上下文膨胀 | schema 按需激活、低价值内容裁剪、大输出外置、到阈值压缩 | 丢失约束、决策和未完成事项 |
-| 压缩频繁 | 调整触发阈值和摘要预算，修复超长工具输出的源头 | 只抬阈值造成 context limit |
-| 审批等待 | 合理的可复用审批作用域和更清晰的风险说明 | 扩大权限边界 |
-| 完成后不退出 | 用外部断言、进展状态和 finalize 条件收敛 | 过早终止尚未验证的任务 |
-
-本地实现中，[`_request_model_with_retries`](../../src/bot/core/agent.py) 只重试可重试错误并做有上限的退避；重复调用保护、进展控制和 checkpoint 也在同一主循环中。长命令由 [`local.py`](../../src/bot/execution/local.py) 管理为可轮询进程，而不是让一次工具调用无限阻塞。
-
-### Q7：工具参数固定时，怎样保证调用可靠？
-
-固定参数只能减少自由度，不能自动带来可靠性。建议按八层回答：
-
-1. **定义层**：工具名称唯一；参数使用 JSON Schema；未知字段、缺字段、错误类型和非法枚举直接拒绝。
-2. **语义层**：校验参数之间的关系和业务前置条件，例如路径必须在工作区内，资源必须存在。
-3. **策略层**：根据只读、网络、敏感信息、破坏性和命令特征决定 allow、deny 或 ask。
-4. **审批层**：高风险调用绑定明确 action 与作用域；批准某次操作不等于永久放权。
-5. **执行层**：不用隐式 shell，设置 soft wait、hard timeout、输出上限并规范化异常。
-6. **幂等与重复层**：为可重试操作设计 idempotency key；已经完成的相同调用直接复用或阻止。
-7. **协议层**：每个 assistant tool call 必须紧跟对应 tool result；中断恢复时补合成失败结果，避免 provider 协议损坏。
-8. **观测与评测层**：记录参数摘要、状态、错误、耗时和输出引用；用成功、失败、超时、越权和中断用例回归。
-
-#### 本地执行顺序
-
-```text
-tool name lookup
-  → jsonschema.validate(arguments)
-  → ToolAction
-  → PolicyEngine.evaluate
-  → 必要时 approval
-  → ToolContext（工作区、timeout、输出限制）
-  → execute
-  → 异常归一化 / 脱敏 / blob 外置
-  → tool run 与事件持久化
-```
-
-对应实现见 [`models.py`](../../src/bot/core/models.py)、[`registry.py`](../../src/bot/tools/registry.py)、[`base.py`](../../src/bot/tools/base.py)、[`PolicyEngine`](../../src/bot/policy/engine.py) 和 [`AgentRunner._execute_tool`](../../src/bot/core/agent.py)。协议修复在 [`repair_tool_protocol`](../../src/bot/core/context.py)，重复调用检测在 [`repetition.py`](../../src/bot/core/termination/repetition.py)。
-
-### Q8：多轮对话上下文越来越大，怎么办？
-
-核心思想是区分**持久化真相**与**本轮模型请求视图**。历史消息可以完整保存，但每次不必全部塞给模型。
-
-#### 四级治理
-
-1. **预算与选择**：先从模型窗口扣除输出、协议和安全余量；按优先级、保留策略与新旧程度装配。
-2. **减少固定开销**：稳定前缀放前面以利缓存；只加载相关 Skill；工具 schema 超预算时只放候选工具，其余通过目录按需激活。
-3. **外置大内容**：工具大输出写入内容寻址 blob，上下文中只保留摘要、哈希和引用；需要时分块读取或搜索。
-4. **压缩与回读**：达到目标利用率时压缩旧历史，同时保留最近原文；遇到细节追问可从原始消息、blob 或记忆证据回载。
-
-#### 必须保持的约束
-
-- tool call 与 tool result 是原子组，不能只截掉一半。
-- 当前用户指令不能被历史摘要伪造；合成上下文要标明不能授权。
-- 先用估算 token 装配，再用 provider 精确计数复核；超硬限制必须失败或重新规划，不能侥幸发送。
-- 不能只看“压缩率”，还要看任务正确性、证据召回、成本和延迟。
-
-本地的 [`ContextPlanner.pack`](../../src/bot/core/context.py) 实现预算、原子组和精确计数回退；[`TokenBudget`](../../src/bot/core/context.py) 预留输出、协议与安全空间；[`SessionStore`](../../src/bot/sessions/store.py) 保留原始消息和内容寻址 blob。更完整的问答见[上下文管理架构与面试手册](context-management-interview-guide.md)。
-
-### Q9：如何尽量减少压缩/摘要的信息损失？
-
-#### 先纠正题目中的绝对化表达
-
-> 摘要不可能数学意义上保证零损失。我能保证的是：定义必须保留的状态，让摘要可验证、让原文可追溯、让失败不覆盖旧状态，再用任务回归量化剩余风险。
-
-#### 八道防线
-
-1. **固定状态结构**：摘要必须包含目标、约束、进展、关键决策、相关文件、失败、下一步和关键上下文。
-2. **保留原始用户锚点**：关键用户消息与摘要共同回放，降低目标和约束被改写的风险。
-3. **保留近期原文**：只压缩安全边界之前的历史，不压缩正在进行的 tool call/result 组。
-4. **引用而非抄写大结果**：摘要保存结论、来源和 hash，大正文留在 blob 或原始消息中。
-5. **结构与长度校验**：缺少必填节、引用非法或超预算时，候选摘要不能生效。
-6. **两阶段提交**：先写 `building` 候选，验证通过后短事务晋升；失败时继续使用上一个有效摘要。
-7. **来源一致性和恢复**：保存 covered range、source hash、parent；可验证源内容，也可回滚到旧 compaction。
-8. **端到端评测**：构造长对话、超长工具输出、边界中断、摘要失败和后续细节追问，检查最终任务而不只比较文本相似度。
-
-本地 [`CompactionService`](../../src/bot/compaction/service.py) 落地了固定字段、用户锚点、安全边界、候选校验、来源哈希和失败回退；[`SessionStore.complete_context_compaction`](../../src/bot/sessions/store.py) 在提交时重新检查父状态，避免并发候选覆盖新状态。
-
-#### 60 秒口述
-
-> 我不会承诺摘要零损失，而是把风险变成可控制的状态转换。首先规定摘要必须保留目标、约束、完成与未完成项、决策、失败和关键文件；关键用户原话与最近历史仍保留。工具调用和结果按原子组处理，大输出不塞进摘要，只保留内容寻址引用。候选摘要生成后要校验结构、长度、引用和来源范围，验证通过才替换当前摘要，失败继续使用旧版本。最后用长任务回归检查最终正确性以及后续能否找回细节，而不是只看摘要读起来是否通顺。
-
-## 5. 高频追问速答
-
-### 5.1 为什么 schema 校验通过，工具仍可能失败？
-
-Schema 只能证明参数形状正确，不能证明文件存在、用户有权限、外部服务可用、操作幂等或业务状态仍然成立。因此还需要语义校验、策略、审批、超时、重试和执行后验证。
-
-### 5.2 为什么不是把全部历史都发给长上下文模型？
-
-窗口变长不代表注意力、延迟和成本免费。无关历史、重复 schema 和大工具输出会稀释关键信息，还会降低缓存效率。目标应是“在正确性约束下发送最小充分上下文”。
-
-### 5.3 压缩触发阈值怎么定？
-
-从硬窗口减去输出、协议和安全余量得到可用预算，再设置低于硬限制的目标利用率。阈值要结合平均轮次、工具输出分布、压缩耗时、缓存命中和正确性回归标定，不应只拍一个百分比。
-
-### 5.4 如何区分工具卡死和正常长任务？
-
-同时看进程是否存活、累计 elapsed、距离上次输出时间、CPU/外部状态和任务类型。soft wait 只把控制权还给 Agent，hard timeout 才终止进程；不能把“短时间没输出”直接等同于卡死。
-
-### 5.5 重试如何避免重复副作用？
-
-只重试可重试错误；写操作需要幂等键或可查询的 operation id；重试前先确认旧请求是否已生效；每次重试记录 attempt 和最终状态。无法幂等的破坏性操作应转人工确认。
-
-### 5.6 记忆检索和 RAG 有什么差别？
-
-两者都包含“先找证据再生成”，但本仓库记忆检索面向作用域内的历史记忆和原始证据，当前是可解释词法匹配；完整企业 RAG 还要解决多源摄取、切分、embedding、混合召回、rerank、ACL、版本和删除传播。
-
-### 5.7 如何评测 Agent Harness？
-
-至少分四层：组件契约（schema、policy、协议）、轨迹行为（是否用对工具并取得进展）、最终状态（文件/命令/JSON 断言）和系统指标（成功率、p50/p95 延迟、token、工具失败率、恢复率）。模型说“完成”不能代替外部验证。
-
-### 5.8 如果压缩后的回答错了，如何复盘？
-
-用 compaction id 找到 covered range、source hash、摘要版本和回放锚点；比较压缩前原文、候选摘要与实际请求；判断是源选择、摘要丢失、检索未触发还是模型忽略证据，然后补对应回归用例。
-
-## 6. 代码证据速查
-
-| 面试主题 | 入口 | 可证明的事实 |
-|---|---|---|
-| Harness 主循环 | [`src/bot/core/agent.py`](../../src/bot/core/agent.py) | 模型、工具、策略、上下文、存储、审批、压缩和记忆被统一编排 |
-| 请求与工具协议 | [`src/bot/core/models.py`](../../src/bot/core/models.py) | `ModelRequest`、`ToolDefinition`、`ToolCall` 为结构化对象 |
-| 上下文组装 | [`src/bot/core/context.py`](../../src/bot/core/context.py) | 硬预算、原子消息组、角色边界、协议修复和精确 token 复核 |
+| Harness 主循环 | [`src/bot/core/agent.py`](../../src/bot/core/agent.py) | 模型、工具、策略、状态、压缩和记忆的统一编排 |
+| 上下文与协议 | [`src/bot/core/context.py`](../../src/bot/core/context.py) | 预算、角色边界、原子工具组、精确计数与协议修复 |
 | 工具契约 | [`src/bot/tools/base.py`](../../src/bot/tools/base.py) | read-only、destructive、network、secret、idempotent、timeout 等注解 |
-| 策略与权限 | [`src/bot/policy/engine.py`](../../src/bot/policy/engine.py) | 工作区路径、敏感信息、网络、shell 和危险命令决策 |
-| 长进程 | [`src/bot/execution/local.py`](../../src/bot/execution/local.py) | 启动、轮询、hard timeout、elapsed 与最后输出时间 |
+| 工具注册 | [`src/bot/tools/registry.py`](../../src/bot/tools/registry.py) | 名称唯一、查找和候选子集 |
+| 策略与权限 | [`src/bot/policy/engine.py`](../../src/bot/policy/engine.py) | 工作区、网络、敏感信息、shell 和危险命令决策 |
+| 长进程 | [`src/bot/execution/local.py`](../../src/bot/execution/local.py) | 启动、轮询、hard timeout、elapsed 和最后输出时间 |
 | 重复与终止 | [`src/bot/core/termination/repetition.py`](../../src/bot/core/termination/repetition.py) | 重复调用检测和观察状态 |
-| 可恢复压缩 | [`src/bot/compaction/service.py`](../../src/bot/compaction/service.py) | 固定摘要结构、安全边界、校验、hash、锚点与失败回退 |
-| 持久化与 blob | [`src/bot/sessions/store.py`](../../src/bot/sessions/store.py) | 原始消息、tool run、compaction 两阶段提交和内容寻址存储 |
-| 记忆与证据 | [`src/bot/memory/routing.py`](../../src/bot/memory/routing.py)、[`store.py`](../../src/bot/memory/store.py) | 检索决策、词法评分与证据路由 |
-| 可观测性 | [`src/bot/core/events.py`](../../src/bot/core/events.py)、[`trace.py`](../../src/bot/observability/trace.py) | 带序号和时间的事件以及 trace 导出 |
-| 外部验证 | [`src/bot/evals/verification.py`](../../src/bot/evals/verification.py) | JSON schema、工具配对和最终产物断言 |
+| 可恢复压缩 | [`src/bot/compaction/service.py`](../../src/bot/compaction/service.py) | 固定摘要结构、安全边界、校验、hash、锚点和失败回退 |
+| 会话与 blob | [`src/bot/sessions/store.py`](../../src/bot/sessions/store.py) | 原始消息、tool run、两阶段压缩提交和内容寻址存储 |
+| 记忆 | [`src/bot/memory`](../../src/bot/memory) | 检索路由、词法评分、作用域和证据回载 |
+| 子 Agent | [`src/bot/subagents`](../../src/bot/subagents) | 进程内 Worker Pool、任务事件和结果汇总 |
+| 观测 | [`src/bot/core/events.py`](../../src/bot/core/events.py)、[`trace.py`](../../src/bot/observability/trace.py) | 有序事件和 trace bundle |
+| 评测 | [`src/bot/evals`](../../src/bot/evals) | JSON、工具轨迹、命令和最终状态验证 |
 
-## 7. 模拟面试练习法
+## 16. 模拟面试题单
 
-每道题练三种长度：一句话结论、60 秒主回答、3 分钟带案例回答。练习时要求自己做到：
+按下面顺序练一轮 45 分钟：
 
-- 定义准确，不把 Prompt、模型、工具或工作流单独等同于 Harness。
-- 每个机制都能指出一个失败场景，例如 orphan tool result、压缩失败或重复副作用。
-- 每个“保证”都说清条件；优先使用“校验、回退、可恢复、回归验证”，少用“绝对不会”。
-- 代码事实与候选设计分开。本仓库有 memory retrieval，不冒充完整向量 RAG；有结构化 verifier，不冒充简历评分产品。
-- 指标带日期、样本、模型和口径。历史实验结果只作为当时基线，不描述为当前线上 SLA。
-- 最后补一句取舍：可靠性机制带来了什么延迟、复杂度或维护成本。
+1. 两分钟介绍 Agent 项目，说明个人职责、规模、失败案例和指标。
+2. 画出 Agent loop，说明 Harness 与 Runtime 的区别。
+3. 对比 Tool、MCP、Skill、CLI、Function Calling 和 Workflow。
+4. 说明什么场景选单 Agent、Workflow 或 Multi-Agent。
+5. 设计 Leader/Worker 通信、并发冲突和 Leader 故障恢复。
+6. 说明长对话、Skill 膨胀和工具 schema 膨胀如何治理。
+7. 讲 RAG 离线/在线链路，以及准召下降时的定位方法。
+8. 解释“工具成功但业务没效果”如何排查和验证。
+9. 设计 Agent 的重试、降级、人工介入与终止状态机。
+10. 构造评测集并定义 autonomous success 和 assisted success。
+11. 设计权限、密钥、目录、网络与云沙箱隔离。
+12. 说明 Coding Agent 如何从需求到灰度发布且可回滚。
+13. 给出一次 5 分钟变 20 分钟的 trace 排障过程。
+14. 主动指出本地项目未实现 MCP、完整向量 RAG 和分布式云沙箱。
 
-建议按下面顺序做一轮 30 分钟模拟：
-
-1. 2 分钟项目介绍。
-2. 3 分钟白板画 Harness 主链路。
-3. 5 分钟解释长任务变慢的定位与修复。
-4. 5 分钟讲工具可靠性的八层防线。
-5. 5 分钟讲上下文治理与压缩保真。
-6. 5 分钟讲 RAG 离线/在线链路，并主动说明本地实现边界。
-7. 5 分钟接受追问，只允许引用能解释清楚的机制和数字。
-
-## 8. 面试前核对清单
+## 17. 面试前核对清单
 
 - [ ] 能在 30 秒和 2 分钟内分别讲完项目。
-- [ ] 能画出一次 tool call 从模型到执行再回到模型的完整链路。
-- [ ] 能解释 schema 校验为什么只是可靠性的第一层。
-- [ ] 能用阶段耗时公式分析 5 分钟变 20 分钟的问题。
-- [ ] 能说明 storage truth 与 request view 的区别。
-- [ ] 能解释压缩为何不承诺零损失，以及如何验证、回退和回读。
-- [ ] 能准确说出本仓库 RAG/简历评分的未实现边界。
-- [ ] 准备一个真实故障案例，包含现象、假设、证据、修复和回归结果。
-- [ ] 所有第一人称贡献和数字均能被自己的经历或记录支持。
+- [ ] 能从代码指出一次 tool call 的校验、审批、执行和持久化链路。
+- [ ] 不把 MCP、Skill、Tool 和 Function Calling 混为一谈。
+- [ ] 能用收益与协调成本解释为什么要或不要 Multi-Agent。
+- [ ] 能解释 storage truth 与 request view 的区别。
+- [ ] 能说明摘要不承诺零损失，但可验证、回读和回滚。
+- [ ] 能给出 RAG 的准召分层定位，而不只说“换 embedding”。
+- [ ] 能区分工具执行成功和业务后置条件成功。
+- [ ] 成功率、提效、成本和延迟数字都有分母、样本和时间范围。
+- [ ] 能准确说明本仓库 MCP、RAG、沙箱、模型路由和多 Agent 的实现边界。
+- [ ] 所有第一人称贡献都与个人真实经历一致。
 
-## 9. 延伸阅读
+## 18. 延伸阅读
 
-- [上下文管理架构与面试手册](context-management-interview-guide.md)：更系统的 25 组上下文、工具、压缩和长任务追问。
-- [实现状态](../architecture/implementation-status.md)：区分当前能力与后续方向。
-- [请求组装](../architecture/context-assembly.md)：上下文层、顺序和预算。
-- [可恢复上下文压缩](../architecture/recoverable-context-compaction.md)：压缩状态与恢复机制。
-- [长期记忆](../architecture/markdown-memory.md)：记忆存储与检索边界。
-- [评测指南](../evaluations/evaluation.md)：如何用外部断言而不是模型自报验证任务。
+- [上下文管理架构与面试手册](context-management-interview-guide.md)：上下文、压缩、缓存和长任务的深层追问。
+- [实现状态](../architecture/implementation-status.md)：当前能力与候选方向的边界。
+- [请求组装](../architecture/context-assembly.md)：上下文层、顺序、预算和工具协议。
+- [可恢复上下文压缩](../architecture/recoverable-context-compaction.md)：摘要状态与恢复机制。
+- [长期记忆](../architecture/markdown-memory.md)：记忆存储、检索和证据边界。
+- [评测指南](../evaluations/evaluation.md)：如何用外部断言验证 Agent 结果。
