@@ -16,7 +16,7 @@ from bot.core.events import AgentEvent, EventSink, EventType
 from bot.core.models import ChatMessage
 from bot.core.plan import validate_plan_payload
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 
 
 class SQLiteSessionStore(EventSink):
@@ -110,6 +110,13 @@ class SQLiteSessionStore(EventSink):
                     status TEXT NOT NULL,
                     result_json TEXT,
                     created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS recovery_states (
+                    session_id TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    state_json TEXT NOT NULL,
+                    PRIMARY KEY(session_id, scope),
+                    FOREIGN KEY(session_id) REFERENCES sessions(id)
                 );
                 CREATE TABLE IF NOT EXISTS progress_states (
                     session_id TEXT PRIMARY KEY,
@@ -798,6 +805,98 @@ class SQLiteSessionStore(EventSink):
             ).fetchall()
         return {str(row["id"]): str(row["status"]) for row in rows}
 
+    def begin_recovery_task(
+        self,
+        session_id: str,
+        scope: str,
+        *,
+        new_task: bool,
+        wall_seconds: float | None,
+    ) -> dict[str, Any]:
+        from time import time
+
+        with self._lock, self._connection:
+            row = self._connection.execute(
+                "SELECT state_json FROM recovery_states WHERE session_id = ? AND scope = ?",
+                (session_id, scope),
+            ).fetchone()
+            previous = json.loads(row[0]) if row else None
+            if previous is not None and not new_task:
+                if wall_seconds is not None:
+                    deadline = time() + wall_seconds
+                    old_deadline = previous.get("task_deadline")
+                    previous["task_deadline"] = (
+                        min(old_deadline, deadline) if old_deadline is not None else deadline
+                    )
+                    self._save_recovery_state(session_id, scope, previous)
+                return previous
+            state = {
+                "task_generation": previous["task_generation"] + 1 if previous else 1,
+                "task_attempts": 0,
+                "episode_attempts": 0,
+                "episode_deadline": None,
+                "task_deadline": time() + wall_seconds if wall_seconds is not None else None,
+                "charged_cost": 0,
+                "pending_cost": {},
+                "cap_next_response": False,
+            }
+            self._save_recovery_state(session_id, scope, state)
+            return state
+
+    def _save_recovery_state(self, session_id: str, scope: str, state: dict) -> None:
+        self._connection.execute(
+            "INSERT INTO recovery_states(session_id, scope, state_json) VALUES (?, ?, ?) "
+            "ON CONFLICT(session_id, scope) DO UPDATE SET state_json = excluded.state_json",
+            (session_id, scope, json.dumps(self._sanitizer(state), ensure_ascii=False)),
+        )
+
+    def save_recovery_state(self, session_id: str, scope: str, state: dict) -> None:
+        with self._lock, self._connection:
+            self._save_recovery_state(session_id, scope, state)
+
+    def commit_recovery(
+        self,
+        session_id: str,
+        scope: str,
+        state: dict,
+        message: ChatMessage,
+        event: AgentEvent,
+    ) -> int:
+        message = ChatMessage.model_validate(self._sanitizer(message.model_dump(mode="python")))
+        with self._lock, self._connection:
+            current = json.loads(
+                self._connection.execute(
+                    "SELECT state_json FROM recovery_states WHERE session_id = ? AND scope = ?",
+                    (session_id, scope),
+                ).fetchone()[0]
+            )
+            if (
+                current["task_generation"] != state["task_generation"]
+                or current["task_attempts"] + 1 != state["task_attempts"]
+            ):
+                raise ValueError("recovery state changed concurrently")
+            self._save_recovery_state(session_id, scope, state)
+            position = self._insert_message(session_id, event.run_id, message)
+            self._insert_event(event)
+            return position
+
+    def _insert_event(self, event: AgentEvent) -> None:
+        self._connection.execute(
+            "INSERT OR IGNORE INTO events "
+            "(id, session_id, run_id, schema_version, sequence, type, timestamp, payload_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                event.id,
+                event.session_id,
+                event.run_id,
+                event.schema_version,
+                event.sequence,
+                event.type.value,
+                event.timestamp.isoformat(),
+                json.dumps(self._sanitizer(event.payload), ensure_ascii=False),
+            ),
+        )
+
     def load_progress_state(self, session_id: str) -> dict[str, Any] | None:
         with self._lock:
             row = self._connection.execute(
@@ -841,26 +940,22 @@ class SQLiteSessionStore(EventSink):
                 (session_id,),
             )
 
+    def unresolved_process_cleanups(self, scope: str) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT payload_json FROM events WHERE type = ? ORDER BY rowid",
+                (EventType.PROCESS_CLEANUP_FINISHED.value,),
+            ).fetchall()
+        latest = {}
+        for row in rows:
+            payload = json.loads(row["payload_json"])
+            if payload.get("cleanup_scope") == scope:
+                latest[payload["process_id"]] = payload
+        return [p for p in latest.values() if p.get("status") == "cleanup_failed"]
+
     async def publish(self, event: AgentEvent) -> None:
-        payload = json.dumps(self._sanitizer(event.payload), ensure_ascii=False)
         with self._lock, self._connection:
-            self._connection.execute(
-                """
-                INSERT INTO events(
-                    id, session_id, run_id, schema_version, sequence, type, timestamp, payload_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    event.id,
-                    event.session_id,
-                    event.run_id,
-                    event.schema_version,
-                    event.sequence,
-                    event.type.value,
-                    event.timestamp.isoformat(),
-                    payload,
-                ),
-            )
+            self._insert_event(event)
             self._connection.execute(
                 "UPDATE sessions SET updated_at = ? WHERE id = ?",
                 (event.timestamp.isoformat(), event.session_id),

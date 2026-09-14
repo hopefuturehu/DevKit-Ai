@@ -75,3 +75,26 @@ test('child lifecycle on synthetic runs updates one parent timeline card',()=>{
   assert.equal(m.children.get('t1').objective,'检查边界');
   assert.equal(m.children.get('t1').status,'completed');
 });
+
+test('interrupted attempts stay unpriced and quarantined responses are discarded',()=>{
+  const m=new TraceModel();
+  m.apply(event('model.request.started',{request_attempt_id:'a',step:1}));
+  m.apply(event('assistant.delta',{text:'partial',step:1}));
+  m.apply(event('model.request.interrupted',{request_attempt_id:'a',step:1,usage_status:'missing'}));
+  assert.equal(m.runs.get('r1').unknownAttempts.size,1);
+  assert.equal(m.runs.get('r1').messages.values().next().value.discarded,true);
+  m.apply(event('model.request.started',{request_attempt_id:'b',step:2}));
+  m.apply(event('model.request.finished',{request_attempt_id:'b',step:2,usage_status:'known'}));
+  assert.equal(m.runs.get('r1').unknownAttempts.size,1);
+});
+
+test('cleanup failure updates the background process without losing its output',()=>{
+  const m=new TraceModel();
+  m.apply(event('tool.result',{tool_call_id:'launch',name:'run_command',process_id:'p1',status:'running'}));
+  m.apply(event('process.output',{process_id:'p1',data:'retained'}));
+  m.apply(event('process.cleanup_finished',{process_id:'p1',status:'cleanup_failed',stdout:'',output_complete:false}));
+  const process=m.processFor(m.toolsFor('r1')[0]);
+  assert.equal(process.status,'cleanup_failed');
+  assert.equal(process.stdout,'retained');
+  assert.equal(process.output_complete,false);
+});

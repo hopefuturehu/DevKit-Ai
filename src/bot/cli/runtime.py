@@ -12,7 +12,7 @@ from bot.core.approval import ApprovalHandler
 from bot.core.context import ContextAssembler
 from bot.core.events import CallbackEventSink, EventBus, EventSink, EventType
 from bot.core.models import RunRequest
-from bot.execution import LocalExecutionTarget
+from bot.execution import LocalExecutionTarget, ProcessSpec
 from bot.memory import MarkdownMemoryStore, MemoryExtractor
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine
@@ -111,6 +111,7 @@ def build_runtime(
     redactor = Redactor([api_key])
     target = LocalExecutionTarget(
         max_managed_processes=config.agent.max_managed_processes,
+        cleanup=config.agent.process_cleanup,
     )
     catalog = SkillCatalog(config.skill_path(workspace))
     catalog.scan()
@@ -123,6 +124,18 @@ def build_runtime(
         [store, *(event_sinks or [])],
         transform=redactor.redact_event,
     )
+
+    async def record_cleanup(spec: ProcessSpec, process_id: str, payload: dict) -> None:
+        if spec.session_id and spec.run_id:
+            await event_bus.emit(
+                EventType.PROCESS_CLEANUP_FINISHED,
+                session_id=spec.session_id,
+                run_id=spec.run_id,
+                payload={"process_id": process_id, **payload},
+            )
+
+    target.cleanup_observer = record_cleanup
+    target.restore_cleanups(store.unresolved_process_cleanups(target.cleanup_scope))
     builtin_agents = Path(__file__).resolve().parents[1] / "assets" / "agents"
     try:
         project_agent_path = config.project_agent_path(workspace)

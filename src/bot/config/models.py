@@ -101,6 +101,50 @@ class FinalizationConfig(StrictModel):
     fallback_summary: bool = True
 
 
+class StreamGuardConfig(StrictModel):
+    mode: Literal["off", "observe", "enforce"] = "observe"
+    min_response_chars: int = Field(default=8192, ge=256)
+    window_chars: int = Field(default=32768, ge=1024, le=131072)
+    check_every_chars: int = Field(default=256, ge=64)
+    min_period_chars: int = Field(default=128, ge=16)
+    max_period_chars: int = Field(default=4096, ge=16)
+    min_repetitions: int = Field(default=6, ge=3)
+    min_repeated_span_chars: int = Field(default=4096, ge=256)
+    confirmations: int = Field(default=3, ge=1)
+
+    @model_validator(mode="after")
+    def validate_window(self) -> StreamGuardConfig:
+        if not self.min_period_chars <= self.max_period_chars < self.window_chars:
+            raise ValueError("stream_guard period 必须在检测窗口内且严格递增")
+        if self.min_repeated_span_chars >= self.window_chars:
+            raise ValueError("stream_guard span 必须小于检测窗口")
+        return self
+
+
+class RecoveryConfig(StrictModel):
+    enabled: bool = False
+    max_attempts_per_episode: int = Field(default=1, ge=0, le=3)
+    max_attempts_per_task: int = Field(default=2, ge=0, le=10)
+    max_episode_seconds: float = Field(default=120, gt=0)
+    max_response_output_tokens: int = Field(default=8192, gt=0)
+
+
+class ProcessCleanupConfig(StrictModel):
+    total_timeout_seconds: float = Field(default=5, gt=0, le=60)
+    term_grace_seconds: float = Field(default=2, ge=0)
+    kill_grace_seconds: float = Field(default=2, ge=0)
+    drain_grace_seconds: float = Field(default=1, ge=0)
+
+    @model_validator(mode="after")
+    def validate_deadline(self) -> ProcessCleanupConfig:
+        if (
+            self.term_grace_seconds + self.kill_grace_seconds + self.drain_grace_seconds
+            > self.total_timeout_seconds
+        ):
+            raise ValueError("process_cleanup 各阶段期限之和不能超过总期限")
+        return self
+
+
 class AgentConfig(StrictModel):
     # None means that normal task execution has no fixed global budget.  These
     # fields remain available as explicit compatibility/safety policies.
@@ -115,6 +159,9 @@ class AgentConfig(StrictModel):
     process_wait_seconds: float = Field(default=10, ge=0, le=60)
     process_hard_timeout_seconds: float | None = Field(default=None, gt=0)
     max_managed_processes: int = Field(default=16, ge=1, le=256)
+    process_cleanup: ProcessCleanupConfig = Field(default_factory=ProcessCleanupConfig)
+    stream_guard: StreamGuardConfig = Field(default_factory=StreamGuardConfig)
+    recovery: RecoveryConfig = Field(default_factory=RecoveryConfig)
     progress: ProgressConfig = Field(default_factory=ProgressConfig)
     finalization: FinalizationConfig = Field(default_factory=FinalizationConfig)
 

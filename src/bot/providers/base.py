@@ -85,3 +85,48 @@ def estimate_input_tokens(provider: object, request: ModelRequest) -> InputToken
     if exact is None:
         return None
     return InputTokenEstimate(tokens=exact, budget_tokens=exact, source="provider_counter")
+
+
+class ProviderStream:
+    """Own one iterator; closing it must release its HTTP response, not the shared client.
+
+    Duck-typed legacy iterators without aclose remain readable but report unsupported
+    closure. A timed out close cannot authorize a recovery request.
+    """
+
+    def __init__(self, provider: object, request: ModelRequest, timeout: float = 1) -> None:
+        self.provider = provider
+        self.request = request
+        self.iterator = None
+        self.timeout = timeout
+        self.close_status = "not_requested"
+
+    async def __aenter__(self):
+        self.iterator = self.provider.stream(self.request)
+        return self.iterator
+
+    async def __aexit__(self, exc_type, exc, traceback):
+        import asyncio
+
+        close = getattr(self.iterator, "aclose", None)
+        if close is None:
+            self.close_status = "unsupported"
+            return
+        task = asyncio.ensure_future(close())
+
+        def consume(done):
+            if not done.cancelled():
+                done.exception()
+
+        task.add_done_callback(consume)
+        try:
+            done, _ = await asyncio.wait({task}, timeout=self.timeout)
+            if done:
+                self.close_status = "closed" if task.exception() is None else "failed"
+            else:
+                task.cancel()
+                self.close_status = "timeout"
+        except BaseException:
+            task.cancel()
+            self.close_status = "cancelled"
+            raise

@@ -168,6 +168,7 @@ class RunRequest(BaseModel):
     session_id: str | None = None
     run_id: str | None = None
     explicit_skills: list[str] = Field(default_factory=list)
+    new_task: bool = False  # Explicitly renew recovery/task budgets; resume keeps them.
     json_output: bool = False
 
 

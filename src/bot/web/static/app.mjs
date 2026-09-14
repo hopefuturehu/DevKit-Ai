@@ -140,6 +140,7 @@ function renderMeta(){
   if(run.started_at)parts.push(el('span','',`${terminal.has(run.status)?'耗时':'已运行'} ${duration(seconds(run.started_at,run.completed_at||new Date().toISOString()))}`));
   parts.push(el('span','',`输入 ${fmt(run.usage.input_tokens)} / 输出 ${fmt(run.usage.output_tokens)} tokens`));
   parts.push(el('span','',run.usage.cost_usd===null?'费用未记录':`$${Number(run.usage.cost_usd).toFixed(4)}`));
+  if(run.unknownAttempts?.size)parts.push(el('span','muted',`${run.unknownAttempts.size} 次请求用量未确认，费用仅为已知部分`));
   if(runId!==rootRunId&&rootRunId)parts.push(button('返回主任务',()=>selectRun(rootRunId),'quiet'));
   if(run.status==='running'&&!run.live&&!activeRunId)parts.push(el('span','muted','历史运行状态，执行端未确认'));
   $('runMeta').replaceChildren(...parts);

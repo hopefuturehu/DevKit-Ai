@@ -1181,7 +1181,10 @@ async def test_agent_retries_transient_provider_error_and_discards_partial_turn(
     assert len(provider.requests) == 2
     events = store.list_events(result.session_id)
     retry = next(event for event in events if event["type"] == EventType.MODEL_REQUEST_RETRY.value)
+    assert retry["payload"]["request_attempt_id"]
     assert retry["payload"] == {
+        "request_attempt_id": retry["payload"]["request_attempt_id"],
+        "phase": "main",
         "step": 1,
         "failed_attempt": 1,
         "next_attempt": 2,
@@ -1233,7 +1236,7 @@ async def test_agent_stops_after_transient_provider_retry_limit(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_agent_does_not_retry_provider_error_after_cost_limit(tmp_path: Path) -> None:
+async def test_agent_reserves_cost_before_first_provider_request(tmp_path: Path) -> None:
     provider = TransientProvider(failures=1, emit_usage=True)
     runner, store = make_test_runner(
         tmp_path,
@@ -1251,8 +1254,8 @@ async def test_agent_does_not_retry_provider_error_after_cost_limit(tmp_path: Pa
 
     assert result.status == "limit_reached"
     assert result.termination_reason == "max_cost_usd"
-    assert result.cost_usd == 0.015
-    assert len(provider.requests) == 1
+    assert result.cost_usd == 0
+    assert len(provider.requests) == 0
     assert not any(
         event["type"] == EventType.MODEL_REQUEST_RETRY.value
         for event in store.list_events(result.session_id)
@@ -1806,7 +1809,7 @@ async def test_trusted_repeat_allowance_completes_silent_mutations(tmp_path):
             "repeat_guard_mode": "enforce", "repeat_tool_limits": {"run_command": 5},
         }},
     )
-    runner.config.permissions.mode = "full-access"
+    runner.approval_handler = AllowApprovalHandler()
     try:
         result = await runner.run(RunRequest(prompt="Apply five silent increments."))
         assert result.status == "completed"

@@ -265,11 +265,16 @@ def _process_metadata(snapshot: ProcessSnapshot) -> dict[str, Any]:
             else None
         ),
         "termination_reason": snapshot.termination_reason,
+        "cleanup_status": snapshot.cleanup_status,
+        "containment": snapshot.containment,
+        "output_complete": snapshot.output_complete,
+        "remaining_processes": snapshot.remaining_processes,
+        "cleanup_elapsed_seconds": snapshot.cleanup_elapsed_seconds,
     }
 
 
 def _process_progress(snapshot: ProcessSnapshot) -> ProgressSignal:
-    if snapshot.status == ProcessStatus.RUNNING:
+    if snapshot.status in {ProcessStatus.RUNNING, ProcessStatus.TERMINATING}:
         return ProgressSignal(
             kind=ProgressKind.WAITING,
             summary=f"进程 {snapshot.process_id} 仍在运行",
@@ -288,7 +293,7 @@ def _process_progress(snapshot: ProcessSnapshot) -> ProgressSignal:
             snapshot.stderr_sha256 or hashlib.sha256(snapshot.stderr.encode()).hexdigest(),
         ),
         evidence_complete=(
-            not snapshot.truncated
+            not snapshot.truncated and snapshot.output_complete
             and snapshot.stdout_sha256 is not None and snapshot.stderr_sha256 is not None
         ),
     )
@@ -304,7 +309,7 @@ def _combined_process_output(snapshot: ProcessSnapshot) -> str:
 def _process_tool_result(snapshot: ProcessSnapshot) -> ToolResult:
     output = _combined_process_output(snapshot)
     metadata = _process_metadata(snapshot)
-    if snapshot.status == ProcessStatus.RUNNING:
+    if snapshot.status in {ProcessStatus.RUNNING, ProcessStatus.TERMINATING}:
         status_line = (
             f"进程仍在运行（process_id={snapshot.process_id}, "
             f"elapsed={snapshot.elapsed_seconds:.1f}s）。"
@@ -648,6 +653,10 @@ class TerminateProcessTool(Tool):
                 reason=str(arguments["reason"]) if arguments.get("reason") else None,
             )
             await _emit_process_output(context, snapshot)
+            if snapshot.status == ProcessStatus.CLEANUP_FAILED:
+                result = _process_tool_result(snapshot)
+                result.metadata["reason_code"] = "process_cleanup_incomplete"
+                return result
             output = _combined_process_output(snapshot)
             message = f"进程 {snapshot.process_id} 当前状态为 {snapshot.status.value}。"
             output = f"{output}\n\n{message}" if output else message
@@ -658,7 +667,7 @@ class TerminateProcessTool(Tool):
                 progress=ProgressSignal(
                     kind=(
                         ProgressKind.STRONG
-                        if snapshot.status == ProcessStatus.CANCELLED
+                        if snapshot.status == ProcessStatus.CANCELLED and snapshot.cleanup_changed
                         else ProgressKind.NONE
                     ),
                     summary=(

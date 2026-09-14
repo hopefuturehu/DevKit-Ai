@@ -18,6 +18,11 @@ class EventType(StrEnum):
     ASSISTANT_MESSAGE = "assistant.message"
     MODEL_USAGE = "model.usage"
     MODEL_RESPONSE = "model.response"
+    MODEL_REQUEST_STARTED = "model.request.started"
+    MODEL_REQUEST_INTERRUPTED = "model.request.interrupted"
+    MODEL_REQUEST_FINISHED = "model.request.finished"
+    MODEL_STREAM_REPETITION = "model.stream_repetition"
+    RUN_RECOVERY_FINISHED = "run.recovery_finished"
     MODEL_REQUEST_RETRY = "model.request.retry"
     MODEL_EMPTY_RESPONSE = "model.empty_response"
     TOOL_REQUESTED = "tool.requested"
@@ -69,6 +74,7 @@ class EventType(StrEnum):
     RUN_ARTIFACTS_UPDATED = "run.artifacts.updated"
     PROCESS_OUTPUT = "process.output"
     PROCESS_UPDATED = "process.updated"
+    PROCESS_CLEANUP_FINISHED = "process.cleanup_finished"
     SKILL_DISCOVERED = "skill.discovered"
     SKILL_ACTIVATED = "skill.activated"
     SKILL_RESOURCE_LOADED = "skill.resource_loaded"
@@ -126,6 +132,7 @@ class EventBus:
         session_id: str,
         run_id: str,
         payload: dict[str, Any] | None = None,
+        before_publish: Callable[[AgentEvent], None] | None = None,
     ) -> AgentEvent:
         self._sequence += 1
         event = AgentEvent(
@@ -137,6 +144,8 @@ class EventBus:
         )
         if self._transform:
             event = self._transform(event)
+        if before_publish is not None:
+            before_publish(event)
         for sink in self._sinks:
             await sink.publish(event)
         return event

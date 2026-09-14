@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
@@ -47,6 +47,8 @@ from bot.core.plan import PlanStatus, validate_plan_payload
 from bot.core.progress import ProgressKind, ProgressSignal
 from bot.core.termination import ProgressController, TerminationAction
 from bot.core.termination.identity import call_identity, fingerprint
+from bot.core.termination.recovery import RecoveryController
+from bot.core.termination.stream_guard import StreamGuard
 from bot.execution import ExecutionTarget, ProcessStatus
 from bot.memory.routing import (
     MemoryRetrievalDecision,
@@ -56,7 +58,7 @@ from bot.memory.routing import (
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
 from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
-from bot.providers.base import estimate_input_tokens
+from bot.providers.base import ProviderStream, estimate_input_tokens
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillManager
 from bot.skills.runtime import RunSkillState, SkillContextError
@@ -140,6 +142,9 @@ class _ModelTurnResult:
     output_tokens: int
     cost_usd: float | None
     retry_count: int
+    request_attempt_id: str
+    interrupted: str | None = None
+    close_status: str = "closed"
 
 
 class _ModelRequestFailure(Exception):
@@ -260,6 +265,8 @@ class AgentRunner:
         self._run_skill_states: dict[str, RunSkillState] = {}
         self._run_compaction_strategies: dict[str, StrategyCompactor] = {}
         self._finalization_frames: dict[str, _FinalizationFrame] = {}
+        self._recoveries: dict[str, RecoveryController] = {}
+        self._run_timeouts: dict[str, asyncio.Timeout] = {}
         self._last_context_reports: dict[str, dict[str, object]] = {}
         self._token_estimator = TokenEstimator()
         context_window = config.model.context_window_tokens
@@ -546,6 +553,8 @@ class AgentRunner:
                 skill_state.close()
                 self._run_compaction_strategies.pop(session_id, None)
                 self._finalization_frames.pop(run_id, None)
+                self._recoveries.pop(run_id, None)
+                self._run_timeouts.pop(run_id, None)
                 self._run_skill_states.pop(session_id, None)
                 self._steering_queues.pop(session_id, None)
                 idle_event.set()
@@ -555,6 +564,42 @@ class AgentRunner:
             state = self._run_skill_states.get(session_id)
             return sorted(state.active) if state is not None else []
         return sorted({name for state in self._run_skill_states.values() for name in state.active})
+
+    async def _cleanup_owned_processes(
+        self, session_id: str, run_id: str, reason: str
+    ) -> list[dict]:
+        owned = [
+            p
+            for p in await self.execution_target.list_processes()
+            if p.session_id == session_id and p.run_id == run_id
+        ]
+        results = await asyncio.gather(
+            *(self.execution_target.terminate_process(p.process_id, reason=reason) for p in owned),
+            return_exceptions=True,
+        )
+        failures = []
+        for process, result in zip(owned, results, strict=True):
+            if isinstance(result, BaseException):
+                failures.append(
+                    {
+                        "process_id": process.process_id,
+                        "cleanup_status": "unknown",
+                        "error": str(result),
+                    }
+                )
+                await self.event_bus.emit(
+                    EventType.PROCESS_CLEANUP_FINISHED,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={
+                        "process_id": process.process_id,
+                        "cleanup_status": "unknown",
+                        "error": str(result),
+                    },
+                )
+            elif result.status == ProcessStatus.CLEANUP_FAILED:
+                failures.append(result.model_dump(mode="json", exclude={"stdout", "stderr"}))
+        return failures
 
     async def _run_owned(
         self,
@@ -569,6 +614,15 @@ class AgentRunner:
         wall_time_limit = self.config.agent.max_wall_time_seconds
         try:
             self.store.start_run(session_id, run_id)
+            self._recoveries[run_id] = RecoveryController(
+                self.config.agent.recovery,
+                self.store.begin_recovery_task(
+                    session_id,
+                    self._recovery_scope,
+                    new_task=request.new_task,
+                    wall_seconds=wall_time_limit,
+                ),
+            )
             await self.event_bus.emit(
                 EventType.RUN_STARTED,
                 session_id=session_id,
@@ -596,15 +650,14 @@ class AgentRunner:
                     },
                 },
             )
-            if wall_time_limit is None:
+            remaining = self._recoveries[run_id].remaining_seconds()
+            async with asyncio.timeout(remaining) as timeout:
+                self._run_timeouts[run_id] = timeout
+                if remaining is not None and remaining <= 0:
+                    raise TimeoutError("任务期限已到")
                 result = await self._run_loop(
                     request, session_id=session_id, run_id=run_id, skill_state=skill_state
                 )
-            else:
-                async with asyncio.timeout(wall_time_limit):
-                    result = await self._run_loop(
-                        request, session_id=session_id, run_id=run_id, skill_state=skill_state
-                    )
         except SkillContextError as exc:
             usage = self.store.latest_run_usage(run_id)
             result = await self._finalize_termination(
@@ -629,14 +682,23 @@ class AgentRunner:
                 termination=termination,
             )
         except TimeoutError as exc:
-            if wall_time_limit is None:
+            cleanup_failures = await self._cleanup_owned_processes(
+                session_id, run_id, "运行期限到期"
+            )
+            recovery = self._recoveries.get(run_id)
+            expired_reason = recovery.expired_reason() if recovery is not None else None
+            if expired_reason == "recovery_timeout":
+                error = "模型响应恢复阶段超过期限"
+                status = "blocked"
+                termination_reason = expired_reason
+            elif expired_reason == "max_wall_time_seconds":
+                error = "任务已达到持久化的运行期限"
+                status = "limit_reached"
+                termination_reason = expired_reason
+            else:
                 error = f"运行时操作超时: {exc or '未提供具体原因'}"
                 status = "failed"
                 termination_reason = "runtime_timeout"
-            else:
-                error = f"运行超过 {wall_time_limit:g} 秒限制"
-                status = "limit_reached"
-                termination_reason = "max_wall_time_seconds"
             result = await self._finalize_termination(
                 session_id=session_id,
                 run_id=run_id,
@@ -645,18 +707,17 @@ class AgentRunner:
                     status=status,
                     reason_code=termination_reason,
                     message=error,
+                    model_finalizer=termination_reason == "runtime_timeout",
+                    metadata={"cleanup_failures": cleanup_failures},
                 ),
             )
         except asyncio.CancelledError:
             error = "运行已取消"
             # Cancel only processes owned by this Run. Another session may be
             # executing against the shared target at the same time.
-            for process in await self.execution_target.list_processes():
-                if process.session_id == session_id and process.run_id == run_id:
-                    await self.execution_target.terminate_process(
-                        process.process_id,
-                        reason="用户停止任务",
-                    )
+            cleanup_failures = await self._cleanup_owned_processes(
+                session_id, run_id, "用户停止任务"
+            )
             if self.subagent_controller is not None and hasattr(
                 self.subagent_controller, "cancel_run"
             ):
@@ -666,7 +727,11 @@ class AgentRunner:
                 EventType.RUN_CANCELLED,
                 session_id=session_id,
                 run_id=run_id,
-                payload={"error": error, "termination_reason": "cancelled"},
+                payload={
+                    "error": error,
+                    "termination_reason": "cancelled",
+                    "cleanup_failures": cleanup_failures,
+                },
             )
             result = RunResult(
                 session_id=session_id,
@@ -695,6 +760,18 @@ class AgentRunner:
                 f"父 Agent 以 {result.status} 结束",
             )
         if result.status == "completed":
+            recovery = self._recoveries.get(run_id)
+            if recovery is not None and recovery.effective_progress():
+                self._save_recovery(session_id, run_id)
+                await self.event_bus.emit(
+                    EventType.RUN_RECOVERY_FINISHED,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={
+                        "outcome": "response_completed",
+                        "task_attempts": recovery.state["task_attempts"],
+                    },
+                )
             self.store.clear_progress_state(session_id)
         strategy = self._run_compaction_strategies.get(session_id)
         if strategy is not None:
@@ -1197,6 +1274,13 @@ class AgentRunner:
                 max_output_tokens=self.config.model.max_output_tokens,
                 thinking=self.config.model.thinking,
             )
+            recovery = self._recoveries[run_id]
+            if recovery.state.get("cap_next_response"):
+                model_request.max_output_tokens = min(
+                    model_request.max_output_tokens
+                    or self.config.agent.recovery.max_response_output_tokens,
+                    self.config.agent.recovery.max_response_output_tokens,
+                )
             dropped_ids = {str(item.get("id")) for item in context_pack.dropped_items}
             disposable_positions_sent = {
                 position
@@ -1307,6 +1391,25 @@ class AgentRunner:
             finish_reason = model_turn.finish_reason
             finish_metadata = model_turn.finish_metadata
             turn_usage = model_turn.turn_usage
+            conversation = self._expire_disposable_tool_results(
+                conversation,
+                disposable_tool_results,
+                positions=disposable_positions_sent,
+            )
+            frame = self._finalization_frames[run_id]
+            frame.conversation = conversation
+            # One-shot retrieval bodies must not be replayed after consumption.
+            frame.reusable = not disposable_positions_sent
+
+            if model_turn.interrupted or finish_reason in {"length", "max_tokens"}:
+                await self._recover_response(
+                    model_turn,
+                    conversation,
+                    session_id=session_id,
+                    run_id=run_id,
+                    step=step,
+                )
+                continue
             tool_calls = [
                 ToolCall.model_validate(
                     self.redactor.redact(self._parse_tool_call(buffer).model_dump(mode="python"))
@@ -1325,6 +1428,7 @@ class AgentRunner:
                 "turn_usage": turn_usage,
                 "provider_metadata": finish_metadata,
                 "provider_retry_count": model_turn.retry_count,
+                "request_attempt_id": model_turn.request_attempt_id,
             }
             if (
                 required_memory_tool is not None
@@ -1386,15 +1490,6 @@ class AgentRunner:
                         "required_tool": required_memory_tool,
                     },
                 )
-            conversation = self._expire_disposable_tool_results(
-                conversation,
-                disposable_tool_results,
-                positions=disposable_positions_sent,
-            )
-            frame = self._finalization_frames[run_id]
-            frame.conversation = conversation
-            # One-shot retrieval bodies must not be replayed after consumption.
-            frame.reusable = not disposable_positions_sent
 
             if not assistant_text.strip() and not tool_calls:
                 consecutive_empty_responses += 1
@@ -1691,6 +1786,7 @@ class AgentRunner:
                     cost_usd=cost_usd,
                 )
 
+            cleanup_incomplete = False
             for tool_call in tool_calls:
                 await self.event_bus.emit(
                     EventType.TOOL_REQUESTED,
@@ -1702,7 +1798,13 @@ class AgentRunner:
                         "arguments": tool_call.arguments,
                     },
                 )
-                if tool_call.name == "activate_skill":
+                if cleanup_incomplete:
+                    result = ToolResult(
+                        success=False,
+                        error="同批进程清理失败，未执行后续调用",
+                        metadata={"executed": False, "reason_code": "process_cleanup_incomplete"},
+                    )
+                elif tool_call.name == "activate_skill":
                     result = await self._activate_skill(
                         tool_call, session_id, run_id, skill_state, conversation
                     )
@@ -1714,7 +1816,10 @@ class AgentRunner:
                     result = self._activate_tools(tool_call, session_id)
                 elif tool_call.name == "load_context_reference":
                     result = await self._guarded_context_reference(
-                        tool_call, session_id, run_id, progress_controller,
+                        tool_call,
+                        session_id,
+                        run_id,
+                        progress_controller,
                         cursor=int(compaction_projection["cursor_position"]),
                     )
                 elif tool_call.name == "search_session_history":
@@ -1735,7 +1840,9 @@ class AgentRunner:
                     )
                 else:
                     result = await self._execute_tool(
-                        tool_call, session_id, run_id,
+                        tool_call,
+                        session_id,
+                        run_id,
                         progress_controller=progress_controller,
                         compaction_cursor=int(compaction_projection["cursor_position"]),
                     )
@@ -1747,6 +1854,9 @@ class AgentRunner:
                     run_id=run_id,
                     content=result.model_content(),
                     media_type="application/vnd.bot.tool-result+json",
+                )
+                cleanup_incomplete |= (
+                    result.metadata.get("process_status") == ProcessStatus.CLEANUP_FAILED
                 )
                 await self.event_bus.emit(
                     EventType.TOOL_RESULT,
@@ -1943,6 +2053,36 @@ class AgentRunner:
                             cost_usd=cost_usd,
                         )
 
+                recovery = self._recoveries[run_id]
+                evidence_key = fingerprint(tool_call.name, tool_call.arguments, raw_model_content)
+                seen = recovery.state.setdefault("evidence", [])
+                if (
+                    result.success
+                    and result.progress is not None
+                    and result.progress.kind in {ProgressKind.WEAK, ProgressKind.STRONG}
+                    and tool_call.name
+                    in {"read_file", "search_text", "poll_process", "run_command", "run_shell"}
+                    and raw_model_content
+                    and evidence_key not in seen
+                    and result.metadata.get("executed", True)
+                    and not result.truncated
+                ):
+                    seen.append(evidence_key)
+                    del seen[:-256]
+                    recovered = recovery.effective_progress()
+                    self._save_recovery(session_id, run_id)
+                    if recovered:
+                        self._sync_recovery_timeout(run_id)
+                        await self.event_bus.emit(
+                            EventType.RUN_RECOVERY_FINISHED,
+                            session_id=session_id,
+                            run_id=run_id,
+                            payload={
+                                "outcome": "new_tool_evidence",
+                                "tool_call_id": tool_call.id,
+                                "task_attempts": recovery.state["task_attempts"],
+                            },
+                        )
                 if self.config.agent.progress.enabled:
                     registered_tool = self.tool_registry.get(tool_call.name)
                     progress_controller.observe_tool(
@@ -1978,7 +2118,8 @@ class AgentRunner:
                         ),
                     )
                     if (
-                        result.success and result.progress is not None
+                        result.success
+                        and result.progress is not None
                         and result.progress.kind == ProgressKind.STRONG
                         and result.progress.subject_key
                         and result.progress.subject_key.startswith("file:")
@@ -1987,6 +2128,17 @@ class AgentRunner:
                         for path in (changed, *changed.parents):
                             progress_controller.repeat_guard.invalidate_subject(f"tree:{path}")
 
+            if cleanup_incomplete:
+                raise _RunTermination(
+                    status="blocked",
+                    reason_code="process_cleanup_incomplete",
+                    message="受管进程未清理完成，已暂停当前运行",
+                    steps=step,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    model_finalizer=False,
+                )
             steered_after_tools = await self._drain_steering(
                 conversation,
                 session_id=session_id,
@@ -2122,58 +2274,36 @@ class AgentRunner:
                 if not self._finalizer_fits(finalizer_request):
                     raise SkillContextError("skill_context_budget_exceeded", "收尾请求超出预算")
                 model_attempted = True
-                text_parts: list[str] = []
-                finalizer_finish_reason: str | None = None
-                finalizer_metadata: dict[str, Any] = {}
-                finalizer_tool_indexes: set[int] = set()
 
-                async def consume_finalizer() -> None:
-                    nonlocal input_tokens, output_tokens, cost_usd
-                    nonlocal finalizer_finish_reason, finalizer_metadata
-                    async for event in self.provider.stream(finalizer_request):
-                        if event.kind == ModelEventKind.TEXT_DELTA and event.text:
-                            text_parts.append(event.text)
-                            await self.event_bus.emit(
-                                EventType.ASSISTANT_DELTA,
-                                session_id=session_id,
-                                run_id=run_id,
-                                payload={
-                                    "step": step,
-                                    "phase": "finalizing",
-                                    "text": event.text,
-                                },
-                            )
-                        elif event.kind == ModelEventKind.TOOL_CALL_DELTA:
-                            # Even a noncompliant provider cannot execute tools here.
-                            finalizer_tool_indexes.add(event.tool_index or 0)
-                        elif event.kind == ModelEventKind.USAGE:
-                            input_tokens += event.input_tokens or 0
-                            output_tokens += event.output_tokens or 0
-                            cost_usd = self._calculate_cost(input_tokens, output_tokens)
-                            await self.event_bus.emit(
-                                EventType.MODEL_USAGE,
-                                session_id=session_id,
-                                run_id=run_id,
-                                payload={
-                                    "input_tokens": input_tokens,
-                                    "output_tokens": output_tokens,
-                                    "cost_usd": cost_usd,
-                                    "step": step,
-                                    "phase": "finalizing",
-                                    "provider_metadata": event.provider_metadata,
-                                },
-                            )
-                        elif event.kind == ModelEventKind.FINISH:
-                            finalizer_finish_reason = event.finish_reason
-                            finalizer_metadata = event.provider_metadata
+                async def consume_finalizer():
+                    return await self._request_model_with_retries(
+                        finalizer_request,
+                        session_id=session_id,
+                        run_id=run_id,
+                        step=step,
+                        required_memory_tool=None,
+                        skill_state=skill_state,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        phase="finalizing",
+                    )
 
-                timeout_seconds = self.config.agent.finalization.model_timeout_seconds
-                if timeout_seconds is None:
-                    await consume_finalizer()
-                else:
-                    async with asyncio.timeout(timeout_seconds):
-                        await consume_finalizer()
-                final_text = "".join(text_parts).strip()
+                async with asyncio.timeout(self.config.agent.finalization.model_timeout_seconds):
+                    finalizer_turn = await consume_finalizer()
+                input_tokens, output_tokens, cost_usd = (
+                    finalizer_turn.input_tokens,
+                    finalizer_turn.output_tokens,
+                    finalizer_turn.cost_usd,
+                )
+                finalizer_tool_indexes = set(finalizer_turn.call_buffers)
+                finalizer_finish_reason = finalizer_turn.finish_reason
+                finalizer_metadata = finalizer_turn.finish_metadata
+                if finalizer_turn.interrupted or finalizer_finish_reason in {
+                    "length",
+                    "max_tokens",
+                }:
+                    raise ValueError("收尾响应重复或截断，改用静态摘要")
+                final_text = finalizer_turn.assistant_text.strip()
                 await self.event_bus.emit(
                     EventType.MODEL_RESPONSE,
                     session_id=session_id,
@@ -2472,7 +2602,15 @@ class AgentRunner:
         if not self.execution_target.supports_managed_processes:
             return
         snapshots = await self.execution_target.list_processes()
-        if not any(snapshot.status == ProcessStatus.RUNNING for snapshot in snapshots):
+        if not any(
+            snapshot.status
+            in {
+                ProcessStatus.RUNNING,
+                ProcessStatus.TERMINATING,
+                ProcessStatus.CLEANUP_FAILED,
+            }
+            for snapshot in snapshots
+        ):
             return
         runtime_notes.append(
             ContextItem(
@@ -2890,6 +3028,136 @@ class AgentRunner:
             ),
         )
 
+    @property
+    def _recovery_scope(self) -> str:
+        return fingerprint(str(self.workspace), self.execution_target.progress_scope)
+
+    def _save_recovery(self, session_id: str, run_id: str) -> None:
+        self.store.save_recovery_state(
+            session_id,
+            self._recovery_scope,
+            self._recoveries[run_id].state,
+        )
+
+    def _sync_recovery_timeout(self, run_id: str) -> None:
+        timeout = self._run_timeouts.get(run_id)
+        if timeout is not None and not timeout.expired():
+            remaining = self._recoveries[run_id].remaining_seconds()
+            timeout.reschedule(
+                asyncio.get_running_loop().time() + remaining if remaining is not None else None
+            )
+
+    async def _recover_response(
+        self,
+        turn: _ModelTurnResult,
+        conversation: list[PositionedMessage],
+        *,
+        session_id: str,
+        run_id: str,
+        step: int,
+    ) -> None:
+        reason = turn.interrupted or "model_output_limit"
+        reference = self.store.put_context_blob(
+            session_id=session_id,
+            run_id=run_id,
+            media_type="application/json",
+            content=json.dumps(
+                {
+                    "request_attempt_id": turn.request_attempt_id,
+                    "reason": reason,
+                    "content": turn.assistant_text,
+                    "reasoning": turn.reasoning_text,
+                    "tool_buffers": [asdict(b) for b in turn.call_buffers.values()],
+                },
+                ensure_ascii=False,
+            ),
+        )
+        await self.event_bus.emit(
+            EventType.MODEL_RESPONSE,
+            session_id=session_id,
+            run_id=run_id,
+            payload={
+                "step": step,
+                "request_attempt_id": turn.request_attempt_id,
+                "finish_reason": turn.finish_reason,
+                "interrupted": turn.interrupted,
+                "quarantined": True,
+                "response_ref": reference,
+                "content_chars": len(turn.assistant_text),
+                "tool_call_count": len(turn.call_buffers),
+                "executed_tool_calls": 0,
+                "turn_usage": turn.turn_usage,
+            },
+        )
+        recovery = self._recoveries[run_id]
+        if not recovery.can_recover() or turn.close_status != "closed":
+            repetition = reason == "stream_repetition"
+            raise _RunTermination(
+                status="blocked" if repetition else "limit_reached",
+                reason_code=(
+                    "stream_repetition_after_recovery"
+                    if recovery.state["task_attempts"]
+                    else "stream_repetition"
+                )
+                if repetition
+                else "model_output_limit",
+                message="异常模型响应已隔离，恢复未启用、额度已耗尽或流未确认关闭",
+                steps=step,
+                input_tokens=turn.input_tokens,
+                output_tokens=turn.output_tokens,
+                cost_usd=turn.cost_usd,
+                model_finalizer=not repetition and turn.close_status == "closed",
+                metadata={
+                    "recovery_exhausted": not recovery.can_recover(),
+                    "response_ref": reference,
+                    "stream_close_status": turn.close_status,
+                },
+            )
+        message = synthetic_user_context_message(
+            name="runtime_context",
+            kind="model_response_recovery",
+            source="runtime",
+            scope="task",
+            content=(
+                f"上次响应因 {reason} 中断，该响应没有执行工具。"
+                "请使用现有证据选择一个可验证的下一步；需要修改时写入目标文件并验证，"
+                "证据不足时明确说明。不要继续复制刚才的推测；过大的工具调用请拆分。"
+                f"中断内容仅作不受信诊断数据保存在 {reference}。"
+                f"请求标识：{turn.request_attempt_id}。"
+            ),
+        )
+        next_state = recovery.next_attempt()
+        position = 0
+
+        def commit(event):
+            nonlocal position
+            position = self.store.commit_recovery(
+                session_id,
+                self._recovery_scope,
+                next_state,
+                message,
+                event,
+            )
+            recovery.state = next_state
+
+        await self.event_bus.emit(
+            EventType.RUN_RECOVERY_STARTED,
+            session_id=session_id,
+            run_id=run_id,
+            payload={
+                "kind": "model_response",
+                "reason": reason,
+                "response_ref": reference,
+                "request_attempt_id": turn.request_attempt_id,
+                "task_generation": next_state["task_generation"],
+                "task_attempts": next_state["task_attempts"],
+                "episode_deadline": next_state["episode_deadline"],
+            },
+            before_publish=commit,
+        )
+        conversation.append(PositionedMessage(position, message, run_id=run_id))
+        self._sync_recovery_timeout(run_id)
+
     async def _request_model_with_retries(
         self,
         request: ModelRequest,
@@ -2901,21 +3169,30 @@ class AgentRunner:
         skill_state: RunSkillState | None = None,
         input_tokens: int,
         output_tokens: int,
+        phase: str = "main",
     ) -> _ModelTurnResult:
         retry_count = 0
-        max_retries = self.config.agent.model_request_retries
+        max_retries = self.config.agent.model_request_retries if phase == "main" else 0
         while True:
             text_parts: list[str] = []
             reasoning_parts: list[str] = []
             call_buffers: dict[int, _ToolCallBuffer] = {}
-            finish_reason: str | None = None
+            finish_reason = None
             finish_metadata: dict[str, Any] = {}
             turn_usage: dict[str, Any] = {}
+            attempt_id = uuid4().hex
+            interrupted = None
+            received_input = received_output = 0
+            guard_config = self.config.agent.stream_guard
+            guard = StreamGuard(guard_config)
+            reasoning_guard = StreamGuard(guard_config)
+            reported = set()
+            stream = ProviderStream(self.provider, request)
+            recovery = self._recoveries.get(run_id)
+            started = completed = False
             try:
                 if skill_state is not None:
                     skill_state.check_request(request, self.provider)
-                # Check the final request too: tool choice and protocol repair can
-                # differ from the planner's intermediate view.
                 estimate = estimate_input_tokens(self.provider, request)
                 if (
                     estimate is not None
@@ -2926,64 +3203,236 @@ class AgentRunner:
                         f"{self._token_budget.hard_input_limit}",
                         kind=ProviderErrorKind.CONTEXT_LENGTH,
                     )
+                remaining = recovery.remaining_seconds() if recovery is not None else None
+                if remaining is not None and remaining <= 0:
+                    raise TimeoutError("任务或恢复阶段期限已到")
+                cost_limit = self.config.agent.max_cost_usd
+                if recovery is not None and cost_limit is not None:
+                    if request.max_output_tokens is None:
+                        request = request.model_copy(
+                            update={
+                                "max_output_tokens": self._token_budget.output_reserve_tokens,
+                            }
+                        )
+                        stream = ProviderStream(self.provider, request)
+                    reservation = self._calculate_cost(
+                        estimate.budget_tokens
+                        if estimate is not None
+                        else self._token_budget.hard_input_limit,
+                        request.max_output_tokens or self.config.model.max_output_tokens,
+                    )
+                    known_run_cost = self._calculate_cost(input_tokens, output_tokens) or 0
+                    if (
+                        reservation is None
+                        or max(recovery.reserved_cost, known_run_cost) + reservation > cost_limit
+                    ):
+                        raise _RunTermination(
+                            status="limit_reached",
+                            reason_code="max_cost_usd",
+                            message="剩余费用不足以保守预留本次请求（未知用量不会计为免费）",
+                            steps=step,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cost_usd=self._calculate_cost(input_tokens, output_tokens),
+                            model_finalizer=False,
+                            metadata={"reserved_cost_usd": recovery.reserved_cost},
+                        )
+                    recovery.state["pending_cost"][attempt_id] = reservation
+                    self._save_recovery(session_id, run_id)
                 frame = self._finalization_frames.get(run_id)
                 if frame is not None:
                     frame.sent = True
-                async for event in self.provider.stream(request):
-                    if event.kind == ModelEventKind.TEXT_DELTA and event.text:
-                        text_parts.append(event.text)
-                        if required_memory_tool is None:
-                            await self.event_bus.emit(
-                                EventType.ASSISTANT_DELTA,
-                                session_id=session_id,
-                                run_id=run_id,
-                                payload={"step": step, "text": event.text},
-                            )
-                    elif event.kind == ModelEventKind.REASONING_DELTA and event.text:
-                        reasoning_parts.append(event.text)
+                if (
+                    recovery is not None
+                    and phase == "main"
+                    and recovery.state.get("cap_next_response")
+                ):
+                    recovery.state["cap_next_response"] = False
+                    self._save_recovery(session_id, run_id)
+                started = True
+                await self.event_bus.emit(
+                    EventType.MODEL_REQUEST_STARTED,
+                    session_id=session_id,
+                    run_id=run_id,
+                    payload={
+                        "request_attempt_id": attempt_id,
+                        "phase": phase,
+                        "step": step,
+                        "max_output_tokens": request.max_output_tokens,
+                        "input_token_estimate": estimate.model_dump() if estimate else None,
+                        "request_kind": "recovery" if recovery and recovery.active else phase,
+                    },
+                )
+                try:
+                    async with stream as events:
+                        async with asyncio.timeout(remaining):
+                            async for event in events:
+                                if event.kind == ModelEventKind.TEXT_DELTA and event.text:
+                                    before = guard.response_chars
+                                    hit = guard.feed(event.text)
+                                    text = event.text
+                                    if hit and "content" not in reported:
+                                        reported.add("content")
+                                        await self.event_bus.emit(
+                                            EventType.MODEL_STREAM_REPETITION,
+                                            session_id=session_id,
+                                            run_id=run_id,
+                                            payload={
+                                                "request_attempt_id": attempt_id,
+                                                "phase": phase,
+                                                "step": step,
+                                                "channel": "content",
+                                                "mode": guard_config.mode,
+                                                "would_interrupt": True,
+                                                **asdict(hit),
+                                            },
+                                        )
+                                    if hit and (
+                                        guard_config.mode == "enforce" or phase == "finalizing"
+                                    ):
+                                        text = text[: max(0, hit.response_chars - before)]
+                                        interrupted = "stream_repetition"
+                                    text_parts.append(text)
+                                    if required_memory_tool is None:
+                                        await self.event_bus.emit(
+                                            EventType.ASSISTANT_DELTA,
+                                            session_id=session_id,
+                                            run_id=run_id,
+                                            payload={
+                                                "step": step,
+                                                "phase": phase,
+                                                "request_attempt_id": attempt_id,
+                                                "text": text,
+                                            },
+                                        )
+                                    if interrupted:
+                                        break
+                                elif event.kind == ModelEventKind.REASONING_DELTA and event.text:
+                                    reasoning_parts.append(event.text)
+                                    hit = reasoning_guard.feed(event.text)
+                                    if hit and "reasoning" not in reported:
+                                        reported.add("reasoning")
+                                        await self.event_bus.emit(
+                                            EventType.MODEL_STREAM_REPETITION,
+                                            session_id=session_id,
+                                            run_id=run_id,
+                                            payload={
+                                                "request_attempt_id": attempt_id,
+                                                "phase": phase,
+                                                "step": step,
+                                                "channel": "reasoning",
+                                                "mode": "observe",
+                                                "would_interrupt": False,
+                                                **asdict(hit),
+                                            },
+                                        )
+                                    await self.event_bus.emit(
+                                        EventType.ASSISTANT_REASONING_DELTA,
+                                        session_id=session_id,
+                                        run_id=run_id,
+                                        payload={
+                                            "step": step,
+                                            "phase": phase,
+                                            "text": event.text,
+                                            "request_attempt_id": attempt_id,
+                                            "provider_metadata": event.provider_metadata,
+                                        },
+                                    )
+                                elif event.kind == ModelEventKind.TOOL_CALL_DELTA:
+                                    guard.disabled = True
+                                    guard.hit = None
+                                    index = event.tool_index or 0
+                                    buffer = call_buffers.setdefault(
+                                        index, _ToolCallBuffer(index=index)
+                                    )
+                                    if event.tool_call_id:
+                                        buffer.id = event.tool_call_id
+                                    if event.tool_name:
+                                        buffer.name += event.tool_name
+                                    if event.arguments_delta:
+                                        buffer.arguments += event.arguments_delta
+                                elif event.kind == ModelEventKind.USAGE:
+                                    raw_usage = event.provider_metadata.get("raw_usage") or {}
+                                    counters = {
+                                        "prompt_tokens": event.input_tokens,
+                                        "completion_tokens": event.output_tokens,
+                                    }
+                                    turn_usage = {
+                                        **turn_usage,
+                                        **raw_usage,
+                                        **{
+                                            key: value
+                                            for key, value in counters.items()
+                                            if value is not None
+                                        },
+                                    }
+                                    new_input = turn_usage.get("prompt_tokens", received_input)
+                                    new_output = turn_usage.get(
+                                        "completion_tokens", received_output
+                                    )
+                                    if new_input is None:
+                                        new_input = received_input
+                                    if new_output is None:
+                                        new_output = received_output
+                                    input_tokens += new_input - received_input
+                                    output_tokens += new_output - received_output
+                                    received_input, received_output = new_input, new_output
+                                    await self.event_bus.emit(
+                                        EventType.MODEL_USAGE,
+                                        session_id=session_id,
+                                        run_id=run_id,
+                                        payload={
+                                            "input_tokens": input_tokens,
+                                            "output_tokens": output_tokens,
+                                            "cost_usd": self._calculate_cost(
+                                                input_tokens, output_tokens
+                                            ),
+                                            "step": step,
+                                            "phase": phase,
+                                            "request_attempt_id": attempt_id,
+                                            "turn_usage": turn_usage,
+                                            "provider_metadata": event.provider_metadata,
+                                        },
+                                    )
+                                elif event.kind == ModelEventKind.FINISH:
+                                    finish_reason = event.finish_reason
+                                    finish_metadata = event.provider_metadata
+                            completed = interrupted is None
+                finally:
+                    known_usage = all(
+                        isinstance(turn_usage.get(k), int)
+                        for k in ("prompt_tokens", "completion_tokens")
+                    )
+                    if recovery is not None and cost_limit is not None and known_usage:
+                        recovery.state["pending_cost"].pop(attempt_id, None)
+                        recovery.state["charged_cost"] += (
+                            self._calculate_cost(received_input, received_output) or 0
+                        )
+                        self._save_recovery(session_id, run_id)
+                    if started:
                         await self.event_bus.emit(
-                            EventType.ASSISTANT_REASONING_DELTA,
+                            EventType.MODEL_REQUEST_FINISHED
+                            if completed
+                            else EventType.MODEL_REQUEST_INTERRUPTED,
                             session_id=session_id,
                             run_id=run_id,
                             payload={
+                                "request_attempt_id": attempt_id,
+                                "phase": phase,
                                 "step": step,
-                                "text": event.text,
-                                "provider_metadata": event.provider_metadata,
+                                "reason": interrupted
+                                or (None if completed else "stream_error_or_cancelled"),
+                                "provider_finish_reason": finish_reason,
+                                "usage_status": "known" if known_usage else "missing",
+                                "raw_usage": turn_usage,
+                                "content_chars": sum(map(len, text_parts)),
+                                "local_output_token_estimate": (
+                                    sum(map(len, text_parts)) + sum(map(len, reasoning_parts)) + 2
+                                )
+                                // 3,
+                                "stream_close_status": stream.close_status,
                             },
                         )
-                    elif event.kind == ModelEventKind.TOOL_CALL_DELTA:
-                        index = event.tool_index or 0
-                        buffer = call_buffers.setdefault(index, _ToolCallBuffer(index=index))
-                        if event.tool_call_id:
-                            buffer.id = event.tool_call_id
-                        if event.tool_name:
-                            buffer.name += event.tool_name
-                        if event.arguments_delta:
-                            buffer.arguments += event.arguments_delta
-                    elif event.kind == ModelEventKind.USAGE:
-                        input_tokens += event.input_tokens or 0
-                        output_tokens += event.output_tokens or 0
-                        turn_usage = event.provider_metadata.get("raw_usage") or {
-                            "prompt_tokens": event.input_tokens,
-                            "completion_tokens": event.output_tokens,
-                        }
-                        cost_usd = self._calculate_cost(input_tokens, output_tokens)
-                        await self.event_bus.emit(
-                            EventType.MODEL_USAGE,
-                            session_id=session_id,
-                            run_id=run_id,
-                            payload={
-                                "input_tokens": input_tokens,
-                                "output_tokens": output_tokens,
-                                "cost_usd": cost_usd,
-                                "step": step,
-                                "turn_usage": turn_usage,
-                                "provider_metadata": event.provider_metadata,
-                            },
-                        )
-                    elif event.kind == ModelEventKind.FINISH:
-                        finish_reason = event.finish_reason
-                        finish_metadata = event.provider_metadata
             except ProviderError as exc:
                 cost_usd = self._calculate_cost(input_tokens, output_tokens)
                 can_retry = (
@@ -3020,6 +3469,8 @@ class AgentRunner:
                         run_id=run_id,
                         payload={
                             "step": step,
+                            "request_attempt_id": attempt_id,
+                            "phase": phase,
                             "failed_attempt": retry_count,
                             "next_attempt": retry_count + 1,
                             "retry_count": retry_count,
@@ -3056,6 +3507,9 @@ class AgentRunner:
                 output_tokens=output_tokens,
                 cost_usd=self._calculate_cost(input_tokens, output_tokens),
                 retry_count=retry_count,
+                request_attempt_id=attempt_id,
+                interrupted=interrupted,
+                close_status=stream.close_status,
             )
 
     async def _prepare_model_messages(
@@ -4373,7 +4827,9 @@ class AgentRunner:
     def _repeat_call_identity(self, tool_call: ToolCall) -> str:
         try:
             return call_identity(
-                tool_call.name, tool_call.arguments, workspace=str(self.workspace),
+                tool_call.name,
+                tool_call.arguments,
+                workspace=str(self.workspace),
                 scope=self.execution_target.progress_scope,
                 hard_timeout=self.config.agent.process_hard_timeout_seconds,
             )
@@ -4390,8 +4846,14 @@ class AgentRunner:
         )
 
     async def _repeat_preflight(
-        self, tool_call: ToolCall, session_id: str, run_id: str,
-        controller: ProgressController, *, cursor: int, inspect_resource: bool,
+        self,
+        tool_call: ToolCall,
+        session_id: str,
+        run_id: str,
+        controller: ProgressController,
+        *,
+        cursor: int,
+        inspect_resource: bool,
     ) -> ToolResult | None:
         if not self.config.agent.progress.enabled or not self._repeat_eligible(tool_call):
             return None
@@ -4405,18 +4867,26 @@ class AgentRunner:
                     if signal.kind != ProgressKind.WAITING and not signal.evidence_complete:
                         continue
                     controller.observe_tool(
-                        tool_name="poll_process", arguments={"process_id": snapshot.process_id},
+                        tool_name="poll_process",
+                        arguments={"process_id": snapshot.process_id},
                         success=snapshot.status in {ProcessStatus.COMPLETED, ProcessStatus.RUNNING},
-                        result_content="", metadata={
-                            "process_id": snapshot.process_id, "truncated": snapshot.truncated,
+                        result_content="",
+                        metadata={
+                            "process_id": snapshot.process_id,
+                            "truncated": snapshot.truncated,
                         },
-                        progress_signal=signal, read_only=True,
-                        idempotent=False, repeat_eligible=True,
+                        progress_signal=signal,
+                        read_only=True,
+                        idempotent=False,
+                        repeat_eligible=True,
                     )
                     await self.event_bus.emit(
-                        EventType.PROCESS_UPDATED, session_id=session_id, run_id=run_id,
+                        EventType.PROCESS_UPDATED,
+                        session_id=session_id,
+                        run_id=run_id,
                         payload={
-                            "process_id": snapshot.process_id, "status": snapshot.status.value,
+                            "process_id": snapshot.process_id,
+                            "status": snapshot.status.value,
                             "source": "repeat_guard_process_observation",
                         },
                     )
@@ -4426,7 +4896,8 @@ class AgentRunner:
             return None
         if tool_call.name == "read_file" and inspect_resource and record.limited:
             context = ToolContext(
-                workspace=self.workspace, execution_target=self.execution_target,
+                workspace=self.workspace,
+                execution_target=self.execution_target,
                 workspace_only=self.config.permissions.workspace_only,
                 denied_paths=self.denied_tool_paths,
             )
@@ -4438,7 +4909,8 @@ class AgentRunner:
                 return None
             controller.repeat_guard.invalidate_subject(f"file:{path}", version)
         check = controller.repeat_guard.check(
-            call_key, cursor=cursor,
+            call_key,
+            cursor=cursor,
             allow_redelivery=(
                 inspect_resource and tool_call.name in {"read_file", "load_context_reference"}
             ),
@@ -4447,14 +4919,19 @@ class AgentRunner:
             return None
         reference = check.reference if inspect_resource else None
         payload = {
-            "tool_call_id": tool_call.id, "name": tool_call.name,
-            "call_key": check.call_key, "count": check.count,
-            "executed": not check.denied, "reason_code": "repeated_observation",
+            "tool_call_id": tool_call.id,
+            "name": tool_call.name,
+            "call_key": check.call_key,
+            "count": check.count,
+            "executed": not check.denied,
+            "reason_code": "repeated_observation",
             "evidence_reference": reference,
         }
         await self.event_bus.emit(
             EventType.TOOL_REPEAT_BLOCKED if check.denied else EventType.TOOL_REPEAT_OBSERVED,
-            session_id=session_id, run_id=run_id, payload=payload,
+            session_id=session_id,
+            run_id=run_id,
+            payload=payload,
         )
         if not check.denied:
             return None
@@ -4471,8 +4948,13 @@ class AgentRunner:
         )
 
     async def _guarded_context_reference(
-        self, tool_call: ToolCall, session_id: str, run_id: str,
-        controller: ProgressController, *, cursor: int,
+        self,
+        tool_call: ToolCall,
+        session_id: str,
+        run_id: str,
+        controller: ProgressController,
+        *,
+        cursor: int,
     ) -> ToolResult:
         try:
             jsonschema.validate(tool_call.arguments, self._load_reference_definition().input_schema)
@@ -4480,12 +4962,20 @@ class AgentRunner:
             return ToolResult(success=False, error=f"Tool 参数校验失败: {exc.message}")
         # Perform the existing session grant check before referring to any old result.
         authorized = self.store.read_context_blob(
-            session_id, tool_call.arguments["reference"], offset=0, limit=1,
+            session_id,
+            tool_call.arguments["reference"],
+            offset=0,
+            limit=1,
         )
         if authorized is None:
             return ToolResult(success=False, error="上下文引用不存在或不可访问")
         blocked = await self._repeat_preflight(
-            tool_call, session_id, run_id, controller, cursor=cursor, inspect_resource=True,
+            tool_call,
+            session_id,
+            run_id,
+            controller,
+            cursor=cursor,
+            inspect_resource=True,
         )
         if blocked is not None:
             return blocked
@@ -4495,21 +4985,27 @@ class AgentRunner:
         return result
 
     async def _execute_tool(
-        self, tool_call: ToolCall, session_id: str, run_id: str, *,
+        self,
+        tool_call: ToolCall,
+        session_id: str,
+        run_id: str,
+        *,
         progress_controller: ProgressController | None = None,
         compaction_cursor: int = 0,
     ) -> ToolResult:
         tool = self.tool_registry.get(tool_call.name)
         if tool is None:
             return ToolResult(
-                success=False, error=f"未知 Tool: {tool_call.name}",
+                success=False,
+                error=f"未知 Tool: {tool_call.name}",
                 metadata={"executed": False, "reason_code": "unknown_tool"},
             )
         try:
             jsonschema.validate(tool_call.arguments, tool.input_schema)
         except jsonschema.ValidationError as exc:
             return ToolResult(
-                success=False, error=f"Tool 参数校验失败: {exc.message}",
+                success=False,
+                error=f"Tool 参数校验失败: {exc.message}",
                 metadata={"executed": False, "reason_code": "invalid_arguments"},
             )
 
@@ -4525,14 +5021,18 @@ class AgentRunner:
         decision = self.policy.evaluate(action)
         if decision.kind == PolicyDecisionKind.DENY:
             return ToolResult(
-                success=False, error=f"策略拒绝: {decision.reason}",
+                success=False,
+                error=f"策略拒绝: {decision.reason}",
                 metadata={"executed": False, "reason_code": "policy_denied"},
             )
         if progress_controller is not None:
             # A loop must not repeatedly prompt for permission. Before an ASK
             # is approved, do not inspect resource contents or disclose references.
             blocked = await self._repeat_preflight(
-                tool_call, session_id, run_id, progress_controller,
+                tool_call,
+                session_id,
+                run_id,
+                progress_controller,
                 cursor=compaction_cursor,
                 inspect_resource=decision.kind == PolicyDecisionKind.ALLOW,
             )
@@ -4603,7 +5103,8 @@ class AgentRunner:
             )
             if not approved:
                 return ToolResult(
-                    success=False, error="用户未批准该操作",
+                    success=False,
+                    error="用户未批准该操作",
                     metadata={"executed": False, "reason_code": "approval_denied"},
                 )
 

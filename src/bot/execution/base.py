@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -30,6 +31,8 @@ class ProcessEventKind(StrEnum):
 
 class ProcessStatus(StrEnum):
     RUNNING = "running"
+    TERMINATING = "terminating"
+    CLEANUP_FAILED = "cleanup_failed"
     COMPLETED = "completed"
     FAILED = "failed"
     TIMED_OUT = "timed_out"
@@ -66,6 +69,14 @@ class ProcessSnapshot(BaseModel):
     truncated: bool = False
     last_output_seconds_ago: float | None = Field(default=None, ge=0)
     termination_reason: str | None = None
+    cleanup_status: Literal[
+        "not_requested", "pending", "observed_empty", "incomplete", "unknown"
+    ] = "not_requested"
+    containment: Literal["session_scan", "root_only"] = "root_only"
+    output_complete: bool = True
+    remaining_processes: list[dict] = Field(default_factory=list)
+    cleanup_elapsed_seconds: float = Field(default=0, ge=0)
+    cleanup_changed: bool = False
 
 
 class EnvironmentCapabilities(BaseModel):

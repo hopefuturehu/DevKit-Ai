@@ -156,71 +156,30 @@ async def test_cancelled_spawn_cleans_process_created_at_cancellation_boundary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    spawn_started = asyncio.Event()
-    release_spawn = asyncio.Event()
-    terminated: list[tuple[int, int | None]] = []
-
-    class FakeProcess:
-        pid = 4242
-        returncode = None
+    target = LocalExecutionTarget()
+    loop = asyncio.get_running_loop()
+    original = loop.subprocess_exec
+    started, release = asyncio.Event(), asyncio.Event()
+    pids = []
 
     async def delayed_spawn(*args, **kwargs):
-        spawn_started.set()
-        await release_spawn.wait()
-        return FakeProcess()
+        result = await original(*args, **kwargs)
+        pids.append(result[0].get_pid())
+        started.set()
+        await release.wait()
+        return result
 
-    async def record_terminate(cls, process, *, process_group_id=None) -> None:
-        terminated.append((process.pid, process_group_id))
-
-    monkeypatch.setattr(asyncio, "create_subprocess_exec", delayed_spawn)
-    monkeypatch.setattr(LocalExecutionTarget, "_terminate", classmethod(record_terminate))
+    monkeypatch.setattr(loop, "subprocess_exec", delayed_spawn)
     spawn = asyncio.create_task(
-        LocalExecutionTarget._spawn_process(
-            ["demo"],
-            cwd=str(tmp_path),
-            environment={},
-            stdin=asyncio.subprocess.DEVNULL,
-            start_new_session=os.name == "posix",
-        )
+        target.start_process(ProcessSpec(argv=["/bin/sleep", "30"], cwd=tmp_path))
     )
-    await spawn_started.wait()
-
+    await started.wait()
     spawn.cancel()
-    release_spawn.set()
-
+    release.set()
     with pytest.raises(asyncio.CancelledError):
         await spawn
-    assert terminated == [(4242, 4242 if os.name == "posix" else None)]
-
-
-@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups only")
-@pytest.mark.asyncio
-async def test_local_termination_signals_the_process_group(monkeypatch) -> None:
-    signals: list[tuple[int, signal.Signals]] = []
-    group_alive = True
-
-    class FakeProcess:
-        pid = 4242
-        returncode = None
-
-        async def wait(self):
-            self.returncode = 0
-            return 0
-
-    def fake_killpg(pid: int, sig: signal.Signals | int) -> None:
-        nonlocal group_alive
-        if sig == 0:
-            if group_alive:
-                return
-            raise ProcessLookupError
-        signals.append((pid, signal.Signals(sig)))
-        group_alive = False
-
-    monkeypatch.setattr(os, "killpg", fake_killpg)
-
-    await LocalExecutionTarget._terminate(FakeProcess())
-
-    assert signals == [(4242, signal.SIGTERM)]
+    assert not _process_effectively_running(pids[0])
+    await target.aclose()
 
 
 @pytest.mark.asyncio
@@ -308,12 +267,20 @@ async def test_terminal_evidence_includes_output_consumed_by_earlier_polls(tmp_p
         complete = await RunCommandTool().execute(context, {**args, "wait_seconds": 1})
         started = await RunCommandTool().execute(context, {**args, "wait_seconds": 0})
         assert started.status == ToolResultStatus.RUNNING
-        finished = await PollProcessTool().execute(context, {
-            "process_id": started.metadata["process_id"], "wait_seconds": 1,
-        })
-        consumed = await PollProcessTool().execute(context, {
-            "process_id": started.metadata["process_id"], "wait_seconds": 0,
-        })
+        finished = await PollProcessTool().execute(
+            context,
+            {
+                "process_id": started.metadata["process_id"],
+                "wait_seconds": 1,
+            },
+        )
+        consumed = await PollProcessTool().execute(
+            context,
+            {
+                "process_id": started.metadata["process_id"],
+                "wait_seconds": 0,
+            },
+        )
         assert complete.progress.evidence_complete
         assert complete.progress.evidence_key == finished.progress.evidence_key
         assert finished.progress.evidence_key == consumed.progress.evidence_key
@@ -333,10 +300,13 @@ async def test_managed_and_streamed_command_evidence_match(tmp_path):
     streamed = StreamedTarget()
     try:
         for command in ["printf same; printf error >&2", "exit 3", "true"]:
-            results = [await RunCommandTool().execute(
-                ToolContext(workspace=tmp_path, execution_target=target),
-                {"argv": ["/bin/sh", "-c", command], "wait_seconds": 1},
-            ) for target in (managed, streamed)]
+            results = [
+                await RunCommandTool().execute(
+                    ToolContext(workspace=tmp_path, execution_target=target),
+                    {"argv": ["/bin/sh", "-c", command], "wait_seconds": 1},
+                )
+                for target in (managed, streamed)
+            ]
             assert all(result.progress.evidence_complete for result in results)
             assert results[0].progress.evidence_key == results[1].progress.evidence_key
     finally:

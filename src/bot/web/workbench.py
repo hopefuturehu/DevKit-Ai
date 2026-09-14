@@ -286,7 +286,7 @@ class WebWorkbench:
                     )
                     previous_status = snapshot["status"]
                 caught_up = all(offsets[s] >= page[s + "_length"] for s in offsets)
-                if caught_up and snapshot["status"] != "running":
+                if caught_up and snapshot["status"] not in {"running", "terminating"}:
                     return
                 await asyncio.sleep(0.3 if caught_up else 0)
         except (ValueError, KeyError, NotImplementedError):

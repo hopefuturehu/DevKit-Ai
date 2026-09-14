@@ -1,14 +1,14 @@
 // One projection for live events and historical replay. No network or DOM state.
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'blocked', 'limit_reached']);
 export const toolKey = (event) => [event.session_id, event.run_id, event.payload?.tool_call_id].join('/');
-export const statusLabel = (status) => ({running:'运行中', starting:'正在启动', completed:'已完成', failed:'失败', cancelled:'已停止', cancelling:'正在停止', blocked:'等待处理', limit_reached:'已达限制', requested:'等待执行', awaiting_approval:'等待批准', denied:'已拒绝', timed_out:'超时', unknown:'状态未确认', queued:'排队中', waiting_parent:'等待主任务', waiting_approval:'等待批准', interrupted:'已中断'})[status] || status || '未记录';
+export const statusLabel = (status) => ({running:'运行中', starting:'正在启动', completed:'已完成', failed:'失败', cancelled:'已停止', cancelling:'正在停止', terminating:'正在清理', cleanup_failed:'清理未完成', blocked:'等待处理', limit_reached:'已达限制', requested:'等待执行', awaiting_approval:'等待批准', denied:'已拒绝', timed_out:'超时', unknown:'状态未确认', queued:'排队中', waiting_parent:'等待主任务', waiting_approval:'等待批准', interrupted:'已中断'})[status] || status || '未记录';
 const appendTail = (old, text, limit = 64000) => (old + text).slice(-limit);
 const known = (value) => value !== undefined && value !== null;
 
 export class TraceModel {
   constructor() { this.ids = new Set(); this.runs = new Map(); this.tools = new Map(); this.children = new Map(); this.processes = new Map(); this.lastPosition = 0; }
   run(id, sessionId) {
-    if (!this.runs.has(id)) this.runs.set(id, {id, session_id:sessionId, status:'unknown', nodes:[], messages:new Map(), attempts:new Map(), approvals:new Map(), diagnostics:[], usage:{input_tokens:null,output_tokens:null,cost_usd:null}, plan:null, started_at:null, completed_at:null, prompt:'', cancelling:false, artifactsVersion:0});
+    if (!this.runs.has(id)) this.runs.set(id, {id, session_id:sessionId, status:'unknown', nodes:[], messages:new Map(), attempts:new Map(), unknownAttempts:new Set(), approvals:new Map(), diagnostics:[], usage:{input_tokens:null,output_tokens:null,cost_usd:null}, plan:null, started_at:null, completed_at:null, prompt:'', cancelling:false, artifactsVersion:0});
     return this.runs.get(id);
   }
   hydrate(summary) {
@@ -41,6 +41,18 @@ export class TraceModel {
       case 'assistant.message':
         if (known(p.text)) assistant().content=p.text;
         assistant().finished=true; break;
+      case 'model.request.started':
+        if(p.request_attempt_id)run.unknownAttempts.add(p.request_attempt_id);
+        break;
+      case 'model.request.finished':
+      case 'model.request.interrupted':
+        if(p.usage_status==='known')run.unknownAttempts.delete(p.request_attempt_id);
+        else if(p.request_attempt_id)run.unknownAttempts.add(p.request_attempt_id);
+        if(event.type==='model.request.interrupted' && run.messages.has(messageKey))run.messages.get(messageKey).discarded=true;
+        break;
+      case 'model.response':
+        if(p.quarantined && run.messages.has(messageKey))run.messages.get(messageKey).discarded=true;
+        break;
       case 'model.request.retry':
         if (run.messages.has(messageKey)) run.messages.get(messageKey).discarded=true;
         run.attempts.set(p.step ?? 0, (run.attempts.get(p.step ?? 0)||0)+1);
@@ -76,10 +88,11 @@ export class TraceModel {
       }
       case 'run.artifacts.updated': run.artifactsVersion++; break;
       case 'process.output':
-      case 'process.updated': {
+      case 'process.updated':
+      case 'process.cleanup_finished': {
         const key=`${event.run_id}/${p.process_id}`;
         const process=this.processes.get(key)||{id:p.process_id,stdout:'',stderr:'',status:'unknown'};
-        if(event.type==='process.updated'){Object.assign(process,Object.fromEntries(Object.entries(p).filter(([key])=>!['stdout','stderr'].includes(key))));process.observed_at=event.timestamp;}
+        if(event.type!=='process.output'){Object.assign(process,Object.fromEntries(Object.entries(p).filter(([key])=>!['stdout','stderr'].includes(key))));process.observed_at=event.timestamp;}
         else {const stream=p.stream==='stderr'?'stderr':'stdout';process[stream]=appendTail(process[stream],String(p.data||''));process.outputChars=(process.outputChars||0)+String(p.data||'').length;}
         this.processes.set(key,process);break;
       }

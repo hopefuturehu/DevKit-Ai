@@ -24,9 +24,55 @@ def is_peak(value: str) -> bool:
 
 def request_rows(events: list[dict]) -> list[dict]:
     rows = []
+    attempts = {}
+    legacy = []
+    for event in events:
+        payload = event["payload"]
+        attempt = payload.get("request_attempt_id")
+        if not attempt:
+            legacy.append(event)
+            continue
+        if event["type"] not in {
+            "model.request.started",
+            "model.request.finished",
+            "model.request.interrupted",
+            "model.usage",
+        }:
+            continue
+        row = attempts.setdefault(
+            attempt,
+            {
+                "event_id": event["id"],
+                "timestamp": event["timestamp"],
+                "started_at": None,
+                "request_attempt_id": attempt,
+                "phase": payload.get("phase", "main"),
+                "step": payload.get("step"),
+                "status": "no_terminal_event",
+                "raw_usage": {},
+            },
+        )
+        if event["type"] == "model.request.started":
+            row.update(
+                started_at=event["timestamp"],
+                request_kind=payload.get("request_kind"),
+                input_token_estimate=payload.get("input_token_estimate"),
+            )
+        else:
+            row["status"] = event["type"].rsplit(".", 1)[-1]
+            row["timestamp"] = event["timestamp"]
+            raw = (
+                payload.get("raw_usage")
+                or payload.get("turn_usage")
+                or payload.get("provider_metadata", {}).get("raw_usage")
+            )
+            if raw:
+                row["raw_usage"] = raw
+            row["usage_status"] = payload.get("usage_status", "known" if raw else "missing")
+    rows.extend(attempts.values())
     pending = {}
     pending_streams = {}
-    for event in events:
+    for event in legacy:
         kind, payload = event["type"], event["payload"]
         stream_key = (event.get("run_id"), payload.get("phase", "main"), payload.get("step"))
         if kind == "assistant.delta":

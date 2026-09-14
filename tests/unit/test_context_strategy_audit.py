@@ -225,3 +225,22 @@ def test_manifest_audit_checks_files_and_comparison_controls(tmp_path, tamper):
             "task_hashes": 1,
             "only_strategy_differs": True,
         }
+
+
+def test_attempt_ids_deduplicate_usage_retry_and_interruption():
+    events = [
+        event("model.request.started", {"request_attempt_id": "a"}, 1),
+        event("assistant.delta", {"request_attempt_id": "a", "text": "partial"}, 2),
+        event(
+            "model.request.interrupted", {"request_attempt_id": "a", "usage_status": "missing"}, 3
+        ),
+        event("model.request.retry", {"request_attempt_id": "a"}, 4),
+        event("model.request.started", {"request_attempt_id": "b"}, 5),
+        event("model.usage", {"request_attempt_id": "b", "turn_usage": RAW}, 6),
+        event("model.usage", {"request_attempt_id": "b", "turn_usage": RAW}, 7),
+        event("model.request.finished", {"request_attempt_id": "b", "raw_usage": RAW}, 8),
+    ]
+    rows = request_rows(events)
+    totals = aggregate(rows, PRICING)
+    assert totals["requests"] == 2 and totals["usage_missing"] == 1
+    assert totals["input"] == 100 and totals["cache_hit_rate"] == 0.8
