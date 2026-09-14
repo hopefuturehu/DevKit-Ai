@@ -11,6 +11,7 @@
 | [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 原始完整提案；Run 隔离、历史交付和恢复已落地，通用投影与微裁剪待实施 |
 | [重复工具调用：四项调整](repeated-tool-execution-plan.md) | 首版已落地，默认观测；包含开源比较、误拦边界和验收方案 |
 | [输出截断后的恢复方案](output-truncation-recovery.md) | 开源实现与恢复建议；保留方案分析时的基线与待验证项 |
+| [任务可靠性修复设计](task-reliability-recovery-design.md) | 待实施；进程取消、流式重复恢复、交付版本检查的接口与验收 |
 | [Web 实时任务工作台设计](web-execution-workbench-design.md) | 三阶段已接入 Web UI；保留界面设计与实现对应 |
 | [Web 交互原型](bot-execution-workbench.html) | 使用虚构数据的 HTML 演示，不执行真实任务 |
 
