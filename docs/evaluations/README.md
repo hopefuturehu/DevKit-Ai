@@ -32,6 +32,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [Flash：128K / 256K / 512K 真实任务缓存](context-length-flash-cache.md) | 同题三档输入预算、实际输入长度、API 缓存命中与官方验收 |
 | [A+D 交接 L0/L1 量化结果](context-handoff-l0-l1-results.md) | 固定片段的容量、缓存、费用、质量与失败分析；未执行 L2/L3 |
 | [CURRENT / A / B 真实任务评测](context-strategy-path-evaluation.md) | 三种路径的原型与首次完整任务比较 |
 | [A 的主输出额度补测：8K → 32K](context-strategy-a-output-32k-evaluation.md) | 单任务补测；区分产物验收通过和运行正常结束 |
