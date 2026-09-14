@@ -12,7 +12,7 @@
 | [设计演进](designs/README.md) | 实施方案、行为变更、候选设计与交互原型 | [Skill 首版方案](designs/active-skill-layer-removal-plan.md)、[双路径默认策略](designs/compaction-dual-path-default.md) |
 | [评测指南与记录](evaluations/README.md) | 运行方法、指标、公开基准、压缩实验和功能验证 | [整体测试矩阵](evaluations/context-evaluation-matrix.md)、[Flash 三轮复测](evaluations/context-strategy-flash-repeats.md)、[公开基准结果](evaluations/public-benchmark-40-results.md) |
 | [调研与对比](research/README.md) | 开源框架、压缩输入、缓存与正确性研究 | [框架对比](research/context-framework-comparison.md)、[Claude Code 压缩](research/claude-code-compaction.md) |
-| [面试与求职资料](career/README.md) | 项目表达、开发经历与招聘样本 | [面试手册](career/context-management-interview-guide.md)、[简历素材库](career/resume-materials.md) |
+| [面试与求职资料](career/README.md) | 项目表达、开发经历与招聘样本 | [负责人简历成稿](career/resume-materials.md#context-owner-resume)、[面试手册](career/context-management-interview-guide.md)、[简历素材库](career/resume-materials.md) |
 | [历史归档](archive/README.md) | 已被替代的方案、重复问答与早期实验 | 归档原因、适用边界和替代入口见分类索引 |
 | [数据附件](data/README.md) | 机器可读结果、来源清单与开发历史 | 从对应报告进入，避免脱离样本与计量口径解读 |
 
