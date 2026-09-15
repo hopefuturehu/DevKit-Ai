@@ -8,9 +8,12 @@
 | [赛文X 100+ 社招面经：Agent 高频题与代码印证手册](nowcoder-agent-interview-handbook.md) | 遍历牛客汇总帖的 78 篇子面经，整理 Agent runtime、工具、上下文、RAG、多 Agent、评测、安全与云端部署；区分本地实证和延伸设计 |
 | [上下文管理架构与面试手册](context-management-interview-guide.md) | 25 个技术问答及深层追问；含开发负责人开场、职责与技术决策追问 |
 | [历史开发记录与简历素材库](resume-materials.md) | 原 42 条候选、开发时间线与提交证据；第 16 节补充后续素材，第 17 节提供负责人简历成稿 |
-| [中国大陆 Agent 招聘调研](agent-hiring-mainland-2026-09.md) | 09-10 岗位样本、09-13 部分来源复核，以及 12 组岗位追问与口述回答 |
+| [中国大陆 Agent 招聘调研](agent-hiring-mainland-2026-09.md) | 09-10 大厂样本、09-15 来源复核与准备重点更新，以及 12 组岗位追问与口述回答 |
+| [Agent 小公司练手岗位清单](agent-practice-targets-2026-09-15.md) | 09-15 核验：6 家完整 JD、2 条杭州线索、1 个高级 Runtime 候选；含城市、规模、薪资、门槛与练手顺序 |
 
 需要直接练习和批改时，先在[答题工作簿](ai-agent-interview-workbook.md)填写 Q01–Q05，保存后在对话中告知已完成的题号。
+
+找实际面试机会时，先看[小公司岗位与练手顺序](agent-practice-targets-2026-09-15.md#practice-order)；每家区分完整 JD、列表线索和待确认门槛，投递前以招聘方回复确认当前 HC。
 
 写简历时先看[上下文管理开发负责人：完整条目与精简版](resume-materials.md#context-owner-resume)，按实际职责选择机制和一组量化结果；项目开场可练习[一分钟负责人介绍](context-management-interview-guide.md#owner-introduction)。
 
