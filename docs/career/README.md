@@ -9,7 +9,7 @@
 | [上下文管理架构与面试手册](context-management-interview-guide.md) | 25 个技术问答及深层追问；含开发负责人开场、职责与技术决策追问 |
 | [历史开发记录与简历素材库](resume-materials.md) | 原 42 条候选、开发时间线与提交证据；第 16 节补充后续素材，第 17 节提供负责人简历成稿 |
 | [中国大陆 Agent 招聘调研](agent-hiring-mainland-2026-09.md) | 09-10 大厂样本、09-15 来源复核与准备重点更新，以及 12 组岗位追问与口述回答 |
-| [Agent 小公司练手岗位清单](agent-practice-targets-2026-09-15.md) | 09-15 核验：6 家完整 JD、2 条杭州线索、1 个高级 Runtime 候选；含城市、规模、薪资、门槛与练手顺序 |
+| [Agent 小公司练手岗位清单](agent-practice-targets-2026-09-15.md) | 09-15 核验：6 家完整 JD、BOSS 直聘 8 家公司线索、1 个高级 Runtime 候选；含城市、规模、薪资、门槛与练手顺序 |
 
 需要直接练习和批改时，先在[答题工作簿](ai-agent-interview-workbook.md)填写 Q01–Q05，保存后在对话中告知已完成的题号。
 
