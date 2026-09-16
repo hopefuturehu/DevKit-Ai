@@ -1,0 +1,322 @@
+{
+  "checked_on": "2026-09-16",
+  "method": "Static inspection of public source at pinned commits; source tests inspected, not executed. No paid model requests or external product success-rate measurements.",
+  "local_cache_gitignored": true,
+  "repositories": [
+    {
+      "repo": "Aider-AI/aider",
+      "sha": "5dc9490bb35f9729ef2c95d00a19ccd30c26339c",
+      "commit_date": "2026-05-22T14:02:20Z",
+      "files": [
+        {
+          "path": "aider/history.py",
+          "url": "https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/history.py",
+          "sha256": "5c9377875d6c9268ba16ec6cfd3cc30c7d3d8c23d42ffb2a5c3bc375aefc7e79",
+          "bytes": 4769,
+          "local": ".bot/research/compaction-output-expanded-20260916/Aider-AI__aider/aider/history.py"
+        },
+        {
+          "path": "aider/models.py",
+          "url": "https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/models.py",
+          "sha256": "37784de662eeafacf17cbc4eb656246aadee20477b8ad43768caf7d373ab6e0d",
+          "bytes": 46342,
+          "local": ".bot/research/compaction-output-expanded-20260916/Aider-AI__aider/aider/models.py"
+        }
+      ]
+    },
+    {
+      "repo": "MoonshotAI/kimi-cli",
+      "sha": "86f136422a0aae6b217ea49e7ea1d2e8a1defcd2",
+      "commit_date": "2026-09-01T16:36:21Z",
+      "files": [
+        {
+          "path": "src/kimi_cli/soul/compaction.py",
+          "url": "https://github.com/MoonshotAI/kimi-cli/blob/86f136422a0aae6b217ea49e7ea1d2e8a1defcd2/src/kimi_cli/soul/compaction.py",
+          "sha256": "9cee31d8bbfdf5d0043f2461e98902b32e64666f39c9bf62a4d30e0189a38645",
+          "bytes": 7376,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-cli/src/kimi_cli/soul/compaction.py"
+        }
+      ]
+    },
+    {
+      "repo": "MoonshotAI/kimi-code",
+      "sha": "d9d1f5980470d1b1ac3932dc487656539ee639e6",
+      "commit_date": "2026-09-16T14:12:28Z",
+      "files": [
+        {
+          "path": "packages/agent-core-v2/src/agent/fullCompaction/fullCompaction.ts",
+          "url": "https://github.com/MoonshotAI/kimi-code/blob/d9d1f5980470d1b1ac3932dc487656539ee639e6/packages/agent-core-v2/src/agent/fullCompaction/fullCompaction.ts",
+          "sha256": "43a954e41e41fed44c0475f26b16b7979bde683bec378cf66161977a269ee2b9",
+          "bytes": 1013,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-code/packages/agent-core-v2/src/agent/fullCompaction/fullCompaction.ts"
+        },
+        {
+          "path": "packages/agent-core-v2/src/agent/fullCompaction/compactionOps.ts",
+          "url": "https://github.com/MoonshotAI/kimi-code/blob/d9d1f5980470d1b1ac3932dc487656539ee639e6/packages/agent-core-v2/src/agent/fullCompaction/compactionOps.ts",
+          "sha256": "fa00e523d0e5c1cd17397cc8c4983e870dce82c35f8fbb8ab355db2249865245",
+          "bytes": 5105,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-code/packages/agent-core-v2/src/agent/fullCompaction/compactionOps.ts"
+        },
+        {
+          "path": "packages/agent-core-v2/src/agent/fullCompaction/fullCompactionService.ts",
+          "url": "https://github.com/MoonshotAI/kimi-code/blob/d9d1f5980470d1b1ac3932dc487656539ee639e6/packages/agent-core-v2/src/agent/fullCompaction/fullCompactionService.ts",
+          "sha256": "fcbf5e5efff14027d1ddaa612d7f17f467ce8617c185dfb618106afe89e932ea",
+          "bytes": 34563,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-code/packages/agent-core-v2/src/agent/fullCompaction/fullCompactionService.ts"
+        },
+        {
+          "path": "packages/agent-core-v2/src/agent/fullCompaction/errors.ts",
+          "url": "https://github.com/MoonshotAI/kimi-code/blob/d9d1f5980470d1b1ac3932dc487656539ee639e6/packages/agent-core-v2/src/agent/fullCompaction/errors.ts",
+          "sha256": "433a674e8602e6cb2c4305fa64241f9f6f3c98b52f84c5b97d83445d5a699f87",
+          "bytes": 299,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-code/packages/agent-core-v2/src/agent/fullCompaction/errors.ts"
+        },
+        {
+          "path": "packages/agent-core-v2/test/agent/fullCompaction/compactionOps.test.ts",
+          "url": "https://github.com/MoonshotAI/kimi-code/blob/d9d1f5980470d1b1ac3932dc487656539ee639e6/packages/agent-core-v2/test/agent/fullCompaction/compactionOps.test.ts",
+          "sha256": "19d939111f12a713ded3768f689a754ec5b5e43c794b8687802b0cee3ba9830d",
+          "bytes": 6469,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-code/packages/agent-core-v2/test/agent/fullCompaction/compactionOps.test.ts"
+        },
+        {
+          "path": "packages/agent-core-v2/src/human/compaction/summarize.ts",
+          "url": "https://github.com/MoonshotAI/kimi-code/blob/d9d1f5980470d1b1ac3932dc487656539ee639e6/packages/agent-core-v2/src/human/compaction/summarize.ts",
+          "sha256": "d88aa053bbd0e6c0ca4302fb02638c5f702f2a3a2c0a6ba892dafde87d97455b",
+          "bytes": 4138,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-code/packages/agent-core-v2/src/human/compaction/summarize.ts"
+        },
+        {
+          "path": "packages/agent-core-v2/test/agent/fullCompaction/fullCompaction.test.ts",
+          "url": "https://github.com/MoonshotAI/kimi-code/blob/d9d1f5980470d1b1ac3932dc487656539ee639e6/packages/agent-core-v2/test/agent/fullCompaction/fullCompaction.test.ts",
+          "sha256": "dfffb034a6ebc4bef00f01047d9e478c4c802aa9d2b26374fb1db29588392337",
+          "bytes": 158831,
+          "local": ".bot/research/compaction-output-expanded-20260916/MoonshotAI__kimi-code/packages/agent-core-v2/test/agent/fullCompaction/fullCompaction.test.ts"
+        }
+      ]
+    },
+    {
+      "repo": "OpenHands/software-agent-sdk",
+      "sha": "bd88f050259276978dc31541d8099d98e4994428",
+      "commit_date": "2026-09-16T11:20:55Z",
+      "files": [
+        {
+          "path": "openhands-sdk/openhands/sdk/context/condenser/llm_summarizing_condenser.py",
+          "url": "https://github.com/OpenHands/software-agent-sdk/blob/bd88f050259276978dc31541d8099d98e4994428/openhands-sdk/openhands/sdk/context/condenser/llm_summarizing_condenser.py",
+          "sha256": "f85665b867f751a26119939b30656ddd1106724e039d1a51bf267e68e5b68d44",
+          "bytes": 20744,
+          "local": ".bot/research/compaction-output-expanded-20260916/OpenHands__software-agent-sdk/openhands-sdk/openhands/sdk/context/condenser/llm_summarizing_condenser.py"
+        },
+        {
+          "path": "openhands-sdk/openhands/sdk/llm/llm.py",
+          "url": "https://github.com/OpenHands/software-agent-sdk/blob/bd88f050259276978dc31541d8099d98e4994428/openhands-sdk/openhands/sdk/llm/llm.py",
+          "sha256": "58ae4a960156da46f63397dae9eb0f8c46ce382a1094172b5268c595cd8999d6",
+          "bytes": 133086,
+          "local": ".bot/research/compaction-output-expanded-20260916/OpenHands__software-agent-sdk/openhands-sdk/openhands/sdk/llm/llm.py"
+        },
+        {
+          "path": "openhands-sdk/openhands/sdk/llm/llm_response.py",
+          "url": "https://github.com/OpenHands/software-agent-sdk/blob/bd88f050259276978dc31541d8099d98e4994428/openhands-sdk/openhands/sdk/llm/llm_response.py",
+          "sha256": "0da0550648a3e12cfe46c62145bdd451cbc9093cc205c39843d221170378ba42",
+          "bytes": 1988,
+          "local": ".bot/research/compaction-output-expanded-20260916/OpenHands__software-agent-sdk/openhands-sdk/openhands/sdk/llm/llm_response.py"
+        }
+      ]
+    },
+    {
+      "repo": "QwenLM/qwen-code",
+      "sha": "3d7673c1507f35a1d7241ecb154b86d794c71d0e",
+      "commit_date": "2026-09-16T14:32:13Z",
+      "files": [
+        {
+          "path": "packages/core/src/services/chatCompressionService.ts",
+          "url": "https://github.com/QwenLM/qwen-code/blob/3d7673c1507f35a1d7241ecb154b86d794c71d0e/packages/core/src/services/chatCompressionService.ts",
+          "sha256": "94fe5a81b99f88e7b07814bf6570fd0af206d1d2ab8bdb35bb4a730b9a12e89a",
+          "bytes": 58519,
+          "local": ".bot/research/compaction-output-expanded-20260916/QwenLM__qwen-code/packages/core/src/services/chatCompressionService.ts"
+        }
+      ]
+    },
+    {
+      "repo": "RooCodeInc/Roo-Code",
+      "sha": "b867ec9145750d0ae1ff7f02d35406e9bf2a0b16",
+      "commit_date": "2026-05-15T18:04:45Z",
+      "files": [
+        {
+          "path": "src/core/condense/index.ts",
+          "url": "https://github.com/RooCodeInc/Roo-Code/blob/b867ec9145750d0ae1ff7f02d35406e9bf2a0b16/src/core/condense/index.ts",
+          "sha256": "baafb8a449530f6937ab5b680ad2659a3486f22d3cbc6ca70fa0359de4f8a4de",
+          "bytes": 25509,
+          "local": ".bot/research/compaction-output-expanded-20260916/RooCodeInc__Roo-Code/src/core/condense/index.ts"
+        },
+        {
+          "path": "src/core/context-management/index.ts",
+          "url": "https://github.com/RooCodeInc/Roo-Code/blob/b867ec9145750d0ae1ff7f02d35406e9bf2a0b16/src/core/context-management/index.ts",
+          "sha256": "5085fc13398c84c97a5fc6b98ec7e02d4622850f051230adaee47f6dc08888bb",
+          "bytes": 13772,
+          "local": ".bot/research/compaction-output-expanded-20260916/RooCodeInc__Roo-Code/src/core/context-management/index.ts"
+        }
+      ]
+    },
+    {
+      "repo": "block/goose",
+      "sha": "5a21df18c521136db3723735a973b1c96df7b4db",
+      "commit_date": "2026-09-16T13:49:09Z",
+      "files": [
+        {
+          "path": "crates/goose-context-management/src/summarize.rs",
+          "url": "https://github.com/block/goose/blob/5a21df18c521136db3723735a973b1c96df7b4db/crates/goose-context-management/src/summarize.rs",
+          "sha256": "fe02b06d3780860b28be7fa9d804269f5c283dce7df2068c053db641811b4737",
+          "bytes": 9273,
+          "local": ".bot/research/compaction-output-expanded-20260916/block__goose/crates/goose-context-management/src/summarize.rs"
+        },
+        {
+          "path": "crates/goose/src/agents/state_machine/ops_compaction.rs",
+          "url": "https://github.com/block/goose/blob/5a21df18c521136db3723735a973b1c96df7b4db/crates/goose/src/agents/state_machine/ops_compaction.rs",
+          "sha256": "cc17f7f669ef0ca7d2495e0ed324cedea3ef4b9f7da2c98ecf8dc6ec6e91ae18",
+          "bytes": 10578,
+          "local": ".bot/research/compaction-output-expanded-20260916/block__goose/crates/goose/src/agents/state_machine/ops_compaction.rs"
+        },
+        {
+          "path": "crates/goose-context-management/src/provider.rs",
+          "url": "https://github.com/block/goose/blob/5a21df18c521136db3723735a973b1c96df7b4db/crates/goose-context-management/src/provider.rs",
+          "sha256": "9c3ecc457ba381fd22b62dd9c5d0e5cde1b85f4432c9c870742b0dbe17e95c8a",
+          "bytes": 4138,
+          "local": ".bot/research/compaction-output-expanded-20260916/block__goose/crates/goose-context-management/src/provider.rs"
+        }
+      ]
+    },
+    {
+      "repo": "can1357/oh-my-pi",
+      "sha": "042028fd018b1282fbe660ab7255ebad18dd4db5",
+      "commit_date": "2026-09-16T14:12:43Z",
+      "files": [
+        {
+          "path": "packages/agent/src/compaction/compaction.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/src/compaction/compaction.ts",
+          "sha256": "028dafafbbf39557cb969dc1811e02a2139f44c24a3cf759c905777ccc3cc890",
+          "bytes": 81933,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/agent/src/compaction/compaction.ts"
+        },
+        {
+          "path": "packages/agent/test/compaction-oneshot-retry.test.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/test/compaction-oneshot-retry.test.ts",
+          "sha256": "e9f813631bdc0ba78c52f8b3213b1a86bee968129ee1f747fbd43ef3dcb41ed4",
+          "bytes": 3527,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/agent/test/compaction-oneshot-retry.test.ts"
+        },
+        {
+          "path": "packages/agent/test/compaction-summary-cap.test.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/test/compaction-summary-cap.test.ts",
+          "sha256": "1b1a03dc39c860be3444343cd759d54c910c2159236fc6e774b2357b2f6c206d",
+          "bytes": 3423,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/agent/test/compaction-summary-cap.test.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/session/compaction-methods.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/src/session/compaction-methods.ts",
+          "sha256": "3da8a7596651720aaaaa411199fcdb1d8b4182272e97b9d366b88800f882ee30",
+          "bytes": 4443,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/coding-agent/src/session/compaction-methods.ts"
+        }
+      ]
+    },
+    {
+      "repo": "cline/cline",
+      "sha": "15f001ad0b1992965112fc3158f45ec6d2cb090d",
+      "commit_date": "2026-09-16T07:45:20Z",
+      "files": [
+        {
+          "path": "sdk/packages/core/src/extensions/context/compaction.ts",
+          "url": "https://github.com/cline/cline/blob/15f001ad0b1992965112fc3158f45ec6d2cb090d/sdk/packages/core/src/extensions/context/compaction.ts",
+          "sha256": "d0a69da712c99f2e8db6eee56bf4ee32094d6bbe17cfec14c9f9717c20556c12",
+          "bytes": 24793,
+          "local": ".bot/research/compaction-output-expanded-20260916/cline__cline/sdk/packages/core/src/extensions/context/compaction.ts"
+        },
+        {
+          "path": "sdk/packages/core/src/session/models/session-compaction.ts",
+          "url": "https://github.com/cline/cline/blob/15f001ad0b1992965112fc3158f45ec6d2cb090d/sdk/packages/core/src/session/models/session-compaction.ts",
+          "sha256": "e91403c51318a7263e1ba536bbdc3f8e022efee1491b394006905263004c135f",
+          "bytes": 6609,
+          "local": ".bot/research/compaction-output-expanded-20260916/cline__cline/sdk/packages/core/src/session/models/session-compaction.ts"
+        },
+        {
+          "path": "sdk/packages/core/src/extensions/context/agentic-compaction.ts",
+          "url": "https://github.com/cline/cline/blob/15f001ad0b1992965112fc3158f45ec6d2cb090d/sdk/packages/core/src/extensions/context/agentic-compaction.ts",
+          "sha256": "29266e1c515b14b40b1c8688746f26bc8a6ad82fb57b9df8260fc8bdcb73bdd9",
+          "bytes": 10243,
+          "local": ".bot/research/compaction-output-expanded-20260916/cline__cline/sdk/packages/core/src/extensions/context/agentic-compaction.ts"
+        },
+        {
+          "path": "sdk/packages/core/src/extensions/context/basic-compaction.ts",
+          "url": "https://github.com/cline/cline/blob/15f001ad0b1992965112fc3158f45ec6d2cb090d/sdk/packages/core/src/extensions/context/basic-compaction.ts",
+          "sha256": "c2e593c2d6663d9ff2aa26b3af1fd0e7037a010f3200ba9c8cf6f1e6d02f6719",
+          "bytes": 21984,
+          "local": ".bot/research/compaction-output-expanded-20260916/cline__cline/sdk/packages/core/src/extensions/context/basic-compaction.ts"
+        },
+        {
+          "path": "sdk/packages/core/src/extensions/context/compaction-shared.ts",
+          "url": "https://github.com/cline/cline/blob/15f001ad0b1992965112fc3158f45ec6d2cb090d/sdk/packages/core/src/extensions/context/compaction-shared.ts",
+          "sha256": "f64c46f756f5c54407edb687383255dc5944af6284a910a724fedfeb852faa7b",
+          "bytes": 21986,
+          "local": ".bot/research/compaction-output-expanded-20260916/cline__cline/sdk/packages/core/src/extensions/context/compaction-shared.ts"
+        }
+      ]
+    },
+    {
+      "repo": "google-gemini/gemini-cli",
+      "sha": "6a466a7e2fe2b1255752c1e74f69b31f0216084d",
+      "commit_date": "2026-09-15T21:09:13Z",
+      "files": [
+        {
+          "path": "packages/core/src/context/chatCompressionService.ts",
+          "url": "https://github.com/google-gemini/gemini-cli/blob/6a466a7e2fe2b1255752c1e74f69b31f0216084d/packages/core/src/context/chatCompressionService.ts",
+          "sha256": "796b43770e9de160c2aa2db8f729eb3141072b82d5cfc380543e0e95bdb0567e",
+          "bytes": 16644,
+          "local": ".bot/research/compaction-output-expanded-20260916/google-gemini__gemini-cli/packages/core/src/context/chatCompressionService.ts"
+        },
+        {
+          "path": "packages/core/src/context/contextCompressionService.ts",
+          "url": "https://github.com/google-gemini/gemini-cli/blob/6a466a7e2fe2b1255752c1e74f69b31f0216084d/packages/core/src/context/contextCompressionService.ts",
+          "sha256": "2f60eb839452c374dff5494584035d015631a46a5c3f6d41e769ae3e77e9bdd8",
+          "bytes": 16898,
+          "local": ".bot/research/compaction-output-expanded-20260916/google-gemini__gemini-cli/packages/core/src/context/contextCompressionService.ts"
+        }
+      ]
+    },
+    {
+      "repo": "rust-infra/tact",
+      "sha": "1ae0e933dcce743bbd3516b24644102742175189",
+      "commit_date": "2026-09-15T10:38:33Z",
+      "files": [
+        {
+          "path": "crates/tact/src/compact/mod.rs",
+          "url": "https://github.com/rust-infra/tact/blob/1ae0e933dcce743bbd3516b24644102742175189/crates/tact/src/compact/mod.rs",
+          "sha256": "84d477967866450669b276189bc9489a8db4d1100de0fef6a6d3cf9b7f79372b",
+          "bytes": 42717,
+          "local": ".bot/research/compaction-output-expanded-20260916/rust-infra__tact/crates/tact/src/compact/mod.rs"
+        },
+        {
+          "path": "docs/compaction.md",
+          "url": "https://github.com/rust-infra/tact/blob/1ae0e933dcce743bbd3516b24644102742175189/docs/compaction.md",
+          "sha256": "d09963113a08ba8799d36933cc31a8e9e20caf5648c5df1659fc234fb437d03c",
+          "bytes": 8839,
+          "local": ".bot/research/compaction-output-expanded-20260916/rust-infra__tact/docs/compaction.md"
+        },
+        {
+          "path": "book/05_chapter_compact_zh.md",
+          "url": "https://github.com/rust-infra/tact/blob/1ae0e933dcce743bbd3516b24644102742175189/book/05_chapter_compact_zh.md",
+          "sha256": "2707a258567f2550e75bd08f6b03ef36e4e353c5df39686d0f7516ed274f7551",
+          "bytes": 43388,
+          "local": ".bot/research/compaction-output-expanded-20260916/rust-infra__tact/book/05_chapter_compact_zh.md"
+        },
+        {
+          "path": "crates/tact/src/agent/mod.rs",
+          "url": "https://github.com/rust-infra/tact/blob/1ae0e933dcce743bbd3516b24644102742175189/crates/tact/src/agent/mod.rs",
+          "sha256": "1bce06690e63f4ce3bdc3ea15ed259a6809cc09d64c710a45afa2924012c0716",
+          "bytes": 200921,
+          "local": ".bot/research/compaction-output-expanded-20260916/rust-infra__tact/crates/tact/src/agent/mod.rs"
+        }
+      ]
+    }
+  ]
+}
