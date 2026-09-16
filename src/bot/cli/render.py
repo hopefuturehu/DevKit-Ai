@@ -1,32 +1,37 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, TextIO
 
 from prompt_toolkit import PromptSession
 from rich.console import Console
+from rich.panel import Panel
 from rich.text import Text
 
 from bot.cli.interrupts import PromptInterrupted, read_prompt
 from bot.core.approval import ApprovalResponse, ApprovalScope
 from bot.core.events import AgentEvent, EventType
+from bot.observability import Redactor
 from bot.policy import PolicyDecision, ToolAction
 
 
-def create_cli_console(*, file: TextIO | None = None, width: int | None = None) -> Console:
-    """Create a portable console that never leaks ANSI escape sequences.
-
-    CLI output is frequently consumed through a PTY by log collectors and web
-    frontends that report themselves as terminals but don't interpret ANSI.
-    Keep Markdown as plain source text and leave presentation to the consumer.
-    """
+def create_cli_console(
+    *,
+    file: TextIO | None = None,
+    width: int | None = None,
+    enhanced: bool = False,
+) -> Console:
+    """ANSI is opt-in here; log/web consumers can explicitly select plain mode."""
     return Console(
         file=file,
         width=width,
-        color_system=None,
-        force_terminal=False,
+        color_system="auto" if enhanced else None,
+        force_terminal=enhanced,
         highlight=False,
     )
 
@@ -71,8 +76,12 @@ class RichEventSink:
             self.console.print(line, highlight=False)
         elif event.type == EventType.TOOL_COMPLETED:
             success = bool(payload.get("success"))
+            status = payload.get("status")
+            label = {"running": "后台运行中", "cancelled": "已取消", "timed_out": "已超时"}.get(
+                status, "完成" if success else "失败"
+            )
             line = Text("  ")
-            line.append("完成" if success else "失败", style="green" if success else "red")
+            line.append(label, style="green" if success else "red")
             line.append(f" {payload.get('name')}")
             self.console.print(line, highlight=False)
             if self.show_tool_output and payload.get("output"):
@@ -272,8 +281,10 @@ class PendingApproval:
 
 
 class InteractiveApprovalHandler:
-    def __init__(self, console: Console | None = None) -> None:
+    def __init__(self, console: Console | None = None, *, workspace: Path | None = None) -> None:
         self.console = console or Console()
+        self.workspace = workspace.resolve() if workspace else None
+        self.redactor = Redactor()
         self._requests: asyncio.Queue[PendingApproval] = asyncio.Queue()
 
     async def approve(self, action: ToolAction, decision: PolicyDecision) -> ApprovalResponse:
@@ -314,12 +325,41 @@ class InteractiveApprovalHandler:
     ) -> None:
         action = pending.action
         decision = pending.decision
-        prompt = (
-            f"批准 Tool {action.tool_name}？\n原因：{decision.reason}\n参数：{action.arguments}"
+        pattern = decision.approval_pattern
+        workspace = Path(pattern.workspace) if pattern else self.workspace
+        cwd = action.arguments.get("cwd")
+        directory = Path(str(cwd)).expanduser() if cwd else workspace
+        if directory is not None and not directory.is_absolute() and workspace:
+            directory = workspace / directory
+        lines = [f"工具：{action.tool_name}", f"原因：{decision.reason}"]
+        if action.session_id:
+            lines.append(f"会话：{action.session_id[:8]} · 调用：{action.tool_call_id or '—'}")
+        if directory is not None:
+            lines.append(f"工作目录：{directory.resolve()}")
+        argv = action.arguments.get("argv")
+        if isinstance(argv, list):
+            lines.append(f"完整命令：{shlex.join(str(value) for value in argv)}")
+        script = action.arguments.get("script") or action.arguments.get("command")
+        if script:
+            lines.append(f"完整脚本：\n{script}")
+        lines.append("完整参数：\n" + json.dumps(action.arguments, ensure_ascii=False, indent=2))
+        if pattern is not None:
+            lines.append(f"复用规则：{pattern.description}")
+            lines.append(f"匹配类型：{pattern.kind.value} · 限定工作区：{pattern.workspace}")
+            if pattern.command_prefix:
+                lines.append("命令前缀：" + shlex.join(pattern.command_prefix))
+                lines.append("前缀匹配可覆盖不同参数；具体范围以以上规则为准。")
+            else:
+                lines.append("精确匹配参数：" + json.dumps(pattern.arguments, ensure_ascii=False))
+        else:
+            lines.append("无可复用规则；S/A 也仅批准本次调用。")
+        lines.append("Y 本次调用 · S 当前会话复用 · A 当前项目持久保存 · N 拒绝")
+        content = Text(self.redactor.redact_text("\n".join(lines)))
+        self.console.print(
+            Panel(content, title="执行审批", border_style="yellow")
+            if self.console.is_terminal
+            else content
         )
-        if decision.approval_pattern is not None:
-            prompt += f"\n复用规则：{decision.approval_pattern.description}"
-        self.console.print(prompt, markup=False)
         aliases = {
             "": "once",
             "y": "once",
@@ -335,7 +375,9 @@ class InteractiveApprovalHandler:
         }
         while True:
             raw_answer = await read_prompt(
-                prompt_session, "[approve: Y=本次/S=本会话/A=项目永久/N=拒绝；回车=Y] "
+                prompt_session,
+                "[approve: Y=本次/S=本会话/A=项目永久/N=拒绝；回车=Y] ",
+                approval=True,
             )
             answer = aliases.get(raw_answer.strip().casefold())
             if answer is not None:

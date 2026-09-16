@@ -284,7 +284,37 @@ bot eval run evals/kunpeng.jsonl --disable-skills \
 .venv/bin/python scripts/archive_terminalbench_result.py
 ```
 
-交互会话中可用 `/status`、`/tools`、`/todo`、`/agents`、`/skills`、`/model`、`/permissions`、
+CLI 在交互终端默认启用增强界面：输入 `/` 显示命令菜单，Tab 补全命令和权限模式，
+Enter 发送、Alt+Enter 换行，Ctrl+R 搜索历史。支持 bracketed paste 的终端粘贴多行代码后
+不会自动提交，缩进和换行会保留。历史按工作区保存在 `~/.bot/history/`，文件权限为 0600；
+审批选项和被现有脱敏规则识别出的凭据不进入历史。审批打断输入或当前运行结束时，未发送的
+草稿会保留到下一次任务输入。
+
+输入区下方的状态栏显示当前阶段、耗时、模型、权限及最近一次模型请求的上下文估算，
+小窗口优先保留阶段和权限。上下文数字是请求输入估算，不是会话累计 token；累计用量用
+`/status` 查看。运行中的 `/status`、`/todo`、`/agents` 等查询仍在本地处理；修改模型、权限、
+压缩上下文和新建会话等操作需要先结束当前运行。未知命令会提示用法。
+
+工具默认显示操作摘要、实际状态和耗时；“后台运行中”表示进程仍未结束。
+`/details` 列出本次 CLI、当前会话最近 200 个工具记录，`/details 3` 或 `/details last`
+查看完整参数、修改片段 diff 和保存的输出，长输出按提示使用 `/details 3 <字节偏移>` 翻页。
+执行层已截断的内容会明确标记。后台子 Agent 的重复进展不再刷屏，可用 `/agents` 查看最近进展。
+增强界面按段落展示 Markdown 和代码块；超长未闭合块会转为原文流式输出以限制缓冲。
+审批展示完整命令、工作目录、原因和复用规则，Y/S/A/N 的授权语义保持不变。
+
+日志采集或不解析 ANSI 的 PTY 可用 `bot --ui plain`，强制增强模式用 `bot --ui terminal`；
+也可设置 `BOT_UI=plain`。重定向输出默认使用纯文本，`bot run --json` 始终输出 JSONL。
+模式优先级为 `--ui` > `BOT_UI` > `display.mode`。项目配置示例：
+
+```toml
+[display]
+mode = "auto"            # auto / terminal / plain
+history = true           # 是否持久保存输入历史
+progress = true          # 是否显示增强界面的状态栏
+tool_output = "summary"  # full 显示工具实时输出和保留的完整结果
+```
+
+交互会话中可用 `/help`、`/status`、`/tools`、`/details`、`/todo`、`/agents`、`/skills`、`/model`、`/permissions`、
 `/compact`、`/compact rebuild`、`/compact rollback <id>`、`/remember`、`/memories`、
 `/forget <id-or-key>`、`/memory extract [run-id]`、`/new` 和 `/exit`。`/compact` 会在
 Tool 原子组边界生成一个活动摘要，

@@ -279,6 +279,8 @@ class AgentsConfig(StrictModel):
 
 
 class DisplayConfig(StrictModel):
+    mode: Literal["auto", "terminal", "plain"] = "auto"
+    history: bool = True
     tool_output: Literal["summary", "full"] = "summary"
     progress: bool = True
 

@@ -19,12 +19,16 @@ from dotenv import dotenv_values
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from rich.table import Table
+from rich.text import Text
 from typer.core import TyperGroup
 
 from bot import __version__
+from bot.cli.commands import COMMANDS, find_command
 from bot.cli.interrupts import InterruptState, PromptInterrupted, interrupt_state, read_prompt
-from bot.cli.render import InteractiveApprovalHandler, RichEventSink, create_cli_console
+from bot.cli.presentation import InteractiveEventSink
+from bot.cli.render import InteractiveApprovalHandler, create_cli_console
 from bot.cli.runtime import build_runtime
+from bot.cli.terminal import DisplayMode, TerminalUI, terminal_enabled
 from bot.config import (
     ConfigError,
     api_key_reference_variable,
@@ -193,7 +197,7 @@ async def _prompt_with_background_approvals(
     input_task = asyncio.create_task(read_prompt(prompt_session, "> "))
     approval_task = asyncio.create_task(approval_handler.next_request())
     try:
-        with patch_stdout():
+        with patch_stdout(raw=bool(getattr(getattr(runtime, "cli_ui", None), "enhanced", False))):
             done, _ = await asyncio.wait(
                 {input_task, approval_task},
                 return_when=asyncio.FIRST_COMPLETED,
@@ -206,7 +210,9 @@ async def _prompt_with_background_approvals(
             if not input_task.done():
                 input_task.cancel()
                 await asyncio.gather(input_task, return_exceptions=True)
-            with patch_stdout():
+            with patch_stdout(
+                raw=bool(getattr(getattr(runtime, "cli_ui", None), "enhanced", False))
+            ):
                 await approval_handler.resolve(approval_task.result(), prompt_session)
             return input_task.result() if input_completed else None
         approval_task.cancel()
@@ -220,11 +226,12 @@ async def _prompt_with_background_approvals(
 
 
 def _parse_prompt(prompt: str) -> tuple[str, list[str]]:
-    tokens = prompt.split()
     skills: list[str] = []
-    while tokens and re.fullmatch(r"\$[a-z0-9_-]+", tokens[0]):
-        skills.append(tokens.pop(0)[1:])
-    return " ".join(tokens).strip(), skills
+    remaining = prompt
+    while match := re.match(r"^[ \t]*\$([a-z0-9_-]+)(?:[ \t]+|\r?\n|$)", remaining):
+        skills.append(match.group(1))
+        remaining = remaining[match.end() :]
+    return remaining, skills
 
 
 def _runtime(
@@ -233,26 +240,39 @@ def _runtime(
     *,
     json_output: bool,
     interactive: bool,
+    ui_mode: DisplayMode | None = None,
 ):
+    global console
     try:
         preview_config = load_config(workspace.resolve(), config_path=config_path)
-        sinks = (
-            [JsonlEventSink()]
-            if json_output
-            else [
-                RichEventSink(
-                    console,
-                    show_tool_output=preview_config.display.tool_output == "full",
-                )
-            ]
+        mode = ui_mode or preview_config.display.mode
+        ui = TerminalUI(
+            enhanced=terminal_enabled(
+                mode,
+                interactive=interactive,
+                json_output=json_output,
+            )
         )
-        approval = InteractiveApprovalHandler(console) if interactive else None
-        return build_runtime(
+        console = create_cli_console(enhanced=ui.enhanced)
+        sink = InteractiveEventSink(
+            console,
+            ui,
+            show_tool_output=preview_config.display.tool_output == "full",
+        )
+        sinks = [JsonlEventSink()] if json_output else [sink]
+        approval = InteractiveApprovalHandler(console, workspace=workspace) if interactive else None
+        runtime = build_runtime(
             workspace=workspace,
             config_path=config_path,
             event_sinks=sinks,
             approval_handler=approval,
+            config_overrides={"display": {"mode": str(mode)}},
         )
+        ui.runtime, ui.sink = runtime, sink
+        if approval is not None:
+            approval.redactor = runtime.runner.redactor
+        runtime.cli_ui = ui
+        return runtime
     except (ConfigError, ProviderError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(2) from exc
@@ -266,15 +286,19 @@ def main(
     ] = DEFAULT_WORKSPACE,
     config_path: Annotated[Path | None, typer.Option("--config", help="显式配置文件")] = None,
     version: Annotated[bool, typer.Option("--version", help="显示版本")] = False,
+    ui_mode: Annotated[
+        DisplayMode | None,
+        typer.Option("--ui", envvar="BOT_UI", help="界面：auto / terminal / plain"),
+    ] = None,
 ) -> None:
     if version:
         console.print(__version__)
         raise typer.Exit()
     if ctx.invoked_subcommand is not None:
         ctx.ensure_object(dict)
-        ctx.obj.update({"workspace": workspace, "config_path": config_path})
+        ctx.obj.update({"workspace": workspace, "config_path": config_path, "ui_mode": ui_mode})
         return
-    runtime = _runtime(workspace, config_path, json_output=False, interactive=True)
+    runtime = _runtime(workspace, config_path, json_output=False, interactive=True, ui_mode=ui_mode)
     try:
         session_id = runtime.store.create_session(workspace)
         _run(_with_runtime_shutdown(runtime, _interactive_loop(runtime, session_id)))
@@ -289,7 +313,13 @@ def chat_command(
 ) -> None:
     workspace = ctx.obj["workspace"]
     config_path = ctx.obj["config_path"]
-    runtime = _runtime(workspace, config_path, json_output=False, interactive=True)
+    runtime = _runtime(
+        workspace,
+        config_path,
+        json_output=False,
+        interactive=True,
+        ui_mode=ctx.obj.get("ui_mode"),
+    )
     try:
         session_id = runtime.store.create_session(workspace)
         _run(
@@ -302,243 +332,303 @@ def chat_command(
         runtime.close()
 
 
+async def _dispatch_command(runtime, session_id: str, prompt: str, *, running: bool = False):
+    """All slash commands stay local, including unknown/invalid commands."""
+    prompt = "/help" if prompt == "?" else prompt
+    command = find_command(prompt)
+    if command is None:
+        console.print("未知命令或参数不完整；输入 /help 查看用法。")
+        return session_id, False
+    if running and not command.during_run:
+        console.print("该命令会改变会话或配置，请等待运行结束，或先 /cancel。")
+        return session_id, False
+    if prompt == "/cancel":
+        console.print("当前没有前台运行。")
+        return session_id, False
+    if prompt == "/details" or prompt.startswith("/details "):
+        ui = getattr(runtime, "cli_ui", None)
+        if ui is None:
+            console.print("当前运行没有 CLI 工具记录。")
+            return session_id, False
+        args = prompt.split()[1:]
+        try:
+            if len(args) > 2:
+                raise ValueError
+            number = (
+                None
+                if not args
+                else (ui.state.next_number - 1 if args[0] == "last" else int(args[0]))
+            )
+            offset = int(args[1]) if len(args) == 2 else 0
+            if offset < 0 or (number is not None and number < 1):
+                raise ValueError
+        except ValueError:
+            console.print("用法：/details [编号|last] [非负字节偏移]")
+        else:
+            ui.sink.show_details(number, offset)
+        return session_id, False
+    if prompt in {"/exit", "/quit"}:
+        return session_id, True
+    if prompt == "/status":
+        usage = runtime.store.session_usage(session_id)
+        context = runtime.runner.context_status(session_id)
+        ui = getattr(runtime, "cli_ui", None)
+        values = {
+            "会话": session_id,
+            "工作区": str(runtime.workspace),
+            "模型": f"{runtime.config.model.name} @ {runtime.config.model.base_url}",
+            "权限": f"{runtime.config.permissions.mode} · "
+            f"自动审批={runtime.config.permissions.auto_approve} · "
+            f"工作区限制={runtime.config.permissions.workspace_only} · "
+            f"网络={runtime.config.permissions.network}",
+            "当前阶段": ui.state.phase if ui else "运行中" if running else "就绪",
+            "最近请求上下文": (
+                f"≈{ui.state.context_tokens:,} tokens / "
+                f"窗口 {runtime.config.model.context_window_tokens:,}"
+                if ui and ui.state.context_tokens is not None
+                else "尚无请求估算"
+            ),
+            "上下文预算": context.get("budget", {}),
+            "压缩状态": context.get("compression", {}),
+            "活动 Skill": runtime.runner.active_skill_names(session_id),
+            "会话累计用量": usage,
+        }
+        table = Table("项目", "状态", show_lines=True)
+        for label, value in values.items():
+            table.add_row(label, Text(runtime.runner.redactor.redact_text(str(value))))
+        console.print(table)
+        return session_id, False
+    if prompt == "/tools":
+        control_tools = (
+            [definition.name for definition in runtime.subagents.definitions()]
+            if runtime.config.subagents.enabled
+            else []
+        )
+        console.print("\n".join([*runtime.tools.names(), *control_tools]))
+        return session_id, False
+    if prompt == "/todo":
+        _print_plan(runtime.store.load_plan(session_id))
+        return session_id, False
+    if prompt in {"/agents", "/agents tasks"}:
+        tasks = runtime.subagents.list_tasks(session_id)
+        if not tasks:
+            console.print("暂无后台子 Agent 任务。")
+        else:
+            table = Table("Task", "Agent", "Status", "Required", "Objective", "最近进展")
+            ui = getattr(runtime, "cli_ui", None)
+            for task in tasks:
+                table.add_row(
+                    str(task["id"]),
+                    str(task["agent_name"]),
+                    str(task["status"]),
+                    str(task["required"]),
+                    Text(str(task["objective"])[:80]),
+                    Text(ui.state.background.get(str(task["id"]), "—") if ui else "—"),
+                )
+            console.print(table)
+        return session_id, False
+    if prompt == "/agents list":
+        _print_agents(runtime.agent_catalog)
+        return session_id, False
+    if prompt == "/agents reload":
+        _reload_runtime_agents(runtime)
+        console.print(f"已重新加载 {len(runtime.agent_catalog.agents)} 个 Agent。")
+        _print_agent_diagnostics(runtime.agent_catalog)
+        return session_id, False
+    if prompt == "/agents trust":
+        digest = AgentCatalog.compute_project_digest(
+            runtime.config.project_agent_path(runtime.workspace)
+        )
+        runtime.store.trust_agent_workspace(runtime.workspace, digest)
+        _reload_runtime_agents(runtime)
+        console.print("已信任当前内容摘要对应的项目 Agent；文件变化后需重新信任。")
+        return session_id, False
+    if prompt == "/agents untrust":
+        runtime.store.untrust_agent_workspace(runtime.workspace)
+        _reload_runtime_agents(runtime)
+        console.print("已取消当前工作区的项目 Agent 信任。")
+        return session_id, False
+    if prompt == "/model":
+        console.print(f"{runtime.config.model.name} @ {runtime.config.model.base_url}")
+        return session_id, False
+    if prompt.startswith("/model "):
+        runtime.config.model.name = prompt.removeprefix("/model ").strip()
+        console.print(f"本会话模型已切换为 {runtime.config.model.name}")
+        return session_id, False
+    if prompt == "/permissions":
+        console.print(
+            {
+                "mode": runtime.config.permissions.mode,
+                "auto_approve": runtime.config.permissions.auto_approve,
+                "workspace_only": runtime.config.permissions.workspace_only,
+                "network": runtime.config.permissions.network,
+            }
+        )
+        return session_id, False
+    if prompt.startswith("/permissions "):
+        mode = prompt.removeprefix("/permissions ").strip()
+        if mode not in {"safe", "read-only", "full-access"}:
+            console.print("[red]权限模式必须是 safe/read-only/full-access。[/red]")
+            return session_id, False
+        runtime.config.permissions.mode = mode
+        console.print(f"本会话权限模式已切换为 {mode}")
+        return session_id, False
+    if prompt == "/compact":
+        result = await runtime.runner.compact_session(session_id)
+        if result["compacted"]:
+            stop = f"，stop={result['reason']}" if result.get("reason") else ""
+            console.print(
+                "已发布可恢复上下文摘要："
+                f"id={result['compaction_id']}，"
+                f"cursor={result['cursor_position']}，"
+                f"messages={result['messages_consolidated']}，"
+                f"summary_tokens≈{result['summary_tokens']}，"
+                f"requests={result['request_count']}，"
+                f"duration={float(result['duration_ms']) / 1000:.1f}s"
+                f"{stop}。"
+            )
+        else:
+            console.print(f"无需压缩：{result['reason']}。")
+        return session_id, False
+    if prompt == "/compact rebuild":
+        result = await runtime.compactor.rebuild(session_id)
+        if result.compacted:
+            console.print(
+                "已从原始 Transcript 重建摘要："
+                f"id={result.compaction_id}，"
+                f"cursor={result.covered_end_position}，"
+                f"summary_tokens≈{result.summary_tokens}。"
+            )
+        elif result.error:
+            console.print(f"摘要重建失败，活动版本未变化：{result.error}")
+        else:
+            console.print(f"无法重建：{result.reason}")
+        return session_id, False
+    if prompt.startswith("/compact rollback "):
+        compaction_id = prompt.removeprefix("/compact rollback ").strip()
+        try:
+            record = runtime.compactor.rollback(session_id, compaction_id)
+        except ValueError as exc:
+            console.print(f"摘要回滚失败：{exc}")
+        else:
+            console.print(
+                f"已回滚活动摘要：id={record['id']}，cursor={record['covered_end_position']}。"
+            )
+        return session_id, False
+    if prompt == "/skills":
+        _print_skills(runtime.catalog, active=set(runtime.runner.active_skill_names(session_id)))
+        return session_id, False
+    if prompt == "/skills reload":
+        runtime.catalog.scan()
+        console.print(
+            f"已重新扫描 {runtime.catalog.root}，可用 {len(runtime.catalog.skills)} 个 Skill。"
+        )
+        return session_id, False
+    if prompt == "/help":
+        table = Table("命令", "用途", "运行中可用")
+        for command in COMMANDS:
+            table.add_row(
+                f"{command.name} {command.arguments}".strip(),
+                command.description,
+                "✓" if command.during_run else "",
+            )
+        console.print(table)
+        console.print("Enter 发送 · Alt+Enter 换行 · Tab 补全 · Ctrl+R 历史 · Ctrl+C 取消/退出")
+        return session_id, False
+    if prompt.startswith("/remember "):
+        if runtime.memory_store is not None:
+            memory_id = runtime.memory_store.add_user_memory(prompt.removeprefix("/remember "))
+        else:
+            memory_id = str(runtime.store.add_memory(prompt.removeprefix("/remember ")))
+        console.print(f"已保存显式记忆 [{memory_id}]")
+        return session_id, False
+    if prompt == "/memories":
+        memories = (
+            runtime.memory_store.list_memories()
+            if runtime.memory_store is not None
+            else runtime.store.list_memories()
+        )
+        if not memories:
+            console.print("暂无长期记忆。")
+        for item in memories:
+            if runtime.memory_store is not None:
+                console.print(
+                    f"[{item.id}] {item.content} "
+                    f"[dim]({item.origin}/{item.status.value}; key={item.key})[/dim]"
+                )
+            else:
+                console.print(f"[{item['id']}] {item['content']} [dim]({item['source']})[/dim]")
+        return session_id, False
+    if prompt.startswith("/forget "):
+        identifier = prompt.removeprefix("/forget ").strip()
+        if runtime.memory_store is not None:
+            deleted = runtime.memory_store.forget(identifier)
+        else:
+            try:
+                deleted = runtime.store.delete_memory(int(identifier))
+            except ValueError:
+                deleted = False
+        console.print("已删除。" if deleted else "未找到该记忆。")
+        return session_id, False
+    if prompt == "/memory extract" or prompt.startswith("/memory extract "):
+        if runtime.memory_extractor is None:
+            console.print("[yellow]自动 Markdown 记忆未启用。[/yellow]")
+            return session_id, False
+        requested_run = prompt.removeprefix("/memory extract").strip() or None
+        result = await runtime.memory_extractor.extract_pending(requested_run)
+        console.print(
+            "记忆提取完成："
+            f"processed={result['processed']}，failed={result['failed']}，"
+            f"added={result['added']}，merged={result['merged']}，"
+            f"conflicts={result['conflicts']}，suppressed={result['suppressed']}。"
+        )
+        return session_id, False
+    if prompt == "/new":
+        session_id = runtime.store.create_session(runtime.workspace)
+        console.print(f"已创建会话 {session_id[:8]}")
+        return session_id, False
+    console.print("参数无效；输入 /help 查看用法。")
+    return session_id, False
+
+
 async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None = None) -> None:
     if runtime.config.subagents.enabled:
         await runtime.subagents.start()
-    prompt_session: PromptSession[str] = PromptSession()
+    ui = runtime.cli_ui
+    prompt_session: PromptSession[str] = ui.create_prompt(runtime) if ui else PromptSession()
+    if ui:
+        ui.state.select_session(session_id)
     queued_prompt = initial_prompt
     console.print(
         f"[bold]bot[/bold] {__version__} · session {session_id[:8]} · "
         f"{runtime.config.model.name or '<model-unset>'}"
     )
+    console.print("/help 命令 · /details 工具详情 · Ctrl+C 取消运行，空闲时退出")
     while True:
         try:
             if queued_prompt is not None:
-                prompt = queued_prompt.strip()
+                prompt = queued_prompt
                 queued_prompt = None
             else:
                 pending_input = await _prompt_with_background_approvals(runtime, prompt_session)
                 if pending_input is None:
                     continue
-                prompt = pending_input.strip()
+                prompt = pending_input
         except EOFError:
             console.print()
             return
-        if not prompt:
+        if not prompt.strip():
             continue
-        if prompt in {"/exit", "/quit"}:
-            return
-        if prompt == "/status":
-            usage = runtime.store.session_usage(session_id)
-            console.print(
-                {
-                    "session": session_id,
-                    "workspace": str(runtime.workspace),
-                    "model": runtime.config.model.name,
-                    "base_url": runtime.config.model.base_url,
-                    "permission_mode": runtime.config.permissions.mode,
-                    "auto_approve": runtime.config.permissions.auto_approve,
-                    "active_skills": runtime.runner.active_skill_names(session_id),
-                    "context_manifest": runtime.context.manifest(),
-                    "context": runtime.runner.context_status(session_id),
-                    "memory": (
-                        runtime.memory_store.stats()
-                        if runtime.memory_store is not None
-                        else {"legacy_sqlite": len(runtime.store.list_memories())}
-                    ),
-                    "usage": usage,
-                }
-            )
-            continue
-        if prompt == "/tools":
-            control_tools = (
-                [definition.name for definition in runtime.subagents.definitions()]
-                if runtime.config.subagents.enabled
-                else []
-            )
-            console.print("\n".join([*runtime.tools.names(), *control_tools]))
-            continue
-        if prompt == "/todo":
-            _print_plan(runtime.store.load_plan(session_id))
-            continue
-        if prompt in {"/agents", "/agents tasks"}:
-            tasks = runtime.subagents.list_tasks(session_id)
-            if not tasks:
-                console.print("暂无后台子 Agent 任务。")
-            else:
-                table = Table("Task", "Agent", "Status", "Required", "Objective")
-                for task in tasks:
-                    table.add_row(
-                        str(task["id"]),
-                        str(task["agent_name"]),
-                        str(task["status"]),
-                        str(task["required"]),
-                        str(task["objective"])[:80],
-                    )
-                console.print(table)
-            continue
-        if prompt == "/agents list":
-            _print_agents(runtime.agent_catalog)
-            continue
-        if prompt == "/agents reload":
-            _reload_runtime_agents(runtime)
-            console.print(f"已重新加载 {len(runtime.agent_catalog.agents)} 个 Agent。")
-            _print_agent_diagnostics(runtime.agent_catalog)
-            continue
-        if prompt == "/agents trust":
-            digest = AgentCatalog.compute_project_digest(
-                runtime.config.project_agent_path(runtime.workspace)
-            )
-            runtime.store.trust_agent_workspace(runtime.workspace, digest)
-            _reload_runtime_agents(runtime)
-            console.print("已信任当前内容摘要对应的项目 Agent；文件变化后需重新信任。")
-            continue
-        if prompt == "/agents untrust":
-            runtime.store.untrust_agent_workspace(runtime.workspace)
-            _reload_runtime_agents(runtime)
-            console.print("已取消当前工作区的项目 Agent 信任。")
-            continue
-        if prompt == "/model":
-            console.print(f"{runtime.config.model.name} @ {runtime.config.model.base_url}")
-            continue
-        if prompt.startswith("/model "):
-            runtime.config.model.name = prompt.removeprefix("/model ").strip()
-            console.print(f"本会话模型已切换为 {runtime.config.model.name}")
-            continue
-        if prompt == "/permissions":
-            console.print(
-                {
-                    "mode": runtime.config.permissions.mode,
-                    "auto_approve": runtime.config.permissions.auto_approve,
-                    "workspace_only": runtime.config.permissions.workspace_only,
-                    "network": runtime.config.permissions.network,
-                }
-            )
-            continue
-        if prompt.startswith("/permissions "):
-            mode = prompt.removeprefix("/permissions ").strip()
-            if mode not in {"safe", "read-only", "full-access"}:
-                console.print("[red]权限模式必须是 safe/read-only/full-access。[/red]")
-                continue
-            runtime.config.permissions.mode = mode
-            console.print(f"本会话权限模式已切换为 {mode}")
-            continue
-        if prompt == "/compact":
-            result = await runtime.runner.compact_session(session_id)
-            if result["compacted"]:
-                stop = f"，stop={result['reason']}" if result.get("reason") else ""
-                console.print(
-                    "已发布可恢复上下文摘要："
-                    f"id={result['compaction_id']}，"
-                    f"cursor={result['cursor_position']}，"
-                    f"messages={result['messages_consolidated']}，"
-                    f"summary_tokens≈{result['summary_tokens']}，"
-                    f"requests={result['request_count']}，"
-                    f"duration={float(result['duration_ms']) / 1000:.1f}s"
-                    f"{stop}。"
-                )
-            else:
-                console.print(f"无需压缩：{result['reason']}。")
-            continue
-        if prompt == "/compact rebuild":
-            result = await runtime.compactor.rebuild(session_id)
-            if result.compacted:
-                console.print(
-                    "已从原始 Transcript 重建摘要："
-                    f"id={result.compaction_id}，"
-                    f"cursor={result.covered_end_position}，"
-                    f"summary_tokens≈{result.summary_tokens}。"
-                )
-            elif result.error:
-                console.print(f"摘要重建失败，活动版本未变化：{result.error}")
-            else:
-                console.print(f"无法重建：{result.reason}")
-            continue
-        if prompt.startswith("/compact rollback "):
-            compaction_id = prompt.removeprefix("/compact rollback ").strip()
-            try:
-                record = runtime.compactor.rollback(session_id, compaction_id)
-            except ValueError as exc:
-                console.print(f"摘要回滚失败：{exc}")
-            else:
-                console.print(
-                    f"已回滚活动摘要：id={record['id']}，cursor={record['covered_end_position']}。"
-                )
-            continue
-        if prompt == "/skills":
-            _print_skills(
-                runtime.catalog, active=set(runtime.runner.active_skill_names(session_id))
-            )
-            continue
-        if prompt == "/skills reload":
-            runtime.catalog.scan()
-            console.print(
-                f"已重新扫描 {runtime.catalog.root}，可用 {len(runtime.catalog.skills)} 个 Skill。"
-            )
-            continue
-        if prompt in {"/help", "?"}:
-            console.print(
-                "/status /tools /todo /skills /skills reload /remember <text> "
-                "/memories /forget <id-or-key> /memory extract [run-id] "
-                "/agents tasks|list|reload|trust|untrust /model /permissions "
-                "/compact /compact rebuild "
-                "/compact rollback <id> /new /exit"
-            )
-            continue
-        if prompt.startswith("/remember "):
-            if runtime.memory_store is not None:
-                memory_id = runtime.memory_store.add_user_memory(prompt.removeprefix("/remember "))
-            else:
-                memory_id = str(runtime.store.add_memory(prompt.removeprefix("/remember ")))
-            console.print(f"已保存显式记忆 [{memory_id}]")
-            continue
-        if prompt == "/memories":
-            memories = (
-                runtime.memory_store.list_memories()
-                if runtime.memory_store is not None
-                else runtime.store.list_memories()
-            )
-            if not memories:
-                console.print("暂无长期记忆。")
-            for item in memories:
-                if runtime.memory_store is not None:
-                    console.print(
-                        f"[{item.id}] {item.content} "
-                        f"[dim]({item.origin}/{item.status.value}; key={item.key})[/dim]"
-                    )
-                else:
-                    console.print(f"[{item['id']}] {item['content']} [dim]({item['source']})[/dim]")
-            continue
-        if prompt.startswith("/forget "):
-            identifier = prompt.removeprefix("/forget ").strip()
-            if runtime.memory_store is not None:
-                deleted = runtime.memory_store.forget(identifier)
-            else:
-                try:
-                    deleted = runtime.store.delete_memory(int(identifier))
-                except ValueError:
-                    deleted = False
-            console.print("已删除。" if deleted else "未找到该记忆。")
-            continue
-        if prompt == "/memory extract" or prompt.startswith("/memory extract "):
-            if runtime.memory_extractor is None:
-                console.print("[yellow]自动 Markdown 记忆未启用。[/yellow]")
-                continue
-            requested_run = prompt.removeprefix("/memory extract").strip() or None
-            result = await runtime.memory_extractor.extract_pending(requested_run)
-            console.print(
-                "记忆提取完成："
-                f"processed={result['processed']}，failed={result['failed']}，"
-                f"added={result['added']}，merged={result['merged']}，"
-                f"conflicts={result['conflicts']}，suppressed={result['suppressed']}。"
-            )
-            continue
-        if prompt == "/new":
-            session_id = runtime.store.create_session(runtime.workspace)
-            console.print(f"已创建会话 {session_id[:8]}")
+        command_text = prompt.strip()
+        if command_text.startswith("/") or command_text == "?":
+            session_id, should_exit = await _dispatch_command(runtime, session_id, command_text)
+            if should_exit:
+                return
+            if runtime.cli_ui is not None:
+                runtime.cli_ui.state.select_session(session_id)
             continue
         clean_prompt, explicit_skills = _parse_prompt(prompt)
-        if not clean_prompt:
+        if not clean_prompt.strip():
             console.print("[yellow]请输入 Skill 后的任务内容。[/yellow]")
             continue
         result = await _run_with_steering(
@@ -557,6 +647,9 @@ async def _interactive_loop(runtime, session_id: str, initial_prompt: str | None
 
 
 async def _run_with_steering(runtime, prompt_session: PromptSession[str], request: RunRequest):
+    ui = getattr(runtime, "cli_ui", None)
+    if ui:
+        ui.state.select_session(request.session_id)
     run_task = asyncio.create_task(runtime.runner.run(request))
     approval_handler = runtime.approval_handler
     approval_task = (
@@ -571,6 +664,8 @@ async def _run_with_steering(runtime, prompt_session: PromptSession[str], reques
 
     def cancel_run() -> None:
         if not run_task.done() and not run_task.cancelling():
+            if ui:
+                ui.state.phase = "取消并清理"
             console.print("[yellow]正在取消当前任务并清理资源…[/yellow]")
             run_task.cancel()
 
@@ -583,7 +678,9 @@ async def _run_with_steering(runtime, prompt_session: PromptSession[str], reques
             waiting: set[asyncio.Task] = {run_task, input_task}
             if approval_task:
                 waiting.add(approval_task)
-            with patch_stdout():
+            with patch_stdout(
+                raw=bool(getattr(getattr(runtime, "cli_ui", None), "enhanced", False))
+            ):
                 done, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
             if run_task in done:
                 break
@@ -603,12 +700,16 @@ async def _run_with_steering(runtime, prompt_session: PromptSession[str], reques
                     resolving_approval = False
                     approval_task = asyncio.create_task(approval_handler.next_request())
                     continue
-                steering = (answer or "").strip()
-                if not steering:
+                steering = answer or ""
+                command_text = steering.strip()
+                if not command_text:
                     continue
-                if steering == "/cancel":
+                if command_text == "/cancel":
                     cancel_run()
                     break
+                if command_text.startswith("/") or command_text == "?":
+                    await _dispatch_command(runtime, request.session_id, command_text, running=True)
+                    continue
                 accepted = await runtime.runner.steer(request.session_id, steering)
                 if accepted:
                     console.print("[dim]已加入当前运行，将在安全边界应用。[/dim]")
@@ -661,6 +762,7 @@ def run_command(
         config_path,
         json_output=json_output,
         interactive=sys.stdin.isatty() and not json_output,
+        ui_mode=ctx.obj.get("ui_mode"),
     )
     try:
         clean_prompt, explicit_skills = _parse_prompt(prompt)
@@ -670,11 +772,12 @@ def run_command(
             explicit_skills=explicit_skills,
             json_output=json_output,
         )
+        runtime.cli_ui.state.select_session(request.session_id)
         if sys.stdin.isatty() and not json_output:
             result = _run(
                 _with_runtime_shutdown(
                     runtime,
-                    _run_with_steering(runtime, PromptSession(), request),
+                    _run_with_steering(runtime, runtime.cli_ui.create_prompt(runtime), request),
                 )
             )
         else:
@@ -698,7 +801,13 @@ def resume_command(
 ) -> None:
     workspace = ctx.obj["workspace"]
     config_path = ctx.obj["config_path"]
-    runtime = _runtime(workspace, config_path, json_output=False, interactive=True)
+    runtime = _runtime(
+        workspace,
+        config_path,
+        json_output=False,
+        interactive=True,
+        ui_mode=ctx.obj.get("ui_mode"),
+    )
     try:
         selected = session_id or runtime.store.latest_session(workspace)
         if not selected or not runtime.store.session_exists(selected):

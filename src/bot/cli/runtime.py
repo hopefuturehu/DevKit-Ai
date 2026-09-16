@@ -41,6 +41,7 @@ class Runtime:
     memory_store: MarkdownMemoryStore | None = None
     memory_extractor: MemoryExtractor | None = None
     approval_handler: ApprovalHandler | None = None
+    cli_ui: Any = None
     _auto_resume_tasks: dict[str, asyncio.Task[None]] = field(default_factory=dict)
     _closed: bool = field(default=False, init=False)
 
