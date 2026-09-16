@@ -2,12 +2,16 @@
 
 返回[文档索引](../README.md)。这些材料用于整理项目表达和个人经历，技术行为仍以[架构说明](../architecture/README.md)为入口。
 
+本轮已按 `2bb51f4`（2026-09-16）核对本地实现。准备回答前先看[实现核对记录](implementation-audit.md)：
+它列出已修正的差异、默认开关及源码证据；历史评测和招聘信息继续使用各自日期。
+
 | 文档 | 用途 |
 |---|---|
+| [面试材料与当前实现核对](implementation-audit.md) | 文档职责、12 类差异与遗漏、当前默认值及离线验证入口 |
 | [AI Agent 面试答题与批改工作簿](ai-agent-interview-workbook.md) | 24 道核心题、6 道扩展题；保留原回答、Codex 指正和修订区，可按题分批作答与复评 |
 | [赛文X 100+ 社招面经：Agent 高频题与代码印证手册](nowcoder-agent-interview-handbook.md) | 遍历牛客汇总帖的 78 篇子面经，整理 Agent runtime、工具、上下文、RAG、多 Agent、评测、安全与云端部署；区分本地实证和延伸设计 |
 | [上下文管理架构与面试手册](context-management-interview-guide.md) | 25 个技术问答及深层追问；含开发负责人开场、职责与技术决策追问 |
-| [历史开发记录与简历素材库](resume-materials.md) | 原 42 条候选、开发时间线与提交证据；第 16 节补充后续素材，第 17 节提供负责人简历成稿 |
+| [历史开发记录与简历素材库](resume-materials.md) | 原 42 条历史候选、开发时间线与提交证据；第 16 节补充至 09-16 的实现，第 17 节提供负责人简历成稿 |
 | [中国大陆 Agent 招聘调研](agent-hiring-mainland-2026-09.md) | 09-10 大厂样本、09-15 来源复核与准备重点更新，以及 12 组岗位追问与口述回答 |
 | [Agent 小公司练手岗位清单](agent-practice-targets-2026-09-15.md) | 09-15 核验：6 家完整 JD、BOSS 直聘 8 家公司线索、1 个高级 Runtime 候选；含城市、规模、薪资、门槛与练手顺序 |
 

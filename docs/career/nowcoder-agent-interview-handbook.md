@@ -2,6 +2,8 @@
 
 > 来源：[牛客《【0901更新】赛文Xの100+社招面经记录》](https://www.nowcoder.com/discuss/921546202062000128)，整理日期：2026-09-14。帖子持续更新；本文以当天页面中的 78 个唯一子帖链接为快照，代码证据以本仓库提交 `31ff58c` 为基线。
 
+> 2026-09-16 本地实现复核至 `2bb51f4`：修正当前能力与扩展设计的混用，补充响应恢复与清理边界。外部面经来源保留 09-14 快照，本轮未重新抓取；差异见[实现核对记录](implementation-audit.md)。
+
 这不是一篇单场面经，而是一张社招面经索引。索引覆盖约 100 场面试，当时已整理 80 多家公司/场次，并链接到 78 篇可访问的独立记录；其中 43 篇标题直接包含 Agent、AI 或智搜岗位，更多全栈、平台和服务端面经也问到了 Agent。
 
 本文遍历索引中的全部子帖，只提取并转述 Agent 相关考点。算法题、纯语言八股、HR 信息和与 Agent 无关的业务题不展开。来源问题均做了归纳而非逐字转载；第一人称回答仍须按候选人的真实职责调整。
@@ -56,7 +58,7 @@
 | Agent Harness / Runtime | 已实现 | [`AgentRunner`](../../src/bot/core/agent.py) 编排模型、工具、策略、上下文、存储、压缩、记忆和事件 |
 | 结构化 Tool Calling | 已实现 | [`models.py`](../../src/bot/core/models.py)、[`registry.py`](../../src/bot/tools/registry.py) 和 `_execute_tool` |
 | 工具策略、审批与审计 | 已实现 | [`PolicyEngine`](../../src/bot/policy/engine.py)、tool run、approval 与事件记录 |
-| 长进程、重试与终止 | 已实现 | [`local.py`](../../src/bot/execution/local.py)、[`repetition.py`](../../src/bot/core/termination/repetition.py) 和 progress checkpoint |
+| 长进程、重试与终止 | 已实现 | 有界清理、progress checkpoint；工具／正文重复检测默认 observe，响应自动恢复默认关闭，完整性门禁生效 |
 | 上下文预算与压缩恢复 | 已实现 | [`context.py`](../../src/bot/core/context.py)、[`CompactionService`](../../src/bot/compaction/service.py) |
 | 记忆检索与证据回载 | 已实现 | [`routing.py`](../../src/bot/memory/routing.py) 和 [`memory/store.py`](../../src/bot/memory/store.py) |
 | 评测与外部验证 | 已实现 | [`evals`](../../src/bot/evals)、单元/集成测试和 trace 导出 |
@@ -68,7 +70,7 @@
 | 动态模型路由/降级 | 未实现 | Provider 可配置且请求可重试，但没有按任务质量/成本自动切换模型 |
 | Coding Agent 全链路发布 | 未实现 | 有编码工具、验证和策略组件；没有完整 PRD→开发→预发→灰度→发布平台 |
 
-完整边界以 [`implementation-status.md`](../architecture/implementation-status.md) 为准。
+本轮边界见[实现核对记录](implementation-audit.md)及其源码证据；[MVP 状态表](../architecture/implementation-status.md)是 09-10 快照，不能覆盖后续变更。
 
 ## 3. 开场：30 秒与 2 分钟项目介绍
 
@@ -78,11 +80,11 @@
 
 ### 3.2 两分钟版本
 
-> 项目的核心是 `AgentRunner`。它先加载会话、压缩状态、记忆和运行环境，再由 `ContextPlanner` 在硬 token 预算内选择消息、工具 schema 和其他上下文。模型返回结构化 tool call 后，系统依次做名称检查、JSON Schema 校验、策略判断和必要审批，再通过执行器运行工具，脱敏并持久化结果，然后进入下一轮。
+> 项目的核心是 `AgentRunner`。它先加载会话、压缩状态、记忆和运行环境，由 Runner 选择工具 schema，再由 `ContextPlanner` 规划消息并检查总输入预算。模型响应先通过完整性及必需工具门禁，可接受的 Assistant 调用消息先持久化；随后依次做名称检查、JSON Schema 校验、策略判断和必要审批，再通过执行器运行工具，脱敏并持久化结果，然后进入下一轮。
 >
 > 长任务不能只靠 `max_steps`。系统同时观察重复调用、连续失败、是否取得新进展和外部进程状态，并保存 checkpoint。上下文达到目标利用率时，会保留最近原文，把大输出外置成内容寻址 blob，再生成带固定字段、来源范围和哈希的单摘要。候选摘要校验通过才替换旧版本，失败不推进边界，还能回读原始消息或回滚。
 >
-> 可靠性方面，工具有 schema、策略、审批、超时、输出限制和审计；最终结果由 JSON、命令或产物断言验证，而不是只信模型说“完成”。边界上，本仓库没有完整 MCP、向量 RAG 和分布式云沙箱，所以这些内容我会作为扩展设计回答，不包装成已经落地的功能。
+> 可靠性方面，工具有 schema、策略、审批、可配置超时、输出限制和审计；评测侧可配置 JSON、命令或产物断言验证结果。普通运行的 completed 只是流程状态，主循环还没有通用的强制交付文件验收。边界上，本仓库没有完整 MCP、向量 RAG 和分布式云沙箱，所以这些内容我会作为扩展设计回答，不包装成已经落地的功能。
 
 ## 4. 概念边界：最高频的一张表
 
@@ -131,16 +133,22 @@
             ▼
        ModelRequest
             │
+      响应完整性 / 必需工具门禁
+            │
       ┌─────┴─────┐
       ▼           ▼
    文本回答     Tool Call
                   │
+       persist Assistant 调用
+                  │
     schema → policy → approval → execute
                   │
-        persist / observe / verify
+        persist Tool Result / observe
                   │
         progress / retry / terminate
 ```
+
+usage 和运行事件在发生时记录；独立任务 verifier 属于评测链路，不是每轮工具执行的固定步骤。
 
 ### 5.2 60 秒口述
 
@@ -155,7 +163,10 @@
 - 配额/成本上限：停止或转人工，不制造重试风暴。
 - provider 长期不可用：需要模型路由、熔断和备用 provider；这是本地当前缺口。
 
-本地 [`_request_model_with_retries`](../../src/bot/core/agent.py) 已覆盖前三类中的重试、上下文恢复和成本门禁，但没有跨模型自动降级。
+本地 [`_request_model_with_retries`](../../src/bot/core/agent.py) 处理瞬态重试和请求费用门禁，主循环另处理
+每 step 最多一次的上下文超限恢复。输出 `length/max_tokens` 和主动中断则走独立的响应完整性门禁：
+整批正文与工具缓冲隔离，不执行其中任何调用；自动续跑需显式开启 `agent.recovery.enabled`。
+详见[P0 验收](../evaluations/task-reliability-p0-results.md)。这些路径没有跨模型自动降级。
 
 ## 6. 单 Agent、Workflow 与 Multi-Agent
 
@@ -191,9 +202,9 @@
 ### 7.2 五级治理
 
 1. **硬预算**：从模型窗口扣除输出、协议和安全余量，再确定输入上限。
-2. **选择**：按信任、优先级、保留策略和新旧程度装配；tool call/result 必须作为原子组。
+2. **选择**：先保留含 PINNED 项的完整原子组，再按优先级和新旧程度装箱；`trust` 用于来源／角色校验，不是装箱排序键。
 3. **渐进披露**：先给工具或 Skill 目录，只在相关时加载完整 schema 和说明。
-4. **外置**：大工具结果写入内容寻址 blob，请求中只放摘要、哈希和引用。
+4. **外置**：已采集并保留的大工具结果写入内容寻址 blob，请求中放有界预览和引用；执行器已丢弃的输出不能回读。
 5. **压缩与回读**：摘要旧历史、保留近期原文；细节问题再从原始消息、blob 或记忆证据回载。
 
 ### 7.3 怎样减少摘要损失
@@ -203,12 +214,15 @@
 - 摘要固定保留目标、约束、进展、决策、文件、失败、下一步和关键上下文；
 - 关键用户消息作为原始锚点回放；
 - 正在进行的工具组不跨边界压缩；
-- 候选摘要校验结构、长度、引用和来源范围；
+- 候选摘要校验结构、生成完整性和来源范围；不再设置独立 4K 正文发布门限，双路径仍校验恢复后的完整请求预算；
 - 保存 source hash、parent 和 covered range；
 - 验证通过再短事务晋升，失败继续用旧摘要；
 - 用后续细节追问和端到端任务结果评测，而非只看摘要相似度。
 
 这些机制由 [`ContextPlanner`](../../src/bot/core/context.py)、[`CompactionService`](../../src/bot/compaction/service.py) 和 [`SessionStore`](../../src/bot/sessions/store.py) 共同实现。
+
+默认 `a_fallback` 的候选生成与低水位检查位于 [`StrategyCompactor`](../../src/bot/compaction/strategies.py)：
+前缀最多一次、独立兜底最多一次。兜底使用旧摘要和本次新增原文；它不会自动从头重读所有历史。
 
 ### 7.4 Memory 如何分层
 
@@ -252,6 +266,8 @@
 
 ### 9.1 八层防线
 
+以下包含通用设计建议；具体已实现范围见列表后的说明。
+
 1. 工具名唯一，输入用 JSON Schema。
 2. 参数关系、资源存在性和路径做语义校验。
 3. 根据只读、网络、敏感、破坏性和作用域执行策略。
@@ -269,6 +285,11 @@ tool lookup → jsonschema → ToolAction → PolicyEngine → approval
 ```
 
 对应实现见 [`base.py`](../../src/bot/tools/base.py)、[`registry.py`](../../src/bot/tools/registry.py)、[`PolicyEngine`](../../src/bot/policy/engine.py) 和 [`AgentRunner._execute_tool`](../../src/bot/core/agent.py)。
+
+本地没有通用写操作幂等键、外部 operation 查询或 exactly-once 执行协议；call ID、Tool 的
+`idempotent` 注解及重复检测不能替代这些能力。`process_hard_timeout_seconds` 默认是 `None`，
+长进程不会仅因同步等待到期被杀；进程清理另有默认 5 秒期限。外部验收由具体 eval case 配置，
+不能据此声称普通工具调用都有业务后置条件验证。
 
 ### 9.2 工具返回 success，但实际没效果
 
@@ -289,7 +310,9 @@ tool lookup → jsonschema → ToolAction → PolicyEngine → approval
 - Ask：授权、歧义或副作用范围需要用户决定。
 - Stop：预算耗尽、策略拒绝、重复无进展或不可恢复错误。
 
-本地 [`RepeatGuard`](../../src/bot/core/termination/repetition.py) 与 progress controller 共同处理重复、失败和进展；模型请求只对可重试错误做有上限的指数退避。
+本地 [`RepeatGuard`](../../src/bot/core/termination/repetition.py) 与 progress controller 共同处理重复、失败和进展。
+执行前重复限制默认 `observe`，显式 `enforce` 才拦截已适配操作；流式正文重复检测是另一个开关，
+也默认观测。模型请求只对可重试错误做有上限的指数退避；策略拒绝会形成失败工具结果，并非每次都立即终止整个 Run。
 
 ## 10. 评测、Bad Case 与可观测性
 
@@ -405,6 +428,9 @@ ReAct 适合信息逐步暴露、每步结果会改变下一步的任务；Plan-
 
 模型只产生意图；执行层使用规范化后的真实路径、workspace allowlist、ACL、最小凭据、查询模板、结果行列限制和审计。不能只在 prompt 里写“不要访问”。
 
+这是扩展安全方案。本地已实现路径／symlink、敏感路径、网络和命令策略；没有通用数据库接入，
+也没有数据库 ACL、租户行列授权和查询模板执行层。
+
 ### 14.8 Agent 可观测性和普通日志有什么不同？
 
 普通日志看服务事件，Agent trace 还要重建“模型看到什么、为何选择某工具、状态如何变化、证据来自哪里”。两者用 run/trace/tool IDs 关联，不能互相替代。
@@ -414,12 +440,13 @@ ReAct 适合信息逐步暴露、每步结果会改变下一步的任务；Plan-
 | 面试主题 | 源码入口 | 可以证明什么 |
 |---|---|---|
 | Harness 主循环 | [`src/bot/core/agent.py`](../../src/bot/core/agent.py) | 模型、工具、策略、状态、压缩和记忆的统一编排 |
-| 上下文与协议 | [`src/bot/core/context.py`](../../src/bot/core/context.py) | 预算、角色边界、原子工具组、精确计数与协议修复 |
+| 上下文与协议 | [`src/bot/core/context.py`](../../src/bot/core/context.py) | 预算、角色边界、原子工具组、模型适配计数与协议修复；不保证所有 Provider 精确计数 |
 | 工具契约 | [`src/bot/tools/base.py`](../../src/bot/tools/base.py) | read-only、destructive、network、secret、idempotent、timeout 等注解 |
 | 工具注册 | [`src/bot/tools/registry.py`](../../src/bot/tools/registry.py) | 名称唯一、查找和候选子集 |
 | 策略与权限 | [`src/bot/policy/engine.py`](../../src/bot/policy/engine.py) | 工作区、网络、敏感信息、shell 和危险命令决策 |
 | 长进程 | [`src/bot/execution/local.py`](../../src/bot/execution/local.py) | 启动、轮询、hard timeout、elapsed 和最后输出时间 |
 | 重复与终止 | [`src/bot/core/termination/repetition.py`](../../src/bot/core/termination/repetition.py) | 重复调用检测和观察状态 |
+| 响应恢复与清理 | [`recovery.py`](../../src/bot/core/termination/recovery.py)、[`process_scope.py`](../../src/bot/execution/process_scope.py) | 恢复额度／截止持久化、有界清理；启用方式及平台限制见 P0 验收 |
 | 可恢复压缩 | [`src/bot/compaction/service.py`](../../src/bot/compaction/service.py) | 固定摘要结构、安全边界、校验、hash、锚点和失败回退 |
 | 会话与 blob | [`src/bot/sessions/store.py`](../../src/bot/sessions/store.py) | 原始消息、tool run、两阶段压缩提交和内容寻址存储 |
 | 记忆 | [`src/bot/memory`](../../src/bot/memory) | 检索路由、词法评分、作用域和证据回载 |
