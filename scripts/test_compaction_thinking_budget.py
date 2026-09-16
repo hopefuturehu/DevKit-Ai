@@ -101,6 +101,31 @@ def peak_multiplier(started_at: str) -> float:
     return 1.0 if when.weekday() < 5 and (1 <= when.hour < 4 or 6 <= when.hour < 10) else 0.5
 
 
+def token_split(usage: dict, response: dict, thinking: str | None) -> dict:
+    completion = usage.get("completion_tokens")
+    reported = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+    reasoning = reported
+    source = "api_usage" if reported is not None else "unknown"
+    if (
+        reported is None
+        and thinking == "disabled"
+        and completion is not None
+        and not response["reasoning"]
+        and not response["tool_calls"]
+    ):
+        # DeepSeek omits reasoning_tokens in non-thinking responses. Require both
+        # the explicit disabled request and the captured absence of reasoning.
+        reasoning, source = 0, "disabled_and_no_reasoning_delta"
+    return {
+        "reported_reasoning_tokens": reported,
+        "reasoning_tokens": reasoning,
+        "body_tokens": completion - reasoning
+        if completion is not None and reasoning is not None
+        else None,
+        "token_split_source": source,
+    }
+
+
 class RecordedProvider(OpenAICompatibleProvider):
     response_metadata: dict
 
@@ -172,11 +197,9 @@ async def trial(output, checkpoint, repeat, mode, config, api_key) -> dict:
             ).fetchone()[0]
         response = json.loads(raw)
         (output / "summary.md").write_text(response["text"])
-        reasoning = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
         completion = usage.get("completion_tokens")
-        body_tokens = (
-            completion - reasoning if completion is not None and reasoning is not None else None
-        )
+        split = token_split(usage, response, request.thinking)
+        body_tokens = split["body_tokens"]
         record.update(
             ended_at=datetime.now(UTC).isoformat(),
             finish_reason=telemetry["finish_reason"],
@@ -184,8 +207,7 @@ async def trial(output, checkpoint, repeat, mode, config, api_key) -> dict:
             input_tokens=usage.get("prompt_tokens"),
             cached_input_tokens=usage.get("prompt_cache_hit_tokens"),
             output_tokens=completion,
-            reasoning_tokens=reasoning,
-            body_tokens=body_tokens,
+            **split,
             body_chars=len(response["text"]),
             summary_sha256=digest(response["text"].encode()),
             body_budget_pass=record["candidate_pass"]
@@ -242,15 +264,56 @@ def aggregate(records: list[dict]) -> dict:
     return result
 
 
+def analyze_saved(output: Path) -> dict:
+    """Recompute metrics offline, preserving the original live results and script."""
+    result = json.loads((output / "results.json").read_text())
+    for record in result["trials"]:
+        directory = output / record["id"]
+        events = json.loads((directory / "events.json").read_text())
+        terminal = [
+            e["payload"]
+            for e in events
+            if e["type"]
+            in {"context.compaction.request.failed", "context.compaction.request.completed"}
+        ][-1]
+        with sqlite3.connect((directory / "state.db").as_uri() + "?mode=ro", uri=True) as db:
+            raw = db.execute(
+                "SELECT content FROM context_blobs WHERE id = ?", (terminal["response_ref"],)
+            ).fetchone()[0]
+        response = json.loads(raw)
+        record.update(token_split(terminal["raw_usage"], response, record["thinking"]))
+        record["body_budget_pass"] = (
+            record["candidate_pass"]
+            and record["body_tokens"] is not None
+            and record["body_tokens"] <= BODY_BUDGET
+        )
+        record["reasoning_chars"] = len(response["reasoning"])
+    result["aggregate"] = aggregate(result["trials"])
+    result["analysis"] = {
+        "source_results_sha256": digest((output / "results.json").read_bytes()),
+        "script_sha256": digest(Path(__file__).read_bytes()),
+        "note": "Offline accounting: disabled responses omit reasoning_tokens; no new requests.",
+    }
+    save(output / "analyzed-results.json", result)
+    return result
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source-db", type=Path, default=ROOT / ".bot/state.db")
     parser.add_argument("--repeats", type=int, choices=range(1, 4), default=2)
-    parser.add_argument("--live", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--live", action="store_true")
+    mode.add_argument("--analyze-only", action="store_true")
     args = parser.parse_args()
     output = args.output.resolve()
-    if not output.is_relative_to(ROOT / "artifacts") or output.exists():
+    if not output.is_relative_to(ROOT / "artifacts"):
+        parser.error("Output must be under this repository's ignored artifacts/")
+    if args.analyze_only:
+        print(json.dumps(analyze_saved(output)["aggregate"], ensure_ascii=False, indent=2))
+        return
+    if output.exists():
         parser.error("Use a new directory under this repository's ignored artifacts/")
     config = load_config(ROOT)
     frozen = checkpoints(args.source_db)

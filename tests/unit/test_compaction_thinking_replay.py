@@ -121,3 +121,24 @@ async def test_replay_uses_runtime_validation_and_separates_body_budget(
 )
 def test_price_uses_peak_window_and_weekends(when, expected):
     assert replay.peak_multiplier(when) == expected
+
+
+@pytest.mark.parametrize(
+    "thinking,reasoning,calls,expected",
+    [
+        ("disabled", "", {}, 0),
+        (None, "", {}, None),
+        ("enabled", "", {}, None),
+        ("disabled", "unexpected reasoning", {}, None),
+        ("disabled", "", {"0": "unexpected tool"}, None),
+    ],
+)
+def test_missing_reasoning_usage_requires_disabled_and_no_reasoning(
+    thinking, reasoning, calls, expected
+):
+    split = replay.token_split(
+        {"completion_tokens": 8192}, {"reasoning": reasoning, "tool_calls": calls}, thinking
+    )
+    assert split["reported_reasoning_tokens"] is None
+    assert split["reasoning_tokens"] == expected
+    assert split["body_tokens"] == (8192 if expected == 0 else None)
