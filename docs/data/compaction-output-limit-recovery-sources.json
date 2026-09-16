@@ -1,0 +1,194 @@
+{
+  "checked_on": "2026-09-16",
+  "timezone": "Asia/Shanghai",
+  "method": "Pinned public source inspection and official documentation; no external agent execution or paid model calls.",
+  "snapshot_note": "Local source copies are ignored research artifacts; pinned URLs and hashes permit re-fetching.",
+  "repositories": [
+    {
+      "repo": "anomalyco/opencode",
+      "branch": "dev",
+      "sha": "350c726aa8b6b11eb9242040bc5eb7ae837fbf8a",
+      "commit_date": "2026-09-16T13:44:33Z",
+      "files": [
+        {
+          "path": "packages/core/src/session/compaction.ts",
+          "url": "https://github.com/anomalyco/opencode/blob/350c726aa8b6b11eb9242040bc5eb7ae837fbf8a/packages/core/src/session/compaction.ts",
+          "sha256": "35bc2da1578b6bb80a3c39c1d6c51f234f34ce6586dd4f9d230e2a31b257138d",
+          "bytes": 10185,
+          "local": ".bot/research/compaction-output-20260916/anomalyco__opencode/packages/core/src/session/compaction.ts"
+        },
+        {
+          "path": "packages/opencode/src/session/compaction.ts",
+          "url": "https://github.com/anomalyco/opencode/blob/350c726aa8b6b11eb9242040bc5eb7ae837fbf8a/packages/opencode/src/session/compaction.ts",
+          "sha256": "8d478570a7e4ad32b746030d4f86a1c673949b1e2259bd716b3885d99283289a",
+          "bytes": 21236,
+          "local": ".bot/research/compaction-output-20260916/anomalyco__opencode/packages/opencode/src/session/compaction.ts"
+        },
+        {
+          "path": "packages/llm/src/protocols/openai-chat.ts",
+          "url": "https://github.com/anomalyco/opencode/blob/350c726aa8b6b11eb9242040bc5eb7ae837fbf8a/packages/llm/src/protocols/openai-chat.ts",
+          "sha256": "dd086d7ae33596a876256507dede7f5b9705aafb7cd4502155e9209bfdcc9148",
+          "bytes": 19639,
+          "local": ".bot/research/compaction-output-20260916/anomalyco__opencode/packages/llm/src/protocols/openai-chat.ts"
+        }
+      ]
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "branch": "main",
+      "sha": "03b0c7947262b220f5148b75a30bb7a3faddcbb2",
+      "commit_date": "2026-09-16T13:46:44Z",
+      "files": [
+        {
+          "path": "agent/context_compressor.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/03b0c7947262b220f5148b75a30bb7a3faddcbb2/agent/context_compressor.py",
+          "sha256": "862980fa312eb9e5c68a5dac9ded9c654419447162cf90699dc997f1dab43cd4",
+          "bytes": 283918,
+          "local": ".bot/research/compaction-output-20260916/NousResearch__hermes-agent/agent/context_compressor.py"
+        },
+        {
+          "path": "agent/auxiliary_client.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/03b0c7947262b220f5148b75a30bb7a3faddcbb2/agent/auxiliary_client.py",
+          "sha256": "6a6e09867f0e15890421d883b840eeff7b2622dedae162b9e093381deeadc1aa",
+          "bytes": 396795,
+          "local": ".bot/research/compaction-output-20260916/NousResearch__hermes-agent/agent/auxiliary_client.py"
+        }
+      ]
+    },
+    {
+      "repo": "openai/codex",
+      "branch": "main",
+      "sha": "4701aa4b4239c70063ab6f2fcb835324f9c109f4",
+      "commit_date": "2026-09-16T12:09:50Z",
+      "files": [
+        {
+          "path": "codex-rs/core/src/compact.rs",
+          "url": "https://github.com/openai/codex/blob/4701aa4b4239c70063ab6f2fcb835324f9c109f4/codex-rs/core/src/compact.rs",
+          "sha256": "ff7de5a0d3e40004504c4cf1ce92bd5fdcd7c1902d3149df3ffd77174bb881da",
+          "bytes": 30184,
+          "local": ".bot/research/compaction-output-20260916/openai__codex/codex-rs/core/src/compact.rs"
+        },
+        {
+          "path": "codex-rs/core/src/compact_remote_v2.rs",
+          "url": "https://github.com/openai/codex/blob/4701aa4b4239c70063ab6f2fcb835324f9c109f4/codex-rs/core/src/compact_remote_v2.rs",
+          "sha256": "ac0b2f6a2eac964081c1f20675c02b78cab2cd4fa5fd7152ed357f9a884f55c9",
+          "bytes": 47282,
+          "local": ".bot/research/compaction-output-20260916/openai__codex/codex-rs/core/src/compact_remote_v2.rs"
+        },
+        {
+          "path": "codex-rs/codex-api/src/sse/responses.rs",
+          "url": "https://github.com/openai/codex/blob/4701aa4b4239c70063ab6f2fcb835324f9c109f4/codex-rs/codex-api/src/sse/responses.rs",
+          "sha256": "19a349af08a466be52ecbb44135547102421d77d1d139eeffe33374b1e2fc74a",
+          "bytes": 72867,
+          "local": ".bot/research/compaction-output-20260916/openai__codex/codex-rs/codex-api/src/sse/responses.rs"
+        }
+      ]
+    },
+    {
+      "repo": "earendil-works/pi",
+      "branch": "main",
+      "sha": "9e05370b298d0a6b8d9bc2c02e4bfae189ef1616",
+      "commit_date": "2026-09-16T13:54:07Z",
+      "files": [
+        {
+          "path": "packages/coding-agent/src/core/compaction/compaction.ts",
+          "url": "https://github.com/earendil-works/pi/blob/9e05370b298d0a6b8d9bc2c02e4bfae189ef1616/packages/coding-agent/src/core/compaction/compaction.ts",
+          "sha256": "21e4fc33b585be4fdf1c28fd8773f59df5b79128e412a0a48de3d6620bf078f2",
+          "bytes": 30969,
+          "local": ".bot/research/compaction-output-20260916/earendil-works__pi/packages/coding-agent/src/core/compaction/compaction.ts"
+        },
+        {
+          "path": "packages/agent/src/harness/compaction/compaction.ts",
+          "url": "https://github.com/earendil-works/pi/blob/9e05370b298d0a6b8d9bc2c02e4bfae189ef1616/packages/agent/src/harness/compaction/compaction.ts",
+          "sha256": "6e7aec0d27cb566f8f85f7dd13850eda98f5ddf7e78f9a919fb3dd03c3ea3a8a",
+          "bytes": 27410,
+          "local": ".bot/research/compaction-output-20260916/earendil-works__pi/packages/agent/src/harness/compaction/compaction.ts"
+        },
+        {
+          "path": "packages/ai/src/utils/retry.ts",
+          "url": "https://github.com/earendil-works/pi/blob/9e05370b298d0a6b8d9bc2c02e4bfae189ef1616/packages/ai/src/utils/retry.ts",
+          "sha256": "951d8343bf5c67163135161a3af57191666d206da36cb85f956490c237b6f16c",
+          "bytes": 8904,
+          "local": ".bot/research/compaction-output-20260916/earendil-works__pi/packages/ai/src/utils/retry.ts"
+        },
+        {
+          "path": "packages/ai/src/api/simple-options.ts",
+          "url": "https://github.com/earendil-works/pi/blob/9e05370b298d0a6b8d9bc2c02e4bfae189ef1616/packages/ai/src/api/simple-options.ts",
+          "sha256": "7fdc74ee2cdf3d82213cdecfb0883174cd470c22d9a9346bbef1428f4294cc94",
+          "bytes": 3325,
+          "local": ".bot/research/compaction-output-20260916/earendil-works__pi/packages/ai/src/api/simple-options.ts"
+        },
+        {
+          "path": "packages/ai/src/providers/anthropic.ts",
+          "url": "https://github.com/earendil-works/pi/blob/9e05370b298d0a6b8d9bc2c02e4bfae189ef1616/packages/ai/src/providers/anthropic.ts",
+          "sha256": "dda69449a53c84b8b0a17b28f80fba278988d85665557be2db0dc3b20557567a",
+          "bytes": 1934,
+          "local": ".bot/research/compaction-output-20260916/earendil-works__pi/packages/ai/src/providers/anthropic.ts"
+        },
+        {
+          "path": "packages/ai/src/api/anthropic-messages.ts",
+          "url": "https://github.com/earendil-works/pi/blob/9e05370b298d0a6b8d9bc2c02e4bfae189ef1616/packages/ai/src/api/anthropic-messages.ts",
+          "sha256": "4d3bbd6ff801204bdb3e766923d28461b5ea26b7d3cb815f9a44bef582eb8f64",
+          "bytes": 50612,
+          "local": ".bot/research/compaction-output-20260916/earendil-works__pi/packages/ai/src/api/anthropic-messages.ts"
+        }
+      ]
+    },
+    {
+      "repo": "deepseek-ai/deepseek-harness",
+      "branch": "master",
+      "sha": "0d1f50007f9bca3f52b06e1c3074fa14d5fb0720",
+      "commit_date": "2026-09-15T03:16:06Z",
+      "files": [
+        {
+          "path": "packages/compaction/compaction-basic/src/summarizer.ts",
+          "url": "https://github.com/deepseek-ai/deepseek-harness/blob/0d1f50007f9bca3f52b06e1c3074fa14d5fb0720/packages/compaction/compaction-basic/src/summarizer.ts",
+          "sha256": "74cc7e615fbd524845bb27df90fda1ccd8c03fb21b0e4ea272f25b9a722b4efe",
+          "bytes": 9187,
+          "local": ".bot/research/compaction-output-20260916/deepseek-ai__deepseek-harness/packages/compaction/compaction-basic/src/summarizer.ts"
+        },
+        {
+          "path": "packages/compaction/compaction-basic/src/index.ts",
+          "url": "https://github.com/deepseek-ai/deepseek-harness/blob/0d1f50007f9bca3f52b06e1c3074fa14d5fb0720/packages/compaction/compaction-basic/src/index.ts",
+          "sha256": "75f3b4f0c6a3b14d1c4750c51a71d6376e420fd533a26c14ebf1fdaa07bde3b8",
+          "bytes": 17319,
+          "local": ".bot/research/compaction-output-20260916/deepseek-ai__deepseek-harness/packages/compaction/compaction-basic/src/index.ts"
+        },
+        {
+          "path": "packages/compaction/compaction-basic/src/region.ts",
+          "url": "https://github.com/deepseek-ai/deepseek-harness/blob/0d1f50007f9bca3f52b06e1c3074fa14d5fb0720/packages/compaction/compaction-basic/src/region.ts",
+          "sha256": "33c6e26a42e1fdb01e62eef4570472f1926756eca57eade1f2c4608cba56c3fc",
+          "bytes": 23572,
+          "local": ".bot/research/compaction-output-20260916/deepseek-ai__deepseek-harness/packages/compaction/compaction-basic/src/region.ts"
+        },
+        {
+          "path": "packages/compaction/compaction-basic/src/config.ts",
+          "url": "https://github.com/deepseek-ai/deepseek-harness/blob/0d1f50007f9bca3f52b06e1c3074fa14d5fb0720/packages/compaction/compaction-basic/src/config.ts",
+          "sha256": "d4d63fe3a6e7b3d00c91aafcba86cf5a9f5417739c406b26d87dac470f738681",
+          "bytes": 11771,
+          "local": ".bot/research/compaction-output-20260916/deepseek-ai__deepseek-harness/packages/compaction/compaction-basic/src/config.ts"
+        }
+      ]
+    }
+  ],
+  "official_documents": [
+    {
+      "title": "OpenAI Compaction — standalone compact endpoint",
+      "url": "https://developers.openai.com/api/docs/guides/compaction#standalone-compact-endpoint",
+      "checked_on": "2026-09-16",
+      "scope": "Opaque compaction item, full returned window replay, input window constraint; server internals not exposed."
+    },
+    {
+      "title": "OpenCode V2 Compaction — checkpoints",
+      "url": "https://opencode.ai/v2/docs/compaction#checkpoints",
+      "checked_on": "2026-09-16",
+      "scope": "Preserved instructions/tools and one corrective request for invalid heading format; not reconciled with pinned core source path."
+    },
+    {
+      "title": "Claude Code — error during compaction: conversation too long",
+      "url": "https://code.claude.com/docs/en/errors#error-during-compaction-conversation-too-long",
+      "checked_on": "2026-09-16",
+      "scope": "Documented window-space failure and rewind/clear recovery; no claim about private output-length retry algorithm."
+    }
+  ]
+}

@@ -22,3 +22,4 @@
 | [可复用主会话缓存的压缩实现](cache-reusing-compaction-implementations.md) | Copilot、oh-my-pi 与 DeepSeek Harness 等补充案例 |
 | [摘要事实错误](compaction-factuality-research.md) | 事实可靠性调研、改进依据和后续实施顺序 |
 | [压缩上限、原文保留与思考模式](compaction-limits-retention-thinking.md) | 固定版本对照；bot 旧门限与默认值的后续变更另有说明 |
+| [摘要输出超限与恢复机制](compaction-output-limit-recovery.md) | 2026-09-16 源码核对：正文过长、生成截断、thinking 预算和有界恢复 |
