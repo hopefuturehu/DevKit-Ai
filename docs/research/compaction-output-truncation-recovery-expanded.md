@@ -90,7 +90,7 @@ Qwen 的重点是预留输出空间、避免反复撞限，而不是截断后拼
 | OpenHands SDK LLM summarizing condenser | hard reset 捕获异常后按 0.8 缩短每个事件的表示，最多 5 次尝试；常规摘要取返回正文 | 有缩短输入的通用异常恢复，未见截断摘要的专项加额度或续写 |
 | Aider history + models | 保留尾部、递归缩写，摘要模型失败可换备选；底层 helper 直接取 message.content | 未消费 finish_reason；“完整结果仍过大再压缩”和“识别输出截断后恢复”不是同一机制 |
 | Roo Code condense | 消费流式 text、usage，检查异常和空正文，再构造替换内容 | 该层未见输出截断专用恢复 |
-| oh-my-pi agent compaction | 对过大的摘要输入做分块/滚动摘要，限制生成额度；相关正文生成路径检查 error | 能降低单次输入压力；该路径未见 length 专用续写或自适应输出恢复 |
+| oh-my-pi agent compaction | 本地文本摘要对过大输入做滚动分块，输入超窗后减半；限制单次生成额度，检查 error | 工具结果先裁到 2,000 字符；单次额度不是最终合并上限；未拒绝 length，详见[2026-09-17 补充核对](oh-my-pi-compaction-deep-dive.md) |
 | Kimi CLI Python SimpleCompaction | 生成后移除 ThinkPart，提取摘要内容 | 该路径未见 Kimi Code TypeScript 那样的截断删消息重试；不能混为同一实现 |
 
 逐项源码：

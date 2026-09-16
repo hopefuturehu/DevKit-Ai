@@ -1,0 +1,147 @@
+{
+  "checked_on": "2026-09-17",
+  "method": "Static inspection at the prior pinned commit, including upstream tests read but not executed. No paid model calls or measured product success rates.",
+  "local_cache_gitignored": true,
+  "repositories": [
+    {
+      "repo": "can1357/oh-my-pi",
+      "sha": "042028fd018b1282fbe660ab7255ebad18dd4db5",
+      "commit_date": "2026-09-16T14:12:43Z",
+      "files": [
+        {
+          "path": "packages/agent/src/compaction/compaction.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/src/compaction/compaction.ts",
+          "sha256": "028dafafbbf39557cb969dc1811e02a2139f44c24a3cf759c905777ccc3cc890",
+          "bytes": 81933,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/agent/src/compaction/compaction.ts"
+        },
+        {
+          "path": "packages/agent/test/compaction-oneshot-retry.test.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/test/compaction-oneshot-retry.test.ts",
+          "sha256": "e9f813631bdc0ba78c52f8b3213b1a86bee968129ee1f747fbd43ef3dcb41ed4",
+          "bytes": 3527,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/agent/test/compaction-oneshot-retry.test.ts"
+        },
+        {
+          "path": "packages/agent/test/compaction-summary-cap.test.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/test/compaction-summary-cap.test.ts",
+          "sha256": "1b1a03dc39c860be3444343cd759d54c910c2159236fc6e774b2357b2f6c206d",
+          "bytes": 3423,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/agent/test/compaction-summary-cap.test.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/session/compaction-methods.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/src/session/compaction-methods.ts",
+          "sha256": "3da8a7596651720aaaaa411199fcdb1d8b4182272e97b9d366b88800f882ee30",
+          "bytes": 4443,
+          "local": ".bot/research/compaction-output-expanded-20260916/can1357__oh-my-pi/packages/coding-agent/src/session/compaction-methods.ts"
+        },
+        {
+          "path": "docs/compaction.md",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/docs/compaction.md",
+          "sha256": "9648abe9ba41e72e011713914507157b655c987aedc97eb9f2df3589e0d8bc1d",
+          "bytes": 42129,
+          "local": ".bot/research/oh-my-pi-detail-20260917/docs/compaction.md"
+        },
+        {
+          "path": "packages/agent/src/compaction/prompts/compaction-summary.md",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/src/compaction/prompts/compaction-summary.md",
+          "sha256": "36f4e78445b7103273455546325a50e6ffcd23277ab0a79a9c3d1bfef2a7ec4d",
+          "bytes": 1206,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/agent/src/compaction/prompts/compaction-summary.md"
+        },
+        {
+          "path": "packages/agent/src/compaction/prompts/compaction-turn-prefix.md",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/src/compaction/prompts/compaction-turn-prefix.md",
+          "sha256": "c64bee3226666de74b4bdba9507dab12715fa664e0a11fd0e27822c25a491358",
+          "bytes": 572,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/agent/src/compaction/prompts/compaction-turn-prefix.md"
+        },
+        {
+          "path": "packages/agent/src/compaction/prompts/compaction-update-summary.md",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/src/compaction/prompts/compaction-update-summary.md",
+          "sha256": "b9af80bf3db41c116a046535d366711161add9282dc36ebc7c9a20bf665c41e7",
+          "bytes": 1396,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/agent/src/compaction/prompts/compaction-update-summary.md"
+        },
+        {
+          "path": "packages/agent/src/compaction/utils.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/src/compaction/utils.ts",
+          "sha256": "ada5778dbec386e45730d58ecbd2fefe086f4a04b17a6f66dc42427fa733c6a0",
+          "bytes": 13561,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/agent/src/compaction/utils.ts"
+        },
+        {
+          "path": "packages/agent/src/telemetry.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/src/telemetry.ts",
+          "sha256": "41b42576a2cafa630ef26b0c8e1c940c747752bcbcc389fca31d87f59e4aaf7b",
+          "bytes": 80301,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/agent/src/telemetry.ts"
+        },
+        {
+          "path": "packages/agent/test/compaction-oversized-input.test.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/test/compaction-oversized-input.test.ts",
+          "sha256": "6afc1feb1e6bd9e625ec184113a78cc12c7f6d8e9528f4b61c01a80e650bf855",
+          "bytes": 8401,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/agent/test/compaction-oversized-input.test.ts"
+        },
+        {
+          "path": "packages/agent/test/compaction-thinking-level.test.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/agent/test/compaction-thinking-level.test.ts",
+          "sha256": "1cea4109736cb7dda98c42f61b2e3d7433ae023507b13d5632be4eeb3c4d72f4",
+          "bytes": 9984,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/agent/test/compaction-thinking-level.test.ts"
+        },
+        {
+          "path": "packages/ai/src/oneshot-retry.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/ai/src/oneshot-retry.ts",
+          "sha256": "5de1e75839503cfdfb6523fd3195013de9a1266a600d2cdaf0bcd44daee3cb58",
+          "bytes": 10946,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/ai/src/oneshot-retry.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/session/agent-session.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/src/session/agent-session.ts",
+          "sha256": "986b4cf18df6354b80eaf93de06310635f8d55103c734518725a432b69a11fac",
+          "bytes": 466529,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/coding-agent/src/session/agent-session.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/session/session-context.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/src/session/session-context.ts",
+          "sha256": "9a4adfba9cfcb49ef3e32029ed289cbf392c59ab8782269ee9b970fe46f9eaa1",
+          "bytes": 31265,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/coding-agent/src/session/session-context.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/session/session-handoff.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/src/session/session-handoff.ts",
+          "sha256": "f634233ccf1a5203794447e13eac1f8247121c22988a5a2464361c6a9e8ba42c",
+          "bytes": 9791,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/coding-agent/src/session/session-handoff.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/session/session-maintenance.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/src/session/session-maintenance.ts",
+          "sha256": "80d1aec5cd792c8ce1441fdc2d75affc9172fcfbc4a68992cb0a344823cea19d",
+          "bytes": 226182,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/coding-agent/src/session/session-maintenance.ts"
+        },
+        {
+          "path": "packages/coding-agent/src/session/session-manager.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/src/session/session-manager.ts",
+          "sha256": "a7924e60181de97585d80d7f24a5da734aec8a40106db834429486ebe3c2a87a",
+          "bytes": 135575,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/coding-agent/src/session/session-manager.ts"
+        },
+        {
+          "path": "packages/coding-agent/test/agent-session-auto-compaction-progress-guard.test.ts",
+          "url": "https://github.com/can1357/oh-my-pi/blob/042028fd018b1282fbe660ab7255ebad18dd4db5/packages/coding-agent/test/agent-session-auto-compaction-progress-guard.test.ts",
+          "sha256": "69cdcf69c8dff1fead8f5a7a55ab0967e6c077a5473b551cc6e276f16fca327a",
+          "bytes": 74661,
+          "local": ".bot/research/oh-my-pi-detail-20260917/packages/coding-agent/test/agent-session-auto-compaction-progress-guard.test.ts"
+        }
+      ]
+    }
+  ]
+}
