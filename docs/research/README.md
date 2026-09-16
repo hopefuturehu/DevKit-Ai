@@ -24,3 +24,4 @@
 | [压缩上限、原文保留与思考模式](compaction-limits-retention-thinking.md) | 固定版本对照；bot 旧门限与默认值的后续变更另有说明 |
 | [摘要输出超限与恢复机制](compaction-output-limit-recovery.md) | 2026-09-16 源码核对：正文过长、生成截断、thinking 预算和有界恢复 |
 | [摘要生成截断：更多开源恢复方案](compaction-output-truncation-recovery-expanded.md) | 补充 11 个仓库：tact 续写与预算调整、Kimi Code 缩减历史重试、Qwen 连续失败停止 |
+| [OpenClaw 与 Hermes 的摘要输出恢复](openclaw-hermes-summary-output-recovery.md) | 最终摘要预算与纠正、length 检查缺口、模型回退和持久化冷却 |

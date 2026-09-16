@@ -1,0 +1,196 @@
+{
+  "checked_on": "2026-09-16",
+  "method": "Static source inspection at pinned commits; upstream tests inspected, not executed; no paid LLM requests.",
+  "local_cache_gitignored": true,
+  "repositories": [
+    {
+      "repo": "NousResearch/hermes-agent",
+      "sha": "dd566d52aa009facd38f5847da60f3877e359cce",
+      "commit_date": "2026-09-16T15:45:37Z",
+      "files": [
+        {
+          "path": "agent/context_compressor.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/dd566d52aa009facd38f5847da60f3877e359cce/agent/context_compressor.py",
+          "sha256": "862980fa312eb9e5c68a5dac9ded9c654419447162cf90699dc997f1dab43cd4",
+          "bytes": 283918,
+          "local": ".bot/research/openclaw-hermes-output-20260916/NousResearch__hermes-agent/agent/context_compressor.py"
+        },
+        {
+          "path": "agent/context_compressor_summary.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/dd566d52aa009facd38f5847da60f3877e359cce/agent/context_compressor_summary.py",
+          "sha256": "36953d0efcda0a289f317a2b91081a206e5d1ed23813e96174fbabd66a37ea4c",
+          "bytes": 2104,
+          "local": ".bot/research/openclaw-hermes-output-20260916/NousResearch__hermes-agent/agent/context_compressor_summary.py"
+        },
+        {
+          "path": "tests/agent/test_context_compressor_summary_continuity.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/dd566d52aa009facd38f5847da60f3877e359cce/tests/agent/test_context_compressor_summary_continuity.py",
+          "sha256": "599e2d3408f63c80af58d3f5c187b86bf643f8f206359fc2e90224d1c82c768e",
+          "bytes": 19078,
+          "local": ".bot/research/openclaw-hermes-output-20260916/NousResearch__hermes-agent/tests/agent/test_context_compressor_summary_continuity.py"
+        },
+        {
+          "path": "tests/agent/test_context_compressor_reasoning_fallback.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/dd566d52aa009facd38f5847da60f3877e359cce/tests/agent/test_context_compressor_reasoning_fallback.py",
+          "sha256": "790068b44bb1b66f0b4a12f6e664074d6e45a6b532db23bf06688661630e5bd3",
+          "bytes": 2823,
+          "local": ".bot/research/openclaw-hermes-output-20260916/NousResearch__hermes-agent/tests/agent/test_context_compressor_reasoning_fallback.py"
+        },
+        {
+          "path": "agent/auxiliary_client.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/dd566d52aa009facd38f5847da60f3877e359cce/agent/auxiliary_client.py",
+          "sha256": "6a6e09867f0e15890421d883b840eeff7b2622dedae162b9e093381deeadc1aa",
+          "bytes": 396795,
+          "local": ".bot/research/openclaw-hermes-output-20260916/NousResearch__hermes-agent/agent/auxiliary_client.py"
+        },
+        {
+          "path": "tests/agent/test_compressor_truncated_summary_guard.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/dd566d52aa009facd38f5847da60f3877e359cce/tests/agent/test_compressor_truncated_summary_guard.py",
+          "sha256": "0cf711959d81d74ed9135a940aaad5718a442f82176d82bc2b08d18ff09af0cb",
+          "bytes": 7240,
+          "local": ".bot/research/openclaw-hermes-output-20260916/NousResearch__hermes-agent/tests/agent/test_compressor_truncated_summary_guard.py"
+        },
+        {
+          "path": "tests/agent/test_anthropic_truncation_continuation.py",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/dd566d52aa009facd38f5847da60f3877e359cce/tests/agent/test_anthropic_truncation_continuation.py",
+          "sha256": "47765f4a81c826ed26276f7e13f0e898f758cb579cf251e612bd48342d1d9679",
+          "bytes": 4015,
+          "local": ".bot/research/openclaw-hermes-output-20260916/NousResearch__hermes-agent/tests/agent/test_anthropic_truncation_continuation.py"
+        }
+      ]
+    },
+    {
+      "repo": "openclaw/openclaw",
+      "sha": "bfa10898b2055f29fc1447e8f8dbc9f7cef0396a",
+      "commit_date": "2026-09-16T15:45:46Z",
+      "files": [
+        {
+          "path": "src/agents/compaction.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/compaction.ts",
+          "sha256": "8a5476668a32cc4ccad2c005ea5cb3b949bad0a11cf4fc4cf63149dd14dca3cf",
+          "bytes": 14348,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/compaction.ts"
+        },
+        {
+          "path": "src/agents/agent-hooks/compaction-safeguard.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/agent-hooks/compaction-safeguard.ts",
+          "sha256": "b4c244c42ce6dcf4616851b67e7c2148847de02cc14bcd2fb1bf3debfd1c11af",
+          "bytes": 56392,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/agent-hooks/compaction-safeguard.ts"
+        },
+        {
+          "path": "src/agents/agent-hooks/compaction-safeguard-runtime.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/agent-hooks/compaction-safeguard-runtime.ts",
+          "sha256": "50481fbeec48bb685327ca27c1e966fbc0709f2fd92b6d03960cead1c7659de6",
+          "bytes": 2752,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/agent-hooks/compaction-safeguard-runtime.ts"
+        },
+        {
+          "path": "src/agents/agent-hooks/compaction-safeguard-quality.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/agent-hooks/compaction-safeguard-quality.ts",
+          "sha256": "5ed1c5cfacaf8bc8a0766f104024c59d98d826901717b51b3a1710270873d145",
+          "bytes": 21380,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/agent-hooks/compaction-safeguard-quality.ts"
+        },
+        {
+          "path": "src/agents/sessions/compaction/compaction.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/sessions/compaction/compaction.ts",
+          "sha256": "9ef8cd7a1e1649927a370225c15d230bce75d412e62c46b9bf95060f3083bb62",
+          "bytes": 3383,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/sessions/compaction/compaction.ts"
+        },
+        {
+          "path": "packages/agent-core/src/harness/compaction/compaction.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/packages/agent-core/src/harness/compaction/compaction.ts",
+          "sha256": "7517bbf9f5e4e8a24bc2e9f642b4f07905532bf71d23591a109c96abec3a9bc2",
+          "bytes": 39162,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/packages/agent-core/src/harness/compaction/compaction.ts"
+        },
+        {
+          "path": "src/agents/compaction-partial-summary.test.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/compaction-partial-summary.test.ts",
+          "sha256": "41e5329b85ca2769d83f623cb987768e6aa4aa86e3a878e177dfea1021914f9e",
+          "bytes": 11220,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/compaction-partial-summary.test.ts"
+        },
+        {
+          "path": "src/agents/compaction.summarize-fallback.test.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/compaction.summarize-fallback.test.ts",
+          "sha256": "c8edeeac2a08cc4198849a254abb4c86c61228d1578133466fa537890b996a76",
+          "bytes": 9048,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/compaction.summarize-fallback.test.ts"
+        },
+        {
+          "path": "src/agents/embedded-agent-runner/direct-compaction.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/embedded-agent-runner/direct-compaction.ts",
+          "sha256": "877437719240e903fc4b76f3fb231204c2a4591eba0346d8b51cd2b0a4c3ccf4",
+          "bytes": 3668,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/embedded-agent-runner/direct-compaction.ts"
+        },
+        {
+          "path": "docs/concepts/compaction.md",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/docs/concepts/compaction.md",
+          "sha256": "a347c8e61efc9b12b8dda01d41e53ae2f6529d38ab8dad99d1ab2404a5c92dfc",
+          "bytes": 17682,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/docs/concepts/compaction.md"
+        },
+        {
+          "path": "src/agents/sessions/compaction/request-budget.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/sessions/compaction/request-budget.ts",
+          "sha256": "b6de75b93bde1625c700b070c68908be7f418f0f36f1055ba8f3eab30314e86a",
+          "bytes": 6542,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/sessions/compaction/request-budget.ts"
+        },
+        {
+          "path": "packages/agent-core/src/harness/compaction/utils.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/packages/agent-core/src/harness/compaction/utils.ts",
+          "sha256": "e5bc7276e0c52741fb0950afcd1e991b92c9f08ebfaf19fae0fc2eb3cc3cea0a",
+          "bytes": 11496,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/packages/agent-core/src/harness/compaction/utils.ts"
+        },
+        {
+          "path": "packages/agent-core/src/runtime-deps.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/packages/agent-core/src/runtime-deps.ts",
+          "sha256": "03dd1bc0c9ae7962ee54761cbe02a97ee9bdbd6bed74bd82c1b6895dc9fe7fab",
+          "bytes": 2752,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/packages/agent-core/src/runtime-deps.ts"
+        },
+        {
+          "path": "packages/ai/src/providers/openai-completions.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/packages/ai/src/providers/openai-completions.ts",
+          "sha256": "abe9acaaaa54bd67a3fa4588ac1044180c65ac586e227a28e166ceb2b2d27552",
+          "bytes": 10703,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/packages/ai/src/providers/openai-completions.ts"
+        },
+        {
+          "path": "src/agents/compaction-planning.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/compaction-planning.ts",
+          "sha256": "91a6ebfc495db87aec5c1edabf84702ddfcfb6ef15db3f6ae2591a570e1cb8b4",
+          "bytes": 13839,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/compaction-planning.ts"
+        },
+        {
+          "path": "src/agents/sessions/compaction/runtime.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/sessions/compaction/runtime.ts",
+          "sha256": "291bd0873e9b26822f709e1b8eefc8b830f72b811e46a7e37b53fee60212cfd4",
+          "bytes": 459,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/sessions/compaction/runtime.ts"
+        },
+        {
+          "path": "src/agents/embedded-agent-runner/compaction-runtime-preparation.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/embedded-agent-runner/compaction-runtime-preparation.ts",
+          "sha256": "a6d6f89ec8a58af3246f1c8969cb4f65fe1b561f1f9909df46934882029c7257",
+          "bytes": 10002,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/embedded-agent-runner/compaction-runtime-preparation.ts"
+        },
+        {
+          "path": "src/agents/agent-hooks/compaction-safeguard.test.ts",
+          "url": "https://github.com/openclaw/openclaw/blob/bfa10898b2055f29fc1447e8f8dbc9f7cef0396a/src/agents/agent-hooks/compaction-safeguard.test.ts",
+          "sha256": "55c117c3d3ac37ef4d047fc122ccf1464d49904e8158e8f819ed1b1bfc0b1f47",
+          "bytes": 185814,
+          "local": ".bot/research/openclaw-hermes-output-20260916/openclaw__openclaw/src/agents/agent-hooks/compaction-safeguard.test.ts"
+        }
+      ]
+    }
+  ]
+}
