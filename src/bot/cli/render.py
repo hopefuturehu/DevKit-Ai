@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, TextIO
 
@@ -8,6 +9,7 @@ from prompt_toolkit import PromptSession
 from rich.console import Console
 from rich.text import Text
 
+from bot.cli.interrupts import PromptInterrupted, read_prompt
 from bot.core.approval import ApprovalResponse, ApprovalScope
 from bot.core.events import AgentEvent, EventType
 from bot.policy import PolicyDecision, ToolAction
@@ -280,9 +282,32 @@ class InteractiveApprovalHandler:
         return await future
 
     async def next_request(self) -> PendingApproval:
-        return await self._requests.get()
+        while True:
+            pending = await self._requests.get()
+            if not pending.future.done():
+                return pending
 
     async def resolve(
+        self,
+        pending: PendingApproval,
+        prompt_session: PromptSession[str],
+        *,
+        on_interrupt: Callable[[], None] | None = None,
+    ) -> None:
+        if pending.future.done():
+            return
+        try:
+            await self._resolve_prompt(pending, prompt_session)
+        except (PromptInterrupted, EOFError):
+            if on_interrupt is not None:
+                on_interrupt()
+            raise
+        finally:
+            # EOF, interruption and shutdown must never strand an approval waiter.
+            if not pending.future.done():
+                pending.future.set_result(ApprovalResponse(approved=False))
+
+    async def _resolve_prompt(
         self,
         pending: PendingApproval,
         prompt_session: PromptSession[str],
@@ -309,8 +334,8 @@ class InteractiveApprovalHandler:
             "deny": "deny",
         }
         while True:
-            raw_answer = await prompt_session.prompt_async(
-                "[approve: Y=本次/S=本会话/A=项目永久/N=拒绝；回车=Y] "
+            raw_answer = await read_prompt(
+                prompt_session, "[approve: Y=本次/S=本会话/A=项目永久/N=拒绝；回车=Y] "
             )
             answer = aliases.get(raw_answer.strip().casefold())
             if answer is not None:

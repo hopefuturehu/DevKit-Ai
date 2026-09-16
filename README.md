@@ -295,6 +295,11 @@ Tool 原子组边界生成一个活动摘要，
 Pi、Hermes Agent、DeepSeek Harness、Nanobot 的架构差异见
 [开源 Agent 框架上下文管理对比](docs/research/context-framework-comparison.md)。
 
+运行中按 `Ctrl+C` 或输入 `/cancel` 会取消当前任务，等待子进程清理和状态落盘后返回输入；
+审批等待期间按 `Ctrl+C` 同样取消当前任务。空闲时按 `Ctrl+C` 退出，`/exit` 或 `Ctrl+D`
+正常退出。清理期间重复中断不会再次取消清理任务。单次 `bot run` 被取消时退出码为 130，
+收到 `SIGTERM`/`SIGHUP` 时分别为 143/129；退出前先完成任务收尾，再关闭状态库。
+
 会话和证据继续保存在 SQLite；显式记忆写入受保护的 `USER.md` 并以 `USER` 信任加载，
 已完成 Root Run 会在后续运行开始时异步提取为 Markdown 自动记忆。自动记忆不需要逐条
 审核，但默认不再 eager 注入：Memory Router 只在当前真实用户轮次需要历史时建议或强制

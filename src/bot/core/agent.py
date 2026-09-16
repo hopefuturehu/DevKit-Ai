@@ -13,7 +13,7 @@ import jsonschema
 from bot.compaction.models import ContextCompactionResult
 from bot.compaction.strategies import StrategyCompactor, StrategyFrame
 from bot.config.models import AppConfig
-from bot.core.approval import ApprovalHandler, ApprovalScope, DenyApprovalHandler
+from bot.core.approval import ApprovalHandler, ApprovalResponse, ApprovalScope, DenyApprovalHandler
 from bot.core.context import (
     MANAGED_PROCESS_REMINDER,
     ContextAssembler,
@@ -62,7 +62,7 @@ from bot.providers.base import ProviderStream, estimate_input_tokens
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillManager
 from bot.skills.runtime import RunSkillState, SkillContextError
-from bot.tools import ToolContext, ToolRegistry, ToolResult
+from bot.tools import Tool, ToolContext, ToolRegistry, ToolResult, ToolResultStatus
 from bot.tools.base import resolve_path
 from bot.tools.builtins import (
     PollProcessTool,
@@ -5039,6 +5039,7 @@ class AgentRunner:
             if blocked is not None:
                 return blocked
         if decision.kind == PolicyDecisionKind.ASK:
+            approval_cancelled = False
             approval_pattern = self.policy.approval_pattern(action)
             decision = decision.model_copy(update={"approval_pattern": approval_pattern})
             fingerprint = approval_pattern.fingerprint()
@@ -5069,7 +5070,11 @@ class AgentRunner:
                         "approval_pattern": approval_pattern.model_dump(mode="json"),
                     },
                 )
-                response = await self.approval_handler.approve(action, decision)
+                try:
+                    response = await self.approval_handler.approve(action, decision)
+                except asyncio.CancelledError:
+                    approval_cancelled = True
+                    response = ApprovalResponse(approved=False)
                 approved = response.approved
                 scope = response.scope
                 if approved and scope == ApprovalScope.SESSION:
@@ -5098,9 +5103,12 @@ class AgentRunner:
                     "approved": approved,
                     "scope": scope.value,
                     "preapproved": preapproved,
+                    "cancelled": approval_cancelled,
                     "approval_pattern": approval_pattern.model_dump(mode="json"),
                 },
             )
+            if approval_cancelled:
+                raise asyncio.CancelledError
             if not approved:
                 return ToolResult(
                     success=False,
@@ -5116,6 +5124,41 @@ class AgentRunner:
             arguments=tool_call.arguments,
             status="running",
         )
+        try:
+            return await self._execute_started_tool(tool, tool_call, session_id, run_id)
+        except asyncio.CancelledError:
+            result = ToolResult(
+                success=False,
+                status=ToolResultStatus.CANCELLED,
+                error="工具执行已取消",
+            )
+            self.store.record_tool_run(
+                session_id=session_id,
+                run_id=run_id,
+                tool_call_id=tool_call.id,
+                tool_name=tool.name,
+                arguments=tool_call.arguments,
+                status=result.status.value,
+                result=result.model_dump(mode="json"),
+            )
+            await self.event_bus.emit(
+                EventType.TOOL_COMPLETED,
+                session_id=session_id,
+                run_id=run_id,
+                payload={
+                    "tool_call_id": tool_call.id,
+                    "name": tool.name,
+                    "success": False,
+                    "status": result.status.value,
+                    "error": result.error,
+                    "output_excerpt": result.model_content(),
+                },
+            )
+            raise
+
+    async def _execute_started_tool(
+        self, tool: Tool, tool_call: ToolCall, session_id: str, run_id: str
+    ) -> ToolResult:
         await self.event_bus.emit(
             EventType.TOOL_STARTED,
             session_id=session_id,

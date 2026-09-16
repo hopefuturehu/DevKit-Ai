@@ -22,6 +22,7 @@ from rich.table import Table
 from typer.core import TyperGroup
 
 from bot import __version__
+from bot.cli.interrupts import InterruptState, PromptInterrupted, interrupt_state, read_prompt
 from bot.cli.render import InteractiveApprovalHandler, RichEventSink, create_cli_console
 from bot.cli.runtime import build_runtime
 from bot.config import (
@@ -126,15 +127,21 @@ async def _with_runtime_shutdown(runtime, coroutine):
     received_signal: int | None = None
     shutting_down = False
     installed_handlers: dict[int, object] = {}
+    interrupts = InterruptState()
+    token = interrupt_state.set(interrupts)
 
     def request_shutdown(signum: int) -> None:
         nonlocal received_signal
         if shutting_down or received_signal is not None or current_task is None:
             return
+        if signum == signal.SIGINT and interrupts.handler is not None:
+            interrupts.handler()
+            return
         received_signal = signum
         current_task.cancel()
 
-    for candidate in (getattr(signal, "SIGTERM", None), getattr(signal, "SIGHUP", None)):
+    signals = (signal.SIGINT, getattr(signal, "SIGTERM", None), getattr(signal, "SIGHUP", None))
+    for candidate in signals:
         if not isinstance(candidate, int):
             continue
         try:
@@ -144,7 +151,14 @@ async def _with_runtime_shutdown(runtime, coroutine):
             continue
         installed_handlers[candidate] = previous
     try:
-        return await coroutine
+        result = await coroutine
+        # AgentRunner intentionally turns cancellation into a persisted result.
+        # Preserve the exit signal even when no CancelledError escapes it.
+        if received_signal is not None:
+            raise typer.Exit(128 + received_signal)
+        return result
+    except PromptInterrupted:
+        raise typer.Exit(130) from None
     except asyncio.CancelledError:
         if received_signal is not None:
             raise typer.Exit(128 + received_signal) from None
@@ -160,6 +174,7 @@ async def _with_runtime_shutdown(runtime, coroutine):
                     continue
             cleanup.result()
         finally:
+            interrupt_state.reset(token)
             for signum, previous in installed_handlers.items():
                 loop.remove_signal_handler(signum)
                 try:
@@ -174,8 +189,8 @@ async def _prompt_with_background_approvals(
 ) -> str | None:
     approval_handler = runtime.approval_handler
     if not isinstance(approval_handler, InteractiveApprovalHandler):
-        return await prompt_session.prompt_async("> ")
-    input_task = asyncio.create_task(prompt_session.prompt_async("> "))
+        return await read_prompt(prompt_session, "> ")
+    input_task = asyncio.create_task(read_prompt(prompt_session, "> "))
     approval_task = asyncio.create_task(approval_handler.next_request())
     try:
         with patch_stdout():
@@ -183,6 +198,9 @@ async def _prompt_with_background_approvals(
                 {input_task, approval_task},
                 return_when=asyncio.FIRST_COMPLETED,
             )
+        # Do not hide an interrupt/EOF behind an approval arriving in the same tick.
+        if input_task in done and input_task.exception() is not None:
+            return input_task.result()
         if approval_task in done:
             input_completed = input_task in done
             if not input_task.done():
@@ -546,11 +564,22 @@ async def _run_with_steering(runtime, prompt_session: PromptSession[str], reques
         if isinstance(approval_handler, InteractiveApprovalHandler)
         else None
     )
-    input_task: asyncio.Task[str] | None = None
+    input_task: asyncio.Task[str | None] | None = None
+    resolving_approval = False
+    interrupts = interrupt_state.get()
+    previous_handler = interrupts.handler if interrupts is not None else None
+
+    def cancel_run() -> None:
+        if not run_task.done() and not run_task.cancelling():
+            console.print("[yellow]正在取消当前任务并清理资源…[/yellow]")
+            run_task.cancel()
+
+    if interrupts is not None:
+        interrupts.handler = cancel_run
     try:
         while not run_task.done():
             if input_task is None:
-                input_task = asyncio.create_task(prompt_session.prompt_async("[steer or /cancel] "))
+                input_task = asyncio.create_task(read_prompt(prompt_session, "[steer or /cancel] "))
             waiting: set[asyncio.Task] = {run_task, input_task}
             if approval_task:
                 waiting.add(approval_task)
@@ -558,39 +587,65 @@ async def _run_with_steering(runtime, prompt_session: PromptSession[str], reques
                 done, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
             if run_task in done:
                 break
-            if approval_task and approval_task in done:
-                input_task.cancel()
-                await asyncio.gather(input_task, return_exceptions=True)
-                input_task = None
-                pending = approval_task.result()
-                with patch_stdout():
-                    await approval_handler.resolve(pending, prompt_session)
-                approval_task = asyncio.create_task(approval_handler.next_request())
-                continue
             if input_task in done:
                 try:
-                    steering = input_task.result().strip()
+                    answer = input_task.result()
+                except PromptInterrupted:
+                    cancel_run()
+                    break
                 except EOFError:
                     input_task = None
-                    return await run_task
+                    if resolving_approval:
+                        cancel_run()
+                    return await asyncio.shield(run_task)
                 input_task = None
+                if resolving_approval:
+                    resolving_approval = False
+                    approval_task = asyncio.create_task(approval_handler.next_request())
+                    continue
+                steering = (answer or "").strip()
                 if not steering:
                     continue
                 if steering == "/cancel":
-                    run_task.cancel()
+                    cancel_run()
                     break
                 accepted = await runtime.runner.steer(request.session_id, steering)
                 if accepted:
                     console.print("[dim]已加入当前运行，将在安全边界应用。[/dim]")
                 else:
                     console.print("[yellow]当前运行已结束，输入未应用。[/yellow]")
-        return await run_task
+                continue
+            if approval_task and approval_task in done:
+                input_task.cancel()
+                await asyncio.gather(input_task, return_exceptions=True)
+                pending = approval_task.result()
+                input_task = asyncio.create_task(
+                    approval_handler.resolve(pending, prompt_session, on_interrupt=cancel_run)
+                )
+                resolving_approval = True
+                approval_task = None
+        return await asyncio.shield(run_task)
     finally:
-        tasks = [task for task in (input_task, approval_task) if task]
+        # The Runner must finish process cleanup and state writes BEFORE Runtime
+        # shutdown closes the store. Do not cancel it a second time during cleanup.
+        tasks = [task for task in (run_task, input_task, approval_task) if task is not None]
         for task in tasks:
-            if not task.done():
+            if not task.done() and not task.cancelling():
                 task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        settling = asyncio.gather(*tasks, return_exceptions=True)
+        cancelled = False
+        try:
+            while not settling.done():
+                try:
+                    await asyncio.shield(settling)
+                except asyncio.CancelledError:
+                    cancelled = True
+            settling.result()
+        finally:
+            if interrupts is not None:
+                interrupts.handler = previous_handler
+        if cancelled:
+            raise asyncio.CancelledError
 
 
 @app.command("run")
@@ -631,7 +686,7 @@ def run_command(
                 console.print(f"[yellow]{result.error or result.status}[/yellow]")
             else:
                 console.print(f"[red]{result.error or result.status}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(130 if result.status == "cancelled" else 1)
     finally:
         runtime.close()
 
