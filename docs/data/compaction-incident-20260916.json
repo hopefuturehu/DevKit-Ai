@@ -1,0 +1,691 @@
+{
+  "date": "2026-09-16",
+  "timezone": "Asia/Shanghai",
+  "baseline_commit": "ce0f4d5269452a9e1c9ef859b1b6d540c6c583f9",
+  "source": "read-only .bot/state.db events and context_blobs",
+  "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+  "scope": "All compaction events in the local calendar day; one session only. Captured payloads evaluated offline; no new provider requests.",
+  "event_counts": {
+    "context.compaction.started": 6,
+    "context.compaction.request.started": 7,
+    "context.compaction.request.completed": 1,
+    "context.compaction.completed": 1,
+    "context.compaction.request.failed": 6,
+    "context.compaction.failed": 5
+  },
+  "phase_counts": {
+    "a_prefix": {
+      "completed": 1,
+      "failed": 1
+    },
+    "a_isolated": {
+      "failed": 5
+    }
+  },
+  "operations": [
+    {
+      "completed_at_local": "2026-09-16T16:57:03.449823+08:00",
+      "operation_id": "116f9d178ef04dd1af450344a93b54a5",
+      "run_id": "2b1e0256d5174dcab6a33e7702fa84ea",
+      "status": "completed",
+      "covered_end_position": 115,
+      "requested_end_position": 115,
+      "previous_end_position": 0,
+      "request_count": 1,
+      "input_tokens": 95124,
+      "output_tokens": 7016,
+      "prefix_skip_reason": null,
+      "error_class": null,
+      "error": null
+    },
+    {
+      "completed_at_local": "2026-09-16T17:15:30.895633+08:00",
+      "operation_id": "ce0b7acb43374650b4f96f8413fff11d",
+      "run_id": "363f642ba34c49a18f6a02cabafeac57",
+      "status": "failed",
+      "covered_end_position": 238,
+      "requested_end_position": 229,
+      "previous_end_position": 115,
+      "request_count": 2,
+      "input_tokens": 175592,
+      "output_tokens": 16384,
+      "prefix_skip_reason": null,
+      "error_class": "unknown",
+      "error": "上下文摘要生成达到输出长度限制"
+    },
+    {
+      "completed_at_local": "2026-09-16T17:18:14.820833+08:00",
+      "operation_id": "b708eb964cba41dcb8b11e61d218dd50",
+      "run_id": "53341b5602344b51bf3e7eec06ba4428",
+      "status": "failed",
+      "covered_end_position": 248,
+      "requested_end_position": 243,
+      "previous_end_position": 115,
+      "request_count": 1,
+      "input_tokens": 83751,
+      "output_tokens": 8192,
+      "prefix_skip_reason": "snapshot_missing",
+      "error_class": "unknown",
+      "error": "上下文压缩模型没有返回摘要"
+    },
+    {
+      "completed_at_local": "2026-09-16T17:20:52.519486+08:00",
+      "operation_id": "3e141c3779b84f86b9b418f079995ea8",
+      "run_id": "e22c1ba0336345649ec74bfd119d85c2",
+      "status": "failed",
+      "covered_end_position": 253,
+      "requested_end_position": 253,
+      "previous_end_position": 115,
+      "request_count": 1,
+      "input_tokens": 88189,
+      "output_tokens": 8192,
+      "prefix_skip_reason": "snapshot_missing",
+      "error_class": "unknown",
+      "error": "上下文摘要生成达到输出长度限制"
+    },
+    {
+      "completed_at_local": "2026-09-16T17:22:53.954105+08:00",
+      "operation_id": "30ec7eb341fc48a6b4d16fb336e57707",
+      "run_id": "3306d154fbc345568bf5b0833c98afa8",
+      "status": "failed",
+      "covered_end_position": 253,
+      "requested_end_position": 253,
+      "previous_end_position": 115,
+      "request_count": 1,
+      "input_tokens": 88189,
+      "output_tokens": 8192,
+      "prefix_skip_reason": "snapshot_missing",
+      "error_class": "unknown",
+      "error": "上下文摘要生成达到输出长度限制"
+    },
+    {
+      "completed_at_local": "2026-09-16T17:25:50.707523+08:00",
+      "operation_id": "9c4554d2dc3c49bfbe6b36ed3b44f14e",
+      "run_id": "94c3d89dcc534317888212fe4fe9a465",
+      "status": "failed",
+      "covered_end_position": 259,
+      "requested_end_position": 259,
+      "previous_end_position": 115,
+      "request_count": 1,
+      "input_tokens": 102607,
+      "output_tokens": 8192,
+      "prefix_skip_reason": "snapshot_missing",
+      "error_class": "unknown",
+      "error": "上下文压缩模型没有返回摘要"
+    }
+  ],
+  "requests": [
+    {
+      "completed_at_local": "2026-09-16T16:57:03.439365+08:00",
+      "operation_id": "116f9d178ef04dd1af450344a93b54a5",
+      "phase": "a_prefix",
+      "status": "completed",
+      "source_range": [
+        1,
+        115
+      ],
+      "configured_thinking": null,
+      "effective_thinking": "disabled",
+      "wire_thinking": {
+        "type": "disabled"
+      },
+      "wire_max_tokens": null,
+      "tools_count": 29,
+      "planned_input_tokens": 100300,
+      "input_tokens": 95124,
+      "cached_input_tokens": 90752,
+      "output_tokens": 7016,
+      "reasoning_tokens": 0,
+      "non_reasoning_output_tokens": 7016,
+      "body_chars": 15261,
+      "reasoning_chars": 0,
+      "missing_required_headings": [],
+      "finish_reason": "stop",
+      "error": null,
+      "duration_ms": 26598.679916001856,
+      "request_blob_ref": "blob:38c7674297892cc6dc9a4d8dd2b1bc885c5bc77d4388a67017a3037d537f92c1",
+      "response_blob_ref": "blob:60c92fe04779865c69c4ce0a4e298939c9bf195705481ecd5b190b08ec879c52",
+      "configured_window_headroom_tokens": 26676
+    },
+    {
+      "completed_at_local": "2026-09-16T17:14:58.439836+08:00",
+      "operation_id": "ce0b7acb43374650b4f96f8413fff11d",
+      "phase": "a_prefix",
+      "status": "failed",
+      "source_range": [
+        1,
+        238
+      ],
+      "configured_thinking": null,
+      "effective_thinking": "disabled",
+      "wire_thinking": {
+        "type": "disabled"
+      },
+      "wire_max_tokens": null,
+      "tools_count": 29,
+      "planned_input_tokens": 103124,
+      "input_tokens": 97842,
+      "cached_input_tokens": 86912,
+      "output_tokens": 8192,
+      "reasoning_tokens": 0,
+      "non_reasoning_output_tokens": 8192,
+      "body_chars": 17680,
+      "reasoning_chars": 0,
+      "missing_required_headings": [
+        "Critical Context"
+      ],
+      "finish_reason": "length",
+      "error": "上下文摘要生成达到输出长度限制",
+      "duration_ms": 26986.608415842056,
+      "request_blob_ref": "blob:c842a222b30eb1c46f0eb3e27d1e56be3b0e8aaeab2b307bf3f1740cd1fab4d8",
+      "response_blob_ref": "blob:ea8582e3e68208482a8b9f1f54dbb2cf04c22768688cc34b6fdb9f9ab0c03b98",
+      "configured_window_headroom_tokens": 23852
+    },
+    {
+      "completed_at_local": "2026-09-16T17:15:30.894103+08:00",
+      "operation_id": "ce0b7acb43374650b4f96f8413fff11d",
+      "phase": "a_isolated",
+      "status": "failed",
+      "source_range": [
+        1,
+        238
+      ],
+      "configured_thinking": null,
+      "effective_thinking": "enabled",
+      "wire_thinking": null,
+      "wire_max_tokens": 8192,
+      "tools_count": 0,
+      "planned_input_tokens": 81611,
+      "input_tokens": 77750,
+      "cached_input_tokens": 0,
+      "output_tokens": 8192,
+      "reasoning_tokens": 7837,
+      "non_reasoning_output_tokens": 355,
+      "body_chars": 626,
+      "reasoning_chars": 27906,
+      "missing_required_headings": [
+        "Constraints",
+        "Progress",
+        "Key Decisions",
+        "Relevant Files",
+        "Failures",
+        "Next Steps",
+        "Critical Context"
+      ],
+      "finish_reason": "length",
+      "error": "上下文摘要生成达到输出长度限制",
+      "duration_ms": 32331.552332965657,
+      "request_blob_ref": "blob:8411d06606511e2abc76177a6b12a86d92c4390e50216f5527a78b487daddaf6",
+      "response_blob_ref": "blob:c3e08d6eca0d396daba73f81c1daa18d3b0d8e52fdac0dd22e1c741375864eec",
+      "configured_window_headroom_tokens": 45365,
+      "input_reasoning_chars": 0,
+      "prior_summary_chars": 15261,
+      "transcript_count": 123
+    },
+    {
+      "completed_at_local": "2026-09-16T17:18:14.818327+08:00",
+      "operation_id": "b708eb964cba41dcb8b11e61d218dd50",
+      "phase": "a_isolated",
+      "status": "failed",
+      "source_range": [
+        1,
+        248
+      ],
+      "configured_thinking": null,
+      "effective_thinking": "enabled",
+      "wire_thinking": null,
+      "wire_max_tokens": 8192,
+      "tools_count": 0,
+      "planned_input_tokens": 87912,
+      "input_tokens": 83751,
+      "cached_input_tokens": 384,
+      "output_tokens": 8192,
+      "reasoning_tokens": 8192,
+      "non_reasoning_output_tokens": 0,
+      "body_chars": 0,
+      "reasoning_chars": 26667,
+      "missing_required_headings": [
+        "Goal",
+        "Constraints",
+        "Progress",
+        "Key Decisions",
+        "Relevant Files",
+        "Failures",
+        "Next Steps",
+        "Critical Context"
+      ],
+      "finish_reason": "length",
+      "error": "上下文压缩模型没有返回摘要",
+      "duration_ms": 33705.495042027906,
+      "request_blob_ref": "blob:379b49aafc8d7179a9fc5400e122652bdaf88faa596292f686464e18934466c7",
+      "response_blob_ref": "blob:fb22cb699070de658db9ddf0aa00cc62c1f98352e0370749636fba75cfab784c",
+      "configured_window_headroom_tokens": 39064,
+      "input_reasoning_chars": 0,
+      "prior_summary_chars": 15261,
+      "transcript_count": 133
+    },
+    {
+      "completed_at_local": "2026-09-16T17:20:52.518268+08:00",
+      "operation_id": "3e141c3779b84f86b9b418f079995ea8",
+      "phase": "a_isolated",
+      "status": "failed",
+      "source_range": [
+        1,
+        253
+      ],
+      "configured_thinking": null,
+      "effective_thinking": "enabled",
+      "wire_thinking": null,
+      "wire_max_tokens": 8192,
+      "tools_count": 0,
+      "planned_input_tokens": 92572,
+      "input_tokens": 88189,
+      "cached_input_tokens": 384,
+      "output_tokens": 8192,
+      "reasoning_tokens": 6218,
+      "non_reasoning_output_tokens": 1974,
+      "body_chars": 4008,
+      "reasoning_chars": 13293,
+      "missing_required_headings": [
+        "Key Decisions",
+        "Relevant Files",
+        "Failures",
+        "Next Steps",
+        "Critical Context"
+      ],
+      "finish_reason": "length",
+      "error": "上下文摘要生成达到输出长度限制",
+      "duration_ms": 33701.92633313127,
+      "request_blob_ref": "blob:4d76a3b8718a946f6ac8e6cb8a28b61cf9f146cf78190e24c70aea3d5484f563",
+      "response_blob_ref": "blob:dd23b2ffb5566c226ed11cda03c283ba6f088fbe80e198f19723e4e120e003cf",
+      "configured_window_headroom_tokens": 34404,
+      "input_reasoning_chars": 0,
+      "prior_summary_chars": 15261,
+      "transcript_count": 138
+    },
+    {
+      "completed_at_local": "2026-09-16T17:22:53.953230+08:00",
+      "operation_id": "30ec7eb341fc48a6b4d16fb336e57707",
+      "phase": "a_isolated",
+      "status": "failed",
+      "source_range": [
+        1,
+        253
+      ],
+      "configured_thinking": null,
+      "effective_thinking": "enabled",
+      "wire_thinking": null,
+      "wire_max_tokens": 8192,
+      "tools_count": 0,
+      "planned_input_tokens": 92572,
+      "input_tokens": 88189,
+      "cached_input_tokens": 87936,
+      "output_tokens": 8192,
+      "reasoning_tokens": 3661,
+      "non_reasoning_output_tokens": 4531,
+      "body_chars": 9925,
+      "reasoning_chars": 12246,
+      "missing_required_headings": [
+        "Next Steps",
+        "Critical Context"
+      ],
+      "finish_reason": "length",
+      "error": "上下文摘要生成达到输出长度限制",
+      "duration_ms": 32211.558250011876,
+      "request_blob_ref": "blob:4d76a3b8718a946f6ac8e6cb8a28b61cf9f146cf78190e24c70aea3d5484f563",
+      "response_blob_ref": "blob:14f30f14f4fb53e8968d1566826b75481ef951ef3d84feebeb7c56f4faa248e2",
+      "configured_window_headroom_tokens": 34404,
+      "input_reasoning_chars": 0,
+      "prior_summary_chars": 15261,
+      "transcript_count": 138
+    },
+    {
+      "completed_at_local": "2026-09-16T17:25:50.706393+08:00",
+      "operation_id": "9c4554d2dc3c49bfbe6b36ed3b44f14e",
+      "phase": "a_isolated",
+      "status": "failed",
+      "source_range": [
+        1,
+        259
+      ],
+      "configured_thinking": null,
+      "effective_thinking": "enabled",
+      "wire_thinking": null,
+      "wire_max_tokens": 8192,
+      "tools_count": 0,
+      "planned_input_tokens": 107711,
+      "input_tokens": 102607,
+      "cached_input_tokens": 384,
+      "output_tokens": 8192,
+      "reasoning_tokens": 8192,
+      "non_reasoning_output_tokens": 0,
+      "body_chars": 0,
+      "reasoning_chars": 26383,
+      "missing_required_headings": [
+        "Goal",
+        "Constraints",
+        "Progress",
+        "Key Decisions",
+        "Relevant Files",
+        "Failures",
+        "Next Steps",
+        "Critical Context"
+      ],
+      "finish_reason": "length",
+      "error": "上下文压缩模型没有返回摘要",
+      "duration_ms": 37603.80162484944,
+      "request_blob_ref": "blob:10e206e57c10a6a95717ac7cca10a191579a96a369a15df47e9e123d75de1aa5",
+      "response_blob_ref": "blob:02ce53cd4744542460b98e0ca1359cf9f237686f2b96f3914782ad03ac3cc29e",
+      "configured_window_headroom_tokens": 19265,
+      "input_reasoning_chars": 0,
+      "prior_summary_chars": 15261,
+      "transcript_count": 144
+    }
+  ],
+  "failure_usage": {
+    "input_tokens": 538328,
+    "output_tokens": 49152,
+    "duration_ms": 196540.9419988282
+  },
+  "packing": {
+    "events": [
+      {
+        "time_local": "2026-09-16T17:22:58.542005+08:00",
+        "rough_input_tokens": 95990,
+        "calibrated_budget_tokens": 111110,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [],
+        "other_omitted_items": [
+          "skill-catalog"
+        ]
+      },
+      {
+        "time_local": "2026-09-16T17:23:01.577284+08:00",
+        "rough_input_tokens": 93310,
+        "calibrated_budget_tokens": 108118,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118
+        ],
+        "other_omitted_items": []
+      },
+      {
+        "time_local": "2026-09-16T17:23:04.939520+08:00",
+        "rough_input_tokens": 93721,
+        "calibrated_budget_tokens": 108582,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118
+        ],
+        "other_omitted_items": []
+      },
+      {
+        "time_local": "2026-09-16T17:23:06.329414+08:00",
+        "rough_input_tokens": 94829,
+        "calibrated_budget_tokens": 109678,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118
+        ],
+        "other_omitted_items": []
+      },
+      {
+        "time_local": "2026-09-16T17:23:08.619253+08:00",
+        "rough_input_tokens": 95763,
+        "calibrated_budget_tokens": 110628,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118
+        ],
+        "other_omitted_items": []
+      },
+      {
+        "time_local": "2026-09-16T17:23:10.154595+08:00",
+        "rough_input_tokens": 95823,
+        "calibrated_budget_tokens": 110500,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118,
+          119,
+          120
+        ],
+        "other_omitted_items": []
+      },
+      {
+        "time_local": "2026-09-16T17:23:13.478755+08:00",
+        "rough_input_tokens": 95882,
+        "calibrated_budget_tokens": 110301,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122
+        ],
+        "other_omitted_items": [
+          "skill-catalog"
+        ]
+      },
+      {
+        "time_local": "2026-09-16T17:25:50.817844+08:00",
+        "rough_input_tokens": 95985,
+        "calibrated_budget_tokens": 109712,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122,
+          123,
+          124,
+          125,
+          126,
+          127,
+          128,
+          129,
+          130,
+          131,
+          132
+        ],
+        "other_omitted_items": [
+          "skill-catalog"
+        ]
+      },
+      {
+        "time_local": "2026-09-16T17:25:54.261672+08:00",
+        "rough_input_tokens": 95997,
+        "calibrated_budget_tokens": 109840,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122,
+          123,
+          124,
+          125,
+          126,
+          127,
+          128,
+          131,
+          132,
+          135,
+          136
+        ],
+        "other_omitted_items": []
+      },
+      {
+        "time_local": "2026-09-16T17:25:57.083159+08:00",
+        "rough_input_tokens": 96000,
+        "calibrated_budget_tokens": 109437,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122,
+          123,
+          124,
+          125,
+          126,
+          127,
+          128,
+          129,
+          130,
+          133,
+          134,
+          135,
+          136,
+          137
+        ],
+        "other_omitted_items": [
+          "skill-catalog"
+        ]
+      },
+      {
+        "time_local": "2026-09-16T17:26:00.942384+08:00",
+        "rough_input_tokens": 95984,
+        "calibrated_budget_tokens": 109241,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122,
+          123,
+          124,
+          125,
+          126,
+          127,
+          128,
+          129,
+          130,
+          131,
+          132,
+          133,
+          134,
+          135,
+          136,
+          137,
+          139,
+          140,
+          141
+        ],
+        "other_omitted_items": [
+          "skill-catalog"
+        ]
+      },
+      {
+        "time_local": "2026-09-16T17:26:07.284997+08:00",
+        "rough_input_tokens": 95902,
+        "calibrated_budget_tokens": 108601,
+        "target_limit": 96000,
+        "hard_limit": 120000,
+        "omitted_positions": [
+          116,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122,
+          123,
+          124,
+          125,
+          126,
+          127,
+          128,
+          131,
+          132,
+          133,
+          134,
+          135,
+          136,
+          137,
+          144,
+          145
+        ],
+        "other_omitted_items": [
+          "skill-catalog"
+        ]
+      }
+    ],
+    "events_omitting_history": 11,
+    "max_omitted_messages_per_request": 25,
+    "distinct_omitted_positions": [
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      139,
+      140,
+      141,
+      144,
+      145
+    ]
+  },
+  "offline_budget_probe": {
+    "method": "Use first captured prefix request; retain only system messages and tools, set effective thinking=disabled, use installed pinned tokenizer. Omits all anchors, summary and tail, so it is a floor.",
+    "fixed_only_budget_tokens": 5804,
+    "configured_low_water_tokens": 40000,
+    "generation_allowance_to_projected_floor": {
+      "8192": 15072,
+      "16384": 24083,
+      "32768": 42105
+    }
+  }
+}
