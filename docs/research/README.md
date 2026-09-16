@@ -27,3 +27,4 @@
 | [OpenClaw 与 Hermes 的摘要输出恢复](openclaw-hermes-summary-output-recovery.md) | 最终摘要预算与纠正、length 检查缺口、模型回退和持久化冷却 |
 | [开源摘要压缩方案取舍总览](compaction-output-recovery-tradeoffs.md) | 汇总 17 个项目：输入覆盖、生成完整性、最终预算、缓存成本与失败恢复 |
 | [oh-my-pi 压缩详解](oh-my-pi-compaction-deep-dive.md) | 多路径维护、滚动分块与输入减半、工具裁剪、单次额度与全局摘要长度的区别 |
+| [bot 摘要撞限的提示与请求差异](bot-compaction-prompt-pressure-comparison.md) | 真实摘要分区、thinking 额度、输入裁剪和开源提示词对照；区分已证实原因与待测假设 |

@@ -1,0 +1,301 @@
+{
+  "checked_on": "2026-09-17",
+  "incident_date": "2026-09-16",
+  "runtime_baseline_commit": "ce0f4d5269452a9e1c9ef859b1b6d540c6c583f9",
+  "method": "Read-only analysis of seven frozen request/response blobs. Verified SHA-256. No new provider requests; no transcript or reasoning body copied into this artifact.",
+  "character_count_definition": "Python Unicode code points. Sections start at each Markdown level 1-3 heading and end before the next; include heading and whitespace.",
+  "requests": [
+    {
+      "completed_at_local": "2026-09-16T16:57:03.439365+08:00",
+      "phase": "a_prefix",
+      "status": "completed",
+      "request_blob_ref": "blob:38c7674297892cc6dc9a4d8dd2b1bc885c5bc77d4388a67017a3037d537f92c1",
+      "response_blob_ref": "blob:60c92fe04779865c69c4ce0a4e298939c9bf195705481ecd5b190b08ec879c52",
+      "input_tokens": 95124,
+      "output_tokens": 7016,
+      "reasoning_tokens": 0,
+      "non_reasoning_output_tokens": 7016,
+      "finish_reason": "stop",
+      "model": "deepseek-v4-flash",
+      "body_chars": 15261,
+      "sections": [
+        {
+          "heading": "Goal",
+          "chars": 441
+        },
+        {
+          "heading": "Constraints",
+          "chars": 495
+        },
+        {
+          "heading": "Progress",
+          "chars": 12
+        },
+        {
+          "heading": "已完成并有工具证据",
+          "chars": 5428
+        },
+        {
+          "heading": "未完成",
+          "chars": 756
+        },
+        {
+          "heading": "Key Decisions",
+          "chars": 771
+        },
+        {
+          "heading": "Relevant Files",
+          "chars": 2082
+        },
+        {
+          "heading": "Failures",
+          "chars": 1297
+        },
+        {
+          "heading": "Next Steps",
+          "chars": 1661
+        },
+        {
+          "heading": "Critical Context",
+          "chars": 2318
+        }
+      ]
+    },
+    {
+      "completed_at_local": "2026-09-16T17:14:58.439836+08:00",
+      "phase": "a_prefix",
+      "status": "failed",
+      "request_blob_ref": "blob:c842a222b30eb1c46f0eb3e27d1e56be3b0e8aaeab2b307bf3f1740cd1fab4d8",
+      "response_blob_ref": "blob:ea8582e3e68208482a8b9f1f54dbb2cf04c22768688cc34b6fdb9f9ab0c03b98",
+      "input_tokens": 97842,
+      "output_tokens": 8192,
+      "reasoning_tokens": 0,
+      "non_reasoning_output_tokens": 8192,
+      "finish_reason": "length",
+      "model": "deepseek-v4-flash",
+      "body_chars": 17680,
+      "sections": [
+        {
+          "heading": "Goal",
+          "chars": 504
+        },
+        {
+          "heading": "Constraints",
+          "chars": 689
+        },
+        {
+          "heading": "Progress",
+          "chars": 12
+        },
+        {
+          "heading": "已完成并有工具证据",
+          "chars": 9705
+        },
+        {
+          "heading": "Key Decisions",
+          "chars": 727
+        },
+        {
+          "heading": "Relevant Files",
+          "chars": 3060
+        },
+        {
+          "heading": "Failures",
+          "chars": 1262
+        },
+        {
+          "heading": "Next Steps",
+          "chars": 1721
+        }
+      ]
+    },
+    {
+      "completed_at_local": "2026-09-16T17:15:30.894103+08:00",
+      "phase": "a_isolated",
+      "status": "failed",
+      "request_blob_ref": "blob:8411d06606511e2abc76177a6b12a86d92c4390e50216f5527a78b487daddaf6",
+      "response_blob_ref": "blob:c3e08d6eca0d396daba73f81c1daa18d3b0d8e52fdac0dd22e1c741375864eec",
+      "input_tokens": 77750,
+      "output_tokens": 8192,
+      "reasoning_tokens": 7837,
+      "non_reasoning_output_tokens": 355,
+      "finish_reason": "length",
+      "model": "deepseek-v4-flash",
+      "body_chars": 626,
+      "sections": [
+        {
+          "heading": "Goal",
+          "chars": 626
+        }
+      ],
+      "previous_summary_chars": 15261,
+      "system_prompt_sha256": "cc91e36f7907adde00cc12d471219be2834e594b8fe6594a1679c2535389c4fb",
+      "tool_text_probe": {
+        "tool_messages": 59,
+        "body_chars": 109794,
+        "above_2000_chars": 20,
+        "chars_removed_by_hypothetical_2000_char_prefix_cap": 42277,
+        "note": "Python character counts, not model tokens or a full oh-my-pi replay; excludes marker, JSON, tool arguments and prior summary costs. No fidelity or success claim."
+      }
+    },
+    {
+      "completed_at_local": "2026-09-16T17:18:14.818327+08:00",
+      "phase": "a_isolated",
+      "status": "failed",
+      "request_blob_ref": "blob:379b49aafc8d7179a9fc5400e122652bdaf88faa596292f686464e18934466c7",
+      "response_blob_ref": "blob:fb22cb699070de658db9ddf0aa00cc62c1f98352e0370749636fba75cfab784c",
+      "input_tokens": 83751,
+      "output_tokens": 8192,
+      "reasoning_tokens": 8192,
+      "non_reasoning_output_tokens": 0,
+      "finish_reason": "length",
+      "model": "deepseek-v4-flash",
+      "body_chars": 0,
+      "sections": [],
+      "previous_summary_chars": 15261,
+      "system_prompt_sha256": "cc91e36f7907adde00cc12d471219be2834e594b8fe6594a1679c2535389c4fb",
+      "tool_text_probe": {
+        "tool_messages": 63,
+        "body_chars": 115170,
+        "above_2000_chars": 21,
+        "chars_removed_by_hypothetical_2000_char_prefix_cap": 42627,
+        "note": "Python character counts, not model tokens or a full oh-my-pi replay; excludes marker, JSON, tool arguments and prior summary costs. No fidelity or success claim."
+      }
+    },
+    {
+      "completed_at_local": "2026-09-16T17:20:52.518268+08:00",
+      "phase": "a_isolated",
+      "status": "failed",
+      "request_blob_ref": "blob:4d76a3b8718a946f6ac8e6cb8a28b61cf9f146cf78190e24c70aea3d5484f563",
+      "response_blob_ref": "blob:dd23b2ffb5566c226ed11cda03c283ba6f088fbe80e198f19723e4e120e003cf",
+      "input_tokens": 88189,
+      "output_tokens": 8192,
+      "reasoning_tokens": 6218,
+      "non_reasoning_output_tokens": 1974,
+      "finish_reason": "length",
+      "model": "deepseek-v4-flash",
+      "body_chars": 4008,
+      "sections": [
+        {
+          "heading": "Goal",
+          "chars": 535
+        },
+        {
+          "heading": "Constraints",
+          "chars": 647
+        },
+        {
+          "heading": "Progress",
+          "chars": 12
+        },
+        {
+          "heading": "有工具证据、已完成",
+          "chars": 2814
+        }
+      ],
+      "previous_summary_chars": 15261,
+      "system_prompt_sha256": "cc91e36f7907adde00cc12d471219be2834e594b8fe6594a1679c2535389c4fb",
+      "tool_text_probe": {
+        "tool_messages": 66,
+        "body_chars": 125333,
+        "above_2000_chars": 22,
+        "chars_removed_by_hypothetical_2000_char_prefix_cap": 48787,
+        "note": "Python character counts, not model tokens or a full oh-my-pi replay; excludes marker, JSON, tool arguments and prior summary costs. No fidelity or success claim."
+      }
+    },
+    {
+      "completed_at_local": "2026-09-16T17:22:53.953230+08:00",
+      "phase": "a_isolated",
+      "status": "failed",
+      "request_blob_ref": "blob:4d76a3b8718a946f6ac8e6cb8a28b61cf9f146cf78190e24c70aea3d5484f563",
+      "response_blob_ref": "blob:14f30f14f4fb53e8968d1566826b75481ef951ef3d84feebeb7c56f4faa248e2",
+      "input_tokens": 88189,
+      "output_tokens": 8192,
+      "reasoning_tokens": 3661,
+      "non_reasoning_output_tokens": 4531,
+      "finish_reason": "length",
+      "model": "deepseek-v4-flash",
+      "body_chars": 9925,
+      "sections": [
+        {
+          "heading": "Goal",
+          "chars": 502
+        },
+        {
+          "heading": "Constraints",
+          "chars": 465
+        },
+        {
+          "heading": "Progress",
+          "chars": 12
+        },
+        {
+          "heading": "已确认（有工具证据）",
+          "chars": 5038
+        },
+        {
+          "heading": "未完成/待核实",
+          "chars": 874
+        },
+        {
+          "heading": "Key Decisions",
+          "chars": 894
+        },
+        {
+          "heading": "Relevant Files",
+          "chars": 2023
+        },
+        {
+          "heading": "Failures",
+          "chars": 117
+        }
+      ],
+      "previous_summary_chars": 15261,
+      "system_prompt_sha256": "cc91e36f7907adde00cc12d471219be2834e594b8fe6594a1679c2535389c4fb",
+      "tool_text_probe": {
+        "tool_messages": 66,
+        "body_chars": 125333,
+        "above_2000_chars": 22,
+        "chars_removed_by_hypothetical_2000_char_prefix_cap": 48787,
+        "note": "Python character counts, not model tokens or a full oh-my-pi replay; excludes marker, JSON, tool arguments and prior summary costs. No fidelity or success claim."
+      }
+    },
+    {
+      "completed_at_local": "2026-09-16T17:25:50.706393+08:00",
+      "phase": "a_isolated",
+      "status": "failed",
+      "request_blob_ref": "blob:10e206e57c10a6a95717ac7cca10a191579a96a369a15df47e9e123d75de1aa5",
+      "response_blob_ref": "blob:02ce53cd4744542460b98e0ca1359cf9f237686f2b96f3914782ad03ac3cc29e",
+      "input_tokens": 102607,
+      "output_tokens": 8192,
+      "reasoning_tokens": 8192,
+      "non_reasoning_output_tokens": 0,
+      "finish_reason": "length",
+      "model": "deepseek-v4-flash",
+      "body_chars": 0,
+      "sections": [],
+      "previous_summary_chars": 15261,
+      "system_prompt_sha256": "cc91e36f7907adde00cc12d471219be2834e594b8fe6594a1679c2535389c4fb",
+      "tool_text_probe": {
+        "tool_messages": 70,
+        "body_chars": 157967,
+        "above_2000_chars": 26,
+        "chars_removed_by_hypothetical_2000_char_prefix_cap": 73421,
+        "note": "Python character counts, not model tokens or a full oh-my-pi replay; excludes marker, JSON, tool arguments and prior summary costs. No fidelity or success claim."
+      }
+    }
+  ],
+  "isolated_totals": {
+    "output_tokens": 40960,
+    "reasoning_tokens": 34100,
+    "non_reasoning_output_tokens": 6860,
+    "reasoning_share": 0.83251953125
+  },
+  "failed_non_thinking_prefix": {
+    "body_chars": 17680,
+    "completed_progress_chars": 9705,
+    "files_chars": 3060,
+    "combined_share": 0.7220022624434389
+  },
+  "causal_limit": "Observed output allocation and source differences do not establish a prompt-treatment success-rate effect. Requires same-snapshot controlled model evaluation."
+}
