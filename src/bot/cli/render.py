@@ -12,6 +12,7 @@ from prompt_toolkit import PromptSession
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+from rich.theme import Theme
 
 from bot.cli.interrupts import PromptInterrupted, read_prompt
 from bot.core.approval import ApprovalResponse, ApprovalScope
@@ -33,6 +34,12 @@ def create_cli_console(
         color_system="auto" if enhanced else None,
         force_terminal=enhanced,
         highlight=False,
+        theme=Theme(
+            {
+                "markdown.code": "bold bright_white on default",
+                "markdown.code_block": "bright_white on default",
+            }
+        ),
     )
 
 
