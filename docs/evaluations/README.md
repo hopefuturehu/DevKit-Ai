@@ -34,6 +34,7 @@
 |---|---|
 | [2026-09-16 压缩失败复盘与优化方案](compaction-incident-20260916.md) | 当天双路径逐请求证据、预算耦合、跨 Run 退避与上下文裁剪；优化尚未实施 |
 | [兜底摘要 thinking 预算实测](compaction-thinking-budget-20260917.md) | 24 次真实请求：关闭思考、额外预留与现方案；区分生成完成和正文长度达标 |
+| [压缩内容取舍与尾部交接指令实测](compaction-selection-20260917.md) | 48 次真实请求：重新筛选旧摘要、短要点与历史后提醒；最终默认 7/8、关闭思考 8/8，保留事实质量限制 |
 | [Flash：128K / 256K / 512K 真实任务缓存](context-length-flash-cache.md) | 同题三档输入预算、实际输入长度、API 缓存命中与官方验收 |
 | [两项 P0 可靠性修复](task-reliability-p0-results.md) | 有期限的进程清理、重复响应隔离与恢复的离线验收及启用方式 |
 | [A+D 交接 L0/L1 量化结果](context-handoff-l0-l1-results.md) | 固定片段的容量、缓存、费用、质量与失败分析；未执行 L2/L3 |

@@ -6,6 +6,7 @@ import pytest
 from bot.compaction.service import ContextCompactor
 from bot.compaction.strategies import (
     FALLBACK_SUMMARY_INSTRUCTION,
+    SUMMARY_SELECTION_REMINDER,
     StrategyCompactor,
     StrategyFrame,
 )
@@ -408,6 +409,7 @@ async def test_prefix_success_preserves_32k_and_uses_only_one_request(tmp_path):
         assert sent.model_dump(exclude={"messages"}) == original.model_dump(exclude={"messages"})
         assert sent.max_output_tokens == 32768 and sent.tool_choice == "auto"
         assert FALLBACK_SUMMARY_INSTRUCTION in sent.messages[-1].content
+        assert sent.messages[-1].content.endswith(SUMMARY_SELECTION_REMINDER)
         assert instance.last_metrics["adopted_path"] == "prefix"
     finally:
         store.close()
@@ -462,7 +464,8 @@ async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_pa
         assert len(provider.requests) == 2 and result.request_count == 2
         isolated = provider.requests[1]
         assert not isolated.tools and isolated.tool_choice is None
-        assert [m.role for m in isolated.messages] == [Role.SYSTEM, Role.USER]
+        assert [m.role for m in isolated.messages] == [Role.SYSTEM, Role.USER, Role.USER]
+        assert isolated.messages[-1].content == SUMMARY_SELECTION_REMINDER
         assert FALLBACK_SUMMARY_INSTRUCTION in provider.requests[0].messages[-1].content
         assert FALLBACK_SUMMARY_INSTRUCTION in isolated.messages[0].content
         payload = json.loads(isolated.messages[1].content)

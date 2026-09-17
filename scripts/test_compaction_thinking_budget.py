@@ -1,4 +1,4 @@
-"""Replay the four distinct 2026-09-16 isolated fallbacks under three output policies.
+"""Replay four frozen isolated fallbacks with output policies and optional prompt pairs.
 
 Only --live sends requests. Production state is read-only; private responses and
 disposable telemetry databases stay in a new, ignored artifacts directory.
@@ -19,10 +19,14 @@ from pathlib import Path
 from statistics import mean
 
 from bot.compaction.service import ContextCompactor
-from bot.compaction.strategies import StrategyCompactor
+from bot.compaction.strategies import (
+    SUMMARY_SELECTION_REMINDER,
+    StrategyCompactor,
+    isolated_summary_instruction,
+)
 from bot.config import load_config, resolve_model_api_key
 from bot.core.events import EventBus, MemoryEventSink
-from bot.core.models import ModelEventKind, ModelRequest
+from bot.core.models import ChatMessage, ModelEventKind, ModelRequest, Role
 from bot.providers import OpenAICompatibleProvider
 from bot.sessions import SQLiteSessionStore
 
@@ -30,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INCIDENT = ROOT / "docs/data/compaction-incident-20260916.json"
 BODY_BUDGET = 8192
 MODES = ("current", "thinking_off", "thinking_reserve_8k")
+PROMPT_VARIANTS = ("frozen", "selection", "selection_tail")
 PRICING = {
     "source": "https://api-docs.deepseek.com/quick_start/pricing/",
     "checked_at": "2026-09-17",
@@ -47,8 +52,16 @@ def digest(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def variant(request: ModelRequest, mode: str) -> ModelRequest:
+def variant(request: ModelRequest, mode: str, *, prompt_variant: str = "frozen") -> ModelRequest:
     result = request.model_copy(deep=True)
+    if prompt_variant in {"selection", "selection_tail"}:
+        if len(result.messages) != 2 or result.messages[0].role.value != "system":
+            raise ValueError("Prompt replacement requires a frozen isolated request")
+        result.messages[0].content = isolated_summary_instruction()
+        if prompt_variant == "selection_tail":
+            result.messages.append(ChatMessage(role=Role.USER, content=SUMMARY_SELECTION_REMINDER))
+    elif prompt_variant != "frozen":
+        raise ValueError(prompt_variant)
     if mode == "thinking_off":
         result.thinking = "disabled"
     elif mode == "thinking_reserve_8k":
@@ -140,9 +153,11 @@ class RecordedProvider(OpenAICompatibleProvider):
             yield event
 
 
-async def trial(output, checkpoint, repeat, mode, config, api_key) -> dict:
+async def trial(
+    output, checkpoint, repeat, mode, config, api_key, *, prompt_variant="frozen"
+) -> dict:
     output.mkdir()
-    request = variant(checkpoint["request"], mode)
+    request = variant(checkpoint["request"], mode, prompt_variant=prompt_variant)
     provider = RecordedProvider(base_url=config.model.base_url, api_key=api_key, timeout_seconds=90)
     save(output / "request.json", provider._payload(request))
     store = SQLiteSessionStore(output / "state.db")
@@ -159,6 +174,9 @@ async def trial(output, checkpoint, repeat, mode, config, api_key) -> dict:
         "request_ref": checkpoint["request_ref"],
         "repeat": repeat,
         "mode": mode,
+        "prompt_variant": prompt_variant,
+        "request_sha256": digest((output / "request.json").read_bytes()),
+        "system_prompt_sha256": digest(request.messages[0].content.encode()),
         "started_at": datetime.now(UTC).isoformat(),
         "max_tokens": request.max_output_tokens,
         "thinking": request.thinking,
@@ -241,9 +259,16 @@ async def trial(output, checkpoint, repeat, mode, config, api_key) -> dict:
 
 def aggregate(records: list[dict]) -> dict:
     result = {}
-    for mode in MODES:
-        rows = [r for r in records if r["mode"] == mode]
-        result[mode] = {
+    prompts = {r.get("prompt_variant", "frozen") for r in records}
+    groups = [(prompt, mode) for prompt in PROMPT_VARIANTS if prompt in prompts for mode in MODES]
+    for prompt, mode in groups:
+        rows = [
+            r for r in records if r["mode"] == mode and r.get("prompt_variant", "frozen") == prompt
+        ]
+        if not rows:
+            continue
+        key = mode if prompts == {"frozen"} else f"{prompt}/{mode}"
+        result[key] = {
             "attempts": len(rows),
             "candidate_pass": sum(r["candidate_pass"] for r in rows),
             "body_budget_pass": sum(r["body_budget_pass"] for r in rows),
@@ -260,7 +285,7 @@ def aggregate(records: list[dict]) -> dict:
             "body_tokens",
         ):
             present = [r[field] for r in rows if r[field] is not None]
-            result[mode]["mean_" + field] = mean(present) if present else None
+            result[key]["mean_" + field] = mean(present) if present else None
     return result
 
 
@@ -303,6 +328,8 @@ async def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source-db", type=Path, default=ROOT / ".bot/state.db")
     parser.add_argument("--repeats", type=int, choices=range(1, 4), default=2)
+    parser.add_argument("--modes", nargs="+", choices=MODES, default=list(MODES))
+    parser.add_argument("--prompt-variants", nargs="+", choices=PROMPT_VARIANTS, default=["frozen"])
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--live", action="store_true")
     mode.add_argument("--analyze-only", action="store_true")
@@ -315,6 +342,10 @@ async def main() -> None:
         return
     if output.exists():
         parser.error("Use a new directory under this repository's ignored artifacts/")
+    if len(set(args.modes)) != len(args.modes) or len(set(args.prompt_variants)) != len(
+        args.prompt_variants
+    ):
+        parser.error("Duplicate modes or prompts would overwrite trial directories")
     config = load_config(ROOT)
     frozen = checkpoints(args.source_db)
     provider = OpenAICompatibleProvider(base_url=config.model.base_url, api_key="offline-unused")
@@ -322,11 +353,23 @@ async def main() -> None:
         parser.error("Replay is restricted to the original official DeepSeek provider")
     plans = []
     for repeat in range(1, args.repeats + 1):
-        block = [(c, mode) for c in frozen for mode in MODES]
+        block = [
+            (c, mode, prompt)
+            for c in frozen
+            for mode in args.modes
+            for prompt in args.prompt_variants
+        ]
         random.Random(20260917 + repeat).shuffle(block)
-        for c, mode in block:
-            request = variant(c["request"], mode)
+        for c, mode, prompt in block:
+            request = variant(c["request"], mode, prompt_variant=prompt)
             original, modified = provider._payload(c["request"]), provider._payload(request)
+            # Preserve all historical evidence; only the instructions/policy may differ.
+            if prompt == "selection_tail":
+                assert modified["messages"].pop() == {
+                    "role": "user",
+                    "content": SUMMARY_SELECTION_REMINDER,
+                }
+            modified["messages"][0]["content"] = original["messages"][0]["content"]
             assert {k: v for k, v in original.items() if k not in {"thinking", "max_tokens"}} == {
                 k: v for k, v in modified.items() if k not in {"thinking", "max_tokens"}
             }
@@ -347,6 +390,8 @@ async def main() -> None:
                 {
                     "checkpoint": c["covered_end"],
                     "mode": mode,
+                    "prompt_variant": prompt,
+                    "system_prompt_sha256": digest(request.messages[0].content.encode()),
                     "repeat": repeat,
                     "planned_input_tokens": estimate.budget_tokens,
                     "input_limit": limit,
@@ -371,12 +416,22 @@ async def main() -> None:
         "source_db": str(args.source_db),
         "source_access": "SQLite mode=ro",
         "repeats": args.repeats,
+        "modes": args.modes,
+        "prompt_variants": args.prompt_variants,
         "concurrency": 3,
         "body_budget_tokens": BODY_BUDGET,
         "timeout_seconds": config.context.compaction_request_timeout_seconds,
         "worst_case_planned_usd_peak": worst,
         "plans": plans,
         "scope": "Actual StrategyCompactor.summarize validation; no publication/continuation test",
+        "runtime_sources_sha256": {
+            name: digest((ROOT / name).read_bytes())
+            for name in (
+                "src/bot/compaction/strategies.py",
+                "src/bot/compaction/handoff.py",
+                "src/bot/compaction/service.py",
+            )
+        },
         "limitations": [
             "Four related checkpoints in one failure-selected session",
             "Shared provider cap cannot guarantee independent text/reasoning quotas",
@@ -387,6 +442,8 @@ async def main() -> None:
     }
     save(output / "manifest.json", manifest)
     (output / "replay-script.py").write_bytes(Path(__file__).read_bytes())
+    for name in manifest["runtime_sources_sha256"]:
+        (output / ("runtime-" + Path(name).name)).write_bytes((ROOT / name).read_bytes())
     print(
         json.dumps(
             {
@@ -407,7 +464,17 @@ async def main() -> None:
         async with semaphore:
             checkpoint = next(c for c in frozen if c["covered_end"] == plan["checkpoint"])
             name = f"p{plan['checkpoint']}-r{plan['repeat']}-{plan['mode']}"
-            return await trial(output / name, checkpoint, plan["repeat"], plan["mode"], config, key)
+            if args.prompt_variants != ["frozen"]:
+                name += f"-{plan['prompt_variant']}"
+            return await trial(
+                output / name,
+                checkpoint,
+                plan["repeat"],
+                plan["mode"],
+                config,
+                key,
+                prompt_variant=plan["prompt_variant"],
+            )
 
     records = await asyncio.gather(*(run(p) for p in plans))
     result = {"manifest": manifest, "aggregate": aggregate(records), "trials": records}

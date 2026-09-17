@@ -52,6 +52,32 @@ def test_variants_preserve_frozen_input_and_original_request():
     assert request.model_dump() == original
 
 
+@pytest.mark.parametrize("mode", replay.MODES)
+@pytest.mark.parametrize("prompt", ["selection", "selection_tail"])
+def test_prompt_pair_preserves_history_and_policy(mode, prompt):
+    request = ModelRequest(
+        model="deepseek-v4-flash",
+        messages=[
+            ChatMessage(role=Role.SYSTEM, content="Frozen historical instruction"),
+            ChatMessage(role=Role.USER, content='{"previous_summary":"old","transcript":[1,2]}'),
+        ],
+        max_output_tokens=8192,
+        temperature=0,
+    )
+    before = request.model_dump()
+    control = replay.variant(request, mode)
+    treatment = replay.variant(request, mode, prompt_variant=prompt)
+    assert treatment.messages[0].content == replay.isolated_summary_instruction()
+    assert treatment.messages[0].content != control.messages[0].content
+    if prompt == "selection_tail":
+        assert treatment.messages.pop() == ChatMessage(
+            role=Role.USER, content=replay.SUMMARY_SELECTION_REMINDER
+        )
+    treatment.messages[0].content = control.messages[0].content
+    assert treatment.model_dump() == control.model_dump()
+    assert request.model_dump() == before
+
+
 @pytest.mark.parametrize(
     "finish,summary,completion,reasoning,passes,body_passes,error_class",
     [
@@ -109,6 +135,36 @@ async def test_replay_uses_runtime_validation_and_separates_body_budget(
     assert record["finish_reason"] == finish
     assert record["body_tokens"] == (None if reasoning is None else completion - reasoning)
     assert (tmp_path / "trial/summary.md").read_text() == summary
+
+
+def test_aggregate_keeps_prompt_arms_separate():
+    common = dict.fromkeys(
+        (
+            "duration_seconds",
+            "input_tokens",
+            "cached_input_tokens",
+            "output_tokens",
+            "reasoning_tokens",
+            "body_tokens",
+        ),
+        100,
+    )
+    common.update(mode="thinking_off", estimated_cost_usd=0.01)
+    records = [
+        {
+            **common,
+            "prompt_variant": prompt,
+            "finish_reason": "stop" if passes else "length",
+            "candidate_pass": passes,
+            "body_budget_pass": passes,
+        }
+        for prompt, passes in (("frozen", False), ("selection", True))
+    ]
+    results = replay.aggregate(records)
+    assert set(results) == {"frozen/thinking_off", "selection/thinking_off"}
+    assert results["frozen/thinking_off"]["candidate_pass"] == 0
+    assert results["selection/thinking_off"]["candidate_pass"] == 1
+    assert results["selection/thinking_off"]["attempts"] == 1
 
 
 @pytest.mark.parametrize(
