@@ -2572,6 +2572,10 @@ async def test_agent_rechecks_final_request_budget_before_provider_call(tmp_path
 @pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
 async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path, thinking):
     from bot.compaction.service import ContextCompactor
+    from bot.compaction.strategies import (
+        SUMMARY_SELECTION_REMINDER,
+        isolated_summary_instruction,
+    )
 
     summary = "\n\n".join(
         f"# {name}\nPreserve evidence and continue the task."
@@ -2650,9 +2654,19 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
         assert prefix.messages[: len(main.messages)] == main.messages
         assert prefix.tools == main.tools and prefix.max_output_tokens == 32768
         assert prefix.tool_choice == main.tool_choice
+        assert prefix.messages[-1].content.endswith(SUMMARY_SELECTION_REMINDER)
         assert "verified fact" in str(prefix.messages[len(main.messages) :])
         assert not isolated.tools and isolated.messages[0].role == Role.SYSTEM
+        assert isolated.messages[0].content == isolated_summary_instruction()
+        assert [m.role for m in isolated.messages] == [Role.SYSTEM, Role.USER, Role.USER]
+        assert isolated.messages[-1].content == SUMMARY_SELECTION_REMINDER
+        assert json.loads(isolated.messages[1].content)["kind"] == "isolated_handoff"
         assert "must-not-read" not in str(continued.messages)
+        assert all(SUMMARY_SELECTION_REMINDER not in (m.content or "") for m in continued.messages)
+        assert all(
+            SUMMARY_SELECTION_REMINDER not in (entry.message.content or "")
+            for entry in store.load_positioned_messages(session)
+        )
         checkpoint = next(m for m in continued.messages if m.name == "context_compaction")
         assert "续跑核验" in checkpoint.content
         assert {"load_compaction_source", "search_session_history"} <= {
@@ -2673,6 +2687,10 @@ async def test_idle_compact_uses_default_fallback_and_current_main_thinking(
     tmp_path, thinking, finish_reason
 ):
     from bot.compaction.service import ContextCompactor
+    from bot.compaction.strategies import (
+        SUMMARY_SELECTION_REMINDER,
+        isolated_summary_instruction,
+    )
 
     summary = "\n\n".join(
         f"# {name}\n- Preserve the verified observations."
@@ -2735,6 +2753,9 @@ async def test_idle_compact_uses_default_fallback_and_current_main_thinking(
         request = provider.requests[0]
         assert request.model == "switched-main-model" and request.thinking == thinking
         assert not request.tools and request.messages[0].role == Role.SYSTEM
+        assert request.messages[0].content == isolated_summary_instruction()
+        assert [m.role for m in request.messages] == [Role.SYSTEM, Role.USER, Role.USER]
+        assert request.messages[-1].content == SUMMARY_SELECTION_REMINDER
         payload = json.loads(request.messages[1].content)
         assert payload["kind"] == "isolated_handoff"
         assert runner.context_compactor._digest(store.load_positioned_messages(session)) == before

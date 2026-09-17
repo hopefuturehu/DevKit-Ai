@@ -2,7 +2,8 @@
 
 > 状态：当前实现说明
 >
-> 压缩基线核对：2026-08-31；2026-09-10 按 `875750c` 补充 Skill 历史交付与恢复边界。
+> 压缩基线核对：2026-08-31；2026-09-10 补充 Skill 历史交付与恢复边界；
+> 2026-09-17 区分默认双路径与旧 CURRENT，并同步第三版提示、正文软目标和 thinking 继承。
 
 ## 目标
 
@@ -33,7 +34,7 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 
 ## 四个不变量
 
-1. **事务发布**：新记录先以 `building` 写入。LLM 输出通过章节、来源范围和 Token
+1. **事务发布**：新记录先以 `building` 写入。LLM 输出通过章节、来源范围和策略要求的
    预算校验后，才在一个 SQLite 事务里把旧 `ready` 改为 `superseded`、新记录改为
    `ready`。
 2. **原始记录不删除**：压缩只推进派生视图的 `cursor`，不删除或改写 `messages`、
@@ -41,7 +42,7 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 3. **来源可验证**：每个活动摘要保存连续覆盖范围、该范围消息的 SHA-256 和活动用户锚点。
    默认 `range` 模式下 `source_refs_json` 允许为空，不要求正文逐条引用；`item` 兼容模式才保存并
    校验摘要中的 `[m:N]` 引用。加载和恢复时按覆盖范围重新读取原文并计算哈希。
-4. **失败不推进**：超时、Provider 错误、缺章节、越界引用或摘要超预算都只会把
+4. **失败不推进**：超时、Provider 错误、缺章节、越界引用或候选预算校验失败都只会把
    `building` 标记为 `failed`。旧活动摘要和游标保持不变。
 
 ## 数据与状态
@@ -65,11 +66,22 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 
 ## 压缩与恢复流程
 
-压力触发时，Agent 保留最近的完整消息组，将更早的连续前缀交给 `ContextCompactor`。压缩器
-还会按 `context.compaction_max_input_tokens` 对较早前缀二次分块，确保 System Prompt、旧摘要、
-新增原文和 JSON 包装的总输入不超过压缩预算。两层切分都不会拆开 Assistant Tool Call 和
-对应 Tool Result。长时间未成功压缩的 backlog 因此会按最老安全前缀逐步推进，而不会一次
-生成超过模型窗口的追赶请求。
+### 默认双路径 `a_fallback`
+
+压力触发时，Agent 先选择保留近期原文的安全边界；`StrategyCompactor` 再按完整恢复投影、
+摘要生成额度预留及默认 40K 低水位调整边界。前缀路径复用已经发送的主请求快照，只在末尾
+追加摘要指令与覆盖范围；原 system、工具、历史、模型、thinking 和生成额度保持不变。
+一次可恢复失败后，用独立摘要角色总结同一范围的证据；没有可复用快照时直接走独立路径。
+空闲 `/compact` 属于后一种情况。
+
+两条路径共用第三版内容取舍规则：围绕当前任务重新筛选旧摘要与新增原文，在历史之后再次
+提醒按八章节输出短要点，目标约 3K tokens。提醒只进入摘要请求，不写入会话原文。
+独立请求保持历史 JSON，默认生成额度 8,192，模型与 thinking 继承当前主请求。
+双路径按模型窗口预留校验输入，不进入下述 CURRENT 的固定 60K 分块及候选凝练循环。
+候选通过格式、来源、恢复投影预算和净释放检查后才发布；详见
+[默认双路径与落地验证](../designs/compaction-dual-path-default.md)。
+
+### 原文尾部与发布投影
 
 `recent_conversation_tokens=20000` 现在是连续 tail 的有界目标：选择器从尾部按完整原子组回扫，
 下一个组放不下就停止。为保证至少保留一个最新进展单元，只有“最新单个原子组本身已超过
@@ -77,14 +89,22 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 及其 Tool Result。`compaction_min_recent_user_turns=3` 只用于强制压缩：从尾部回扫，收集到
 3 条 user 即停；否则在下一个更旧组会使 tail 超过 20K 时停止，不再为了凑够三轮突破预算。
 若一个活动 Tool 轮次超过预算，允许 raw tail 从完整 Assistant 消息开始；被覆盖的真实用户
-消息按原始 `role=user` 独立回放，早期执行过程进入派生摘要。普通压力每个 Agent step 只压缩
-一个分块；`/compact` 才会在空闲会话中循环追赶多个分块。
+消息按原始 `role=user` 独立回放，早期执行过程进入派生摘要。默认双路径还会根据完整投影
+预算调整边界，因此 20K 不是每次压缩后必定保留的固定额度。
 
 投影时不再把“用户锚点 + 摘要”拼成 synthetic user。压缩范围内的锚点从不可变 Transcript
 读取并保持原始 `role=user`；派生摘要使用 `role=assistant, name=context_compaction`，排在锚点
 之后、cursor 后的原始 Assistant/Tool tail 之前。这样只有原始 Transcript 用户消息能够支撑
 “用户说过”的归因，同时仍保持“用户任务 → 早期执行摘要 → 最近执行原文”的继续顺序。超大
 锚点会通过现有 blob 机制外置正文，只在请求中保留有界预览和可恢复引用。
+
+### 旧 CURRENT 的分块与恢复请求
+
+以下输入降级、定期重建、重试/修复/凝练流程描述旧 `current` 策略，不是默认双路径的流程。
+旧策略将较早前缀交给 `ContextCompactor`，按 `context.compaction_max_input_tokens` 二次分块，
+确保 System Prompt、旧摘要、新增原文和 JSON 包装的总输入不超过压缩预算。两层切分都不会
+拆开 Assistant Tool Call 和对应 Tool Result。普通压力每个 Agent step 只压缩一个分块；
+`/compact` 可在空闲会话中循环追赶多个分块。
 
 摘要输入对每条消息正文先做 12,000 字符 head/tail 限制，Tool 参数在正常路径保持结构化原值；
 若最早的完整原子组仍放不进 48K 规划目标，再依次尝试 2,000 和 512 字符的降级视图。摘要输入
@@ -112,6 +132,8 @@ Agent Run 另外受 `agent.max_cost_usd` 约束；费用门禁要求配置模型
 相同 parent/delta 失败后默认退避 300 秒；显式压缩、强制 Provider 恢复和 rebuild 不走这条
 退避。
 
+### 各策略共用的恢复与回读
+
 恢复会话时只加载 `ready` 版本。若哈希或摘要结构校验失败，该版本转为 `failed`，系统沿
 `parent_id` 自动恢复最近的有效父版本。自动压缩把活动 Run 的用户目标与 steering 作为锚点
 候选；手动压缩使用最新真实用户候选，二者都排除带 Skill 交付来源的合成 user，并只记录
@@ -127,12 +149,15 @@ Agent Run 另外受 `agent.max_cost_usd` 约束；费用门禁要求配置模型
 
 ## 摘要过大时
 
-系统不会叠加多份摘要。每次生成的新摘要必须替换旧摘要，并受
-`context.compaction_summary_tokens` 可见正文硬限制；软目标由
-`context.compaction_summary_target_tokens` 控制。长度截断只会凝练候选，不会重发完整原文；
-仍无法通过时发布失败、游标不推进。随着任务增长，
-低价值已完成步骤应在下一版中合并，目标、约束、未完成事项、失败、决定和关键文件继续
-保留。
+系统不会叠加多份摘要。每次发布的新摘要替换旧活动摘要，旧版本和原始 Transcript 保留。
+`context.compaction_summary_tokens` 已停用，仅兼容读取旧配置；不会因为完整正文超过旧 4K
+门限而拒绝。默认双路径提示以约 3K 为软目标，最终仍要满足恢复后的总输入预算与净释放要求。
+
+`finish_reason=length/max_tokens` 仍视为生成不完整，不能直接发布。默认双路径的前缀失败
+最多转独立兜底一次，独立兜底仍失败则保持旧摘要和 cursor，没有新增二次缩短请求。
+上文候选凝练仅属于旧 CURRENT。第三版通过主动淘汰无关历史、合并成果和尾部交接提醒
+减少超长输出；实验结果及仍会截断的样本见
+[内容取舍实测](../evaluations/compaction-selection-20260917.md)。
 
 压缩失败只保证“不发布、不推进 cursor”，不保证当前 Run 一定停止。随后 Context Planner 会
 先卸载非 pinned 的 Memory、历史消息组等可选项，可能形成非连续会话视图。history 模式的
@@ -150,20 +175,10 @@ Agent Run 另外受 `agent.max_cost_usd` 约束；费用门禁要求配置模型
 
 ```toml
 [context]
-# 留空时冻结启动时的 model.name，后续 /model 不影响压缩
-# compaction_model = "low-cost-summary-model"
+compaction_strategy = "a_fallback"
 recent_conversation_tokens = 20000
 compaction_summary_target_tokens = 3000
-compaction_summary_tokens = 4000
 compaction_max_output_tokens = 8192
-compaction_max_input_tokens = 60000
-compaction_input_target_ratio = 0.8
-compaction_repair_attempts = 1
-compaction_condense_attempts = 1
-compaction_empty_retries = 1
-compaction_transport_retries = 1
-compaction_transport_retry_backoff_seconds = 1
-compaction_range_attempts = 2
 compaction_failure_backoff_seconds = 300
 compaction_request_timeout_seconds = 90
 compaction_command_max_requests = 8
@@ -173,16 +188,30 @@ compaction_command_max_cost_usd = 0.25
 compaction_min_recent_user_turns = 3
 compaction_source_refs = "range"
 compaction_thinking = "auto"
+
+# 以下为旧 CURRENT 的生成/恢复参数，不改变默认双路径的两次尝试流程
+# compaction_model 留空时，旧策略冻结启动时的 model.name
+# compaction_model = "low-cost-summary-model"
+compaction_max_input_tokens = 60000
+compaction_input_target_ratio = 0.8
+compaction_repair_attempts = 1
+compaction_condense_attempts = 1
+compaction_empty_retries = 1
+compaction_transport_retries = 1
+compaction_transport_retry_backoff_seconds = 1
+compaction_range_attempts = 2
 compaction_max_message_chars = 12000
 compaction_rebuild_every = 5
 ```
 
-`compaction_thinking = "auto"` 会在 DeepSeek 官方端点上仅为压缩请求发送
-`thinking.type = "disabled"`，避免结构化摘要消耗大量不可见推理 token；其他 OpenAI-compatible
-端点沿用 Provider 默认行为。可按端点能力显式改为 `provider_default`、`enabled` 或
-`disabled`，普通 Agent 请求不受此配置影响。
+默认双路径始终继承主请求的 `model.thinking`，不会因 `compaction_thinking` 改成关闭；
+未设置时沿用供应商默认行为。旧策略的 `auto` 同样跟随主模型，旧策略显式
+`provider_default/enabled/disabled` 仍可用于历史对照。生成额度是否包含 reasoning 由供应商决定。
 
 ## 测试
+
+`tests/unit/test_compaction_strategies.py` 与 `tests/integration/test_agent_loop.py` 覆盖默认双路径
+的前缀保持、独立兜底、第三版提示接入、thinking 继承、截断拒绝、发布与主任务续跑。
 
 `tests/unit/test_context_compaction.py` 验证事务发布、原文保留、有界分块、分类恢复、候选凝练、
 请求超时、范围缩小、失败退避、回滚、模型隔离、范围来源和损坏自动降级。

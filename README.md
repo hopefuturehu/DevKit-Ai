@@ -183,6 +183,12 @@ context_mode = "history"
 state_path = "./.bot/state.db"
 ```
 
+默认双路径压缩 `a_fallback` 使用当前任务优先的内容取舍规则，并在历史之后追加简短交接提醒，
+以约 3K tokens 为摘要软目标。自动压缩和空闲 `/compact` 共用这套提示；
+前缀请求保留原请求结构与参数，独立兜底仍默认使用 8,192 生成额度并继承主模型 thinking。
+实施细节见[默认双路径压缩](docs/designs/compaction-dual-path-default.md)，
+样本效果和限制见[提示实测](docs/evaluations/compaction-selection-20260917.md)。
+
 `model_request_retries` 只覆盖 Provider 标记为可重试的限流、服务端、超时和传输错误；默认最多
 重试两次，退避等待最多 30 秒。认证、付费、配置、协议和上下文超限不会走这条路径。未完成的
 流式正文和 Tool Call 会被丢弃，但 Provider 已报告的 token/费用仍累计。

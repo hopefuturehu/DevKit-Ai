@@ -4,6 +4,28 @@
 
 后续已按用户要求取消摘要正文发布门限。下文默认双路径与 thinking 继承机制继续有效；长度规则已更新，移除门限的验证另见[变更记录](compaction-summary-body-limit-removal.md)。
 
+## 2026-09-17：第三版内容取舍提示落地
+
+第三版即 `selection_tail`：共用的内容取舍指令加上历史之后的交接提醒，已在 `8f5c7bc`
+接入默认 `a_fallback`，无需新开关。旧摘要与新增原文一起重新筛选，优先当前任务、有效约束、
+未完成工作和关键证据；按成果合并旧过程，减少重复事实和无关文件清单。八章节与约 3K 的
+软目标保留，尾部再次要求短要点，不续写旧摘要。
+
+自动压缩的前缀路径在原出站快照之后追加完整指令、范围映射和提醒；独立路径使用
+`system 取舍指令 → user 历史 JSON → user 交接提醒`。空闲 `/compact` 直接走同一独立路径。
+提醒仅用于摘要请求，不写入原始 Transcript，也不作为新用户锚点或主模型续跑消息。
+模型、thinking、生成额度、截断拒绝、边界选择和发布校验沿用原实现；没有新增模型调用。
+
+落地核验在 `tests/integration/test_agent_loop.py` 覆盖自动前缀失败后的独立兜底、摘要发布与续跑，
+以及空闲 `/compact` 的正常发布和 `length` 拒绝；三种 thinking 设置共 **9 项通过**。
+断言两条入口都使用正式提示，原前缀保持一致，提醒不进入原文或续跑请求。
+确定性入口测试与此前 48 次真实候选生成实验分开统计；样本成功率和事实保真限制见
+[实测记录](../evaluations/compaction-selection-20260917.md)。
+
+本工作区已核对为 `a_fallback`，editable 安装指向仓库源码；新启动的 CLI/Web 进程自动加载。
+已启动进程需要重新启动才能加载源码变更。落地核验时未发现本机匹配的 bot CLI/Web 进程，
+未进行服务重启或额外付费请求，也未改写已有会话的摘要。
+
 ## 运行行为
 
 - 默认 `context.compaction_strategy` 从 `current` 改为 `a_fallback`。配置模型、`bot init` 模板和 README 同步更新；未显式配置策略的已有工作区直接采用新默认值。
@@ -31,7 +53,7 @@
 
 开启 thinking 时，生成额度是否包含 reasoning、如何分配，取决于供应商；这次没有增加生成额度，也没有用模拟测试证明开启 thinking 能提高摘要事实准确率。
 
-## 验证
+## 2026-09-13 验证
 
 `pytest tests/unit tests/integration --tb=short`：**557 passed, 7 skipped**。另有一个既有 Starlette/httpx 弃用提示，无失败。
 
