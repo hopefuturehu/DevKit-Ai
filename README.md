@@ -138,7 +138,7 @@ tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
 tool_result_head_chars = 6000
 tool_result_tail_chars = 2000
-# 摘要长度软目标；完整摘要不会仅因超过该目标而被拒绝
+# 旧 CURRENT 可配置软目标；默认双路径提示直接约定约 3K，完整摘要不因超过软目标而拒绝
 compaction_summary_target_tokens = 3000
 compaction_max_output_tokens = 8192
 compaction_max_input_tokens = 60000
@@ -231,7 +231,8 @@ Tool 请求，但仍保留敏感路径、工作区边界、非法参数和策略
 `auto:<VARIABLE>` 优先读取已有环境变量，未设置时回退到工作区根目录的 `.env`，且不会修改
 进程环境。需要固定来源时，可分别使用严格的 `env:<VARIABLE>` 或 `dotenv:<VARIABLE>`。
 也可以通过 `model.api_key` 直接提供凭据；直接值优先于 `api_key_ref`，`bot config get` 只显示
-`<redacted>`。删除或清空直接值后，仍会按 `api_key_ref` 从环境变量或 `.env` 读取。工作区
+`<redacted>`。删除配置中的 `api_key` 字段后，按 `api_key_ref` 从环境变量或 `.env` 读取；
+不要设置成空字符串，它会触发 Schema 校验错误。工作区
 `.bot/` 默认被 Git 忽略，但保存凭据的配置文件仍应设置为 `chmod 600 .bot/config.toml`。
 
 `bot init` 会创建项目配置和不含真实密钥的 `.env.example`，并在目标 Skill 不存在时把随包发布的

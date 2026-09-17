@@ -8,7 +8,7 @@
 ```text
 真实用户轮次
   -> deterministic Router: NONE | SUGGEST_SEARCH | REQUIRE_SEARCH | REQUIRE_EVIDENCE
-  -> system runtime note（不含记忆正文）
+  -> synthetic user runtime note（bot.context.v1，不含记忆正文，不具备 System 权限）
   -> assistant Tool Call
   -> tool 角色的一次性检索/证据正文
   -> 后续窗口只保留收据

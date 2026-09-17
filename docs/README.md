@@ -19,7 +19,7 @@
 ## 按问题阅读
 
 - **理解一次模型请求如何构成**：[请求组装](architecture/context-assembly.md) → [输入 token 计数](architecture/input-token-calibration.md) → [单摘要压缩](architecture/recoverable-context-compaction.md)。
-- **查压缩策略的变更和依据**：[设计演进](designs/README.md) → [Flash 三轮复测](evaluations/context-strategy-flash-repeats.md) → [结果复核与归因边界](evaluations/context-strategy-flash-causal-analysis.md)。
+- **查当前压缩及改动依据**：[默认双路径与第三版落地](designs/compaction-dual-path-default.md) → [内容取舍实测](evaluations/compaction-selection-20260917.md)；早期策略比较见 [Flash 三轮复测](evaluations/context-strategy-flash-repeats.md)及[归因边界](evaluations/context-strategy-flash-causal-analysis.md)。
 - **定位反复调用工具或任务不结束**：[长任务控制](architecture/termination.md) → [四项调整方案](designs/repeated-tool-execution-plan.md) → [修复验证](evaluations/repeat-guard-validation.md)。
 - **检查 Skill 的交付与恢复**：[首版方案](designs/active-skill-layer-removal-plan.md) → [实施与验证](evaluations/skill-context-validation.md) → [后续生命周期设计](designs/skill-run-lifecycle-design.md)。
 - **运行任务集并解释成绩**：[通用任务评测](evaluations/evaluation.md) → [Terminal-Bench](evaluations/terminalbench-evaluation.md) / [SWE-bench](evaluations/swebench-evaluation.md) → [公开基准部分结果](evaluations/public-benchmark-40-results.md)。

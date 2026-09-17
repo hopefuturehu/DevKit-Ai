@@ -5,6 +5,7 @@
 > 设计基线：通用 Agent Core、CLI-first、local-first、OpenAI-compatible、Skill/Tool 可扩展、安全默认开启
 >
 > 2026-09-10：Skill 相关实现按 `875750c` 同步，完整验证范围见 [Skill 历史交付](../evaluations/skill-context-validation.md)。
+> 2026-09-17：同步默认双路径压缩、响应完整性与清理边界、凭据支持及配置；历史验收数字保留原日期。
 
 ## 1. 产品定义
 
@@ -237,7 +238,7 @@ run.completed
 
 - `max_steps`、`max_wall_time_seconds`：默认 `None`；显式设置时作为部署或评测硬策略；
 - `max_input_tokens`、`max_output_tokens`；
-- `max_cost_usd`：默认关闭，Provider 能提供价格信息且显式设置时生效；
+- `max_cost_usd`：默认关闭，显式启用前需配置输入/输出单价；运行器按配置价格估算费用和请求预留；
 - `max_tool_output_bytes`：单次工具输出边界；累计边界默认关闭，可显式配置；
 - `max_consecutive_failures`：默认关闭；旧部署需要立即熔断时可显式配置；
 - `process_wait_seconds`：命令 Tool 同步等待多久后返回受管进程句柄；
@@ -262,7 +263,9 @@ run.completed
 Tool 通过 `ToolResult.progress` 显式返回强进展、弱进展、无进展或外部等待。强进展开启新 epoch；
 外部等待根据静默时长提醒但默认不会自动终止；无进展累积停滞计数。控制状态按 session 写入
 SQLite 并跨 Run 恢复。首次达到阈值时注入警告，随后进入一次受控恢复阶段；恢复后相同模式复发
-时撤销 Tool 定义，只允许模型生成一次事实化收尾。预算、上下文和失败也复用该终止协调器。
+时保留可用 Tool 声明并设 `tool_choice=none`，只允许一次事实化收尾，返回的工具调用不执行。
+预算、上下文和失败也复用该终止协调器。独立重复调用限制、响应完整性和有限响应恢复的默认值
+及边界见[长任务控制](termination.md)。
 
 ### 5.3 Markdown Agent 与父子调度
 
@@ -477,7 +480,8 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
 上下文管理采用五级防线，而不是对消息数组做一次性字符串摘要：
 
 1. **预算级**：用模型上下文窗口减去输出、协议和安全预留，得到硬输入上限；
-   每次请求先做 Unicode 感知保守估算，Provider 支持时再做精确计数。
+   官方 DeepSeek V4 Flash 使用本地 tokenizer 预测加余量，其他路径使用保守估算；
+   Provider 支持时可提供精确计数，不能把本地预测当服务端保证。
 2. **装配级**：所有内容进入带 layer、source、trust、retention、priority 和
    atomic group 的 Context Ledger；每次模型调用都重新规划，Assistant Tool Call 与对应
    Tool Result 不可拆分。
@@ -485,11 +489,12 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
    与可分页读取的 `context_ref`；Tool schema 超预算时只保留目录和动态激活入口。
    history 模式的 Skill 正文有独立来源，绕过通用预览；当前 Run 必需交付所在的完整工具组必留。
 4. **单摘要级**：旧消息前缀只在 Tool Call/Result 原子组边界切分。LLM 用上一份活动摘要
-   和新增原文生成一份替代摘要；摘要必须包含目标、约束、进度、决定、文件、失败和下一步，
+   和新增原文生成一份替代摘要；摘要包含 Goal、Constraints、Progress、Key Decisions、
+   Relevant Files、Failures、Next Steps、Critical Context 八个章节，
    结构化记录连续覆盖范围与来源 SHA-256；默认不要求摘要正文逐条引用，`item` 兼容模式才
    校验 `[m:N]`。
-5. **恢复级**：新摘要先以 `building` 写入，通过来源、结构和预算校验后，才与旧活动版本在
-   同一事务中切换。恢复时重新发现 Core/Project/Environment，加载活动版本保存的原始 user
+5. **恢复级**：通过来源、结构和预算校验的候选，经 `building` 记录与旧活动版本在同一事务中
+   切换为 `ready`。恢复时重新发现 Core/Project/Environment，加载活动版本保存的原始 user
    锚点、一个 `ready` Assistant 摘要和游标后的原始消息；摘要损坏时沿父版本自动降级。
    若活动 Skill 正文已被摘要覆盖，Runtime 从绑定的原版本 blob 恢复，再核对最终请求。
 
@@ -497,6 +502,12 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
 到已验证的历史版本。原始消息、Tool Run 和事件始终是事实来源，不因压缩而删除。旧
 `ContextSnapshot` 仅为 API 兼容保留，不进入默认运行上下文。详细状态机和不变量见
 [可恢复的单摘要上下文压缩](recoverable-context-compaction.md)。
+
+默认 `a_fallback` 先复用真实主请求前缀，跳过或可恢复失败后至多做一次独立摘要；空闲
+`/compact` 直接走独立路径。第三版提示重新筛选旧摘要和新原文，并在历史后追加交接提醒，
+以当前任务和约 3K tokens 为软目标；旧 4K 正文门限已取消，生成截断仍不发布。
+两条路径均继承主请求模型与 thinking，前缀沿用原生成额度，独立额度默认 8,192。
+固定 60K 分块和候选凝练属于旧 CURRENT；`/compact rebuild` 目前仍直接使用该重建入口。
 
 自动压缩失败时旧摘要和 cursor 保持不变，但 Agent 不一定立即停止：Planner 仍可卸载非
 pinned 的 Memory、历史原子组等可选内容。history 模式的必要 Skill 正文不可静默卸载；
@@ -642,7 +653,7 @@ KSYS、Tuner Adapter 只负责命令能力，例如采集、报告和具体分�
 
 ### 8.2 默认权限
 
-建议提供三个预设：
+提供三个权限模式：
 
 | 模式 | 文件读取 | 文件写入 | Shell | 网络 | 适用场景 |
 |---|---|---|---|---|---|
@@ -660,11 +671,11 @@ KSYS、Tuner Adapter 只负责命令能力，例如采集、报告和具体分�
 - 使用参数数组直接启动进程；只有确实需要管道、重定向、通配符时才进入 Shell 模式。
 - 对复合命令解析为多个 segment，分别评估风险。
 - 工作目录必须经 `realpath` 校验，防止 `..` 和 symlink 逃逸。
-- 子进程使用独立进程组；Runtime 持续跟踪 PGID，即使组 leader 已退出，仍将存活的
-  后台成员计入命令生命周期，取消、hard timeout 和 Runtime 关闭都终止整组。
+- POSIX 子进程使用独立 session，Runtime 跟踪原 SID 成员及已观察后代；根进程退出不代表
+  后代已结束。取消、hard timeout 和关闭共享有期限清理，未确认清空则报告残留，不能保证都已终止。
 - CLI 对 `SIGTERM` 和 `SIGHUP` 进入受保护的异步清理流程；Subagent 关闭失败不得跳过
-  ExecutionTarget 清理。`SIGKILL`、主机掉电或主动 `setsid`/daemonize 逃离进程组仍需
-  外部 supervisor、Linux cgroup 或 Windows Job Object 提供强隔离。
+  ExecutionTarget 清理。两次观察间完全脱离 session 的后代、`SIGKILL` 或主机掉电仍需
+  外部 supervisor、Linux cgroup 或 Windows Job Object 提供更强保证；Windows 首版仅跟踪根进程。
 - 命令超过同步等待时间后返回受管进程句柄，不因 Tool 返回而误杀；Runtime 关闭时清理所有
   未退出的受管进程。
 - 交互式进程必须显式启用 stdin；普通进程默认使用 `DEVNULL`，避免意外等待输入。
@@ -695,10 +706,12 @@ argv 前缀生成匹配规则，路径、测试选择等尾部参数变化时无
 
 ### 8.6 凭据
 
-- 优先使用操作系统 Keychain/Secret Service；环境变量作为兼容方案。
-- 配置文件只保存凭据引用，不保存明文。
-- Provider 请求日志禁止记录 Authorization Header 和完整请求体。
+- 已支持 `api_key_ref` 的 `auto:/env:/dotenv:` 引用；`auto:` 优先环境变量，再读工作区 `.env`。
+- 也支持非空 `model.api_key` 直接值，优先于引用；工作区凭据配置应保持 0600 且不提交到 Git。
+- `bot config get` 隐藏直接密钥；Provider 日志不记录 Authorization Header。压缩/恢复审计会
+  保存经脱敏的请求或响应 blob，不能把“不记录凭据”理解为“不持久化任何模型内容”。
 - 启动时建立敏感值集合，所有事件写盘和展示前统一脱敏。
+- Keychain/Secret Service 尚未接入。
 
 ### 8.7 模型数据边界
 
@@ -747,6 +760,8 @@ SQLite 表的最小集合：
 ## 10. 配置设计
 
 配置优先级从低到高：默认值 → 用户配置 → 项目配置 → 环境变量 → CLI 参数 → 会话内临时设置。
+显式 `--config` 替代用户/项目配置文件合并，之后仍叠加环境变量和 CLI 覆盖；环境变量仅支持
+`config/loader.py` 列出的映射，不是任意字段都可通过同名变量覆盖。
 
 示例：
 
@@ -799,12 +814,13 @@ workspace_only = true
 network = "ask"
 
 [context]
+compaction_strategy = "a_fallback"
 max_input_tokens = 120000
 auto_compact_threshold = 0.80
 output_reserve_tokens = 4096
 protocol_reserve_tokens = 2048
 safety_margin_tokens = 2048
-# 留空时冻结启动时的 model.name，后续 /model 不影响压缩
+# 仅旧 CURRENT/B 等路径使用；默认双路径始终跟随当前主模型
 # compaction_model = "low-cost-summary-model"
 # 连续 raw tail 按 token 有界；强制恢复收集到三条 user 即停，也不加入会使 tail 超预算的更旧组
 recent_conversation_tokens = 20000
@@ -815,11 +831,12 @@ tool_schema_tokens = 16000
 tool_result_inline_tokens = 4000
 tool_result_head_chars = 6000
 tool_result_tail_chars = 2000
+# 旧 CURRENT 可配置软目标；双路径提示约定约 3K
+compaction_summary_target_tokens = 3000
+compaction_max_output_tokens = 8192
+# 以下输入分块、修复与重试参数供旧 CURRENT 等兼容路径使用
 compaction_max_input_tokens = 60000
 compaction_input_target_ratio = 0.8
-compaction_summary_target_tokens = 3000
-compaction_summary_tokens = 4000
-compaction_max_output_tokens = 8192
 compaction_repair_attempts = 1
 compaction_condense_attempts = 1
 compaction_empty_retries = 1
@@ -832,7 +849,7 @@ compaction_command_max_requests = 8
 compaction_command_max_seconds = 600
 compaction_command_max_cost_usd = 0.25
 compaction_source_refs = "range"
-# DeepSeek 官方端点自动关闭摘要请求的思考模式；其他端点不注入该参数
+# 双路径始终跟随主请求 thinking；旧策略 auto 也跟随 model.thinking
 compaction_thinking = "auto"
 compaction_max_message_chars = 12000
 compaction_rebuild_every = 5
@@ -863,7 +880,8 @@ tool_output = "summary"
 progress = true
 ```
 
-配置读取后应经过严格 Schema 校验；未知字段默认报错或警告，避免拼错字段后静默失效。`bot doctor` 输出最终生效值及来源，但对敏感项只显示引用或掩码。
+配置读取经过严格 Schema 校验，未知字段直接报错。`bot config get` 显示脱敏后的有效配置；
+`bot doctor` 检查 Schema、模型地址/名称、凭据和环境工具，不提供每个字段的逐层来源追踪。
 
 ## 11. 推荐技术栈
 

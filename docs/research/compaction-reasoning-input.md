@@ -1,5 +1,10 @@
 # 历史 reasoning 是否进入压缩输入：判断、对照与验证
 
+> 2026-09-17 边界补充：下文“当前 bot”指 9 月 9 日的 CURRENT 快照。
+> 现默认 `a_fallback` 的独立请求会把证据视图中的 `reasoning_content` 序列化进历史 JSON；
+> 前缀路径沿用主请求序列化规则。白名单过滤只属于旧 CURRENT，历史规模估算不代表现默认。
+> 当前路径见[上下文组装](../architecture/context-assembly.md#大消息和-reasoning-如何计入)。
+
 核对日期：2026-09-09。本文讨论主 Agent 的历史 reasoning 是否作为摘要模型的输入材料。
 摘要模型自身是否开启 thinking、它生成的 reasoning 是否保存或回放，见
 [压缩 reasoning 的保存与回放](compaction-reasoning-replay.md)，不能混用这三个指标。

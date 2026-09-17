@@ -2,21 +2,23 @@
 
 > 状态：当前实现说明
 >
-> 核对日期：2026-09-10
+> 核对日期：2026-09-17
 >
-> Skill 实现基线：`875750c`；默认运行时使用 `ContextCompactor`，`HandoffEngine` 目前仅由独立评测入口调用。
+> 默认压缩为 `StrategyCompactor` 的 `a_fallback`，复用 `ContextCompactor` 的校验和投影；
+> `HandoffEngine` 仍是独立评测入口。Skill 历史交付基线为 `875750c`。
 
 本文描述主 Agent 每次调用模型时的实际请求视图。SQLite Transcript、压缩记录、计划事件、
 子 Agent mailbox、Markdown 记忆和 Skill 文件是事实源；组装过程生成本次 `ModelRequest`，
 不会为了排序或修复协议而改写原始 Transcript。新用户输入、Tool 结果和 mailbox 桥接消息仍会
 正常追加到 Transcript；“不改写”不等于整个组装与执行过程没有持久化操作。
 
-当前代码有三种不同请求，不能把实验路径的行为当作默认路径：
+当前请求入口需要区分默认策略、兼容策略与独立实验：
 
 | 请求 | 当前入口 | 输入形态 |
 |---|---|---|
 | 主 Agent 执行 | `AgentRunner._run_loop()` | 本文的分层 `messages` + 独立 `tools` |
-| 默认容量压缩 | `ContextCompactor._summary_request()` | 独立摘要 System + JSON User，携带旧摘要与有界历史片段，无业务 Tool |
+| 默认双路径压缩 | `StrategyCompactor.summarize_with_fallback()` | 先复用已发送的主请求前缀；跳过或可恢复失败后使用摘要 System + 历史 JSON User + 尾部提醒 User，无 Tool |
+| 旧 CURRENT / 显式 rebuild | `ContextCompactor._summary_request()` | 独立摘要 System + JSON User，携带旧摘要与有界历史片段，无业务 Tool |
 | A/D handoff 实验 | `HandoffEngine.generate()` | 复制已有主请求并追加交接指令，保留原有前缀、历史和 Tool schema |
 
 Codex、OpenCode、Pi、Hermes Agent、DeepSeek Harness 和 Nanobot 的端到端组装、reasoning
@@ -242,11 +244,13 @@ target = floor(hard * context.auto_compact_threshold)
 | `tool_result_inline_tokens` | 4K | 外置内容在请求中的摘录预算 |
 | `recent_conversation_tokens` | 20K | 连续近期原文的有界目标；为保证至少保留一个进展单元，只有最新单个不可拆原子组可突破 |
 | `compaction_min_recent_user_turns` | 3 | 强制压缩的预算内停止条件：收集到 3 条真实用户消息即停，合成 Skill 不计入；否则在下一个更旧组会使 tail 超过 20K 时停止 |
-| `compaction_summary_target_tokens` | 3K | 摘要软目标；未显式配置时运行时取 `min(3000, compaction_summary_tokens)` |
-| `compaction_summary_tokens` | 4K | 摘要正文的估算 token 校验上限；不含回放时附加的溯源头和用户锚点 |
-| `compaction_max_output_tokens` | 8,192 | 独立压缩请求的输出预算，与摘要正文限制分开 |
-| `compaction_max_input_tokens` | 60K | 独立压缩请求的配置输入上限，仍受模型窗口扣除预留后的可用空间约束 |
-| `compaction_input_target_ratio` | 0.8 | 压缩分块规划比例；默认有效输入上限 60K 时按 48K 规划 |
+| `compaction_strategy` | `a_fallback` | 默认双路径；旧 `current/a/b` 为显式选项 |
+| `compaction_summary_target_tokens` | 未设置时旧 CURRENT 取 3K | 旧 CURRENT 的可配置软目标；默认双路径提示直接约定约 3K，不动态读取该字段 |
+| `compaction_summary_tokens` | 4K（兼容字段） | 已停用，不限制正文发布，也不再影响软目标 |
+| `compaction_max_output_tokens` | 8,192 | 独立摘要生成额度；前缀路径继承主请求额度；双路径选择边界时也按此值预留摘要空间 |
+| `compaction_low_water_tokens` | 40K | 双路径候选的完整恢复投影不得超过此上限，并有净释放 |
+| `compaction_max_input_tokens` | 60K | 旧 CURRENT 等兼容路径的输入上限；默认双路径按模型窗口扣除各项预留后检查 |
+| `compaction_input_target_ratio` | 0.8 | 旧 CURRENT 分块规划比例；默认 60K 上限对应 48K 规划目标 |
 
 排序靠 layer；是否能进入请求则靠 retention、priority 和预算：
 
@@ -289,7 +293,7 @@ target 时直接保留，避免字符估算过高造成无谓卸载；触发压�
 | Skill 正文限额 | 活动正文累计超过 `active_skill_tokens=16K` | 新模式不提交不完整绑定；显式加载终止，自动加载返回工具错误 | 已成功绑定的正文完整保留；恢复或整组装箱后仍超限则停止执行 |
 | Memory 限额和按需检索 | 显式记忆使用 `memory_tokens=8K`；`eager` 兼容索引最多 2K | 默认不注入自动索引；Router 按需检索 | `search_memory` / `load_memory_evidence` 一次性交付 |
 | 分层预算装箱 | 任意主请求组装时都执行 | `PINNED` 必留；其余按 priority、recency 和 atomic group 选择，放不下的组不进入本次请求 | Transcript 保留；`search_session_history` 可检索 |
-| Reasoning 作用域收窄 | Assistant reasoning 不属于仍需回放的 Tool Call 消息 | 普通请求不重放该 reasoning；默认独立压缩输入也不携带 reasoning 正文 | SQLite 仍持久化，来源哈希仍覆盖；handoff 输入见后文 |
+| Reasoning 作用域收窄 | Assistant reasoning 不属于仍需回放的 Tool Call 消息 | 普通请求不重放该原生字段；双路径独立摘要的历史 JSON 仍可包含 reasoning | SQLite 仍持久化，来源哈希仍覆盖；各摘要路径见后文 |
 | 协议清理 | 组装后的请求副本存在孤儿 Tool 或缺失结果时 | 修复 Call/Result 配对，丢弃孤儿结果；不把历史伪 `system` 恢复为特权消息 | 不改写持久 Transcript |
 | Provider 溢出应急外置 | 本 step 首次报 context-length error、未用修复额度，且强制压缩没有推进 | 将超过 2,000 字符的普通正文缩成约 1,500 字符前缀和引用；跳过已登记的 Skill 交付，再重试一次 | blob 中保留完整正文；必要 Skill 仍须通过最终检查 |
 
@@ -334,17 +338,21 @@ Tool schema：传 `query` 时在 blob 存储侧做大小写可选的字面量检
 1,500 字符前缀外置；完整 Skill 依赖不因此变成预览。
 
 Assistant 的 `reasoning_content` 独立持久化，但只有同一条 Assistant 消息还带 Tool Call 时才
-序列化回普通 Agent 请求，`TokenEstimator` 也只在这一条件下计入它。默认独立压缩模型的
-`new_messages/raw_messages` 不包含 reasoning；不过 `source_sha256` 对完整持久消息计算，因此
-reasoning 的任何变化仍会使来源校验失败。压缩请求收到的 reasoning delta 只计入诊断和 usage，
-不会成为摘要正文。
+序列化回普通 Agent 请求，`TokenEstimator` 也只在这一条件下计入原生字段。
+默认双路径的前缀沿用这条序列化规则；独立路径对证据视图调用 `message.model_dump()`，
+其中的 `reasoning_content` 会作为历史 JSON 的普通文本进入输入，不受外层原生字段过滤影响。
+旧 CURRENT 的 `new_messages/raw_messages` 才通过白名单排除 reasoning。
+两者的 `source_sha256` 都覆盖完整持久消息，因此 reasoning 改动仍会使来源校验失败。
+双路径将摘要调用自身的 reasoning 与正文、工具调用保存在响应审计 blob，活动摘要仅使用正文；
+旧 CURRENT 只累计 reasoning 字符数。保存审计推理不等于把它作为新摘要消息回放。
 
 ## Tool schema 是独立请求字段
 
 Tool 定义不转换成普通 `messages`，而是放入 `ModelRequest.tools`，由 OpenAI-compatible
 Provider 序列化成顶层 `tools`。有 Tool 时默认 `tool_choice=auto`；Memory Router 要求检索且
 Provider 支持 named choice 时会指定工具，否则由 Agent 的响应门禁执行必需调用约束。
-终止模型收尾使用空 Tool 列表。所有可见 Tool 按名称排序，使注册扫描
+终止模型收尾保留可复用快照中的 Tool 声明并设置 `tool_choice=none`；无快照时可为空，
+返回的工具调用均不执行。所有可见 Tool 按名称排序，使注册扫描
 顺序变化不会无意义地改变缓存前缀。
 
 Skill 控制工具使用本 Run 的 Catalog 快照：非空目录且允许自动激活时提供 `activate_skill`，
@@ -384,21 +392,42 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 
 | 场景 | 当前动作 | 最终状态 |
 |---|---|---|
-| 未规划候选输入超过 `target` | 同步尝试压缩一个最旧、Tool-safe 的连续前缀；普通压力保留约 20K 连续 tail，超大单轮可从 Assistant 边界切分并独立回放真实用户锚点 | 压缩成功则推进 cursor；失败则旧摘要/cursor 不变，继续交给 Planner |
-| 压缩失败或没有安全前缀 | 不删除原文；普通同增量失败默认退避 300 秒 | Planner 仍可丢弃非 pinned 组并发送，因此压缩失败不等于 Run 立即失败 |
+| 未规划候选输入超过 `target` | 先按约 20K 连续 tail 选择安全边界，默认双路径可进一步扩大覆盖范围以满足完整恢复预算；前缀尝试后至多独立兜底一次 | 压缩成功则推进 cursor；失败则旧摘要/cursor 不变，继续交给 Planner |
+| 压缩失败或没有安全前缀 | 不删除原文；双路径失败默认在当前 Run 的策略实例内退避 300 秒，跨 Run 不继承冷却 | Planner 仍可丢弃非 pinned 组并发送，因此压缩失败不等于 Run 立即失败 |
 | Planner 估算超过 target | 丢弃放不下的非 pinned 原子组；Provider 有精确计数且超过 hard 时再从低优先级、较旧组开始卸载 | 能降到 hard 内则继续请求，可能形成非连续历史视图 |
 | pinned messages + 已选 Tool schema 仍超过 hard | Skill 依赖存在时最多强制压缩修复一次，再验证原文；仍超限不发出执行请求 | `limit_reached/context_limit` 或 `skill_context_budget_exceeded`，禁用模型收尾并使用确定性文本 |
 | Provider 返回上下文长度错误且本 step 尚未修复 | 从尾部按真实用户消息和完整原子组选取保留范围；强制压缩未推进则外置普通正文；重建并检查必要 Skill 后重试 | 成功响应后重置修复额度；该额度与 Skill 本地装箱修复共用 |
 | 本 step 修复后 Provider 仍返回上下文长度错误 | 不再循环压缩或采样 | Run 为 `failed/provider_error`，禁用模型收尾，使用确定性文本 |
 
-普通预防性压力压缩每轮尝试一个分块；本地 Skill 装箱或 Provider 超限还可在共享修复额度内
-强制压缩。修复重试不递增逻辑 step，也不重复普通预防性压缩。backlog 仍很大时，下一 step
-再继续推进。显式 `/compact` 则在空闲会话中循环处理分块，直到目标位置、无进展或请求数/时间/费用预算之一
-到达上限。
+普通预防性压力压缩每轮发起一次整理；本地 Skill 装箱或 Provider 超限还可在共享修复额度内
+请求强制整理，但双路径仍受策略实例的失败冷却约束。修复重试不递增逻辑 step，也不重复
+普通预防性压缩。空闲 `/compact` 没有已发送的快照，默认直接做一次独立摘要；其命令预算
+仍限制时间、请求数和费用。旧 CURRENT 才按固定输入预算分块，并可在 `/compact` 内循环追赶。
 
-## 默认压缩请求与 handoff 实验的区别
+## 默认双路径、旧 CURRENT 与 handoff 实验的区别
 
-默认 `ContextCompactor` 不直接重发完整主请求，而是重新构造一条摘要 System 和一条
+### 默认双路径
+
+`a_fallback` 的前缀路径复制真实已发送快照，追加已完成的消息后缀和交接指令，保留原前缀
+及请求参数；快照失效、证据映射不匹配、强制工具选择或输入预算不足时直接跳过。
+前缀出现工具调用、截断、格式或恢复预算失败时，可转一次独立摘要；鉴权、状态冲突等错误
+直接结束本次压缩。摘要请求返回的工具调用始终不执行。
+
+独立请求为 `system 指令 → user 历史 JSON → user 尾部交接提醒`，JSON 包含
+`previous_summary`、`covered_range` 和带位置的 `transcript`。它使用当前证据视图，保留已有
+外置引用与一次性交付状态，不自动展开 blob，也不额外套用 CURRENT 的 12,000 字符白名单。
+默认第三版提示统一重新筛选旧摘要与新原文，优先当前任务，约 3K 为软目标；提示与提醒不写入
+原始 Transcript。完整候选仍须满足章节、来源、恢复后的输入预算与净释放检查。
+
+独立生成额度默认 8,192；前缀额度继承主请求。两次尝试均继承捕获的主模型与 thinking，
+`compaction_model/compaction_thinking` 旧覆盖项不改变这条路径。输入门限按各自请求的
+`max_output_tokens` 与主输出预留取较大值，再扣除协议和安全余量；不受固定 60K 上限限制。
+`length/max_tokens` 不发布，完整正文超过 3K 或旧 4K 门限不会单独拒绝。具体规则见
+[默认双路径](../designs/compaction-dual-path-default.md)与[第三版实测](../evaluations/compaction-selection-20260917.md)。
+
+### 旧 CURRENT 与显式原文重建
+
+旧 `ContextCompactor` 不直接重发完整主请求，而是重新构造一条摘要 System 和一条
 `user(name=context_compaction_input)`。后者是压缩专用 JSON payload，不使用主 Agent 合成层
 的 `bot.context.v1` 信封。增量模式传 `previous_summary + new_messages`；从原文重建时传
 `raw_messages`，不叠加旧摘要。每条消息默认最多提供 12,000 字符正文，不包含
@@ -427,13 +456,17 @@ compaction_target = floor(compaction_hard * context.compaction_input_target_rati
 摘要生成、空正文重试、格式修复、超长再压缩和传输重试都受独立配置约束，不能把“一次推进
 一个分块”理解为“最多调用一次 LLM”。范围重试默认最多 2 次，可以缩小待覆盖前缀。
 
-摘要正文默认软目标 3K、估算校验上限 4K，输出预算另为 8,192；八个必需标题是 `Goal`、
+摘要正文软目标由 `compaction_summary_target_tokens` 设置，未设置时取 3K；旧 4K 正文门限
+已取消，生成额度默认 8,192。八个必需标题是 `Goal`、
 `Constraints`、`Progress`、`Key Decisions`、`Relevant Files`、`Failures`、`Next Steps`、
 `Critical Context`。默认 `compaction_source_refs="range"` 由运行器保存范围和来源哈希；
-配置为 `item` 才额外要求条目来源标注。`compaction_thinking="auto"` 在配置的 DeepSeek
-官方域名上设为 disabled，其他端点使用 Provider 默认值；可显式覆盖。原文重建、校验、修复与
+配置为 `item` 才额外要求条目来源标注。旧策略 `compaction_thinking="auto"` 跟随当前
+`model.thinking`，可显式覆盖；默认双路径配置下仍始终继承主模型。`/compact rebuild` 目前
+直接调用该原文重建入口，不使用双路径提示，也不覆盖尚未压缩的 tail。原文重建、校验、修复与
 恢复的细节见[可恢复上下文压缩](recoverable-context-compaction.md)和
 [超大上下文压缩](../research/oversized-context-compaction.md)。
+
+### 独立 A/D 实验
 
 `src/bot/compaction/handoff.py` 中的 `HandoffEngine` 是另一个显式调用的实验入口：
 
@@ -447,14 +480,15 @@ compaction_target = floor(compaction_hard * context.compaction_input_target_rati
 | 成功后的视图 | 指定的稳定前缀 + 覆盖范围内全部 user 锚点 + 唯一 Assistant 摘要 + 原始 tail；D 另带闭合控制对 |
 
 handoff 复制主请求，因此其中带 Tool Call 的 Assistant reasoning 仍可按 `to_openai()` 规则
-回传，不能套用默认压缩“历史 reasoning 不入摘要请求”的结论。保留前缀的长度由
+回传，不能套用旧 CURRENT“历史 reasoning 不入摘要请求”的结论。保留前缀的长度由
 `prefix_count` 指定；未指定时只识别开头连续的 System 消息，L1 驱动显式传入基础上下文长度。
 Tool schema 在生成与发布预算中继续计数，summary 合格本身不足以证明完整请求已经降压。
 
 成功发布复用 `context_compactions` 和 `ContextCompactor.context_messages()`，默认 Runner
 可以读取这些记录继续运行；但 `cli/runtime.py` 尚未实例化 `HandoffEngine`，主 Agent 也没有
-自动 A/D 触发和 `request_handoff` 注册。故生产默认仍是前文的容量分块压缩。
-截至核对日期，L0/L1 已完成，L2/L3 尚未运行；L1 是受控断点、强制切换实验，不能证明 D 已能
+自动 A/D 触发和 `request_handoff` 注册。生产默认双路径由 `StrategyCompactor` 承担，
+不能把它等同于 A/D 实验引擎。原交接评测记录的 L0/L1 已完成，L2/L3 未运行；
+L1 是受控断点、强制切换实验，不能证明 D 已能
 自主选择交接时机或 AD 已有整题收益。范围与数值见
 [A+D 交接测试结果](../evaluations/context-handoff-l0-l1-results.md)和
 [交接收益评测方案](../evaluations/context-handoff-evaluation-plan.md)。
@@ -540,7 +574,8 @@ Agent 时另有 `subagents` 状态。`context.packed` 只在发生卸载时发�
 | Core Policy、角色校验、基础来源、预算与排序 | [`core/context.py`](../../src/bot/core/context.py)：`ContextAssembler`、`ContextPlanner`、`validate_main_agent_context_roles` |
 | 主循环、TODO/mailbox 回注、外置、Tool 选择与恢复 | [`core/agent.py`](../../src/bot/core/agent.py)：`_run_loop`、`_build_context_items`、`_select_tool_definitions`、`_refresh_plan_note` |
 | 序列化角色和 reasoning 规则 | [`core/models.py`](../../src/bot/core/models.py)：`ChatMessage.to_openai`；[`providers/openai_compatible.py`](../../src/bot/providers/openai_compatible.py) |
-| 默认压缩请求、分块、锚点与活动投影 | [`compaction/service.py`](../../src/bot/compaction/service.py)：`ContextCompactor` |
+| 默认双路径请求、边界与发布预算 | [`compaction/strategies.py`](../../src/bot/compaction/strategies.py)：`StrategyCompactor` |
+| 旧 CURRENT 分块、共用校验、锚点与活动投影 | [`compaction/service.py`](../../src/bot/compaction/service.py)：`ContextCompactor` |
 | handoff 引擎与受控续跑 | [`compaction/handoff.py`](../../src/bot/compaction/handoff.py)、[`evals/context_handoff.py`](../../src/bot/evals/context_handoff.py) |
 | 生产装配与全部默认配置 | [`cli/runtime.py`](../../src/bot/cli/runtime.py)、[`config/models.py`](../../src/bot/config/models.py) |
 
@@ -579,12 +614,15 @@ Transcript、压缩器、大 Tool Result 外置、`load_context_reference` 和�
 4KB 盲分页和一次性交付；`current` 启用压缩、外置、`query` 和一次性交付。任务目标、fixture
 输出和 seed 完全相同，只有待测的上下文策略不同，`workload.sha256` 因而必须一致。
 
+该评测显式固定 `compaction_strategy="current"` 以保持历史基线；变体名 `current`
+不表示生产默认的 `a_fallback`，下列门禁也不能替代双路径的效果评测。
+
 离线门禁同时统计 Agent 与压缩请求，不能只看主模型最后一个请求：
 
 | 比较 | 门禁 | 说明 |
 |---|---:|---|
 | `compact-inline` / `raw` | 累计输入 token ≤ 75% | 证明摘要请求自身成本计入后，压缩仍有净收益 |
-| `current` / `raw` | 累计输入 token ≤ 50% | 证明完整生产组合降低总输入，而不只是降低峰值 |
+| `current` / `raw` | 累计输入 token ≤ 50% | 检查该固定基线组合降低总输入，而不只是降低峰值 |
 | `current` / `range-one-shot` | 引用调用至少减少 3 倍，Agent 请求更少 | 证明已知 key 时检索优于从头盲分页 |
 | `current` / `query-persistent` | 重复交付 token 为 0，累计输入更少 | 证明读取正文只在紧随其后的一次请求中出现 |
 

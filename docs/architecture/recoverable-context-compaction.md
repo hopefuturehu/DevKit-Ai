@@ -34,7 +34,7 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 
 ## 四个不变量
 
-1. **事务发布**：新记录先以 `building` 写入。LLM 输出通过章节、来源范围和策略要求的
+1. **事务发布**：发布记录经 `building` 状态切换。LLM 输出通过章节、来源范围和策略要求的
    预算校验后，才在一个 SQLite 事务里把旧 `ready` 改为 `superseded`、新记录改为
    `ready`。
 2. **原始记录不删除**：压缩只推进派生视图的 `cursor`，不删除或改写 `messages`、
@@ -42,8 +42,9 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 3. **来源可验证**：每个活动摘要保存连续覆盖范围、该范围消息的 SHA-256 和活动用户锚点。
    默认 `range` 模式下 `source_refs_json` 允许为空，不要求正文逐条引用；`item` 兼容模式才保存并
    校验摘要中的 `[m:N]` 引用。加载和恢复时按覆盖范围重新读取原文并计算哈希。
-4. **失败不推进**：超时、Provider 错误、缺章节、越界引用或候选预算校验失败都只会把
-   `building` 标记为 `failed`。旧活动摘要和游标保持不变。
+4. **失败不推进**：超时、Provider 错误、缺章节、越界引用或候选预算校验失败都不会发布。
+   已创建的 `building` 标记为 `failed`；默认双路径在生成通过后才创建发布记录，更早失败
+   只留下事件/请求审计。旧活动摘要和游标保持不变。
 
 ## 数据与状态
 
@@ -80,6 +81,9 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 双路径按模型窗口预留校验输入，不进入下述 CURRENT 的固定 60K 分块及候选凝练循环。
 候选通过格式、来源、恢复投影预算和净释放检查后才发布；详见
 [默认双路径与落地验证](../designs/compaction-dual-path-default.md)。
+
+失败冷却默认 300 秒，保存在当前 Run 的策略实例内；跨 Run、进程重启或新的空闲压缩调用
+不会继承它。这与旧 CURRENT 按持久失败范围退避不同，尚未实现跨 Run 冷却。
 
 ### 原文尾部与发布投影
 
@@ -121,6 +125,9 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 /compact rebuild
 /compact rollback <compaction-id>
 ```
+
+其中普通 `/compact` 按配置分流，默认用双路径；`/compact rebuild` 仍直接调用
+`ContextCompactor.rebuild()`，重建已有覆盖范围、继承其锚点，不使用第三版双路径提示。
 
 摘要候选先做本地规范化；空响应可按同一生成请求重试一次，格式仍不合法时只携带候选摘要
 发起一次修复，长度截断则进入候选凝练。transport 错误同范围重试，只有 Context overflow 才
@@ -177,6 +184,7 @@ Agent Run 另外受 `agent.max_cost_usd` 约束；费用门禁要求配置模型
 [context]
 compaction_strategy = "a_fallback"
 recent_conversation_tokens = 20000
+# 旧 CURRENT 使用该可配置软目标；双路径提示直接约定约 3K
 compaction_summary_target_tokens = 3000
 compaction_max_output_tokens = 8192
 compaction_failure_backoff_seconds = 300

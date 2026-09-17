@@ -6,6 +6,10 @@
 >
 > `bot` 原始代码基线：`2035795`；第 5.3 节的 `bot` Skill 角色与布局按 `875750c` 单项更新。
 
+2026-09-17 边界补充：本文其余 bot 条目保留各自历史快照。现默认 `a_fallback` 采用前缀→独立
+双路径和第三版提示，独立历史 JSON 可含 reasoning，thinking 跟随主模型；旧正文硬门限已取消。
+当前请求与计数路径见[上下文组装](../architecture/context-assembly.md)，不能把旧表格作为现行默认。
+
 本文比较当前 `bot` 与本地 checkout 中的 Codex、OpenCode、Pi、Hermes Agent、DeepSeek
 Harness 和 Nanobot，范围覆盖每次模型请求如何组装、reasoning 如何保存与回传、长对话如何
 选择压缩边界、摘要如何生成、发布和失败恢复，以及跨会话自动长期记忆如何提取、管理、检索和
