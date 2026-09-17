@@ -1,0 +1,1273 @@
+{
+  "captured_at": "2026-09-17T06:26:03.511954+00:00",
+  "source": ".bot/state.db",
+  "period": [
+    "2026-07-17T09:11:07.654922+00:00",
+    "2026-09-17T03:55:31.890567+00:00"
+  ],
+  "inventory": {
+    "sessions": 40,
+    "runs": 133,
+    "sessions_with_requests": 20,
+    "runs_with_requests": 90,
+    "tool_run_rows": 1235,
+    "event_counts": {
+      "tool.requested": 1302,
+      "tool.started": 1235,
+      "tool.completed": 1235,
+      "tool.result": 382
+    },
+    "orphan_executions": 0,
+    "orphan_results": 0,
+    "structured_conflicts": 0
+  },
+  "all_requests": {
+    "total": 1302,
+    "success": 1214,
+    "failed": 75,
+    "timed_out": 0,
+    "cancelled": 0,
+    "running": 9,
+    "unknown": 4,
+    "terminal": 1289,
+    "success_rate_pct": 94.181536
+  },
+  "ordinary_executions": {
+    "total": 1235,
+    "success": 1182,
+    "failed": 44,
+    "timed_out": 0,
+    "cancelled": 0,
+    "running": 9,
+    "unknown": 0,
+    "terminal": 1226,
+    "success_rate_pct": 96.411093
+  },
+  "preflight": {
+    "total": 31,
+    "success": 0,
+    "failed": 31,
+    "timed_out": 0,
+    "cancelled": 0,
+    "running": 0,
+    "unknown": 0,
+    "terminal": 31,
+    "success_rate_pct": 0.0
+  },
+  "legacy_messages": {
+    "total": 50,
+    "success": 21,
+    "failed": 29,
+    "timed_out": 0,
+    "cancelled": 0,
+    "running": 0,
+    "unknown": 0,
+    "terminal": 50,
+    "success_rate_pct": 42.0
+  },
+  "by_tool": {
+    "apply_patch": {
+      "total": 31,
+      "success": 28,
+      "failed": 3,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 31,
+      "success_rate_pct": 90.322581
+    },
+    "fetch_url": {
+      "total": 11,
+      "success": 8,
+      "failed": 3,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 11,
+      "success_rate_pct": 72.727273
+    },
+    "list_files": {
+      "total": 1,
+      "success": 0,
+      "failed": 1,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 1,
+      "success_rate_pct": 0.0
+    },
+    "list_processes": {
+      "total": 5,
+      "success": 5,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 5,
+      "success_rate_pct": 100.0
+    },
+    "load_context_reference": {
+      "total": 25,
+      "success": 25,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 25,
+      "success_rate_pct": 100.0
+    },
+    "poll_process": {
+      "total": 4,
+      "success": 1,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 3,
+      "unknown": 0,
+      "terminal": 1,
+      "success_rate_pct": 100.0
+    },
+    "read_file": {
+      "total": 390,
+      "success": 381,
+      "failed": 9,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 390,
+      "success_rate_pct": 97.692308
+    },
+    "run_command": {
+      "total": 252,
+      "success": 216,
+      "failed": 32,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 4,
+      "unknown": 0,
+      "terminal": 248,
+      "success_rate_pct": 87.096774
+    },
+    "run_shell": {
+      "total": 437,
+      "success": 404,
+      "failed": 27,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 2,
+      "unknown": 4,
+      "terminal": 431,
+      "success_rate_pct": 93.735499
+    },
+    "search_memory": {
+      "total": 3,
+      "success": 3,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 3,
+      "success_rate_pct": 100.0
+    },
+    "search_session_history": {
+      "total": 4,
+      "success": 4,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 4,
+      "success_rate_pct": 100.0
+    },
+    "search_text": {
+      "total": 128,
+      "success": 128,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 128,
+      "success_rate_pct": 100.0
+    },
+    "terminate_process": {
+      "total": 4,
+      "success": 4,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 4,
+      "success_rate_pct": 100.0
+    },
+    "update_plan": {
+      "total": 7,
+      "success": 7,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 7,
+      "success_rate_pct": 100.0
+    }
+  },
+  "ordinary_by_tool": {
+    "apply_patch": {
+      "total": 31,
+      "success": 28,
+      "failed": 3,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 31,
+      "success_rate_pct": 90.322581
+    },
+    "fetch_url": {
+      "total": 11,
+      "success": 8,
+      "failed": 3,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 11,
+      "success_rate_pct": 72.727273
+    },
+    "list_processes": {
+      "total": 5,
+      "success": 5,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 5,
+      "success_rate_pct": 100.0
+    },
+    "poll_process": {
+      "total": 4,
+      "success": 1,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 3,
+      "unknown": 0,
+      "terminal": 1,
+      "success_rate_pct": 100.0
+    },
+    "read_file": {
+      "total": 386,
+      "success": 381,
+      "failed": 5,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 386,
+      "success_rate_pct": 98.704663
+    },
+    "run_command": {
+      "total": 237,
+      "success": 216,
+      "failed": 17,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 4,
+      "unknown": 0,
+      "terminal": 233,
+      "success_rate_pct": 92.703863
+    },
+    "run_shell": {
+      "total": 422,
+      "success": 404,
+      "failed": 16,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 2,
+      "unknown": 0,
+      "terminal": 420,
+      "success_rate_pct": 96.190476
+    },
+    "search_text": {
+      "total": 128,
+      "success": 128,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 128,
+      "success_rate_pct": 100.0
+    },
+    "terminate_process": {
+      "total": 4,
+      "success": 4,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 4,
+      "success_rate_pct": 100.0
+    },
+    "update_plan": {
+      "total": 7,
+      "success": 7,
+      "failed": 0,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 7,
+      "success_rate_pct": 100.0
+    }
+  },
+  "by_month_shanghai": {
+    "2026-07": {
+      "total": 184,
+      "success": 174,
+      "failed": 10,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 0,
+      "unknown": 0,
+      "terminal": 184,
+      "success_rate_pct": 94.565217
+    },
+    "2026-08": {
+      "total": 636,
+      "success": 581,
+      "failed": 48,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 4,
+      "unknown": 3,
+      "terminal": 629,
+      "success_rate_pct": 92.368839
+    },
+    "2026-09": {
+      "total": 482,
+      "success": 459,
+      "failed": 17,
+      "timed_out": 0,
+      "cancelled": 0,
+      "running": 5,
+      "unknown": 1,
+      "terminal": 476,
+      "success_rate_pct": 96.428571
+    }
+  },
+  "snapshot_sha256": "f2dc4a020aa3eb400088a864e13ad39e4ce8297bb0967bb889df9886cc671750",
+  "attribution": {
+    "method": "对冻结样本的全部失败逐条审阅参数、error、output 后人工归因；每次调用一个主要类别。脚本仅自动核算成功率，不自动推断根因。",
+    "categories": {
+      "policy": {
+        "label": "权限或路径限制",
+        "count": 30
+      },
+      "usage": {
+        "label": "工具、参数或脚本用法错误",
+        "count": 13
+      },
+      "schema": {
+        "label": "数据库或代码 API 假设错误",
+        "count": 10
+      },
+      "path": {
+        "label": "文件不存在或创建方式不符",
+        "count": 5
+      },
+      "validation": {
+        "label": "代码检查或测试未通过",
+        "count": 5
+      },
+      "probe": {
+        "label": "探测或搜索未命中",
+        "count": 7
+      },
+      "network": {
+        "label": "网络请求失败，细分原因缺失",
+        "count": 3
+      },
+      "environment": {
+        "label": "环境变量缺失或端口占用",
+        "count": 2
+      }
+    },
+    "failures": [
+      {
+        "session_id": "3dfdc7e4f17c449597e42b60589f266d",
+        "run_id": "25642249bbe64a9f8e5a8c8d09684587",
+        "tool_call_id": "call_00_0YyMCSRZmkLUjVGEzU4I5069",
+        "tool_run_id": 21,
+        "name": "fetch_url",
+        "timestamp": "2026-07-17T09:24:29.267460+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "network"
+      },
+      {
+        "session_id": "3dfdc7e4f17c449597e42b60589f266d",
+        "run_id": "25642249bbe64a9f8e5a8c8d09684587",
+        "tool_call_id": "call_01_r6usqmCvcuNRHvZHZ8Ug9790",
+        "tool_run_id": 22,
+        "name": "fetch_url",
+        "timestamp": "2026-07-17T09:24:50.050602+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "network"
+      },
+      {
+        "session_id": "3dfdc7e4f17c449597e42b60589f266d",
+        "run_id": "25642249bbe64a9f8e5a8c8d09684587",
+        "tool_call_id": "call_00_nyww1ZK7tuB9yBN7MWDl4525",
+        "tool_run_id": 23,
+        "name": "fetch_url",
+        "timestamp": "2026-07-17T09:25:14.430380+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "network"
+      },
+      {
+        "session_id": "0cb5a792c20e4e75bd6e06469eeb7eb7",
+        "run_id": "b0b431d0afef4164bddfc2b64cb71af4",
+        "tool_call_id": "call_01_edcdL2iUcqfZ7ct3hyV81738",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-07-17T09:26:47.707999+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "0cb5a792c20e4e75bd6e06469eeb7eb7",
+        "run_id": "b0b431d0afef4164bddfc2b64cb71af4",
+        "tool_call_id": "call_01_svdoDK4mFnckDOGGvYL05637",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-07-17T09:26:52.809561+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "0cb5a792c20e4e75bd6e06469eeb7eb7",
+        "run_id": "b0b431d0afef4164bddfc2b64cb71af4",
+        "tool_call_id": "call_01_OKDBr8hVaXbTklUo1tUp5880",
+        "tool_run_id": null,
+        "name": "read_file",
+        "timestamp": "2026-07-17T09:26:58.449168+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "0cb5a792c20e4e75bd6e06469eeb7eb7",
+        "run_id": "b0b431d0afef4164bddfc2b64cb71af4",
+        "tool_call_id": "call_00_7YrcOSZG9C4MQEJaF8U62681",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-07-17T09:27:15.255965+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "4a7249436b1a4745ad7d1a5fbb526146",
+        "run_id": "29e8d3e6297c4d55a667efabf61f8203",
+        "tool_call_id": "call_00_AtjOMxng9cyZRo7wn8X21416",
+        "tool_run_id": 52,
+        "name": "run_command",
+        "timestamp": "2026-07-20T07:44:51.906451+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "3bf5cb68481d4b96997bfbc29488e1b5",
+        "run_id": "247f232006164a62ae2361c0766703b7",
+        "tool_call_id": "call_00_oyiLZVfS5dTuO01ZlGys0045",
+        "tool_run_id": 76,
+        "name": "run_command",
+        "timestamp": "2026-07-20T08:39:34.433963+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "34c4fc6e44b242889b05b43754878b4e",
+        "run_id": "5213026828ef4a8bb2f77174c1d63bde",
+        "tool_call_id": "call_00_OIVAFATXCNdjPe94rxwu7721",
+        "tool_run_id": 161,
+        "name": "run_command",
+        "timestamp": "2026-07-31T03:37:42.691647+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "5f4c879c72004575ad64f5ae5d75fd48",
+        "run_id": "d8155528585648cdb30a62cb366b3872",
+        "tool_call_id": "call_01_we7taUJBwP5xQsf4Qc5h9765",
+        "tool_run_id": null,
+        "name": "list_files",
+        "timestamp": "2026-08-10T07:31:17.466819+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "usage"
+      },
+      {
+        "session_id": "5f4c879c72004575ad64f5ae5d75fd48",
+        "run_id": "d8155528585648cdb30a62cb366b3872",
+        "tool_call_id": "call_00_7QNlRwk98duyUJ6s7ToM9506",
+        "tool_run_id": 210,
+        "name": "run_command",
+        "timestamp": "2026-08-10T07:49:53.351880+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "environment"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_00_DTuyrupzV54dDvwCCIYO4843",
+        "tool_run_id": 226,
+        "name": "run_shell",
+        "timestamp": "2026-08-12T09:02:08.950437+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_00_uSnQiHg6PRtir3I53ARM7396",
+        "tool_run_id": 230,
+        "name": "run_shell",
+        "timestamp": "2026-08-12T09:03:00.474245+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_01_whsNxUcxaOOohBfUfqdM7703",
+        "tool_run_id": 231,
+        "name": "run_shell",
+        "timestamp": "2026-08-12T09:15:43.212459+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_00_xQ6HFNfhGI05X2U7hbHU2820",
+        "tool_run_id": 238,
+        "name": "read_file",
+        "timestamp": "2026-08-12T09:16:36.766452+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "policy"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_01_E1DB7WvSUhZRUZFgmE278489",
+        "tool_run_id": 239,
+        "name": "read_file",
+        "timestamp": "2026-08-12T09:16:36.771802+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "policy"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_02_pwlkpaqD6Z1sFmGAsedn9850",
+        "tool_run_id": 240,
+        "name": "read_file",
+        "timestamp": "2026-08-12T09:16:36.775418+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "policy"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_01_iGvuNoHo0XYSUgh0htTg6774",
+        "tool_run_id": 242,
+        "name": "run_shell",
+        "timestamp": "2026-08-12T09:16:56.314226+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_01_JGb27BRAqUZpvckfvml87693",
+        "tool_run_id": 246,
+        "name": "run_shell",
+        "timestamp": "2026-08-12T09:17:32.042016+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "37387861c53f4fe7a21565a06e6120ec",
+        "tool_call_id": "call_01_vkjEWZf1cBmzq2L42jWK9510",
+        "tool_run_id": 248,
+        "name": "run_shell",
+        "timestamp": "2026-08-12T09:18:06.036269+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_01_RKdmYOIiVqGhrtI3kglv7117",
+        "tool_run_id": 308,
+        "name": "read_file",
+        "timestamp": "2026-08-13T02:52:26.179805+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_01_xmzmp9AVy5zVEHefkpg29057",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-08-13T13:53:33.953475+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_AS9BDHyKneK2eT0VxT2M3643",
+        "tool_run_id": 331,
+        "name": "run_command",
+        "timestamp": "2026-08-13T13:53:48.189294+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_xzAgxtZtvbEMXJd7Tovl5615",
+        "tool_run_id": 335,
+        "name": "run_command",
+        "timestamp": "2026-08-13T13:57:53.412297+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "validation"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_5XAAs9O54b7USzOspMO63482",
+        "tool_run_id": 337,
+        "name": "run_command",
+        "timestamp": "2026-08-13T13:59:32.307338+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "validation"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_qlVJVhfkjF71v92sOtFi6164",
+        "tool_run_id": 345,
+        "name": "run_command",
+        "timestamp": "2026-08-13T14:01:51.239268+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_ET_p6Q1GUpbeSXsxqyemqqM8086",
+        "tool_run_id": 346,
+        "name": "run_command",
+        "timestamp": "2026-08-13T14:02:15.088973+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_j6Zw6qY6Ei0GWFydGjai0754",
+        "tool_run_id": 348,
+        "name": "run_command",
+        "timestamp": "2026-08-13T14:03:23.102752+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "validation"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_6YAhDp9NJnrcNInpVt5V1199",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-08-13T14:04:10.707605+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_gJpFzEtn35MOiWauEDcA2159",
+        "tool_run_id": 354,
+        "name": "read_file",
+        "timestamp": "2026-08-13T14:05:36.728146+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "path"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_ET_ZWNnGjWjopy4lxkwJOHP7646",
+        "tool_run_id": 363,
+        "name": "apply_patch",
+        "timestamp": "2026-08-13T14:08:22.693257+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "path"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_ET_qExkiQbnwzvbZKvIfa9J4602",
+        "tool_run_id": 365,
+        "name": "run_command",
+        "timestamp": "2026-08-13T14:08:49.017992+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "validation"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_01_ET_M7ayGhGZ7MXLRykuwLDW7128",
+        "tool_run_id": 374,
+        "name": "run_command",
+        "timestamp": "2026-08-13T14:11:13.675129+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "validation"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "6af5368728e34335ad2ec3fd4e7cd587",
+        "tool_call_id": "call_00_ET_jrQJtxLhfp1DFgRqnPnq2294",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-08-13T14:17:27.220190+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "usage"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "f8a7b11c6d20479e8452d900b9c7e947",
+        "tool_call_id": "call_00_ddyZOR6bLFRICJwynVP77963",
+        "tool_run_id": 391,
+        "name": "run_shell",
+        "timestamp": "2026-08-13T14:28:48.803211+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "probe"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "ef23943de25c45d0955fb137d27783a8",
+        "tool_call_id": "call_00_YAjSb1AmuLhq8OtMxTwV6062",
+        "tool_run_id": null,
+        "name": "read_file",
+        "timestamp": "2026-08-14T12:42:12.535766+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "e167ab9499ba4d8a9993eac2fabbb433",
+        "tool_call_id": "call_00_ET_z1iKx21AypShd56T3zXT1496",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-08-14T15:16:35.905722+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "usage"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "e167ab9499ba4d8a9993eac2fabbb433",
+        "tool_call_id": "call_00_ET_fjB6wRTWarYeShbyY1JT4207",
+        "tool_run_id": 479,
+        "name": "run_command",
+        "timestamp": "2026-08-14T15:17:52.427404+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "environment"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "53b6f551b33e46ac805ad8a0ea899009",
+        "tool_call_id": "call_01_TZngYG2Pq9nj4efKBWaa8659",
+        "tool_run_id": 519,
+        "name": "run_command",
+        "timestamp": "2026-08-18T03:25:43.065138+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "probe"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "608b0f2b1fcf4f7c906deac0be22957f",
+        "tool_call_id": "call_00_TYR9dPJniKD29MaYtuml4835",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-08-22T16:04:24.112144+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "usage"
+      },
+      {
+        "session_id": "9fc843b172ec4476875f44d20c094c78",
+        "run_id": "cecb38de157744e5b260e2575493bb4f",
+        "tool_call_id": "call_00_58N9lqbx1SGplaS3wmv74221",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-08-27T14:49:16.118279+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "9fc843b172ec4476875f44d20c094c78",
+        "run_id": "cecb38de157744e5b260e2575493bb4f",
+        "tool_call_id": "call_01_YEUp21OaoY1fGTSy6NTO4990",
+        "tool_run_id": 650,
+        "name": "run_command",
+        "timestamp": "2026-08-27T14:49:20.158584+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "probe"
+      },
+      {
+        "session_id": "9fc843b172ec4476875f44d20c094c78",
+        "run_id": "af5e699a8b4c4ae3926e1344a722296d",
+        "tool_call_id": "call_00_tJcw3KKiiDsHhGSvWmZn8065",
+        "tool_run_id": 653,
+        "name": "run_command",
+        "timestamp": "2026-08-27T14:53:07.152748+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_00_p8vPWZUacvfLvIUeQA5y0190",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T07:58:53.281128+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_01_v3MmMn5IhpuHZ7GlUpoE5565",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T07:58:53.286080+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_01_9NRIRcfp8Cghakbzf40q6180",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T07:59:52.400445+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_00_6qExjvigx2gueoE3aV477880",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-08-28T08:00:03.364881+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_01_LLwgBkgpB9Kny2zHK3MU9628",
+        "tool_run_id": null,
+        "name": "read_file",
+        "timestamp": "2026-08-28T08:00:03.369240+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_00_RCaHpAgY7kKCM6LN4q2b0487",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:00:08.052063+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_01_NF0BXMkhkCVZYi7fivnA3093",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:00:08.056360+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_02_ITPrQGHn2JlnXAvnVyum5686",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:00:08.060377+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_00_sXDYKh6apUkEosSGFsnv1398",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:00:14.968508+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_02_Amn2FKysU9nnquaiWUvX8888",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:00:23.371282+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_00_NDv8odOn3sqpetPbeerQ4559",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:00:33.647886+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "7fc0d631e611424da136d5693bd457e4",
+        "tool_call_id": "call_01_B7OpNRxJhaYtLv4Jkv5w1100",
+        "tool_run_id": null,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:00:33.652177+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "519766e2b5614816ae81030ff01eeb47",
+        "tool_call_id": "call_00_FwqLQPAXkfm414xbtM1m7096",
+        "tool_run_id": 761,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:21:43.237155+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "path"
+      },
+      {
+        "session_id": "81d8e49edd4f4738a5e908f40a59b2fe",
+        "run_id": "519766e2b5614816ae81030ff01eeb47",
+        "tool_call_id": "call_00_xNh05hQk6r78fHvtb9Yw1956",
+        "tool_run_id": 769,
+        "name": "run_shell",
+        "timestamp": "2026-08-28T08:23:10.822277+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "0a3ca0de1dac47bf83302644eb49993b",
+        "run_id": "e429f745fc9e4864a51a1dc827d05a56",
+        "tool_call_id": "call_02_r5C29tAx59fEFRZSzbQL8764",
+        "tool_run_id": null,
+        "name": "read_file",
+        "timestamp": "2026-09-04T03:05:22.406322+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "0a3ca0de1dac47bf83302644eb49993b",
+        "run_id": "e429f745fc9e4864a51a1dc827d05a56",
+        "tool_call_id": "call_02_Hw1uqVvyfO6Ca8pyxn6G6300",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-09-04T03:11:14.815429+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "0a3ca0de1dac47bf83302644eb49993b",
+        "run_id": "e429f745fc9e4864a51a1dc827d05a56",
+        "tool_call_id": "call_00_5x6uY6NlsvNGiNEqSSBW4093",
+        "tool_run_id": 831,
+        "name": "run_command",
+        "timestamp": "2026-09-04T03:11:20.467482+00:00",
+        "evidence": "tool.completed",
+        "preflight": false,
+        "category": "probe"
+      },
+      {
+        "session_id": "e5e1d9cd071b4878b3b372c4bd365476",
+        "run_id": "bf686e58cbd2408fb4d08d267bf0955e",
+        "tool_call_id": "call_03_gTZNgfDD4ssyYNjR1tcN7179",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-09-04T06:52:23.807942+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "e5e1d9cd071b4878b3b372c4bd365476",
+        "run_id": "d97e90495b05484b8e58b0b2b1c1c047",
+        "tool_call_id": "call_00_CpXsBRVCuxJHM0qYiirn5026",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-09-04T09:01:35.699918+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "e5e1d9cd071b4878b3b372c4bd365476",
+        "run_id": "d97e90495b05484b8e58b0b2b1c1c047",
+        "tool_call_id": "call_01_dx635oTJC4O5jPFkGgv91138",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-09-04T09:01:35.706450+00:00",
+        "evidence": "legacy_message",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "7f9aa9af245d4bc79231c524d2046706",
+        "run_id": "e6e0d9cab1ec44ebb1aa6a06d8d79623",
+        "tool_call_id": "call_00_J6QRrmloqbpinIzz7e8z4562",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-09-09T02:09:46.009150+00:00",
+        "evidence": "tool.result",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "7f9aa9af245d4bc79231c524d2046706",
+        "run_id": "e6e0d9cab1ec44ebb1aa6a06d8d79623",
+        "tool_call_id": "call_01_oOC6BYXqhueJUKsOOZ0S8823",
+        "tool_run_id": null,
+        "name": "run_command",
+        "timestamp": "2026-09-09T02:09:46.017100+00:00",
+        "evidence": "tool.result",
+        "preflight": true,
+        "category": "policy"
+      },
+      {
+        "session_id": "fdf019702d234761b3792a6c04ce0d78",
+        "run_id": "eb5bdbc54d0948fa97011570fc9233af",
+        "tool_call_id": "call_01_RzACkYIXGIIUgegqx5S43637",
+        "tool_run_id": 892,
+        "name": "run_shell",
+        "timestamp": "2026-09-16T07:27:47.489993+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "probe"
+      },
+      {
+        "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+        "run_id": "75139dc1175b4a98b410779ae5ffd3d7",
+        "tool_call_id": "call_00_C8yxAep2Jo1XCzH8nP8E7146",
+        "tool_run_id": 920,
+        "name": "run_shell",
+        "timestamp": "2026-09-16T08:37:58.897609+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "usage"
+      },
+      {
+        "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+        "run_id": "801e424883c645aea9849cc23974af23",
+        "tool_call_id": "call_00_cZlyMPylrJtHfSgTvLL82736",
+        "tool_run_id": 934,
+        "name": "apply_patch",
+        "timestamp": "2026-09-16T08:40:58.708309+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "path"
+      },
+      {
+        "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+        "run_id": "801e424883c645aea9849cc23974af23",
+        "tool_call_id": "call_00_ftoMKYRncSTeCIbuRAQj2555",
+        "tool_run_id": 935,
+        "name": "apply_patch",
+        "timestamp": "2026-09-16T08:41:09.360834+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "path"
+      },
+      {
+        "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+        "run_id": "b6cf72a1b2c1402984c097196c91ba75",
+        "tool_call_id": "call_00_22q00N31ksFLs5fePimo4400",
+        "tool_run_id": 965,
+        "name": "run_shell",
+        "timestamp": "2026-09-16T08:54:11.658389+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+        "run_id": "2b1e0256d5174dcab6a33e7702fa84ea",
+        "tool_call_id": "call_00_FZhnMpWAwKhwSq64WRzz7274",
+        "tool_run_id": 986,
+        "name": "run_shell",
+        "timestamp": "2026-09-16T08:56:36.050182+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "probe"
+      },
+      {
+        "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+        "run_id": "c71d50f87a9542f28d3004f307cc4c90",
+        "tool_call_id": "call_01_k6IXVa45KsLX8mlL88Er6284",
+        "tool_run_id": 996,
+        "name": "run_shell",
+        "timestamp": "2026-09-16T08:59:32.881266+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "schema"
+      },
+      {
+        "session_id": "8e3da476539a4175a9ab2a2917193ac2",
+        "run_id": "a6a9f2fe41ae400ba15dbacdbbf5e72a",
+        "tool_call_id": "call_00_YrAc7WPlIDLCUuiOYb684463",
+        "tool_run_id": 1012,
+        "name": "run_shell",
+        "timestamp": "2026-09-16T09:01:42.284825+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "probe"
+      },
+      {
+        "session_id": "fe26c8f1ffa9419c9a2a247dcd2449d4",
+        "run_id": "27e4c351420045b3986c0ff57bef9951",
+        "tool_call_id": "call_01_yD65np0UOsYxZcPTy7Sr1906",
+        "tool_run_id": 1085,
+        "name": "run_shell",
+        "timestamp": "2026-09-17T03:48:48.297528+00:00",
+        "evidence": "tool.result",
+        "preflight": false,
+        "category": "usage"
+      }
+    ],
+    "unknown_calls": [
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "381f972905be489293708249846d32c1",
+        "tool_call_id": "call_00_0hxdtoI1oXQmYpxDgnsc8647",
+        "name": "run_shell",
+        "timestamp": "2026-08-13T02:39:26.620009+00:00"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "962ad62688314bfa928368c2ac0e595a",
+        "tool_call_id": "call_00_EzDLhEafbKEQtxGmJYFm5267",
+        "name": "run_shell",
+        "timestamp": "2026-08-22T16:47:15.082827+00:00"
+      },
+      {
+        "session_id": "f561a46eb09d480496a2743475883ca9",
+        "run_id": "38c32ecff7ed4775ae8e4c1d313cab49",
+        "tool_call_id": "call_00_y2H09m2LzQKkkjgOt5cT0266",
+        "name": "run_shell",
+        "timestamp": "2026-08-25T07:54:57.990487+00:00"
+      },
+      {
+        "session_id": "fdf019702d234761b3792a6c04ce0d78",
+        "run_id": "2da9b731dff84cd1ad0b212034daa745",
+        "tool_call_id": "call_01_PbgtaKxpaOF8coQ2lnjf7582",
+        "name": "run_shell",
+        "timestamp": "2026-09-16T07:37:49.038441+00:00"
+      }
+    ]
+  },
+  "scope_notes": [
+    "仅主库 .bot/state.db；不包含 artifacts 与 .bot/benchmarks 的独立评测、合成工作负载和回放副本。",
+    "以 (session_id, run_id, tool_call_id) 合并同次调用的事件与执行行；不同调用和重试仍各计一次。",
+    "成功率分母为有终态的调用；running 与缺少返回的调用单列。",
+    "legacy_message 中 21 条成功及 29 条失败按旧返回文本恢复；8 条成功正文已截断，依已知成功返回外壳推断。",
+    "统计工具返回的成功状态，不证明命令输出满足用户目标或任务最终完成。"
+  ]
+}
