@@ -50,6 +50,7 @@
 | [V4 Flash 压缩前后的上下文组成](context-strategy-flash-composition.md) | 释放率分母、组成与既有数据复核 |
 | [真实任务缓存未命中拆解](context-cache-miss-analysis.md) | 历史逐请求归因及后续缓存假设修正 |
 | [DeepSeek tool_choice 缓存实测](tool-choice-cache-probe.md) | `auto / none` 切换的真实 API 对照 |
+| [DeepSeek reasoning_effort 缓存实测](reasoning-effort-cache-20260918.md) | 默认 / high 切到 low、重复 low、切回原设置，以及追加续写尾部的缓存对照 |
 | [A32 首次压缩工具调用重放](compaction-tool-replay.md) | 三次重放的工具申请与摘要失败证据 |
 | [历史会话裁剪容量分析](history-pruning-analysis.md) | 离线容量回放；不代表生产裁剪的质量或费用收益 |
 
