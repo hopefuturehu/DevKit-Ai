@@ -95,7 +95,9 @@ class DeepSeekInputCounter:
         self._fallback = TokenEstimator()
 
     def estimate(self, request: ModelRequest, payload: dict[str, Any]) -> InputTokenEstimate:
-        mode = payload.get("thinking", {}).get("type", "enabled")
+        # Rendering assumes the documented default, but telemetry must not
+        # mistake an omitted parameter for an explicitly enabled request.
+        mode = payload.get("thinking", {}).get("type", "provider_default")
         source = f"{request.model}:{MODEL_REVISIONS.get(request.model, REVISION)}"
         try:
             tokenizer = load_tokenizer(tokenizer_path())

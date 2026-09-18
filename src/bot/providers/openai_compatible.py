@@ -13,6 +13,7 @@ from bot.core.models import (
     ModelEvent,
     ModelEventKind,
     ModelRequest,
+    Role,
 )
 from bot.providers.base import ModelProvider, ProviderError, ProviderErrorKind
 from bot.providers.token_counting import MODEL_REVISIONS, DeepSeekInputCounter
@@ -70,14 +71,26 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def serialized_messages(self, request: ModelRequest) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []
+        deepseek = self._is_official_deepseek_endpoint()
         for index, message in enumerate(request.messages):
             try:
-                messages.append(message.to_openai())
+                serialized = message.to_openai()
             except ValueError as exc:
                 raise ProviderError(
                     f"模型请求中的第 {index} 条消息无效: {exc}",
                     kind=ProviderErrorKind.CONFIGURATION,
                 ) from exc
+            if deepseek and message.role == Role.ASSISTANT:
+                if request.tools and request.thinking != "disabled":
+                    # DeepSeek validates field presence, not whether the model
+                    # actually generated reasoning. Empty/legacy turns and
+                    # derived checkpoints need a protocol placeholder; never
+                    # invent reasoning or mutate the durable transcript.
+                    # With tools, replay reasoning for plain answers as well.
+                    serialized["reasoning_content"] = message.reasoning_content or ""
+                else:
+                    serialized.pop("reasoning_content", None)
+            messages.append(serialized)
         return messages
 
     def _payload(self, request: ModelRequest) -> dict[str, Any]:
@@ -93,34 +106,20 @@ class OpenAICompatibleProvider(ModelProvider):
             payload["tool_choice"] = request.tool_choice or "auto"
         if request.max_output_tokens is not None:
             payload["max_tokens"] = request.max_output_tokens
-        requires_non_thinking = self._requires_non_thinking_tool_chain(request)
-        if requires_non_thinking and request.thinking == "enabled":
+        if (
+            self._is_official_deepseek_endpoint()
+            and request.tools
+            and isinstance(request.tool_choice, dict)
+            and request.thinking != "disabled"
+        ):
             raise ProviderError(
-                "DeepSeek thinking mode 与命名 tool_choice 或缺少 reasoning_content "
-                "的 Tool 链不兼容",
+                "DeepSeek thinking mode 与命名 tool_choice 不兼容；"
+                "请使用 tool_choice=auto，或显式设置 thinking=disabled",
                 kind=ProviderErrorKind.CONFIGURATION,
             )
-        if requires_non_thinking:
-            # The official DeepSeek endpoint rejects a named function choice in
-            # thinking mode.  A function call created with thinking disabled also
-            # has no reasoning_content, so the rest of that Tool chain must stay
-            # non-thinking when it is replayed.
-            payload["thinking"] = {"type": "disabled"}
-        elif request.thinking is not None:
+        if request.thinking is not None:
             payload["thinking"] = {"type": request.thinking}
         return payload
-
-    def _requires_non_thinking_tool_chain(
-        self,
-        request: ModelRequest,
-    ) -> bool:
-        if not self._is_official_deepseek_endpoint():
-            return False
-        if isinstance(request.tool_choice, dict):
-            return True
-        return any(
-            message.tool_calls and not message.reasoning_content for message in request.messages
-        )
 
     def _is_official_deepseek_endpoint(self) -> bool:
         hostname = (urlsplit(self.base_url).hostname or "").lower()
@@ -161,6 +160,15 @@ class OpenAICompatibleProvider(ModelProvider):
                     )
                 response_metadata = {
                     "provider": "openai_compatible",
+                    "requested_thinking": request.thinking or "provider_default",
+                    "sent_thinking": payload.get("thinking", {}).get("type", "provider_default"),
+                    "reasoning_placeholder_indices": [
+                        index
+                        for index, (source, sent) in enumerate(
+                            zip(request.messages, payload["messages"], strict=True)
+                        )
+                        if source.reasoning_content is None and sent.get("reasoning_content") == ""
+                    ],
                     "request_id": (
                         response.headers.get("x-request-id")
                         or response.headers.get("x-ds-request-id")
@@ -221,6 +229,7 @@ class OpenAICompatibleProvider(ModelProvider):
                                 "chunk_count": 0,
                                 "content_chars": 0,
                                 "reasoning_chars": 0,
+                                "reasoning_content_state": "absent",
                                 "tool_call_chunks": 0,
                                 "observed_delta_fields": set(),
                                 "unhandled_delta_samples": [],
@@ -243,6 +252,17 @@ class OpenAICompatibleProvider(ModelProvider):
                                 {"field": field, "value": str(value)[:2_000]}
                             )
                         reasoning_content = delta.get("reasoning_content")
+                        if "reasoning_content" in delta:
+                            state = (
+                                "nonempty"
+                                if reasoning_content
+                                else "empty"
+                                if reasoning_content == ""
+                                else "null"
+                            )
+                            order = {"absent": 0, "null": 1, "empty": 2, "nonempty": 3}
+                            if order[state] > order[diagnostics["reasoning_content_state"]]:
+                                diagnostics["reasoning_content_state"] = state
                         if reasoning_content:
                             reasoning_text = str(reasoning_content)
                             diagnostics["reasoning_chars"] += len(reasoning_text)
@@ -299,7 +319,7 @@ class OpenAICompatibleProvider(ModelProvider):
                     kind=ModelEventKind.FINISH,
                     finish_reason="eof",
                     provider_metadata={
-                        "provider": "openai_compatible",
+                        **response_metadata,
                         "choices": serializable_diagnostics,
                     },
                 )

@@ -162,7 +162,7 @@ def test_provider_preserves_named_tool_choice() -> None:
     assert "thinking" not in payload
 
 
-def test_provider_disables_deepseek_thinking_for_named_tool_choice() -> None:
+def test_provider_allows_named_deepseek_tool_choice_when_explicitly_non_thinking() -> None:
     provider = OpenAICompatibleProvider(
         base_url="https://api.deepseek.com/v1",
         api_key="secret",
@@ -181,6 +181,7 @@ def test_provider_disables_deepseek_thinking_for_named_tool_choice() -> None:
                 )
             ],
             tool_choice=choice,
+            thinking="disabled",
         )
     )
 
@@ -189,49 +190,59 @@ def test_provider_disables_deepseek_thinking_for_named_tool_choice() -> None:
     assert provider.capabilities("deepseek-test").named_tool_choice is False
 
 
-def test_provider_keeps_deepseek_non_thinking_for_followup_tool_chain() -> None:
+@pytest.mark.parametrize("thinking", [None, "enabled", "disabled"])
+@pytest.mark.parametrize("reasoning", [None, "", "original reasoning"])
+def test_provider_preserves_deepseek_mode_for_followup_tool_chain(thinking, reasoning) -> None:
     provider = OpenAICompatibleProvider(
         base_url="https://api.deepseek.com/v1",
         api_key="secret",
     )
 
-    payload = provider._payload(
-        ModelRequest(
-            model="deepseek-test",
-            messages=[
-                ChatMessage(role=Role.USER, content="按上次的方案继续"),
-                ChatMessage(
-                    role=Role.ASSISTANT,
-                    tool_calls=[
-                        ToolCall(
-                            id="search-1",
-                            name="search_memory",
-                            arguments={"query": "上次方案"},
-                        )
-                    ],
-                ),
-                ChatMessage(
-                    role=Role.TOOL,
-                    name="search_memory",
-                    tool_call_id="search-1",
-                    content="result",
-                ),
-            ],
-            tools=[
-                ToolDefinition(
-                    name="search_memory",
-                    description="search",
-                    input_schema={"type": "object"},
-                )
-            ],
-        )
+    request = ModelRequest(
+        model="deepseek-test",
+        thinking=thinking,
+        messages=[
+            ChatMessage(role=Role.USER, content="按上次的方案继续"),
+            ChatMessage(
+                role=Role.ASSISTANT,
+                reasoning_content=reasoning,
+                tool_calls=[
+                    ToolCall(
+                        id="search-1",
+                        name="search_memory",
+                        arguments={"query": "上次方案"},
+                    )
+                ],
+            ),
+            ChatMessage(
+                role=Role.TOOL,
+                name="search_memory",
+                tool_call_id="search-1",
+                content="result",
+            ),
+        ],
+        tools=[
+            ToolDefinition(
+                name="search_memory",
+                description="search",
+                input_schema={"type": "object"},
+            )
+        ],
     )
+    original = request.model_dump_json()
+    payload = provider._payload(request)
 
     assert payload["tool_choice"] == "auto"
-    assert payload["thinking"] == {"type": "disabled"}
+    assert payload.get("thinking") == ({"type": thinking} if thinking else None)
+    if thinking == "disabled":
+        assert "reasoning_content" not in payload["messages"][1]
+    else:
+        assert payload["messages"][1]["reasoning_content"] == (reasoning or "")
+    assert request.model_dump_json() == original
 
 
-def test_provider_rejects_deepseek_thinking_with_named_tool_choice() -> None:
+@pytest.mark.parametrize("thinking", [None, "enabled"])
+def test_provider_rejects_deepseek_thinking_with_named_tool_choice(thinking) -> None:
     provider = OpenAICompatibleProvider(
         base_url="https://api.deepseek.com/v1",
         api_key="secret",
@@ -250,9 +261,91 @@ def test_provider_rejects_deepseek_thinking_with_named_tool_choice() -> None:
                     )
                 ],
                 tool_choice={"type": "function", "function": {"name": "search_memory"}},
-                thinking="enabled",
+                thinking=thinking,
             )
         )
+
+
+@pytest.mark.parametrize("thinking", [None, "enabled", "disabled"])
+def test_deepseek_replays_plain_answer_and_checkpoint_reasoning_without_mutating_history(thinking):
+    provider = OpenAICompatibleProvider(base_url="https://api.deepseek.com", api_key="unused")
+    request = ModelRequest(
+        model="deepseek-test",
+        thinking=thinking,
+        messages=[
+            ChatMessage(role=Role.USER, content="first task"),
+            ChatMessage(role=Role.ASSISTANT, content="done", reasoning_content="real reasoning"),
+            ChatMessage(role=Role.USER, content="continue"),
+            ChatMessage(role=Role.ASSISTANT, name="context_compaction", content="derived summary"),
+        ],
+        tools=[ToolDefinition(name="read", description="read", input_schema={})],
+        tool_choice="none",  # Prefix compaction/finalization still carry tool schemas.
+    )
+    original = request.model_dump_json()
+    payload = provider._payload(request)
+    assert payload["tool_choice"] == "none"
+    assert payload.get("thinking") == ({"type": thinking} if thinking else None)
+    if thinking == "disabled":
+        assert all("reasoning_content" not in m for m in payload["messages"])
+    else:
+        assert payload["messages"][1]["reasoning_content"] == "real reasoning"
+        assert payload["messages"][3]["reasoning_content"] == ""
+    assert request.model_dump_json() == original
+    request.tools = []
+    assert all("reasoning_content" not in m for m in provider._payload(request)["messages"])
+
+
+def test_reasoning_placeholders_are_scoped_to_official_deepseek():
+    provider = OpenAICompatibleProvider(base_url="https://example.test", api_key="unused")
+    request = ModelRequest(
+        model="deepseek-test",
+        messages=[
+            ChatMessage(
+                role=Role.ASSISTANT, tool_calls=[ToolCall(id="c1", name="read", arguments={})]
+            ),
+        ],
+        tools=[ToolDefinition(name="read", description="read", input_schema={})],
+    )
+    payload = provider._payload(request)
+    assert "reasoning_content" not in payload["messages"][0]
+    assert "thinking" not in payload
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "deltas,state",
+    [
+        ([{}, {}], "absent"),
+        ([{"reasoning_content": None}], "null"),
+        ([{"reasoning_content": ""}, {"reasoning_content": None}], "empty"),
+        ([{"reasoning_content": "reason"}, {"reasoning_content": ""}], "nonempty"),
+    ],
+)
+async def test_provider_reports_reasoning_field_state_and_sent_mode(deltas, state):
+    chunks = [{"choices": [{"index": 0, "delta": delta}]} for delta in deltas]
+    chunks.append(
+        {"choices": [{"index": 0, "delta": {"content": "done"}, "finish_reason": "stop"}]}
+    )
+    body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks) + "data: [DONE]\n\n"
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, text=body))
+    ) as client:
+        provider = OpenAICompatibleProvider(
+            base_url="https://api.deepseek.com", api_key="unused", client=client
+        )
+        request = ModelRequest(
+            model="test",
+            messages=[
+                ChatMessage(role=Role.ASSISTANT, name="context_compaction", content="summary")
+            ],
+            tools=[ToolDefinition(name="read", description="read", input_schema={})],
+        )
+        events = [event async for event in provider.stream(request)]
+    metadata = next(e.provider_metadata for e in events if e.kind == ModelEventKind.FINISH)
+    assert metadata["reasoning_content_state"] == state
+    assert metadata["requested_thinking"] == "provider_default"
+    assert metadata["sent_thinking"] == "provider_default"
+    assert metadata["reasoning_placeholder_indices"] == [0]
 
 
 @pytest.mark.asyncio

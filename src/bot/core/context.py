@@ -513,7 +513,9 @@ class TokenEstimator:
     def message(self, message: ChatMessage) -> int:
         tokens = 8
         tokens += self.text(message.content or "")
-        if message.reasoning_content and message.role == Role.ASSISTANT and message.tool_calls:
+        # Some providers replay reasoning for plain answers as well as tool
+        # calls. Keep the provider-independent fallback conservative for both.
+        if message.reasoning_content and message.role == Role.ASSISTANT:
             tokens += self.text(message.reasoning_content)
         tokens += self.text(message.name or "") if message.name else 0
         tokens += self.text(message.tool_call_id or "") if message.tool_call_id else 0

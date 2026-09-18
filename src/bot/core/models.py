@@ -48,10 +48,9 @@ class ChatMessage(BaseModel):
             message["name"] = self.name
         if self.tool_call_id:
             message["tool_call_id"] = self.tool_call_id
-        # DeepSeek thinking mode requires the reasoning generated for an
-        # assistant tool-call turn to be returned on subsequent requests. For a
-        # final answer without tool calls it is diagnostic-only and is omitted
-        # from the provider payload to avoid needlessly expanding context.
+        # The generic projection replays tool-call reasoning. Provider-specific
+        # serializers may require reasoning on other assistant turns too, or
+        # omit it according to the current request mode.
         if self.reasoning_content and self.role == Role.ASSISTANT and self.tool_calls:
             message["reasoning_content"] = self.reasoning_content
         if self.tool_calls:

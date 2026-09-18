@@ -1,0 +1,290 @@
+{
+  "date": "2026-09-18",
+  "endpoint": "https://api.deepseek.com/v1",
+  "scope": "Synthetic protocol acceptance probes; no repository or real session content sent.",
+  "max_output_tokens_per_request": 512,
+  "raw_protocol_probe": [
+    {
+      "variant": "missing",
+      "status": 400,
+      "finish_reason": null,
+      "content": null,
+      "reasoning_chars": 0,
+      "usage": null,
+      "error": "{'message': 'The `reasoning_content` in the thinking mode must be passed back to the API.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_request_error'}"
+    },
+    {
+      "variant": "empty",
+      "status": 200,
+      "finish_reason": "stop",
+      "content": "7",
+      "reasoning_chars": 0,
+      "usage": {
+        "prompt_tokens": 315,
+        "completion_tokens": 2,
+        "total_tokens": 317,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 315
+      },
+      "error": ""
+    },
+    {
+      "variant": "space",
+      "status": 200,
+      "finish_reason": "stop",
+      "content": "7",
+      "reasoning_chars": 0,
+      "usage": {
+        "prompt_tokens": 316,
+        "completion_tokens": 2,
+        "total_tokens": 318,
+        "prompt_tokens_details": {
+          "cached_tokens": 128
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 128,
+        "prompt_cache_miss_tokens": 188
+      },
+      "error": ""
+    },
+    {
+      "variant": "empty_default",
+      "status": 200,
+      "finish_reason": "stop",
+      "content": "7",
+      "reasoning_chars": 44,
+      "usage": {
+        "prompt_tokens": 315,
+        "completion_tokens": 13,
+        "total_tokens": 328,
+        "prompt_tokens_details": {
+          "cached_tokens": 128
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 11
+        },
+        "prompt_cache_hit_tokens": 128,
+        "prompt_cache_miss_tokens": 187
+      },
+      "error": ""
+    }
+  ],
+  "fixed_provider_verification": [
+    {
+      "model": "deepseek-v4-flash",
+      "requested_thinking": null,
+      "text": "7",
+      "reasoning_chars": 84,
+      "usage": {
+        "prompt_tokens": 334,
+        "completion_tokens": 23,
+        "total_tokens": 357,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 21
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 334
+      },
+      "finish_reason": "stop",
+      "metadata": {
+        "provider": "openai_compatible",
+        "requested_thinking": "provider_default",
+        "sent_thinking": "provider_default",
+        "reasoning_placeholder_indices": [
+          1,
+          2
+        ],
+        "request_id": null,
+        "response_id": "fe1b60bf-8058-4fae-b690-6714ba22b7b6",
+        "model": "deepseek-flash",
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669",
+        "choice_index": 0,
+        "chunk_count": 24,
+        "content_chars": 1,
+        "reasoning_chars": 84,
+        "reasoning_content_state": "nonempty",
+        "tool_call_chunks": 0,
+        "observed_delta_fields": [
+          "content",
+          "reasoning_content",
+          "role"
+        ],
+        "unhandled_delta_samples": [],
+        "finish_choice_fields": [
+          "delta",
+          "finish_reason",
+          "index",
+          "logprobs"
+        ]
+      },
+      "passed": true
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "requested_thinking": "enabled",
+      "text": "7",
+      "reasoning_chars": 66,
+      "usage": {
+        "prompt_tokens": 334,
+        "completion_tokens": 18,
+        "total_tokens": 352,
+        "prompt_tokens_details": {
+          "cached_tokens": 128
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 16
+        },
+        "prompt_cache_hit_tokens": 128,
+        "prompt_cache_miss_tokens": 206
+      },
+      "finish_reason": "stop",
+      "metadata": {
+        "provider": "openai_compatible",
+        "requested_thinking": "enabled",
+        "sent_thinking": "enabled",
+        "reasoning_placeholder_indices": [
+          1,
+          2
+        ],
+        "request_id": null,
+        "response_id": "6e2da790-68c8-477d-8f8e-5a151569998f",
+        "model": "deepseek-flash",
+        "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669",
+        "choice_index": 0,
+        "chunk_count": 19,
+        "content_chars": 1,
+        "reasoning_chars": 66,
+        "reasoning_content_state": "nonempty",
+        "tool_call_chunks": 0,
+        "observed_delta_fields": [
+          "content",
+          "reasoning_content",
+          "role"
+        ],
+        "unhandled_delta_samples": [],
+        "finish_choice_fields": [
+          "delta",
+          "finish_reason",
+          "index",
+          "logprobs"
+        ]
+      },
+      "passed": true
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "requested_thinking": null,
+      "text": "7",
+      "reasoning_chars": 98,
+      "usage": {
+        "prompt_tokens": 403,
+        "completion_tokens": 26,
+        "total_tokens": 429,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 24
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 403
+      },
+      "finish_reason": "stop",
+      "metadata": {
+        "provider": "openai_compatible",
+        "requested_thinking": "provider_default",
+        "sent_thinking": "provider_default",
+        "reasoning_placeholder_indices": [
+          1,
+          2
+        ],
+        "request_id": null,
+        "response_id": "cbcd88a6-c8f2-4f2f-a16b-df23a64a802e",
+        "model": "deepseek-v4-pro",
+        "system_fingerprint": "a307abda487cd1b463329ccb945ce396",
+        "choice_index": 0,
+        "chunk_count": 27,
+        "content_chars": 1,
+        "reasoning_chars": 98,
+        "reasoning_content_state": "nonempty",
+        "tool_call_chunks": 0,
+        "observed_delta_fields": [
+          "content",
+          "reasoning_content",
+          "role"
+        ],
+        "unhandled_delta_samples": [],
+        "finish_choice_fields": [
+          "delta",
+          "finish_reason",
+          "index",
+          "logprobs"
+        ]
+      },
+      "passed": true
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "requested_thinking": "enabled",
+      "text": "7",
+      "reasoning_chars": 137,
+      "usage": {
+        "prompt_tokens": 403,
+        "completion_tokens": 35,
+        "total_tokens": 438,
+        "prompt_tokens_details": {
+          "cached_tokens": 384
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 33
+        },
+        "prompt_cache_hit_tokens": 384,
+        "prompt_cache_miss_tokens": 19
+      },
+      "finish_reason": "stop",
+      "metadata": {
+        "provider": "openai_compatible",
+        "requested_thinking": "enabled",
+        "sent_thinking": "enabled",
+        "reasoning_placeholder_indices": [
+          1,
+          2
+        ],
+        "request_id": null,
+        "response_id": "fa35a145-587f-401f-8408-499d82a912b2",
+        "model": "deepseek-v4-pro",
+        "system_fingerprint": "a307abda487cd1b463329ccb945ce396",
+        "choice_index": 0,
+        "chunk_count": 36,
+        "content_chars": 1,
+        "reasoning_chars": 137,
+        "reasoning_content_state": "nonempty",
+        "tool_call_chunks": 0,
+        "observed_delta_fields": [
+          "content",
+          "reasoning_content",
+          "role"
+        ],
+        "unhandled_delta_samples": [],
+        "finish_choice_fields": [
+          "delta",
+          "finish_reason",
+          "index",
+          "logprobs"
+        ]
+      },
+      "passed": true
+    }
+  ]
+}

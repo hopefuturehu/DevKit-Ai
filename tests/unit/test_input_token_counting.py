@@ -52,7 +52,8 @@ def test_upstream_template_resolves_reasoning_and_tools_without_mutating_payload
 
 
 @pytest.mark.parametrize("model", ["deepseek-v4-flash", "deepseek-v4-pro"])
-def test_counter_uses_effective_mode_and_never_calls_it_exact(monkeypatch, model):
+@pytest.mark.parametrize("mode", [None, "enabled", "disabled"])
+def test_counter_uses_effective_mode_and_never_calls_it_exact(monkeypatch, model, mode):
     prompts = []
 
     def encode(prompt, *, add_special_tokens):
@@ -62,16 +63,16 @@ def test_counter_uses_effective_mode_and_never_calls_it_exact(monkeypatch, model
 
     monkeypatch.setattr(counting, "load_tokenizer", lambda _: SimpleNamespace(encode=encode))
     provider = OpenAICompatibleProvider(base_url="https://api.deepseek.com", api_key="unused")
-    request = tool_request(None)
+    request = tool_request(mode)
     request.model = model
-    request.messages[1].reasoning_content = None  # Provider automatically selects non-thinking.
+    request.messages[1].reasoning_content = None  # Empty history must not select non-thinking.
     estimate = provider.estimate_input_tokens(request)
     assert estimate.tokens == 10_000
     assert estimate.budget_tokens == 10_500
-    assert estimate.effective_thinking == "disabled"
+    assert estimate.effective_thinking == (mode or "provider_default")
     assert estimate.source.startswith(model + ":")
     assert provider.count_tokens(request) is None
-    assert prompts[0].endswith("</think>")
+    assert prompts[0].endswith("</think>" if mode == "disabled" else "<think>")
     assert provider.estimate_input_tokens(request) == estimate
     assert len(prompts) == 1  # Hash-only request cache.
     request.messages[-1].content = "new result"
@@ -112,6 +113,23 @@ def test_tokenizer_verifies_asset_and_unknown_models_do_not_use_it(tmp_path, mon
     request = tool_request()
     request.model = "unverified-model"
     assert provider.estimate_input_tokens(request) is None
+
+
+def test_missing_tokenizer_counts_replayed_plain_answer_reasoning(monkeypatch):
+    def unavailable(_):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(counting, "load_tokenizer", unavailable)
+    provider = OpenAICompatibleProvider(base_url="https://api.deepseek.com", api_key="unused")
+    request = tool_request("enabled")
+    answer = ChatMessage(role=Role.ASSISTANT, content="answer", reasoning_content="reason " * 2000)
+    request.messages.extend([answer, ChatMessage(role=Role.USER, content="continue")])
+    with_reasoning = provider.estimate_input_tokens(request)
+    wire = provider.serialized_messages(request)
+    assert wire[-2]["reasoning_content"] == answer.reasoning_content
+    answer.reasoning_content = None
+    without_reasoning = provider.estimate_input_tokens(request)
+    assert with_reasoning.tokens >= without_reasoning.tokens + 3000
 
 
 @pytest.mark.asyncio

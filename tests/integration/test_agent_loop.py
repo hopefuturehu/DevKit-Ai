@@ -4,6 +4,7 @@ import sqlite3
 from collections.abc import AsyncIterator
 from pathlib import Path
 
+import httpx
 import pytest
 
 from bot.config.models import AppConfig
@@ -27,7 +28,7 @@ from bot.core.models import (
 from bot.execution import LocalExecutionTarget, ProcessSpec
 from bot.memory import ExtractedMemoryCandidate, MarkdownMemoryStore, MemoryKind
 from bot.policy import DefaultPolicyEngine
-from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
+from bot.providers import ModelProvider, OpenAICompatibleProvider, ProviderError, ProviderErrorKind
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog, SkillManager
 from bot.tools import Tool, ToolAnnotations, ToolRegistry, ToolResult
@@ -2090,6 +2091,81 @@ async def test_agent_treats_length_finish_as_limit(tmp_path: Path) -> None:
     assert provider.requests[-1].tools == provider.requests[-2].tools
     assert provider.requests[-1].tool_choice == "none"
     store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("thinking", [None, "enabled"])
+async def test_deepseek_empty_reasoning_does_not_disable_tools_or_resumed_session(
+    tmp_path: Path, thinking
+) -> None:
+    (tmp_path / "input.txt").write_text("evidence", encoding="utf-8")
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        requests.append(payload)
+        assert payload.get("thinking") == ({"type": thinking} if thinking else None)
+        assert payload["tools"]
+        assistants = [m for m in payload["messages"] if m["role"] == "assistant"]
+        assert all("reasoning_content" in m for m in assistants)
+        if len(requests) >= 2:
+            first_call = next(m for m in assistants if m.get("tool_calls"))
+            assert first_call["reasoning_content"] == ""
+        if len(requests) >= 3:
+            assert any(m["reasoning_content"] == "checked evidence" for m in assistants)
+        if len(requests) % 2:
+            delta = {
+                "reasoning_content": "",
+                "tool_calls": [
+                    {
+                        "index": 0,
+                        "id": f"read-{len(requests)}",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": '{"path":"input.txt"}'},
+                    }
+                ],
+            }
+            reason = "tool_calls"
+        else:
+            delta = {"reasoning_content": "checked evidence", "content": "done"}
+            reason = "stop"
+        chunk = {"choices": [{"index": 0, "delta": delta, "finish_reason": reason}]}
+        return httpx.Response(200, text=f"data: {json.dumps(chunk)}\n\ndata: [DONE]\n\n")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        session_id = None
+        for _ in range(2):
+            provider = OpenAICompatibleProvider(
+                base_url="https://api.deepseek.com", api_key="unused", client=client
+            )
+            # Recreate the runner/store so the second Run replays durable history.
+            runner, store = make_test_runner(
+                tmp_path,
+                provider,
+                tools=[ReadFileTool()],
+                model_config={"thinking": thinking},
+                memory_config={"enabled": False},
+            )
+            try:
+                result = await runner.run(
+                    RunRequest(prompt="read input.txt", session_id=session_id)
+                )
+                assert result.status == "completed"
+                session_id = result.session_id
+                messages = store.load_messages(session_id)
+                assert next(m for m in messages if m.tool_calls).reasoning_content is None
+                responses = [
+                    e for e in store.list_events(session_id) if e["type"] == "model.response"
+                ]
+                metadata = responses[-2]["payload"]["provider_metadata"]
+                assert metadata["reasoning_content_state"] == "empty"
+                assert metadata["sent_thinking"] == (thinking or "provider_default")
+                if len(requests) == 4:
+                    assert metadata["reasoning_placeholder_indices"]
+            finally:
+                await runner.execution_target.aclose()
+                store.close()
+    assert len(requests) == 4
 
 
 @pytest.mark.asyncio
