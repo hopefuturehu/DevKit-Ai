@@ -14,6 +14,7 @@ from typing import Any
 from uuid import uuid4
 
 from bot.sessions import SQLiteSessionStore
+from bot.web.analysis import DEFAULT_GAP_THRESHOLD_SECONDS, analyze_run
 
 
 class CursorExpired(ValueError):
@@ -126,6 +127,103 @@ class WebQueries:
                 JOIN tree p ON t.parent_session_id=p.id) SELECT id FROM tree)""",
             [session_id],
         )
+
+    def analysis_runs(
+        self,
+        *,
+        limit: int = 200,
+        offset: int = 0,
+        status: str | None = None,
+        stop_reason: str | None = None,
+        session_id: str | None = None,
+        search: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        gap_threshold_seconds: float = DEFAULT_GAP_THRESHOLD_SECONDS,
+    ) -> dict[str, Any]:
+        """Cross-session run list with net-duration and stop-reason analysis.
+
+        Filtering happens in SQL for the cheap columns; stop-reason filtering is
+        applied after analysis because the reason lives in event payloads.
+        """
+        clauses = ["s.workspace=?"]
+        args: list[Any] = [str(self.workspace)]
+        if session_id:
+            clauses.append("r.session_id=?")
+            args.append(session_id)
+        if status:
+            clauses.append("r.status=?")
+            args.append(status)
+        if since:
+            clauses.append("r.started_at>=?")
+            args.append(since)
+        if until:
+            clauses.append("r.started_at<=?")
+            args.append(until)
+        if search:
+            clauses.append(
+                """EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.id
+                    AND e.type='run.started'
+                    AND json_extract(e.payload_json,'$.prompt') LIKE ?)"""
+            )
+            args.append(f"%{search}%")
+        where = " AND ".join(clauses)
+        rows = self.rows(
+            f"""SELECT r.*, s.workspace,
+                (SELECT json_extract(e.payload_json,'$.prompt') FROM events e
+                 WHERE e.run_id=r.id AND e.type='run.started' ORDER BY e.rowid LIMIT 1)
+                    AS prompt
+                FROM runs r JOIN sessions s ON s.id=r.session_id
+                WHERE {where} ORDER BY r.started_at DESC, r.id""",
+            args,
+        )
+        analyses = []
+        for row in rows:
+            events = self.rows(
+                "SELECT type,timestamp,payload_json FROM events WHERE run_id=? ORDER BY rowid",
+                (row["id"],),
+            )
+            analysis = analyze_run(
+                row, events, gap_threshold_seconds=gap_threshold_seconds
+            )
+            item = analysis.as_dict()
+            item["prompt"] = row.get("prompt") or ""
+            item["workspace"] = row.get("workspace")
+            item["input_tokens"] = row.get("input_tokens") or 0
+            item["output_tokens"] = row.get("output_tokens") or 0
+            item["cost_usd"] = row.get("cost_usd")
+            analyses.append(item)
+
+        if stop_reason:
+            analyses = [item for item in analyses if item["stop_reason"] == stop_reason]
+
+        total = len(analyses)
+        page = analyses[offset : offset + limit]
+        return {
+            "runs": page,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total,
+        }
+
+    def analysis_run(
+        self, run_id: str, *, gap_threshold_seconds: float = DEFAULT_GAP_THRESHOLD_SECONDS
+    ):
+        """Full analysis detail for one run, including its approval intervals."""
+        run = self.run(run_id)
+        events = self.rows(
+            "SELECT type,timestamp,payload_json FROM events WHERE run_id=? ORDER BY rowid",
+            (run_id,),
+        )
+        analysis = analyze_run(run, events, gap_threshold_seconds=gap_threshold_seconds)
+        result = analysis.as_dict()
+        result["prompt"] = run.get("prompt") or ""
+        result["input_tokens"] = run.get("input_tokens") or 0
+        result["output_tokens"] = run.get("output_tokens") or 0
+        result["cost_usd"] = run.get("cost_usd")
+        result["session_id"] = run["session_id"]
+        return result
 
     def cursor(self, position: int) -> str:
         return f"{self.epoch}:{position}"

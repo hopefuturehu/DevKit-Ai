@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import quote, urlparse
 from uuid import uuid4
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from bot.cli.runtime import build_runtime
 from bot.core.events import CallbackEventSink
+from bot.web.analysis import summarize as summarize_analyses
 from bot.web.queries import CursorExpired
 from bot.web.sink import WebSocketEventSink
 from bot.web.workbench import WebApprovalHandler, WebWorkbench
@@ -29,6 +31,71 @@ _STATIC_DIR = Path(__file__).resolve().parent / "static"
 PageSize = Annotated[int, Query(ge=1, le=500)]
 Offset = Annotated[int, Query(ge=0)]
 OutputLimit = Annotated[int, Query(ge=1, le=200000)]
+
+# Shown in the UI and embedded in exports so the numbers are never ambiguous.
+ANALYSIS_METHODOLOGY = {
+    "total_seconds": "总耗时 = runs.completed_at - runs.started_at；缺少结束时间时记为未知。",
+    "approval_seconds": (
+        "审批等待 = approval.requested 到配对 approval.resolved 的区间并集；"
+        "重叠区间合并，同一秒不会重复扣除。"
+    ),
+    "net_seconds": "净耗时 = 总耗时 - 审批等待并集，下限为 0。",
+    "unpaired": "没有配对结果的审批请求只计数，不扣除：等待时长未知，不等于 0。",
+    "duplicates": "重复的审批事件按 approval_id 去重，只保留首个请求与首个后续结果。",
+    "unknown_gaps": (
+        "事件之间超过阈值的空档标记为“未知”，仅提示排查，不从净耗时中扣除。"
+    ),
+    "stop_reason": (
+        "停止原因优先取 run.cancelled/blocked/limit_reached/failed 的 termination_reason，"
+        "否则取 run.finished 的 termination_reason；都没有时记为 unknown。"
+    ),
+    "scope": "统计范围限定当前工作区，且只统计主会话运行，不含子任务运行。",
+}
+
+
+def _delta(left: float | None, right: float | None) -> float | None:
+    if left is None or right is None:
+        return None
+    return right - left
+
+
+def sort_analyses(
+    runs: list[dict[str, Any]], *, sort: str = "started", order: str = "desc"
+) -> list[dict[str, Any]]:
+    """Sort analysed runs, keeping unknown durations last regardless of direction.
+
+    Unknown values must not masquerade as the fastest or slowest run, so they are
+    always pushed to the end of the list.
+    """
+    keys = {
+        "net": "net_seconds",
+        "total": "total_seconds",
+        "approval": "approval_seconds",
+        "started": "started_at",
+        "events": "event_count",
+    }
+    key = keys.get(sort)
+    if key is None:
+        raise ValueError(f"不支持的排序字段: {sort}")
+    reverse = order == "desc"
+
+    def sort_key(item: dict[str, Any]):
+        value = item.get(key)
+        unknown = value is None
+        if unknown:
+            # Unknown always sorts last: use a flag that dominates the comparison.
+            return (1, 0, "")
+        if isinstance(value, str):
+            return (0, 0, value)
+        return (0, value, "")
+
+    ordered = sorted(runs, key=sort_key, reverse=reverse)
+    if reverse:
+        # ``reverse`` also flips the unknown flag, so re-partition explicitly.
+        known = [item for item in ordered if item.get(key) is not None]
+        unknown = [item for item in ordered if item.get(key) is None]
+        return known + unknown
+    return ordered
 
 
 class StartRequest(BaseModel):
@@ -180,6 +247,139 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
             raise ValueError("任务要求不能为空")
         return await wb().start(
             session_id, request.prompt.strip(), request.skills, request.request_id
+        )
+
+    @app.get("/api/analysis/runs")
+    async def analysis_runs(
+        limit: PageSize = 200,
+        offset: Offset = 0,
+        status: str | None = None,
+        stop_reason: str | None = None,
+        session_id: str | None = None,
+        search: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        sort: Literal["net", "total", "approval", "started", "events"] = "started",
+        order: Literal["asc", "desc"] = "desc",
+        gap_threshold_seconds: Annotated[float, Query(ge=0, le=86400)] = 120.0,
+    ):
+        """Cross-session run list with net duration, filters and stop reasons."""
+        service = wb()
+        page = service.queries.analysis_runs(
+            limit=limit,
+            offset=offset,
+            status=status,
+            stop_reason=stop_reason,
+            session_id=session_id,
+            search=search,
+            since=since,
+            until=until,
+            gap_threshold_seconds=gap_threshold_seconds,
+        )
+        runs = sort_analyses(page["runs"], sort=sort, order=order)
+        return {
+            **page,
+            "runs": runs,
+            "sort": sort,
+            "order": order,
+            "summary": summarize_analyses(runs),
+            "methodology": ANALYSIS_METHODOLOGY,
+        }
+
+    @app.get("/api/analysis/runs/{run_id}")
+    async def analysis_run_detail(
+        run_id: str,
+        gap_threshold_seconds: Annotated[float, Query(ge=0, le=86400)] = 120.0,
+    ):
+        """Timing breakdown for one run, with approval intervals and unknown gaps."""
+        service = wb()
+        detail = service.queries.analysis_run(
+            run_id, gap_threshold_seconds=gap_threshold_seconds
+        )
+        detail["methodology"] = ANALYSIS_METHODOLOGY
+        return detail
+
+    @app.get("/api/analysis/compare")
+    async def analysis_compare(
+        left: str,
+        right: str,
+        gap_threshold_seconds: Annotated[float, Query(ge=0, le=86400)] = 120.0,
+    ):
+        """Compare two runs on total/net/approval duration and stop reason."""
+        service = wb()
+        left_run = service.queries.analysis_run(
+            left, gap_threshold_seconds=gap_threshold_seconds
+        )
+        right_run = service.queries.analysis_run(
+            right, gap_threshold_seconds=gap_threshold_seconds
+        )
+        return {
+            "left": left_run,
+            "right": right_run,
+            "delta": {
+                "total_seconds": _delta(left_run["total_seconds"], right_run["total_seconds"]),
+                "net_seconds": _delta(left_run["net_seconds"], right_run["net_seconds"]),
+                "approval_seconds": _delta(
+                    left_run["approval_seconds"], right_run["approval_seconds"]
+                ),
+                "event_count": right_run["event_count"] - left_run["event_count"],
+            },
+            "same_stop_reason": left_run["stop_reason"] == right_run["stop_reason"],
+            "methodology": ANALYSIS_METHODOLOGY,
+        }
+
+    @app.get("/api/analysis/export")
+    async def analysis_export(
+        status: str | None = None,
+        stop_reason: str | None = None,
+        session_id: str | None = None,
+        search: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        sort: Literal["net", "total", "approval", "started", "events"] = "started",
+        order: Literal["asc", "desc"] = "desc",
+        gap_threshold_seconds: Annotated[float, Query(ge=0, le=86400)] = 120.0,
+    ):
+        """Download the current analysis view as a JSON report."""
+        service = wb()
+        page = service.queries.analysis_runs(
+            limit=100000,
+            offset=0,
+            status=status,
+            stop_reason=stop_reason,
+            session_id=session_id,
+            search=search,
+            since=since,
+            until=until,
+            gap_threshold_seconds=gap_threshold_seconds,
+        )
+        runs = sort_analyses(page["runs"], sort=sort, order=order)
+        report = {
+            "schema": "bot.run-analysis.v1",
+            "generated_at": datetime.now(UTC).isoformat(),
+            "workspace": str(service.runtime.workspace),
+            "filters": {
+                "status": status,
+                "stop_reason": stop_reason,
+                "session_id": session_id,
+                "search": search,
+                "since": since,
+                "until": until,
+                "sort": sort,
+                "order": order,
+                "gap_threshold_seconds": gap_threshold_seconds,
+            },
+            "summary": summarize_analyses(runs),
+            "methodology": ANALYSIS_METHODOLOGY,
+            "runs": runs,
+        }
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        return Response(
+            content=json.dumps(report, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="run-analysis-{stamp}.json"'
+            },
         )
 
     @app.get("/api/runs/{run_id}")

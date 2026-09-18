@@ -1,5 +1,6 @@
 import {TraceModel,statusLabel,toolSummary} from './trace-model.mjs';
 import {markdown} from './markdown.mjs';
+import {UNKNOWN,breakdown,buildQuery,describeGaps,formatDuration,formatPercent,formatTimestamp,sortRuns,stopReasonLabel,stopReasonTone,summarizeReasons} from './analysis-model.mjs';
 
 const $=id=>document.getElementById(id);
 const el=(tag,className,text)=>{const n=document.createElement(tag);if(className)n.className=className;if(text!==undefined)n.textContent=text;return n;};
@@ -329,7 +330,7 @@ async function selectRun(id){
 async function switchPanel(value){
   panel=value;
   document.querySelectorAll('[data-panel]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.panel===panel)));
-  for(const name of ['activity','artifacts','children','context'])$(name+'Panel').hidden=name!==panel;
+  for(const name of ['activity','artifacts','children','context','analysis'])$(name+'Panel').hidden=name!==panel;
   if(panel!=='activity')try{await renderSecondary();}catch(e){alert(e.message);}
 }
 async function renderSecondary(){
@@ -369,7 +370,296 @@ async function renderSecondary(){
     for(const event of data.events){const details=el('details','context-event');details.append(el('summary','',`${event.type} · ${shortDate(event.timestamp)}`),el('pre','',JSON.stringify(event.payload,null,2)));parts.push(details);}
     if(!data.events.length)parts.push(el('p','muted','没有记录上下文或记忆事件。'));
     target.replaceChildren(...parts);
+  }else if(targetPanel==='analysis'){
+    await renderAnalysis(target);
   }
+}
+
+// --- historical analysis console ------------------------------------------
+
+const analysisState={runs:[],summary:null,methodology:null,selected:null,detail:null,compare:[],loading:false};
+
+function analysisFilters(){
+  return {
+    status:$('filterStatus').value,
+    stop_reason:$('filterReason').value,
+    sort:$('filterSort').value,
+    order:$('filterOrder').value,
+    search:$('filterSearch').value.trim(),
+    gap_threshold_seconds:$('filterGap').value||120,
+  };
+}
+
+async function loadAnalysis(){
+  const filters=analysisFilters();
+  const query=buildQuery({...filters,limit:500});
+  const data=await api(`/api/analysis/runs?${query}`);
+  analysisState.runs=data.runs;
+  analysisState.summary=data.summary;
+  analysisState.methodology=data.methodology;
+  return data;
+}
+
+function renderMethodology(){
+  const body=$('analysisMethodBody');
+  const entries=Object.entries(analysisState.methodology||{});
+  body.replaceChildren(...entries.map(([key,text])=>{
+    const wrap=el('div');
+    wrap.append(el('dt','',key),el('dd','',text));
+    return wrap;
+  }));
+}
+
+function renderSummary(){
+  const summary=analysisState.summary||{};
+  const metrics=[
+    ['运行总数',fmt(summary.runs)],
+    ['净耗时合计',formatDuration(summary.net_seconds?.sum)],
+    ['净耗时均值',formatDuration(summary.net_seconds?.mean)],
+    ['审批等待合计',formatDuration(summary.approval_seconds?.sum)],
+    ['耗时未知',fmt(summary.duration_unknown)],
+    ['未配对审批',fmt(summary.unpaired_approvals)],
+  ];
+  $('analysisSummary').replaceChildren(...metrics.map(([label,value])=>{
+    const metric=el('div','metric');
+    metric.append(el('span','',label),el('strong','',value));
+    return metric;
+  }));
+
+  const reasons=summarizeReasons(summary);
+  $('analysisReasons').replaceChildren(...reasons.map(item=>{
+    const chip=el('span',`reason-chip ${item.tone}`);
+    chip.append(el('span','dot'),document.createTextNode(item.label),el('span','count','',`${item.count} · ${formatPercent(item.count,summary.runs)}`));
+    return chip;
+  }));
+
+  // Populate the stop-reason filter from observed data, preserving selection.
+  const select=$('filterReason');
+  const current=select.value;
+  const options=[el('option','','全部')];
+  options[0].value='';
+  for(const item of reasons){const option=el('option','',`${item.label} (${item.count})`);option.value=item.reason;options.push(option);}
+  select.replaceChildren(...options);
+  select.value=current;
+}
+
+function renderCompare(){
+  const panel=$('analysisCompare');
+  // analysisState.compare holds run ids; resolve them against the loaded rows.
+  const ids=analysisState.compare;
+  const byId=id=>analysisState.runs.find(run=>run.run_id===id);
+  const left=byId(ids[0]),right=byId(ids[1]);
+  if(!left||!right){panel.hidden=true;panel.replaceChildren();return;}
+  panel.hidden=false;
+  const rows=[
+    ['总耗时',formatDuration(left.total_seconds),formatDuration(right.total_seconds),left.total_seconds,right.total_seconds,formatDuration],
+    ['净耗时',formatDuration(left.net_seconds),formatDuration(right.net_seconds),left.net_seconds,right.net_seconds,formatDuration],
+    ['审批等待',formatDuration(left.approval_seconds),formatDuration(right.approval_seconds),left.approval_seconds,right.approval_seconds,formatDuration],
+    ['事件数',fmt(left.event_count),fmt(right.event_count),left.event_count,right.event_count,fmt],
+  ];
+  const grid=el('div','compare-grid');
+  for(const [label,a,b,av,bv,render] of rows){
+    const cell=el('div','compare-cell');
+    const delta=av===null||av===undefined||bv===null||bv===undefined?UNKNOWN:render(Math.abs(bv-av));
+    cell.append(el('span','',label),el('strong','',`${a} → ${b}`),el('div','delta',`差值 ${delta}`));
+    grid.append(cell);
+  }
+  const head=el('div');
+  head.append(el('h3','','运行对比'),el('p','muted',`${left.prompt||left.run_id} ↔ ${right.prompt||right.run_id}`));
+  const actions=el('div','analysis-actions');
+  actions.append(button('清除对比',()=>{analysisState.compare=[];renderCompare();},'quiet'));
+  panel.replaceChildren(head,actions,grid);
+}
+
+function renderTable(){
+  const table=$('analysisTable');
+  if(!analysisState.runs.length){table.replaceChildren(el('p','muted','没有符合条件的运行。'));return;}
+  const rows=analysisState.runs.map(run=>{
+    const row=el('button','analysis-row');
+    row.type='button';
+    row.setAttribute('aria-pressed',String(analysisState.selected===run.run_id));
+    if(analysisState.selected===run.run_id)row.classList.add('selected');
+    row.addEventListener('click',safe(()=>selectAnalysisRun(run.run_id)));
+
+    const title=el('div','cell');
+    title.append(el('div','title',run.prompt||'(无任务描述)'));
+    title.append(el('div','sub',`${formatTimestamp(run.started_at)} · ${run.session_id.slice(0,8)}`));
+    row.append(title);
+
+    const cells=[
+      ['总耗时',run.total_seconds===null?UNKNOWN:formatDuration(run.total_seconds),run.total_seconds===null],
+      ['审批等待',formatDuration(run.approval_seconds),false],
+      ['净耗时',run.net_seconds===null?UNKNOWN:formatDuration(run.net_seconds),run.net_seconds===null],
+      ['事件数',fmt(run.event_count),false],
+    ];
+    for(const [label,value,unknown] of cells){
+      const cell=el('div','cell');
+      cell.append(el('span','',label),el('strong',unknown?'unknown':'',value));
+      row.append(cell);
+    }
+
+    const reason=el('div','cell');
+    reason.append(el('span','','停止原因'),el('strong','',stopReasonLabel(run.stop_reason)));
+    if(run.unpaired_approvals)reason.append(el('div','sub',`${run.unpaired_approvals} 次审批未配对`));
+    if(run.gaps?.length)reason.append(el('div','sub',`${run.gaps.length} 段未知空档`));
+    row.append(reason);
+
+    const pick=el('label','pick');
+    const check=el('input');
+    check.type='checkbox';
+    check.checked=analysisState.compare.includes(run.run_id);
+    check.addEventListener('click',event=>event.stopPropagation());
+    check.addEventListener('change',()=>toggleCompare(run.run_id,check.checked));
+    pick.append(check,document.createTextNode('对比'));
+    row.append(pick);
+    return row;
+  });
+  table.replaceChildren(...rows);
+}
+
+function toggleCompare(runId,checked){
+  const list=analysisState.compare.filter(id=>id!==runId);
+  if(checked)list.push(runId);
+  analysisState.compare=list.slice(-2);
+  renderCompare();
+}
+
+async function selectAnalysisRun(runId){
+  analysisState.selected=runId;
+  const gap=$('filterGap').value||120;
+  analysisState.detail=await api(`/api/analysis/runs/${runId}?gap_threshold_seconds=${encodeURIComponent(gap)}`);
+  renderTable();
+  renderDetail();
+}
+
+function renderDetail(){
+  const panel=$('analysisDetail');
+  const run=analysisState.detail;
+  if(!run){panel.hidden=true;panel.replaceChildren();return;}
+  panel.hidden=false;
+  const parts=[];
+  const head=el('div');
+  head.append(el('h3','',run.prompt||'(无任务描述)'),el('p','muted',`运行 ${run.run_id} · ${formatTimestamp(run.started_at)} → ${run.completed_at?formatTimestamp(run.completed_at):'未结束'}`));
+  parts.push(head);
+
+  const parts2=breakdown(run);
+  if(parts2.known){
+    const bar=el('div','breakdown-bar');
+    const total=Math.max(parts2.total,0.001);
+    const netShare=Math.max(0,parts2.net)/total*100;
+    const approvalShare=Math.max(0,parts2.approval)/total*100;
+    const net=el('span','net');net.style.width=`${netShare}%`;net.textContent=netShare>12?`净耗时 ${formatDuration(parts2.net)}`:'';
+    const approval=el('span','approval');approval.style.width=`${approvalShare}%`;approval.textContent=approvalShare>12?`审批 ${formatDuration(parts2.approval)}`:'';
+    bar.append(net,approval);
+    parts.push(bar);
+    const legend=el('div','breakdown-legend');
+    legend.append(el('span','net','',`净耗时 ${formatDuration(parts2.net)}`),el('span','approval','',`审批等待 ${formatDuration(parts2.approval)}`),el('span','',`总耗时 ${formatDuration(parts2.total)}`));
+    parts.push(legend);
+  }else{
+    parts.push(el('p','muted','这次运行缺少结束时间，总耗时与净耗时记为未知。'));
+  }
+
+  const metrics=el('div','metric-grid');
+  for(const [label,value] of [
+    ['停止原因',stopReasonLabel(run.stop_reason)],
+    ['状态',statusLabel(run.status)],
+    ['审批区间',fmt(run.approval_intervals.length)],
+    ['未配对审批',fmt(run.unpaired_approvals)],
+    ['重复审批事件',fmt(run.duplicate_approvals)],
+    ['事件数',fmt(run.event_count)],
+  ]){const metric=el('div','metric');metric.append(el('span','',label),el('strong','',value));metrics.append(metric);}
+  parts.push(metrics);
+
+  if(run.approval_waits.length){
+    const details=el('details','method-panel');
+    details.append(el('summary','',`审批等待明细（${run.approval_waits.length}）`));
+    const list=el('div','method-body');
+    for(const wait of run.approval_waits){
+      const line=el('div');
+      line.append(el('dt','',wait.tool_name||wait.approval_id));
+      line.append(el('dd','',wait.paired
+        ? `${formatTimestamp(wait.requested_at)} → ${formatTimestamp(wait.resolved_at)} · ${formatDuration(wait.seconds)} · ${wait.approved?'已批准':'已拒绝'}`
+        : `${formatTimestamp(wait.requested_at)} · 未配对，等待时长未知`));
+      list.append(line);
+    }
+    details.append(list);
+    parts.push(details);
+  }
+
+  const gaps=describeGaps(run);
+  if(gaps.length){
+    const wrap=el('div');
+    wrap.append(el('h4','','长时间无事件区间（未知）'));
+    const list=el('div','gap-list');
+    for(const gap of gaps){
+      const row=el('div','gap-row');
+      row.append(el('span','',`${gap.label} · ${gap.duration}`),el('span','unknown-tag','未知 · 未扣除'));
+      list.append(row);
+    }
+    wrap.append(list);
+    parts.push(wrap);
+  }
+
+  if(run.notes?.length){
+    const notes=el('ul','analysis-notes');
+    for(const note of run.notes)notes.append(el('li','',note));
+    parts.push(notes);
+  }
+
+  const actions=el('div','analysis-actions');
+  actions.append(button('查看执行轨迹',safe(async()=>{
+    // The console spans sessions, so the target run may live in another one.
+    // Switching sessions reloads runRows; only then can the trace render.
+    if(run.session_id&&run.session_id!==sessionId){
+      await selectSession(run.session_id);
+      runId=run.run_id;rootRunId=run.run_id;
+      renderRunPicker();
+    }else{
+      runId=run.run_id;
+      if(runRows.some(r=>r.id===run.run_id))rootRunId=run.run_id;
+      renderRunPicker();
+    }
+    await switchPanel('activity');
+    render();
+  }),'primary'));
+  actions.append(button('关闭详情',()=>{analysisState.selected=null;analysisState.detail=null;renderTable();renderDetail();},'quiet'));
+  parts.push(actions);
+
+  panel.replaceChildren(...parts);
+}
+
+async function renderAnalysis(target){
+  if(!analysisState.runs.length&&!analysisState.loading){
+    analysisState.loading=true;
+    try{await loadAnalysis();}finally{analysisState.loading=false;}
+  }
+  renderMethodology();
+  renderSummary();
+  renderCompare();
+  renderTable();
+  renderDetail();
+  if(!target.childElementCount)target.append(el('p','muted','正在加载历史运行…'));
+}
+
+async function refreshAnalysis(){
+  try{
+    await loadAnalysis();
+    if(analysisState.selected&&!analysisState.runs.some(r=>r.run_id===analysisState.selected)){
+      analysisState.selected=null;analysisState.detail=null;
+    }
+    renderSummary();renderCompare();renderTable();renderDetail();
+  }catch(e){alert(e.message);}
+}
+
+function exportAnalysis(){
+  const filters=analysisFilters();
+  const query=buildQuery({...filters,limit:100000});
+  const link=document.createElement('a');
+  link.href=`/api/analysis/export?${query}`;
+  link.download='';
+  document.body.append(link);
+  link.click();
+  link.remove();
 }
 async function inspectRunEvents(id){
   openInspector('context','完整事件日志');selectedTool=null;
@@ -435,6 +725,11 @@ $('theme').value=storage.get('bot.theme')||'auto';
 function theme(){document.documentElement.dataset.theme=$('theme').value;storage.set('bot.theme',$('theme').value);}
 $('theme').addEventListener('change',theme);theme();
 for(const b of document.querySelectorAll('[data-panel]'))b.addEventListener('click',()=>switchPanel(b.dataset.panel));
+$('analysisRefresh').addEventListener('click',safe(refreshAnalysis));
+$('analysisExport').addEventListener('click',exportAnalysis);
+for(const id of ['filterStatus','filterReason','filterSort','filterOrder','filterGap'])$(id).addEventListener('change',safe(refreshAnalysis));
+let searchTimer=null;
+$('filterSearch').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>safe(refreshAnalysis)(),300);});
 for(const b of document.querySelectorAll('[data-detail]'))b.addEventListener('click',()=>{detailTab=b.dataset.detail;outputFollowing=false;renderToolDetail();if(detailTab==='events'&&!rawEvents)safe(()=>loadRawEvents())();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(!$('inspector').hidden)closeInspector();$('sidebar').classList.remove('open');$('navToggle').setAttribute('aria-expanded','false');}});
 setInterval(()=>{if(sessionId){renderMeta();if(activeRunId)queueRefresh();}},2000);

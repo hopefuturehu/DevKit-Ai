@@ -31,7 +31,7 @@
       <div id="runMeta" class="run-meta"></div>
       <div id="alert" class="alert" role="alert" hidden></div>
       <details id="planPanel" class="plan-panel" open hidden><summary id="planSummary">任务计划</summary><p id="planExplanation" class="muted"></p><ol id="planItems"></ol></details>
-      <div class="content-tabs" aria-label="任务视图"><button data-panel="activity" aria-pressed="true">执行过程</button><button data-panel="artifacts" aria-pressed="false">文件与产物</button><button data-panel="children" aria-pressed="false">子任务</button><button data-panel="context" aria-pressed="false">上下文</button></div>
+      <div class="content-tabs" aria-label="任务视图"><button data-panel="activity" aria-pressed="true">执行过程</button><button data-panel="artifacts" aria-pressed="false">文件与产物</button><button data-panel="children" aria-pressed="false">子任务</button><button data-panel="context" aria-pressed="false">上下文</button><button data-panel="analysis" aria-pressed="false">历史分析</button></div>
       <section id="activityPanel" class="activity-panel" aria-label="对话与执行过程">
         <div id="activityScroller" class="activity-scroller">
           <button id="moreActivity" class="quiet" hidden>显示更早的步骤</button>
@@ -43,6 +43,35 @@
       <section id="artifactsPanel" class="secondary-panel" aria-label="文件产物" hidden></section>
       <section id="childrenPanel" class="secondary-panel" aria-label="子任务" hidden></section>
       <section id="contextPanel" class="secondary-panel" aria-label="上下文信息" hidden></section>
+      <section id="analysisPanel" class="secondary-panel" aria-label="历史任务分析台" hidden>
+        <div class="analysis-head">
+          <div>
+            <div class="eyebrow">跨会话统计</div>
+            <h2>历史任务分析台</h2>
+          </div>
+          <div class="analysis-actions">
+            <button id="analysisRefresh" class="quiet">刷新</button>
+            <button id="analysisExport" class="primary">导出 JSON</button>
+          </div>
+        </div>
+        <details id="analysisMethod" class="method-panel">
+          <summary>统计口径说明</summary>
+          <div id="analysisMethodBody" class="method-body"></div>
+        </details>
+        <div class="analysis-filters">
+          <label>状态<select id="filterStatus"><option value="">全部</option><option value="completed">已完成</option><option value="failed">失败</option><option value="cancelled">已停止</option><option value="blocked">被阻塞</option><option value="limit_reached">达到上限</option><option value="running">运行中</option></select></label>
+          <label>停止原因<select id="filterReason"><option value="">全部</option></select></label>
+          <label>排序<select id="filterSort"><option value="net">净耗时</option><option value="total">总耗时</option><option value="approval">审批等待</option><option value="started">开始时间</option><option value="events">事件数</option></select></label>
+          <label>方向<select id="filterOrder"><option value="desc">降序</option><option value="asc">升序</option></select></label>
+          <label class="grow">搜索<textarea id="filterSearch" rows="1" placeholder="按任务描述筛选"></textarea></label>
+          <label>空档阈值(s)<input id="filterGap" type="number" min="0" max="86400" step="10" value="120"></label>
+        </div>
+        <div id="analysisSummary" class="metric-grid"></div>
+        <div id="analysisReasons" class="reason-list"></div>
+        <div id="analysisCompare" class="compare-panel" hidden></div>
+        <div id="analysisTable" class="analysis-table"></div>
+        <div id="analysisDetail" class="analysis-detail" hidden></div>
+      </section>
       <section class="composer" aria-label="任务输入">
         <div class="composer-heading"><label id="promptLabel" for="prompt">描述任务</label><details class="skills-picker"><summary>Skills</summary><div id="skillsList"></div></details></div>
         <textarea id="prompt" placeholder="例如：帮我检查项目中的配置加载逻辑，定位问题并验证。" rows="2"></textarea>

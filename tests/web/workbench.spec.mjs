@@ -89,6 +89,96 @@ test('approval is attached to the correct tool and survives refresh',async({page
   }finally{await request.post('/__test__/approval/false');}
 });
 
+test('analysis console lists runs, explains net duration and exports a report',async({page})=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/');await expect(page.locator('#connection')).toHaveText('实时已连接');
+  await page.getByRole('button',{name:'历史分析',exact:true}).click();
+  await expect(page.locator('#analysisPanel')).toBeVisible();
+
+  // Methodology must be visible so the numbers are interpretable.
+  await page.locator('#analysisMethod summary').click();
+  await expect(page.locator('#analysisMethodBody')).toContainText('净耗时');
+  await expect(page.locator('#analysisMethodBody')).toContainText('并集');
+
+  // Cross-session list: the seeded runs come from three different sessions.
+  const rows=page.locator('.analysis-row');
+  await expect(rows.filter({hasText:'分析台验收：完成运行含审批等待'})).toBeVisible();
+  await expect(rows.filter({hasText:'分析台验收：取消运行含未配对审批'})).toBeVisible();
+  await expect(rows.filter({hasText:'分析台验收：缺少结束时间'})).toBeVisible();
+
+  // Net duration = total - approval union: 100s total, 30s approval -> 70s net.
+  const completed=rows.filter({hasText:'分析台验收：完成运行含审批等待'});
+  await expect(completed).toContainText('1m 40s');
+  await expect(completed).toContainText('30.0 s');
+  await expect(completed).toContainText('1m 10s');
+
+  // A run without an end time must read as unknown, never as 0.
+  const open=rows.filter({hasText:'分析台验收：缺少结束时间'});
+  await expect(open).toContainText('未知');
+
+  // Stop-reason statistics are aggregated and labelled.
+  await expect(page.locator('#analysisReasons')).toContainText('正常完成');
+  await expect(page.locator('#analysisReasons')).toContainText('用户停止');
+
+  // Detail view shows the breakdown and links to the trace.
+  await completed.click();
+  await expect(page.locator('#analysisDetail')).toBeVisible();
+  await expect(page.locator('#analysisDetail')).toContainText('净耗时');
+  await expect(page.locator('#analysisDetail')).toContainText('审批等待');
+  await expect(page.locator('#analysisDetail')).toContainText('30.0 s');
+  await page.getByRole('button',{name:'查看执行轨迹'}).click();
+  await expect(page.locator('#activity')).toBeVisible();
+
+  // A run without an end time must read as unknown in its detail view too.
+  await page.getByRole('button',{name:'历史分析',exact:true}).click();
+  await open.click();
+  await expect(page.locator('#analysisDetail')).toContainText('缺少结束时间');
+  await expect(page.locator('#analysisDetail')).toContainText('未知');
+
+  // Back to the console, then export the JSON report.
+  await page.getByRole('button',{name:'历史分析',exact:true}).click();
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'导出 JSON'}).click();
+  const file=await download;
+  expect(file.suggestedFilename()).toMatch(/^run-analysis-.*\.json$/);
+  const stream=await file.createReadStream();
+  const chunks=[];for await(const chunk of stream)chunks.push(chunk);
+  const report=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  expect(report.schema).toBe('bot.run-analysis.v1');
+  expect(report.methodology.net_seconds).toContain('并集');
+  expect(report.runs.length).toBeGreaterThanOrEqual(3);
+  expect(errors).toEqual([]);
+});
+
+test('analysis console filters by stop reason and sorts by net duration',async({page})=>{
+  await page.goto('/');await expect(page.locator('#connection')).toHaveText('实时已连接');
+  await page.getByRole('button',{name:'历史分析',exact:true}).click();
+  await expect(page.locator('.analysis-row').first()).toBeVisible();
+
+  await page.locator('#filterReason').selectOption('cancelled');
+  // Other tests may create cancelled runs too, so assert on the seeded one
+  // rather than on an exact row count.
+  const cancelledRows=page.locator('.analysis-row');
+  await expect(cancelledRows.filter({hasText:'分析台验收：取消运行含未配对审批'})).toBeVisible();
+  await expect(cancelledRows.filter({hasText:'分析台验收：完成运行含审批等待'})).toHaveCount(0);
+  await expect(cancelledRows.filter({hasText:'分析台验收：取消运行含未配对审批'})).toContainText('1 次审批未配对');
+
+  await page.locator('#filterReason').selectOption('');
+  await page.locator('#filterSort').selectOption('net');
+  await page.locator('#filterOrder').selectOption('asc');
+  // Ascending net duration: the seeded 1m 10s run must precede the 10m cancelled run.
+  const ascending=await page.locator('.analysis-row').allTextContents();
+  const completedIndex=ascending.findIndex(t=>t.includes('分析台验收：完成运行含审批等待'));
+  const cancelledIndex=ascending.findIndex(t=>t.includes('分析台验收：取消运行含未配对审批'));
+  expect(completedIndex).toBeGreaterThanOrEqual(0);
+  expect(cancelledIndex).toBeGreaterThan(completedIndex);
+  // Unknown durations stay last in both directions.
+  await page.locator('#filterOrder').selectOption('desc');
+  await expect(page.locator('.analysis-row').last()).toContainText('分析台验收：缺少结束时间');
+  await page.locator('#filterOrder').selectOption('asc');
+  await expect(page.locator('.analysis-row').last()).toContainText('分析台验收：缺少结束时间');
+});
+
 for(const width of [360,736,1024])for(const colorScheme of ['light','dark']){
   test(`responsive ${width}px ${colorScheme}`,async({page},testInfo)=>{
     await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme});

@@ -8,13 +8,14 @@ import os
 import sys
 import tempfile
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
 import uvicorn
 
 import bot.cli.runtime as runtime_module
-from bot.core.events import EventType
+from bot.core.events import AgentEvent, EventType
 from bot.core.models import ModelCapabilities, ModelEvent, ModelEventKind, Role
 from bot.web.server import create_app
 
@@ -170,7 +171,125 @@ async def seed(service):
         output_tokens=20,
         duration_ms=12,
     )
+    await seed_analysis_runs(service)
     return session
+
+
+async def seed_analysis_runs(service):
+    """Seed runs that exercise the analysis boundaries the console must explain.
+
+    - ``analysis-completed``: 100s total with a 30s approval wait -> net 70s.
+    - ``analysis-cancelled``: cancelled with an unpaired approval request.
+    - ``analysis-open``: started but never finished -> duration unknown.
+    """
+    store = service.runtime.store
+    bus = service.runtime.runner.event_bus
+    workspace = service.runtime.workspace
+    base = datetime(2026, 9, 18, 10, 0, 0, tzinfo=UTC)
+
+    def stamp(offset):
+        return (base + timedelta(seconds=offset)).isoformat()
+
+    async def emit(kind, session, run, **payload):
+        await bus.emit(kind, session_id=session, run_id=run, payload=payload)
+
+    async def emit_at(kind, session, run, offset, **payload):
+        """Emit with an explicit timestamp so it lands inside the backdated window."""
+        event = AgentEvent(
+            type=kind,
+            session_id=session,
+            run_id=run,
+            timestamp=base + timedelta(seconds=offset),
+            payload=payload,
+        )
+        await store.publish(event)
+
+    async def backdate(run_id, started, completed):
+        with store._lock, store._connection:
+            store._connection.execute(
+                "UPDATE runs SET started_at=?, completed_at=? WHERE id=?",
+                (started, completed, run_id),
+            )
+
+    completed_session = store.create_session(workspace)
+    store.start_run(completed_session, "analysis-completed")
+    await emit_at(
+        EventType.RUN_STARTED,
+        completed_session,
+        "analysis-completed",
+        0,
+        prompt="分析台验收：完成运行含审批等待",
+    )
+    await emit_at(
+        EventType.APPROVAL_REQUESTED,
+        completed_session,
+        "analysis-completed",
+        10,
+        approval_id="analysis-ap-1",
+        tool_call_id="analysis-t-1",
+        name="run_command",
+        reason="需要审批",
+    )
+    await emit_at(
+        EventType.APPROVAL_RESOLVED,
+        completed_session,
+        "analysis-completed",
+        40,
+        approval_id="analysis-ap-1",
+        tool_call_id="analysis-t-1",
+        approved=True,
+        scope="once",
+    )
+    await emit_at(
+        EventType.RUN_FINISHED,
+        completed_session,
+        "analysis-completed",
+        100,
+        status="completed",
+        termination_reason="completed",
+    )
+    store.finish_run("analysis-completed", "completed")
+    await backdate("analysis-completed", stamp(0), stamp(100))
+
+    cancelled_session = store.create_session(workspace)
+    store.start_run(cancelled_session, "analysis-cancelled")
+    await emit_at(
+        EventType.RUN_STARTED,
+        cancelled_session,
+        "analysis-cancelled",
+        0,
+        prompt="分析台验收：取消运行含未配对审批",
+    )
+    await emit_at(
+        EventType.APPROVAL_REQUESTED,
+        cancelled_session,
+        "analysis-cancelled",
+        20,
+        approval_id="analysis-ap-2",
+        tool_call_id="analysis-t-2",
+        name="apply_patch",
+        reason="需要审批",
+    )
+    await emit_at(
+        EventType.RUN_CANCELLED,
+        cancelled_session,
+        "analysis-cancelled",
+        600,
+        termination_reason="cancelled",
+        error="运行已取消",
+    )
+    store.finish_run("analysis-cancelled", "cancelled")
+    await backdate("analysis-cancelled", stamp(0), stamp(600))
+
+    open_session = store.create_session(workspace)
+    store.start_run(open_session, "analysis-open")
+    await emit_at(
+        EventType.RUN_STARTED,
+        open_session,
+        "analysis-open",
+        0,
+        prompt="分析台验收：缺少结束时间",
+    )
 
 
 def main():
