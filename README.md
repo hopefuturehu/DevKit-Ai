@@ -6,6 +6,7 @@ Skill 和 Tool 扩展鲲鹏迁移、性能分析等领域能力。
 文档入口见 [docs/README.md](docs/README.md)，按使用指南、架构、设计演进、评测、调研、求职资料和历史归档分类。
 项目设计目标和边界见 [docs/architecture/design.md](docs/architecture/design.md)，已实现能力与待验收项见
 [实现状态](docs/architecture/implementation-status.md)。
+按阶段汇总的修改历史、设计取舍与量化指标见[开发演进记录](docs/development-history.md)。
 
 ## 已实现能力
 

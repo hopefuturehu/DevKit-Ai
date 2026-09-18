@@ -32,5 +32,6 @@
 | [先复用前缀、失败后独立摘要](compaction-prefix-fallback-design.md) | `a_fallback` 的原始设计；已实现，适用边界见对应实测 |
 | [压缩正确性与实现复杂度的取舍](compaction-correctness-complexity.md) | 精简提示已实现；保留原决策及本地、真实模型验证边界 |
 | [摘要改进：保留关键证据与判断状态](compaction-evidence-improvement-design.md) | 后续候选设计；强制引用、固定证据预算与跨轮继承暂缓 |
-| [默认启用双路径压缩](compaction-dual-path-default.md) | 默认 `a_fallback`、thinking 继承、空闲 `/compact` 与第三版取舍提示的落地记录 |
+| [默认启用双路径压缩](compaction-dual-path-default.md) | 默认 `a_fallback`、空闲 `/compact` 与第三版取舍提示的落地记录；独立兜底 thinking 的后续变更见下一项 |
+| [独立摘要兜底默认关闭 thinking](compaction-isolated-thinking.md) | 2026-09-18 已落地：前缀保留主请求设置，独立兜底默认 `disabled`，可设 `inherit` |
 | [取消摘要正文发布门限](compaction-summary-body-limit-removal.md) | 取消正文硬门限，保留摘要软目标与输出截断检查的变更记录 |

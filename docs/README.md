@@ -3,6 +3,8 @@
 文档按用途分目录；本页提供阅读入口，完整清单见各分类索引。
 第一次了解项目，建议按[项目 README](../README.md) → [实现状态](architecture/implementation-status.md) → [总体设计](architecture/design.md)阅读。
 
+了解完整开发过程，可读[开发演进记录](development-history.md)：按阶段汇总 2026-07-17—09-18 的修改历史、设计取舍、量化指标、证据来源及待完成事项，附完整 Git 历史快照。
+
 ## 按用途查找
 
 | 分类 | 内容 | 常用入口 |
