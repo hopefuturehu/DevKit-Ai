@@ -2,8 +2,13 @@
 
 返回[文档索引](../README.md)。这些材料用于整理项目表达和个人经历，技术行为仍以[架构说明](../architecture/README.md)为入口。
 
-本轮已按 `2bb51f4`（2026-09-16）核对本地实现。准备回答前先看[实现核对记录](implementation-audit.md)：
+实现核对记录按 `2bb51f4`（2026-09-16）检查本地行为。准备回答前先看[实现核对记录](implementation-audit.md)：
 它列出已修正的差异、默认开关及源码证据；历史评测和招聘信息继续使用各自日期。
+
+2026-09-18 新增[摘要生成优化案例](context-management-interview-guide.md#compaction-selection-case)与
+[简历成果句](resume-materials.md#compaction-selection-resume)：包含固定失败输入实验和后续 59 分钟、
+10 次压缩的连续运行。完整前因后果见[优化复盘](../evaluations/compaction-optimization-retrospective-20260918.md)。
+这次补充没有重新审计全部实现或改写旧实验口径。
 
 | 文档 | 用途 |
 |---|---|
