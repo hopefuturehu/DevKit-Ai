@@ -74,6 +74,7 @@ def setup(tmp_path, mode, finishes):
             "model": {"name": "mock", "context_window_tokens": 1_000_000},
             "context": {
                 "compaction_strategy": "a_fallback",
+                "compaction_isolated_thinking": "inherit",
                 "max_input_tokens": 900_000,
                 "compaction_max_output_tokens": 8192,
                 "compaction_low_water_tokens": 40_000,
@@ -116,6 +117,8 @@ def setup(tmp_path, mode, finishes):
     [
         ("prefix_enabled", ["stop"], ["enabled"], True),
         ("prefix_enabled", ["length"], ["enabled"], False),
+        ("isolated_enabled", ["stop"], ["enabled"], True),
+        ("isolated_enabled", ["length"], ["enabled"], False),
         ("isolated_disabled", ["stop"], ["disabled"], True),
         ("isolated_disabled", ["length"], ["disabled"], False),
         ("fallback_disabled", ["length", "stop"], ["enabled", "disabled"], True),
@@ -159,3 +162,11 @@ async def test_neutral_wording_only_changes_declared_phrase(tmp_path):
         assert engine.frame.request.model_dump() == base_before
     finally:
         store.close()
+
+
+def test_probe_explicitly_preserves_enabled_arm(monkeypatch):
+    # No workspace credentials are needed to inspect the experiment overrides.
+    monkeypatch.setattr(
+        probe, "load_config", lambda root, *, overrides: AppConfig.model_validate(overrides)
+    )
+    assert probe.config_for_probe().context.compaction_isolated_thinking == "inherit"

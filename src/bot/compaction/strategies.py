@@ -434,11 +434,16 @@ class StrategyCompactor:
                 ],
             }
         )
-        # Both attempts inherit the captured main request's model and thinking,
-        # including None (provider default), rather than a legacy summary override.
+        # Keep the captured main model, but give the independent fallback its own
+        # thinking policy. Inherit includes None (provider default). Neither this
+        # override nor the legacy summary settings may mutate the main/prefix.
         # This path does not enter CURRENT's 60K chunk loop.
         isolated.model = frame.request.model
-        isolated.thinking = frame.request.thinking
+        isolated.thinking = (
+            frame.request.thinking
+            if self.config.context.compaction_isolated_thinking == "inherit"
+            else "disabled"
+        )
         isolated.messages[0].content = isolated_summary_instruction()
         isolated.messages.append(ChatMessage(role=Role.USER, content=SUMMARY_SELECTION_REMINDER))
         prefix = frame.prefix_request.model_copy(deep=True) if frame.prefix_request else None

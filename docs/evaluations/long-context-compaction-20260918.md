@@ -14,6 +14,10 @@
 [逐请求机器记录](../data/long-context-compaction-20260918.json)包含请求哈希、API usage、
 发布结果、变量核验、缓存预热记录和定向内容核对。
 
+后续落地：生产独立兜底新增 `compaction_isolated_thinking`，默认 `disabled`，可选 `inherit`；
+前缀保持主请求设置。详见[配置与失败保护](../designs/compaction-isolated-thinking.md)。实验脚本
+显式使用 `inherit` 作为基线，再按分组覆盖关闭，防止新默认值改变开启组。本报告原始数据不变。
+
 ## 数据和控制
 
 来源为 gaming Run `85cab45ef30f4a39afa27218b73afc13`、Session

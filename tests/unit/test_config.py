@@ -183,6 +183,26 @@ def test_execution_has_no_fixed_global_limit_by_default() -> None:
     assert config.context.compaction_source_refs == "range"
     assert config.context.compaction_strategy == "a_fallback"
     assert config.context.compaction_thinking == "auto"
+    assert config.context.compaction_isolated_thinking == "disabled"
+
+
+@pytest.mark.parametrize("policy", ["disabled", "inherit"])
+def test_isolated_thinking_policy_loads_without_changing_main(tmp_path: Path, policy) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        '[model]\nthinking = "enabled"\n[context]\n'
+        f'compaction_isolated_thinking = "{policy}"\ncompaction_thinking = "auto"\n',
+        encoding="utf-8",
+    )
+    config = load_config(tmp_path, config_path=config_path)
+    assert config.context.compaction_isolated_thinking == policy
+    assert config.model.thinking == "enabled"
+    assert config.context.compaction_thinking == "auto"
+
+
+def test_isolated_thinking_policy_rejects_invalid_value() -> None:
+    with pytest.raises(ValueError, match="compaction_isolated_thinking"):
+        AppConfig.model_validate({"context": {"compaction_isolated_thinking": "disabeld"}})
 
 
 def test_compaction_summary_target_accepts_legacy_body_limit_config() -> None:

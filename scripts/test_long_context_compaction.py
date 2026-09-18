@@ -78,6 +78,8 @@ def config_for_probe():
             "model": {"context_window_tokens": 1_000_000, "max_output_tokens": OUTPUT},
             "context": {
                 "compaction_strategy": "a_fallback",
+                # Freeze the enabled arm independently of production defaults.
+                "compaction_isolated_thinking": "inherit",
                 "max_input_tokens": 900_000,
                 "compaction_max_output_tokens": OUTPUT,
                 "compaction_low_water_tokens": 40_000,

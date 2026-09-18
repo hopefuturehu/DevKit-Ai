@@ -506,7 +506,8 @@ Router 和运行提示位于动态尾部，自动记忆正文只作为一次性 
 默认 `a_fallback` 先复用真实主请求前缀，跳过或可恢复失败后至多做一次独立摘要；空闲
 `/compact` 直接走独立路径。第三版提示重新筛选旧摘要和新原文，并在历史后追加交接提醒，
 以当前任务和约 3K tokens 为软目标；旧 4K 正文门限已取消，生成截断仍不发布。
-两条路径均继承主请求模型与 thinking，前缀沿用原生成额度，独立额度默认 8,192。
+两条路径均继承主请求模型；前缀沿用原 thinking 和生成额度，独立额度默认 8,192，
+thinking 默认关闭，可用 `compaction_isolated_thinking="inherit"` 恢复继承。
 固定 60K 分块和候选凝练属于旧 CURRENT；`/compact rebuild` 目前仍直接使用该重建入口。
 
 自动压缩失败时旧摘要和 cursor 保持不变，但 Agent 不一定立即停止：Planner 仍可卸载非
@@ -849,7 +850,9 @@ compaction_command_max_requests = 8
 compaction_command_max_seconds = 600
 compaction_command_max_cost_usd = 0.25
 compaction_source_refs = "range"
-# 双路径始终跟随主请求 thinking；旧策略 auto 也跟随 model.thinking
+# 双路径前缀保留主请求 thinking；独立兜底默认关闭，可设 inherit
+compaction_isolated_thinking = "disabled"
+# 旧策略 auto 跟随 model.thinking；此字段不覆盖双路径
 compaction_thinking = "auto"
 compaction_max_message_chars = 12000
 compaction_rebuild_every = 5

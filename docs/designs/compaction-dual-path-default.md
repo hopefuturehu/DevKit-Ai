@@ -2,7 +2,10 @@
 
 日期：2026-09-13。实现基于此前留档提交 `a5728fc`；本次未进行付费模型测试。
 
-后续已按用户要求取消摘要正文发布门限。下文默认双路径与 thinking 继承机制继续有效；长度规则已更新，移除门限的验证另见[变更记录](compaction-summary-body-limit-removal.md)。
+后续已按用户要求取消摘要正文发布门限，验证另见[变更记录](compaction-summary-body-limit-removal.md)。
+2026-09-18 起，独立兜底 thinking 改为默认关闭，提供 `compaction_isolated_thinking="inherit"`
+恢复原行为；前缀仍继承主请求。配置、证据和保护措施见[落地记录](compaction-isolated-thinking.md)。
+下文 thinking 同步继承与验证数字记录的是各自日期的实现。
 
 ## 2026-09-17：第三版内容取舍提示落地
 

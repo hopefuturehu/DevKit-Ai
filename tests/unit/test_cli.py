@@ -14,6 +14,10 @@ def test_cli_recognizes_management_commands_before_natural_language(tmp_path: Pa
     assert initialized.exit_code == 0, initialized.output
     assert (tmp_path / ".bot" / "config.toml").exists()
     assert load_config(tmp_path).context.compaction_strategy == "a_fallback"
+    assert load_config(tmp_path).context.compaction_isolated_thinking == "disabled"
+    assert 'compaction_isolated_thinking = "disabled"' in (
+        tmp_path / ".bot" / "config.toml"
+    ).read_text(encoding="utf-8")
     assert (
         (tmp_path / ".env.example")
         .read_text(encoding="utf-8")

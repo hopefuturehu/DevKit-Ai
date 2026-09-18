@@ -245,6 +245,7 @@ target = floor(hard * context.auto_compact_threshold)
 | `recent_conversation_tokens` | 20K | 连续近期原文的有界目标；为保证至少保留一个进展单元，只有最新单个不可拆原子组可突破 |
 | `compaction_min_recent_user_turns` | 3 | 强制压缩的预算内停止条件：收集到 3 条真实用户消息即停，合成 Skill 不计入；否则在下一个更旧组会使 tail 超过 20K 时停止 |
 | `compaction_strategy` | `a_fallback` | 默认双路径；旧 `current/a/b` 为显式选项 |
+| `compaction_isolated_thinking` | `disabled` | 仅双路径独立摘要关闭 thinking；`inherit` 继承捕获的主请求（包括供应商默认值） |
 | `compaction_summary_target_tokens` | 未设置时旧 CURRENT 取 3K | 旧 CURRENT 的可配置软目标；默认双路径提示直接约定约 3K，不动态读取该字段 |
 | `compaction_summary_tokens` | 4K（兼容字段） | 已停用，不限制正文发布，也不再影响软目标 |
 | `compaction_max_output_tokens` | 8,192 | 独立摘要生成额度；前缀路径继承主请求额度；双路径选择边界时也按此值预留摘要空间 |
@@ -419,9 +420,12 @@ Assistant Tool Call 后；对缺少结果的调用按“运行中断、结果未
 默认第三版提示统一重新筛选旧摘要与新原文，优先当前任务，约 3K 为软目标；提示与提醒不写入
 原始 Transcript。完整候选仍须满足章节、来源、恢复后的输入预算与净释放检查。
 
-独立生成额度默认 8,192；前缀额度继承主请求。两次尝试均继承捕获的主模型与 thinking，
-`compaction_model/compaction_thinking` 旧覆盖项不改变这条路径。输入门限按各自请求的
-`max_output_tokens` 与主输出预留取较大值，再扣除协议和安全余量；不受固定 60K 上限限制。
+独立生成额度默认 8,192；前缀额度继承主请求。两次尝试均继承捕获的主模型；前缀 thinking
+保持不变，独立路径默认关闭，可设 `compaction_isolated_thinking="inherit"` 恢复继承。
+该设置也用于无快照的空闲 `/compact`，不改变主请求及续跑；历史 JSON 中的 reasoning
+仍作为证据保留。`compaction_model/compaction_thinking` 旧覆盖项不改变双路径。
+输入门限按各自请求的 `max_output_tokens` 与主输出预留取较大值，再扣除协议和安全余量；
+不受固定 60K 上限限制。
 `length/max_tokens` 不发布，完整正文超过 3K 或旧 4K 门限不会单独拒绝。具体规则见
 [默认双路径](../designs/compaction-dual-path-default.md)与[第三版实测](../evaluations/compaction-selection-20260917.md)。
 
@@ -461,9 +465,10 @@ compaction_target = floor(compaction_hard * context.compaction_input_target_rati
 `Constraints`、`Progress`、`Key Decisions`、`Relevant Files`、`Failures`、`Next Steps`、
 `Critical Context`。默认 `compaction_source_refs="range"` 由运行器保存范围和来源哈希；
 配置为 `item` 才额外要求条目来源标注。旧策略 `compaction_thinking="auto"` 跟随当前
-`model.thinking`，可显式覆盖；默认双路径配置下仍始终继承主模型。`/compact rebuild` 目前
-直接调用该原文重建入口，不使用双路径提示，也不覆盖尚未压缩的 tail。原文重建、校验、修复与
-恢复的细节见[可恢复上下文压缩](recoverable-context-compaction.md)和
+`model.thinking`，可显式覆盖。`/compact rebuild` 目前直接调用该原文重建入口，默认
+`a_fallback` 配置下该入口仍继承主模型 thinking，不使用独立兜底的 thinking 开关或双路径
+提示，也不覆盖尚未压缩的 tail。原文重建、校验、修复与恢复的细节见
+[可恢复上下文压缩](recoverable-context-compaction.md)和
 [超大上下文压缩](../research/oversized-context-compaction.md)。
 
 ### 独立 A/D 实验

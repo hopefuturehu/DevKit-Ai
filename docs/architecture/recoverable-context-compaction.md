@@ -77,7 +77,8 @@ Skill 层。Skill 绑定属于当前 Run，压缩不会关闭它；Runtime 在�
 
 两条路径共用第三版内容取舍规则：围绕当前任务重新筛选旧摘要与新增原文，在历史之后再次
 提醒按八章节输出短要点，目标约 3K tokens。提醒只进入摘要请求，不写入会话原文。
-独立请求保持历史 JSON，默认生成额度 8,192，模型与 thinking 继承当前主请求。
+独立请求保持历史 JSON，默认生成额度 8,192，模型继承当前主请求；thinking 默认关闭，
+可通过 `compaction_isolated_thinking="inherit"` 恢复继承。历史 JSON 中的 reasoning 不因此删除。
 双路径按模型窗口预留校验输入，不进入下述 CURRENT 的固定 60K 分块及候选凝练循环。
 候选通过格式、来源、恢复投影预算和净释放检查后才发布；详见
 [默认双路径与落地验证](../designs/compaction-dual-path-default.md)。
@@ -195,6 +196,9 @@ compaction_command_max_cost_usd = 0.25
 # 强制压缩收集到三条 user 即停，也不加入会使 tail 超过 recent_conversation_tokens 的更旧组
 compaction_min_recent_user_turns = 3
 compaction_source_refs = "range"
+# 只控制 a_fallback 的独立摘要；前缀始终保留主请求 thinking
+compaction_isolated_thinking = "disabled"
+# 旧策略覆盖项，不影响 a_fallback 两条摘要路径
 compaction_thinking = "auto"
 
 # 以下为旧 CURRENT 的生成/恢复参数，不改变默认双路径的两次尝试流程
@@ -212,14 +216,16 @@ compaction_max_message_chars = 12000
 compaction_rebuild_every = 5
 ```
 
-默认双路径始终继承主请求的 `model.thinking`，不会因 `compaction_thinking` 改成关闭；
-未设置时沿用供应商默认行为。旧策略的 `auto` 同样跟随主模型，旧策略显式
+默认双路径的前缀继承捕获的主请求 thinking；独立路径使用 `compaction_isolated_thinking`，
+默认 `disabled`，可选 `inherit`。继承值为未设置时，沿用供应商默认行为。旧
+`compaction_thinking` 不覆盖这两条路径。旧策略的 `auto` 同样跟随主模型，旧策略显式
 `provider_default/enabled/disabled` 仍可用于历史对照。生成额度是否包含 reasoning 由供应商决定。
+`/compact rebuild` 仍走旧重建入口，不使用新的独立兜底开关。
 
 ## 测试
 
 `tests/unit/test_compaction_strategies.py` 与 `tests/integration/test_agent_loop.py` 覆盖默认双路径
-的前缀保持、独立兜底、第三版提示接入、thinking 继承、截断拒绝、发布与主任务续跑。
+的前缀保持、独立兜底 thinking 策略、第三版提示接入、空正文与截断拒绝、发布与主任务续跑。
 
 `tests/unit/test_context_compaction.py` 验证事务发布、原文保留、有界分块、分类恢复、候选凝练、
 请求超时、范围缩小、失败退避、回滚、模型隔离、范围来源和损坏自动降级。

@@ -2646,7 +2646,10 @@ async def test_agent_rechecks_final_request_budget_before_provider_call(tmp_path
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
-async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path, thinking):
+@pytest.mark.parametrize("isolated_policy", [None, "inherit"])
+async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(
+    tmp_path, thinking, isolated_policy
+):
     from bot.compaction.service import ContextCompactor
     from bot.compaction.strategies import (
         SUMMARY_SELECTION_REMINDER,
@@ -2707,6 +2710,8 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
     runner.context_compactor = ContextCompactor(
         config=runner.config, provider=provider, store=store, event_bus=runner.event_bus
     )
+    if isolated_policy is not None:
+        runner.config.context.compaction_isolated_thinking = isolated_policy
     session = store.create_session(tmp_path)
     store.start_run(session, "seed")
     for i in range(24):
@@ -2726,7 +2731,8 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
         assert len(provider.requests) == 4
         main, prefix, isolated, continued = provider.requests
         assert runner.config.context.compaction_strategy == "a_fallback"
-        assert all(request.thinking == thinking for request in provider.requests)
+        assert all(request.thinking == thinking for request in [main, prefix, continued])
+        assert isolated.thinking == (thinking if isolated_policy == "inherit" else "disabled")
         assert prefix.messages[: len(main.messages)] == main.messages
         assert prefix.tools == main.tools and prefix.max_output_tokens == 32768
         assert prefix.tool_choice == main.tool_choice
@@ -2759,8 +2765,9 @@ async def test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix(tmp_path
 @pytest.mark.asyncio
 @pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
 @pytest.mark.parametrize("finish_reason", ["stop", "length"])
-async def test_idle_compact_uses_default_fallback_and_current_main_thinking(
-    tmp_path, thinking, finish_reason
+@pytest.mark.parametrize("isolated_policy", [None, "inherit"])
+async def test_idle_compact_uses_isolated_policy_and_current_main_model(
+    tmp_path, thinking, finish_reason, isolated_policy
 ):
     from bot.compaction.service import ContextCompactor
     from bot.compaction.strategies import (
@@ -2806,6 +2813,8 @@ async def test_idle_compact_uses_default_fallback_and_current_main_thinking(
         config=runner.config, provider=provider, store=store, event_bus=runner.event_bus
     )
     # Read the main setting at compression time, not at compactor construction.
+    if isolated_policy is not None:
+        runner.config.context.compaction_isolated_thinking = isolated_policy
     runner.config.model.thinking = thinking
     runner.config.model.name = "switched-main-model"
     session = store.create_session(tmp_path)
@@ -2827,7 +2836,8 @@ async def test_idle_compact_uses_default_fallback_and_current_main_thinking(
         assert result["request_count"] == 1
         assert len(provider.requests) == 1
         request = provider.requests[0]
-        assert request.model == "switched-main-model" and request.thinking == thinking
+        assert request.model == "switched-main-model"
+        assert request.thinking == (thinking if isolated_policy == "inherit" else "disabled")
         assert not request.tools and request.messages[0].role == Role.SYSTEM
         assert request.messages[0].content == isolated_summary_instruction()
         assert [m.role for m in request.messages] == [Role.SYSTEM, Role.USER, Role.USER]

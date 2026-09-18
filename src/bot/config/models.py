@@ -234,7 +234,9 @@ class ContextConfig(StrictModel):
     compaction_command_max_cost_usd: float | None = Field(default=0.25, gt=0)
     compaction_min_recent_user_turns: int = Field(default=3, ge=1, le=100)
     compaction_source_refs: Literal["range", "item"] = "range"
-    # Legacy strategy override; dual-path compaction always follows the main request.
+    # Dual-path fallback only; prefix requests always retain captured main settings.
+    compaction_isolated_thinking: Literal["disabled", "inherit"] = "disabled"
+    # Legacy strategy override; ignored by the dual-path strategy.
     compaction_thinking: Literal["auto", "provider_default", "enabled", "disabled"] = "auto"
     compaction_max_message_chars: int = Field(default=12_000, ge=500)
     compaction_rebuild_every: int = Field(default=5, ge=1, le=100)

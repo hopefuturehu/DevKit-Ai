@@ -156,8 +156,9 @@ compaction_command_max_requests = 8
 compaction_command_max_seconds = 600
 compaction_command_max_cost_usd = 0.25
 compaction_source_refs = "range"
-# 双路径两次摘要的 thinking 都跟随 model.thinking；未设置时沿用供应商默认值
-# 旧 compaction_thinking 配置可继续加载，但不会覆盖双路径的主请求设置
+# 前缀沿用主请求 thinking；独立兜底默认关闭，可设 inherit 恢复继承
+compaction_isolated_thinking = "disabled"
+# 旧 compaction_thinking 配置可继续加载，但不会覆盖双路径设置
 compaction_max_message_chars = 12000
 compaction_rebuild_every = 5
 
@@ -186,9 +187,12 @@ state_path = "./.bot/state.db"
 
 默认双路径压缩 `a_fallback` 使用当前任务优先的内容取舍规则，并在历史之后追加简短交接提醒，
 以约 3K tokens 为摘要软目标。自动压缩和空闲 `/compact` 共用这套提示；
-前缀请求保留原请求结构与参数，独立兜底仍默认使用 8,192 生成额度并继承主模型 thinking。
+前缀请求保留原请求结构与参数，独立兜底使用同一模型，默认关闭 thinking，生成额度为 8,192。
+`context.compaction_isolated_thinking="inherit"` 可恢复独立路径继承主请求 thinking 的行为，
+包括未设置时的供应商默认值；该选项也适用于空闲 `/compact`，不影响主任务续跑。
 实施细节见[默认双路径压缩](docs/designs/compaction-dual-path-default.md)，
-样本效果和限制见[提示实测](docs/evaluations/compaction-selection-20260917.md)。
+兜底策略与失败保护见[独立摘要关闭 thinking](docs/designs/compaction-isolated-thinking.md)，
+样本效果和限制见[长上下文实测](docs/evaluations/long-context-compaction-20260918.md)。
 
 `model_request_retries` 只覆盖 Provider 标记为可重试的限流、服务端、超时和传输错误；默认最多
 重试两次，退避等待最多 30 秒。认证、付费、配置、协议和上下文超限不会走这条路径。未完成的

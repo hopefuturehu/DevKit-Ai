@@ -21,6 +21,7 @@ from bot.core.models import (
     Role,
 )
 from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
+from bot.providers.openai_compatible import OpenAICompatibleProvider
 from bot.sessions import SQLiteSessionStore
 
 SUMMARY = "\n\n".join(
@@ -328,7 +329,9 @@ class FallbackProvider(SummaryProvider):
                     )
                 if outcome == "format":
                     event.text = "# Goal\nnot enough"
-                if outcome == "empty":
+                if outcome == "reasoning_only":
+                    yield ModelEvent(kind=ModelEventKind.REASONING_DELTA, text="No final answer.")
+                if outcome in {"empty", "reasoning_only"}:
                     continue
             if event.kind == ModelEventKind.FINISH:
                 if outcome == "incomplete":
@@ -448,6 +451,7 @@ async def test_annotated_headings_publish_from_prefix_and_preserve_both_conflict
         "tool",
         "format",
         "empty",
+        "reasoning_only",
         "length",
         "incomplete",
         TimeoutError(),
@@ -463,6 +467,7 @@ async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_pa
         assert result.compacted, result.error
         assert len(provider.requests) == 2 and result.request_count == 2
         isolated = provider.requests[1]
+        assert isolated.thinking == "disabled"
         assert not isolated.tools and isolated.tool_choice is None
         assert [m.role for m in isolated.messages] == [Role.SYSTEM, Role.USER, Role.USER]
         assert isolated.messages[-1].content == SUMMARY_SELECTION_REMINDER
@@ -482,6 +487,9 @@ async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_pa
         response = store.read_context_blob(instance.session_id, events[0].payload["response_ref"])
         if failure == "tool":
             assert json.loads(response["content"])["tool_calls"]["0"]["name"] == "run_shell"
+        if failure == "reasoning_only":
+            assert json.loads(response["content"])["reasoning"] == "No final answer."
+            assert json.loads(response["content"])["text"] == ""
         assert not any(e.type == EventType.TOOL_REQUESTED for e in sink.events)
     finally:
         store.close()
@@ -489,19 +497,34 @@ async def test_prefix_failure_uses_one_isolated_request_and_same_evidence(tmp_pa
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("thinking", ["enabled", "disabled", None])
-async def test_both_summary_paths_follow_captured_main_thinking(tmp_path, thinking):
-    instance, provider, store, _ = fallback_engine(tmp_path, ["length", "ok"])
+@pytest.mark.parametrize("policy", ["default", "disabled", "inherit"])
+async def test_isolated_thinking_policy_preserves_captured_main(tmp_path, thinking, policy):
+    instance, provider, store, sink = fallback_engine(tmp_path, ["length", "ok"])
     try:
         instance.frame.request.thinking = thinking
         instance.frame.prefix_request.thinking = thinking
-        # Neither a legacy override nor a later config edit may change the
-        # fallback away from the main request captured at this boundary.
-        instance.config.context.compaction_thinking = "disabled"
+        if policy != "default":
+            instance.config.context.compaction_isolated_thinking = policy
+        # Ignore legacy overrides and edits to the main config after capture.
+        instance.config.context.compaction_thinking = "enabled"
         instance.config.model.thinking = "disabled" if thinking != "disabled" else "enabled"
+        before = instance.frame.request.model_dump()
+        prefix_before = instance.frame.prefix_request.model_dump()
         result = await instance.compact(12, [1])
         assert result.compacted, result.error
         assert len(provider.requests) == 2
-        assert [request.thinking for request in provider.requests] == [thinking, thinking]
+        expected = thinking if policy == "inherit" else "disabled"
+        assert [request.thinking for request in provider.requests] == [thinking, expected]
+        assert instance.frame.request.model_dump() == before
+        assert instance.frame.prefix_request.model_dump() == prefix_before
+        # Check the actual provider payload as well as the model abstraction.
+        adapter = OpenAICompatibleProvider(base_url="https://api.deepseek.com", api_key="unused")
+        for request, mode in zip(provider.requests, [thinking, expected], strict=True):
+            assert adapter._payload(request).get("thinking") == ({"type": mode} if mode else None)
+        completed = [
+            e for e in sink.events if e.type == EventType.CONTEXT_COMPACTION_REQUEST_COMPLETED
+        ]
+        assert completed[-1].payload["thinking"] == (expected or "provider_default")
         assert instance.last_metrics["adopted_path"] == "isolated"
     finally:
         await instance.close()
@@ -591,13 +614,21 @@ async def test_prefix_auth_and_quota_failure_do_not_fallback(tmp_path, kind):
 
 
 @pytest.mark.asyncio
-async def test_double_failure_keeps_cursor_and_backoff(tmp_path):
-    instance, provider, store, _ = fallback_engine(tmp_path, ["tool", "format"])
+@pytest.mark.parametrize("failure", ["format", "reasoning_only", "length", "incomplete", "tool"])
+async def test_double_failure_keeps_cursor_and_backoff(tmp_path, failure):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["tool", failure])
     try:
+        before = store.load_positioned_messages(instance.session_id)
         result = await instance.compact(12, [1])
         assert not result.compacted and result.request_count == 2
         assert result.input_tokens == 200 and result.output_tokens == 40
-        assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
+        assert provider.requests[-1].thinking == "disabled"
+        assert instance.compactor.projection(instance.session_id) == {
+            "cursor_position": 0,
+            "compaction": None,
+        }
+        assert store.load_positioned_messages(instance.session_id) == before
+        assert not store.list_context_compactions(instance.session_id)
         assert (await instance.compact(12, [1])).reason == "failure_backoff"
         assert len(provider.requests) == 2
     finally:
@@ -613,6 +644,34 @@ async def test_cancel_does_not_fallback(tmp_path):
         assert len(provider.requests) == 1
         assert instance.compactor.projection(instance.session_id)["cursor_position"] == 0
     finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_failed_disabled_fallback_preserves_previous_checkpoint(tmp_path):
+    instance, provider, store, _ = fallback_engine(tmp_path, ["ok", "length", "reasoning_only"])
+    try:
+        entries = store.load_positioned_messages(instance.session_id)
+        instance.frame.request.thinking = "enabled"
+        instance.frame.prefix_request.thinking = "enabled"
+        first = await instance.compact(6, [1])
+        assert first.compacted, first.error
+        before = instance.compactor.projection(instance.session_id)
+        instance.frame.request = instance.frame.project(before["compaction"])
+        # A later main request provides a valid prefix for the remaining source.
+        instance.frame.request.thinking = "enabled"
+        instance.frame.request.messages.extend(e.message for e in entries[6:])
+        instance.frame.prefix_request = instance.frame.request.model_copy(deep=True)
+        instance.frame.prefix_positions = (None, None, *range(7, 13))
+        second = await instance.compact(12, [1])
+        assert not second.compacted and second.request_count == 2
+        assert [r.thinking for r in provider.requests] == ["enabled", "enabled", "disabled"]
+        assert instance.compactor.projection(instance.session_id) == before
+        assert store.load_positioned_messages(instance.session_id) == entries
+        assert len(store.list_context_compactions(instance.session_id)) == 1
+        assert (await instance.compact(12, [1])).reason == "failure_backoff"
+    finally:
+        await instance.close()
         store.close()
 
 

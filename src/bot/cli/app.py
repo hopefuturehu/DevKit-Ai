@@ -958,7 +958,8 @@ compaction_min_recent_user_turns = 3
 compaction_summary_target_tokens = 3000
 compaction_max_output_tokens = 8192
 compaction_source_refs = "range"
-# 双路径两次摘要的 thinking 都跟随 model.thinking；未设置时沿用供应商默认值
+# 前缀沿用主请求 thinking；独立兜底默认关闭，可设 inherit 恢复继承
+compaction_isolated_thinking = "disabled"
 compaction_request_timeout_seconds = 90
 compaction_repair_attempts = 1
 compaction_transport_retries = 1
