@@ -93,7 +93,13 @@ def interval_seconds(intervals: Iterable[tuple[datetime, datetime]]) -> float:
 
 @dataclass
 class ApprovalWait:
-    """One approval waiting interval, or an unpaired request."""
+    """One approval waiting interval, or an unpaired request.
+
+    ``key`` is the correlation key actually used to pair the request with its
+    resolution. Historical records only carry ``tool_call_id``; newer ones carry
+    ``approval_id``. ``key_kind`` records which one was used so the UI and the
+    exported report can explain how a wait was matched.
+    """
 
     approval_id: str
     requested_at: str
@@ -102,6 +108,9 @@ class ApprovalWait:
     approved: bool | None = None
     tool_name: str | None = None
     paired: bool = True
+    key_kind: str = "approval_id"
+    tool_call_id: str | None = None
+    reason: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -112,6 +121,9 @@ class ApprovalWait:
             "approved": self.approved,
             "tool_name": self.tool_name,
             "paired": self.paired,
+            "key_kind": self.key_kind,
+            "tool_call_id": self.tool_call_id,
+            "reason": self.reason,
         }
 
 
@@ -186,85 +198,175 @@ def _payload(raw: str | None) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def build_approval_waits(events: list[dict[str, Any]]) -> tuple[list[ApprovalWait], int, int]:
-    """Pair approval requests with resolutions.
+def _payloads(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Parse every event payload once.
+
+    ``build_approval_waits``, ``detect_gaps`` and ``resolve_stop_reason`` all need
+    payloads, and each used to re-parse the same JSON. On the real workspace that
+    meant millions of redundant ``json.loads`` calls per page load.
+    """
+    return [_payload(event.get("payload_json")) for event in events]
+
+
+def _approval_keys(payload: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return candidate ``(key_kind, key)`` pairs for an approval event.
+
+    Real records are inconsistent: newer events carry ``approval_id``, while a
+    large body of historical events only carries ``tool_call_id``. Both are
+    returned so pairing can fall back without ever inventing a match.
+    """
+    keys: list[tuple[str, str]] = []
+    approval_id = payload.get("approval_id")
+    if isinstance(approval_id, str) and approval_id:
+        keys.append(("approval_id", approval_id))
+    tool_call_id = payload.get("tool_call_id")
+    if isinstance(tool_call_id, str) and tool_call_id:
+        keys.append(("tool_call_id", tool_call_id))
+    return keys
+
+
+def build_approval_waits(
+    events: list[dict[str, Any]], payloads: list[dict[str, Any]] | None = None
+) -> tuple[list[ApprovalWait], int, int]:
+    """Pair approval requests with resolutions inside a single run.
 
     Returns ``(waits, unpaired_count, duplicate_count)``.
 
-    Duplicates matter because the same ``approval_id`` can legitimately appear
-    more than once (retries, replays). Only the *first* request is paired with the
-    *first* resolution that follows it; later repeats are counted as duplicates
-    and contribute no extra interval, which keeps the union measure honest.
+    Pairing rules, in order:
+
+    1. Prefer ``approval_id`` when *both* sides carry it.
+    2. Otherwise fall back to ``tool_call_id``, which is what historical records
+       use. This is why the previous implementation reported zero approval wait
+       for runs whose events never had an ``approval_id``.
+    3. If the two sides carry *different* identifiers, the request is reported as
+       unpaired rather than guessed: a wrong match would silently subtract time
+       that was never spent waiting.
+
+    Only the first request is paired with the first resolution at or after it.
+    Later repeats are counted as duplicates and contribute no extra interval, so
+    the union measure never double-counts a retried or replayed approval.
     """
-    requests: dict[str, list[dict[str, Any]]] = {}
-    resolutions: dict[str, list[dict[str, Any]]] = {}
-    order: list[str] = []
-    for event in events:
-        payload = _payload(event.get("payload_json"))
-        approval_id = payload.get("approval_id")
-        if not approval_id:
+    requests: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    resolutions: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    order: list[tuple[str, str]] = []
+    # Track which key kinds each event offered, to detect identifier mismatches.
+    request_kinds: set[str] = set()
+    resolution_kinds: set[str] = set()
+    # Map each event object to its position, so a cached payload can be looked up
+    # without an O(n) scan of the event list.
+    event_index: dict[int, int] = {}
+
+    for index, event in enumerate(events):
+        event_index[id(event)] = index
+        payload = payloads[index] if payloads is not None else _payload(event.get("payload_json"))
+        keys = _approval_keys(payload)
+        if not keys:
             continue
-        if approval_id not in order:
-            order.append(approval_id)
+        for key in keys:
+            if key not in order:
+                order.append(key)
         if event["type"] == "approval.requested":
-            requests.setdefault(approval_id, []).append(event)
+            for key in keys:
+                requests.setdefault(key, []).append(event)
+                request_kinds.add(key[0])
         elif event["type"] == "approval.resolved":
-            resolutions.setdefault(approval_id, []).append(event)
+            for key in keys:
+                resolutions.setdefault(key, []).append(event)
+                resolution_kinds.add(key[0])
+
+    # A request that only ever offered ``approval_id`` while resolutions only
+    # ever offered ``tool_call_id`` (or vice versa) cannot be paired honestly:
+    # the two sides never share a key value. Report it as unpaired instead of
+    # guessing, so no unverified wait is subtracted.
+    kinds_disjoint = bool(
+        request_kinds and resolution_kinds and not (request_kinds & resolution_kinds)
+    )
 
     waits: list[ApprovalWait] = []
     unpaired = 0
     duplicates = 0
-    for approval_id in order:
-        requested = requests.get(approval_id, [])
-        resolved = resolutions.get(approval_id, [])
+    seen_requests: set[int] = set()
+
+    for key in order:
+        requested = requests.get(key, [])
+        resolved = resolutions.get(key, [])
         if not requested:
             # A resolution without a request carries no measurable wait.
             duplicates += len(resolved)
             continue
-        duplicates += max(0, len(requested) - 1) + max(0, len(resolved) - 1)
         first_request = requested[0]
-        request_payload = _payload(first_request.get("payload_json"))
+        if id(first_request) in seen_requests:
+            # Already handled under a different key for the same event.
+            continue
+        seen_requests.add(id(first_request))
+
+        request_payload = (
+            payloads[event_index[id(first_request)]]
+            if payloads is not None
+            else _payload(first_request.get("payload_json"))
+        )
         start = parse_timestamp(first_request.get("timestamp"))
-        # The first resolution at or after the request closes the interval.
+        duplicates += max(0, len(requested) - 1) + max(0, len(resolved) - 1)
+
         match = None
         for candidate in resolved:
             candidate_time = parse_timestamp(candidate.get("timestamp"))
             if candidate_time is not None and start is not None and candidate_time >= start:
                 match = candidate
                 break
+
         if match is None or start is None:
             unpaired += 1
             waits.append(
                 ApprovalWait(
-                    approval_id=approval_id,
+                    approval_id=key[1],
                     requested_at=first_request.get("timestamp") or "",
                     tool_name=request_payload.get("name"),
                     paired=False,
+                    key_kind=key[0],
+                    tool_call_id=request_payload.get("tool_call_id"),
+                    reason=(
+                        "审批请求与结果使用了不同的标识字段，无法确认配对，等待时长未知"
+                        if kinds_disjoint
+                        else "审批请求没有配对结果，等待时长未知"
+                    ),
                 )
             )
             continue
+
         end = parse_timestamp(match.get("timestamp"))
         if end is None:
             unpaired += 1
             waits.append(
                 ApprovalWait(
-                    approval_id=approval_id,
+                    approval_id=key[1],
                     requested_at=first_request.get("timestamp") or "",
                     tool_name=request_payload.get("name"),
                     paired=False,
+                    key_kind=key[0],
+                    tool_call_id=request_payload.get("tool_call_id"),
+                    reason="审批结果缺少可用时间戳，等待时长未知",
                 )
             )
             continue
-        resolve_payload = _payload(match.get("payload_json"))
+
+        resolve_payload = (
+            payloads[event_index[id(match)]]
+            if payloads is not None
+            else _payload(match.get("payload_json"))
+        )
         waits.append(
             ApprovalWait(
-                approval_id=approval_id,
+                approval_id=key[1],
                 requested_at=first_request.get("timestamp") or "",
                 resolved_at=match.get("timestamp"),
                 seconds=max(0.0, (end - start).total_seconds()),
                 approved=resolve_payload.get("approved"),
                 tool_name=request_payload.get("name"),
                 paired=True,
+                key_kind=key[0],
+                tool_call_id=request_payload.get("tool_call_id"),
+                reason=request_payload.get("reason"),
             )
         )
     return waits, unpaired, duplicates
@@ -320,36 +422,78 @@ def detect_gaps(
 
 
 def resolve_stop_reason(
-    events: list[dict[str, Any]], status: str, error: str | None
+    events: list[dict[str, Any]],
+    status: str,
+    error: str | None,
+    payloads: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str | None, str | None, str | None]:
     """Return ``(stop_reason, detail, event_type, termination_reason)``.
 
-    ``run.finished`` is authoritative because it is emitted for every run and
-    carries ``termination_reason``. More specific terminal events are preferred
-    when present, since they carry the reason code chosen by the finalizer.
+    New and old records disagree in practice. A run can have
+    ``runs.status='limit_reached'`` with ``error='达到最大步骤数 30'`` while the
+    only terminal event is ``run.failed``. Taking the event at face value would
+    report a plain ``failed`` and lose the real reason.
+
+    Resolution order:
+
+    1. ``run.finished`` carries the authoritative ``termination_reason``.
+    2. A specific terminal event (``run.cancelled``/``blocked``/``limit_reached``/
+       ``failed``) supplies the reason code chosen by the finalizer.
+    3. The ``runs`` row status is the durable record and wins over a *generic*
+       ``run.failed`` event, because ``run.failed`` is the legacy catch-all that
+       older finalizers emitted for every non-success outcome.
+
+    The raw status, the raw event type and the reason for the decision are all
+    preserved on the result, so a conflict is visible instead of silently
+    overwritten.
     """
     by_type: dict[str, dict[str, Any]] = {}
-    for event in events:
+    payload_by_id: dict[int, dict[str, Any]] = {}
+    for index, event in enumerate(events):
+        payload_by_id[id(event)] = payloads[index] if payloads is not None else _payload(
+            event.get("payload_json")
+        )
         if event["type"] in STOP_EVENT_TYPES:
             by_type[event["type"]] = event
 
     finished = by_type.get("run.finished")
-    finished_payload = _payload(finished.get("payload_json")) if finished else {}
+    finished_payload = payload_by_id.get(id(finished), {}) if finished else {}
     termination_reason = finished_payload.get("termination_reason")
 
-    for event_type in ("run.cancelled", "run.blocked", "run.limit_reached", "run.failed"):
+    # A specific terminal event is the strongest evidence.
+    for event_type in ("run.cancelled", "run.blocked", "run.limit_reached"):
         event = by_type.get(event_type)
         if event is None:
             continue
-        payload = _payload(event.get("payload_json"))
+        payload = payload_by_id.get(id(event), {})
         reason = payload.get("termination_reason") or event_type.removeprefix("run.")
         detail = payload.get("message") or payload.get("error")
         return reason, detail, event_type, termination_reason or reason
 
+    failed_event = by_type.get("run.failed")
+    failed_payload = payload_by_id.get(id(failed_event), {}) if failed_event else {}
+    failed_reason = failed_payload.get("termination_reason") or "failed"
+    failed_detail = failed_payload.get("message") or failed_payload.get("error")
+
+    # A completed run is unambiguous: report it before the durable-status branch
+    # so ``run.finished`` with ``status=completed`` still names its terminal event.
     if by_type.get("run.completed") or (finished and finished_payload.get("status") == "completed"):
         return "completed", None, "run.completed", termination_reason or "completed"
 
+    # The runs row is durable and more specific than the legacy catch-all event.
+    if status in TERMINAL_STATUSES and status != "failed":
+        if failed_event is not None:
+            # Conflict: keep the durable status, but say the event disagreed.
+            detail = failed_detail or error
+            return status, detail, failed_event["type"], termination_reason or status
+        return status, error, None, termination_reason or status
+
+    if failed_event is not None:
+        return failed_reason, failed_detail, "run.failed", termination_reason or failed_reason
+
     if finished:
+        # ``run.finished`` alone still describes the outcome; report it as the
+        # terminal event so callers can tell "finished" from "no evidence".
         reason = termination_reason or finished_payload.get("status") or status
         detail = finished_payload.get("error")
         return reason, detail, "run.finished", termination_reason
@@ -372,7 +516,10 @@ def analyze_run(
     completed = parse_timestamp(run.get("completed_at"))
     status = run.get("status") or "unknown"
 
-    waits, unpaired, duplicates = build_approval_waits(events)
+    # Parse each payload once and share it with every consumer below.
+    payloads = _payloads(events)
+
+    waits, unpaired, duplicates = build_approval_waits(events, payloads)
     intervals = merge_intervals(
         (parse_timestamp(wait.requested_at), parse_timestamp(wait.resolved_at))
         for wait in waits
@@ -403,7 +550,7 @@ def analyze_run(
         notes.append(f"{duplicates} 条重复审批事件已去重，未重复扣除")
 
     stop_reason, detail, stop_event_type, termination_reason = resolve_stop_reason(
-        events, status, run.get("error")
+        events, status, run.get("error"), payloads
     )
 
     window_end = completed

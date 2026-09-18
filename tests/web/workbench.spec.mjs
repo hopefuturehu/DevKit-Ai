@@ -179,6 +179,90 @@ test('analysis console filters by stop reason and sorts by net duration',async({
   await expect(page.locator('.analysis-row').last()).toContainText('分析台验收：缺少结束时间');
 });
 
+test('analysis console filters by source and reports de-duplication metadata',async({page})=>{
+  await page.goto('/');await expect(page.locator('#connection')).toHaveText('实时已连接');
+  await page.getByRole('button',{name:'历史分析',exact:true}).click();
+  await expect(page.locator('.analysis-row').first()).toBeVisible();
+
+  // Every row states which database it came from, so a benchmark run is never
+  // mistaken for a live workspace run.
+  await expect(page.locator('.analysis-row').first()).toContainText('来源：');
+
+  // The main-session filter must keep the seeded live runs and drop nothing else.
+  await page.locator('#filterSource').selectOption('main');
+  await expect(page.locator('.analysis-row').filter({hasText:'分析台验收：完成运行含审批等待'})).toBeVisible();
+  await expect(page.locator('.analysis-row').first()).toContainText('来源：主会话库');
+
+  // A source with no runs in this fixture must render an explicit empty state
+  // rather than silently showing unrelated rows.
+  await page.locator('#filterSource').selectOption('benchmark');
+  await expect(page.locator('#analysisTable')).toContainText('没有符合条件的运行');
+
+  await page.locator('#filterSource').selectOption('');
+  await expect(page.locator('.analysis-row').first()).toBeVisible();
+});
+
+test('analysis console paginates the whole sorted set without gaps or repeats',async({page})=>{
+  await page.goto('/');await expect(page.locator('#connection')).toHaveText('实时已连接');
+  await page.getByRole('button',{name:'历史分析',exact:true}).click();
+  await expect(page.locator('.analysis-row').first()).toBeVisible();
+
+  // The list endpoint must sort the entire filtered set before slicing, so the
+  // first page of a small window equals the head of the full ordering.
+  const full=await (await page.request.get('/api/analysis/runs?limit=500&sort=net&order=desc')).json();
+  const page1=await (await page.request.get('/api/analysis/runs?limit=2&offset=0&sort=net&order=desc')).json();
+  const page2=await (await page.request.get('/api/analysis/runs?limit=2&offset=2&sort=net&order=desc')).json();
+
+  expect(page1.total).toBe(full.total);
+  expect(page1.runs.map(r=>r.run_id)).toEqual(full.runs.slice(0,2).map(r=>r.run_id));
+  expect(page2.runs.map(r=>r.run_id)).toEqual(full.runs.slice(2,4).map(r=>r.run_id));
+
+  // No run may appear on two pages, and the union must be the full ordering.
+  const seen=new Set([...page1.runs,...page2.runs].map(r=>r.run_id));
+  expect(seen.size).toBe(4);
+
+  // Summary and export must describe the whole filtered set, not the page.
+  expect(page1.summary_scope).toBe('all_filtered');
+  expect(page1.summary.runs).toBe(full.total);
+  const exported=await (await page.request.get('/api/analysis/export?sort=net&order=desc')).json();
+  expect(exported.runs.length).toBe(full.total);
+  expect(exported.summary.runs).toBe(full.total);
+  expect(exported.scope.summary_scope).toBe('all_filtered');
+  expect(exported.runs.map(r=>r.run_id)).toEqual(full.runs.map(r=>r.run_id));
+});
+
+test('analysis console compares two runs and shows approval detail',async({page})=>{
+  await page.goto('/');await expect(page.locator('#connection')).toHaveText('实时已连接');
+  await page.getByRole('button',{name:'历史分析',exact:true}).click();
+  await expect(page.locator('.analysis-row').first()).toBeVisible();
+
+  const completed=page.locator('.analysis-row').filter({hasText:'分析台验收：完成运行含审批等待'});
+  const cancelled=page.locator('.analysis-row').filter({hasText:'分析台验收：取消运行含未配对审批'});
+  await completed.locator('input[type=checkbox]').check();
+  await cancelled.locator('input[type=checkbox]').check();
+
+  await expect(page.locator('#analysisCompare')).toBeVisible();
+  await expect(page.locator('#analysisCompare')).toContainText('运行对比');
+  await expect(page.locator('#analysisCompare')).toContainText('净耗时');
+  await expect(page.locator('#analysisCompare')).toContainText('差值');
+
+  // The compare endpoint must agree with the list rows it was built from.
+  const left=await (await page.request.get('/api/analysis/runs/analysis-completed')).json();
+  const right=await (await page.request.get('/api/analysis/runs/analysis-cancelled')).json();
+  const compare=await (await page.request.get('/api/analysis/compare?left=analysis-completed&right=analysis-cancelled')).json();
+  expect(compare.left.net_seconds).toBe(left.net_seconds);
+  expect(compare.right.net_seconds).toBe(right.net_seconds);
+  expect(compare.delta.net_seconds).toBeCloseTo(right.net_seconds-left.net_seconds,6);
+  expect(compare.same_stop_reason).toBe(false);
+
+  // Approval detail: the paired wait is listed, the unpaired one is flagged.
+  await completed.click();
+  await expect(page.locator('#analysisDetail')).toContainText('审批等待明细');
+  await expect(page.locator('#analysisDetail')).toContainText('run_command');
+  await cancelled.click();
+  await expect(page.locator('#analysisDetail')).toContainText('未配对');
+});
+
 for(const width of [360,736,1024])for(const colorScheme of ['light','dark']){
   test(`responsive ${width}px ${colorScheme}`,async({page},testInfo)=>{
     await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme});

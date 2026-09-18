@@ -20,11 +20,13 @@ from bot.web.analysis import (
     build_approval_waits,
     detect_gaps,
     merge_intervals,
+    parse_timestamp,
     resolve_stop_reason,
     summarize,
 )
 from bot.web.queries import WebQueries
 from bot.web.server import sort_analyses
+from bot.web.sources import collect_runs, inspect_database
 
 BASE = datetime(2026, 9, 18, 10, 0, 0, tzinfo=UTC)
 
@@ -429,3 +431,480 @@ def test_summarize_counts_unknown_duration_runs(records):
     assert summary["net_seconds"]["count"] == 0
     assert summary["net_seconds"]["sum"] is None
     assert summary["stop_reasons"] == {"unknown": 1}
+
+
+# --- regression: historical approval events keyed only by tool_call_id -----
+#
+# The real workspace database contains runs whose approval events carry only
+# ``tool_call_id`` and no ``approval_id``. Pairing on ``approval_id`` alone
+# silently reported zero approval waiting for those runs. These cases are
+# distilled from the real event structure (payload keys and ordering), with the
+# identifiers replaced.
+
+
+def test_historical_events_pair_on_tool_call_id():
+    """Events without ``approval_id`` must still pair, via ``tool_call_id``."""
+    waits, unpaired, duplicates = build_approval_waits(
+        [
+            event("approval.requested", 0, tool_call_id="call-1", name="run_command"),
+            event("approval.resolved", 30, tool_call_id="call-1", approved=True),
+        ]
+    )
+    assert len(waits) == 1
+    assert waits[0].paired is True
+    assert waits[0].key_kind == "tool_call_id"
+    assert waits[0].seconds == 30
+    assert unpaired == 0
+    assert duplicates == 0
+
+
+def test_approval_id_is_preferred_when_both_identifiers_exist():
+    """When both keys are present the explicit ``approval_id`` wins."""
+    waits, _, _ = build_approval_waits(
+        [
+            event("approval.requested", 0, approval_id="a1", tool_call_id="call-1"),
+            event("approval.resolved", 20, approval_id="a1", tool_call_id="call-1"),
+        ]
+    )
+    assert waits[0].key_kind == "approval_id"
+    assert waits[0].seconds == 20
+
+
+def test_disjoint_identifier_kinds_are_reported_as_unpaired():
+    """A request keyed by ``approval_id`` and a result keyed by ``tool_call_id``
+    never share a value, so the wait is unknown rather than guessed."""
+    waits, unpaired, _ = build_approval_waits(
+        [
+            event("approval.requested", 0, approval_id="a1"),
+            event("approval.resolved", 30, tool_call_id="call-1"),
+        ]
+    )
+    assert unpaired == 1
+    assert waits[0].paired is False
+    assert "不同的标识字段" in waits[0].reason
+
+
+def test_duplicate_approval_events_with_tool_call_id_are_deduplicated():
+    """Repeated request/resolution pairs count once and report the duplicates."""
+    waits, unpaired, duplicates = build_approval_waits(
+        [
+            event("approval.requested", 0, tool_call_id="call-1"),
+            event("approval.requested", 1, tool_call_id="call-1"),
+            event("approval.resolved", 30, tool_call_id="call-1"),
+            event("approval.resolved", 31, tool_call_id="call-1"),
+        ]
+    )
+    assert len(waits) == 1
+    assert waits[0].seconds == 30
+    assert duplicates == 2
+    assert unpaired == 0
+
+
+def test_orphan_resolution_without_request_is_not_a_wait():
+    """A resolution with no request carries no measurable interval."""
+    waits, unpaired, duplicates = build_approval_waits(
+        [event("approval.resolved", 30, tool_call_id="call-9")]
+    )
+    assert waits == []
+    assert unpaired == 0
+    assert duplicates == 1
+
+
+def test_overlapping_approval_intervals_are_merged_once():
+    """Two overlapping waits must not subtract the same second twice."""
+    waits, _, _ = build_approval_waits(
+        [
+            event("approval.requested", 0, tool_call_id="call-1"),
+            event("approval.resolved", 60, tool_call_id="call-1"),
+            event("approval.requested", 30, tool_call_id="call-2"),
+            event("approval.resolved", 120, tool_call_id="call-2"),
+        ]
+    )
+    spans = [
+        (parse_timestamp(w.requested_at), parse_timestamp(w.resolved_at))
+        for w in waits
+        if w.paired
+    ]
+    merged = merge_intervals(spans)
+    assert len(merged) == 1
+    assert (merged[0][1] - merged[0][0]).total_seconds() == 120
+
+
+def test_unpaired_approval_never_subtracts_from_net_duration():
+    """An unpaired request must leave net duration untouched and be counted."""
+    analysis = analyze_run(
+        run_row(),
+        [
+            event("run.started", 0, prompt="等待审批"),
+            event("approval.requested", 10, tool_call_id="call-1"),
+            event("run.completed", 100),
+        ],
+    )
+    assert analysis.approval_seconds == 0
+    assert analysis.net_seconds == 100
+    assert analysis.unpaired_approvals == 1
+
+
+def test_approval_wait_starting_before_run_is_measured_from_request():
+    """A request recorded before the run start still yields its full wait.
+
+    The contract measures the union of request->resolution intervals; it does not
+    clip them to the run window. Only ``net_seconds`` is clamped at zero, so a
+    wait longer than the run must not produce a negative net duration.
+    """
+    analysis = analyze_run(
+        run_row(started_at=stamp(0), completed_at=stamp(100)),
+        [
+            event("run.started", 0, prompt="边界"),
+            event("approval.requested", -50, tool_call_id="call-1"),
+            event("approval.resolved", 40, tool_call_id="call-1"),
+            event("run.completed", 100),
+        ],
+    )
+    assert analysis.approval_seconds == 90
+    assert analysis.net_seconds == 10
+
+
+def test_approval_wait_longer_than_run_clamps_net_to_zero():
+    """A wait exceeding the run must clamp net at zero and say so."""
+    analysis = analyze_run(
+        run_row(started_at=stamp(0), completed_at=stamp(100)),
+        [
+            event("run.started", 0, prompt="边界"),
+            event("approval.requested", 10, tool_call_id="call-1"),
+            event("approval.resolved", 500, tool_call_id="call-1"),
+            event("run.completed", 100),
+        ],
+    )
+    assert analysis.approval_seconds == 490
+    assert analysis.net_seconds == 0
+    assert any("净耗时按 0 计" in note for note in analysis.notes)
+
+
+# --- regression: stop reason for legacy terminal events --------------------
+
+
+def test_limit_reached_status_beats_legacy_run_failed_event():
+    """``runs.status=limit_reached`` with a legacy ``run.failed`` event must not
+    be reported as a plain failure, and the conflict must stay visible."""
+    reason, detail, event_type, _ = resolve_stop_reason(
+        [event("run.failed", 50, error="达到最大步骤数 30")],
+        "limit_reached",
+        "达到最大步骤数 30",
+    )
+    assert reason == "limit_reached"
+    assert event_type == "run.failed"
+    assert detail == "达到最大步骤数 30"
+
+
+def test_cancelled_status_beats_legacy_run_failed_event():
+    reason, _, event_type, _ = resolve_stop_reason(
+        [event("run.failed", 50, error="运行已取消")], "cancelled", "运行已取消"
+    )
+    assert reason == "cancelled"
+    assert event_type == "run.failed"
+
+
+def test_genuine_failure_still_reports_failed():
+    """A real failure must not be reclassified by the compatibility rule."""
+    reason, detail, event_type, _ = resolve_stop_reason(
+        [event("run.failed", 50, error="boom")], "failed", "boom"
+    )
+    assert reason == "failed"
+    assert event_type == "run.failed"
+    assert detail == "boom"
+
+
+def test_specific_terminal_event_beats_status_conflict():
+    """An explicit ``run.limit_reached`` event is stronger than the runs row."""
+    reason, _, event_type, _ = resolve_stop_reason(
+        [
+            event("run.limit_reached", 50, termination_reason="max_steps"),
+            event("run.failed", 50, error="达到步数上限"),
+        ],
+        "limit_reached",
+        None,
+    )
+    assert reason == "max_steps"
+    assert event_type == "run.limit_reached"
+
+
+# --- regression: sort the whole set before paginating ----------------------
+
+
+def test_sort_is_stable_for_equal_values():
+    """Equal durations must keep a deterministic order so paging cannot drop or
+    duplicate a run."""
+    rows = [
+        {"run_id": "z", "net_seconds": 7.0},
+        {"run_id": "a", "net_seconds": 7.0},
+        {"run_id": "m", "net_seconds": 7.0},
+    ]
+    assert [r["run_id"] for r in sort_analyses(rows, sort="net", order="desc")] == ["z", "m", "a"]
+    assert [r["run_id"] for r in sort_analyses(rows, sort="net", order="asc")] == ["a", "m", "z"]
+
+
+def test_sort_keeps_unknown_last_in_both_directions():
+    rows = [
+        {"run_id": "a", "net_seconds": 10.0},
+        {"run_id": "b", "net_seconds": None},
+        {"run_id": "c", "net_seconds": 5.0},
+    ]
+    assert [r["run_id"] for r in sort_analyses(rows, sort="net", order="desc")] == ["a", "c", "b"]
+    assert [r["run_id"] for r in sort_analyses(rows, sort="net", order="asc")] == ["c", "a", "b"]
+
+
+def test_analysis_all_runs_sorts_before_paging(records):
+    """A long run that started early must rank first, not fall outside page one."""
+    store, queries = records
+    # r1 starts first and runs long; r2 starts later and is short.
+    store.start_run("s1", "r1")
+    publish(store, EventType.RUN_STARTED, run="r1", prompt="长任务")
+    publish(store, EventType.RUN_FINISHED, run="r1", status="completed")
+    store.finish_run("r1", "completed")
+    store.start_run("s2", "r2")
+    publish(store, EventType.RUN_STARTED, session="s2", run="r2", prompt="短任务")
+    publish(store, EventType.RUN_FINISHED, session="s2", run="r2", status="completed")
+    store.finish_run("r2", "completed")
+
+    items = queries.analysis_all_runs()
+    ordered = sort_analyses(items, sort="net", order="desc")
+    # Page one of size 1 must contain the top-ranked run, not the newest one.
+    page = ordered[0:1]
+    assert len(page) == 1
+    assert page[0]["run_id"] == ordered[0]["run_id"]
+
+
+def test_paging_covers_every_run_without_duplicates(records):
+    store, queries = records
+    for index in range(5):
+        session = f"page-{index}"
+        run = f"page-run-{index}"
+        store.create_session(store.path.parent, session_id=session)
+        store.start_run(session, run)
+        publish(store, EventType.RUN_STARTED, session=session, run=run, prompt=f"任务{index}")
+        publish(store, EventType.RUN_FINISHED, session=session, run=run, status="completed")
+        store.finish_run(run, "completed")
+
+    items = queries.analysis_all_runs()
+    ordered = sort_analyses(items, sort="net", order="desc")
+    seen: list[str] = []
+    offset = 0
+    while offset < len(ordered):
+        seen.extend(item["run_id"] for item in ordered[offset : offset + 2])
+        offset += 2
+    assert len(seen) == len(ordered)
+    assert len(set(seen)) == len(seen)
+
+
+# --- regression: multi-source import, de-duplication and isolation ---------
+
+
+def _make_source_db(path, runs, *, events=None, corrupt=False):
+    """Create a minimal history database shaped like the real one."""
+    import sqlite3
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path)
+    connection.execute(
+        """CREATE TABLE runs (id TEXT PRIMARY KEY, session_id TEXT, status TEXT,
+            started_at TEXT, completed_at TEXT, error TEXT,
+            input_tokens INTEGER, output_tokens INTEGER, cost_usd REAL)"""
+    )
+    connection.execute(
+        """CREATE TABLE events (id TEXT, session_id TEXT, run_id TEXT, sequence INTEGER,
+            type TEXT, timestamp TEXT, payload_json TEXT, schema_version INTEGER)"""
+    )
+    for run in runs:
+        connection.execute(
+            "INSERT INTO runs VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                run["id"],
+                run.get("session_id", "s1"),
+                run.get("status", "completed"),
+                run.get("started_at", stamp(0)),
+                run.get("completed_at", stamp(100)),
+                run.get("error"),
+                0,
+                0,
+                None,
+            ),
+        )
+    for item in events or []:
+        connection.execute(
+            "INSERT INTO events VALUES (?,?,?,?,?,?,?,?)",
+            (
+                item.get("id", "e1"),
+                item.get("session_id", "s1"),
+                item["run_id"],
+                item.get("sequence", 1),
+                item["type"],
+                item.get("timestamp", stamp(0)),
+                json.dumps(item.get("payload", {})),
+                1,
+            ),
+        )
+    connection.commit()
+    if corrupt:
+        # Truncate the file so SQLite reports a malformed image on read.
+        connection.close()
+        data = path.read_bytes()
+        path.write_bytes(data[: len(data) // 3])
+        return
+    connection.close()
+
+
+def test_collect_runs_deduplicates_same_run_across_sources(tmp_path):
+    """The same run id in two databases counts once, and both sources are kept."""
+    _make_source_db(
+        tmp_path / ".bot" / "state.db",
+        [{"id": "shared"}],
+        events=[{"run_id": "shared", "type": "run.completed"}],
+    )
+    _make_source_db(
+        tmp_path / ".bot" / "benchmarks" / "eval-a" / "state.db",
+        [{"id": "shared"}],
+        events=[{"run_id": "shared", "type": "run.completed"}],
+    )
+    deduped, problems, summary = collect_runs(tmp_path)
+    assert problems == []
+    assert summary["raw_records"] == 2
+    assert summary["deduped_records"] == 1
+    assert summary["excluded_duplicates"] == 1
+    entry = deduped[0]
+    assert entry.chosen.source_kind == "main"
+    assert len(entry.duplicates) == 1
+
+
+def test_collect_runs_reports_conflicting_copies(tmp_path):
+    """Copies that disagree are flagged instead of being silently merged."""
+    _make_source_db(
+        tmp_path / ".bot" / "state.db",
+        [{"id": "shared", "started_at": stamp(0), "completed_at": stamp(100)}],
+        events=[{"run_id": "shared", "type": "run.completed"}],
+    )
+    _make_source_db(
+        tmp_path / ".bot" / "benchmarks" / "eval-a" / "state.db",
+        [{"id": "shared", "started_at": stamp(500), "completed_at": stamp(900)}],
+        events=[{"run_id": "shared", "type": "run.completed"}],
+    )
+    deduped, _, summary = collect_runs(tmp_path)
+    assert summary["conflicts"] == 1
+    assert deduped[0].conflict is True
+    assert deduped[0].conflict_reason
+
+
+def test_corrupt_database_does_not_block_other_sources(tmp_path):
+    """One unreadable database must not take the healthy sources down with it."""
+    _make_source_db(
+        tmp_path / ".bot" / "state.db",
+        [{"id": "good"}],
+        events=[{"run_id": "good", "type": "run.completed"}],
+    )
+    _make_source_db(
+        tmp_path / ".bot" / "benchmarks" / "broken" / "state.db",
+        [{"id": "bad"}],
+        events=[{"run_id": "bad", "type": "run.completed"}],
+        corrupt=True,
+    )
+    deduped, problems, summary = collect_runs(tmp_path)
+    assert len(problems) == 1
+    assert summary["sources_failed"] == 1
+    assert summary["sources_loaded"] == 1
+    assert [entry.run_id for entry in deduped] == ["good"]
+
+
+def test_schema_incompatible_database_is_reported(tmp_path):
+    """A database without the expected columns is skipped with a clear reason."""
+    import sqlite3
+
+    path = tmp_path / ".bot" / "benchmarks" / "old" / "state.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE runs (id TEXT)")
+    connection.commit()
+    connection.close()
+
+    copies, problem = inspect_database(path, "benchmark")
+    assert copies == []
+    assert problem is not None
+    assert "缺少字段" in problem.reason
+
+
+def test_source_databases_are_never_modified(tmp_path):
+    """Discovery must open every database read-only and leave it byte-identical."""
+    import hashlib
+
+    path = tmp_path / ".bot" / "state.db"
+    _make_source_db(path, [{"id": "r1"}], events=[{"run_id": "r1", "type": "run.completed"}])
+    before = hashlib.sha256(path.read_bytes()).hexdigest()
+    collect_runs(tmp_path)
+    after = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert before == after
+
+
+def test_analysis_all_runs_filters_by_source_kind(tmp_path):
+    """Main and benchmark runs must be distinguishable and filterable."""
+    _make_source_db(
+        tmp_path / ".bot" / "state.db",
+        [{"id": "main-run"}],
+        events=[{"run_id": "main-run", "type": "run.completed"}],
+    )
+    _make_source_db(
+        tmp_path / ".bot" / "benchmarks" / "eval-a" / "state.db",
+        [{"id": "bench-run"}],
+        events=[{"run_id": "bench-run", "type": "run.completed"}],
+    )
+    store = SQLiteSessionStore(tmp_path / ".bot" / "state.db")
+    queries = WebQueries(store, tmp_path)
+    try:
+        everything = queries.analysis_all_runs()
+        assert {item["run_id"] for item in everything} == {"main-run", "bench-run"}
+        benchmarks = queries.analysis_all_runs(source_kind="benchmark")
+        assert [item["run_id"] for item in benchmarks] == ["bench-run"]
+        assert benchmarks[0]["source_kind"] == "benchmark"
+    finally:
+        store.close()
+
+
+def test_run_without_end_time_is_unknown_not_zero(tmp_path):
+    """A historical run with no ``completed_at`` must report unknown duration."""
+    _make_source_db(
+        tmp_path / ".bot" / "state.db",
+        [{"id": "open-run", "completed_at": None, "status": "running"}],
+        events=[{"run_id": "open-run", "type": "run.started", "payload": {"prompt": "未结束"}}],
+    )
+    store = SQLiteSessionStore(tmp_path / ".bot" / "state.db")
+    queries = WebQueries(store, tmp_path)
+    try:
+        items = queries.analysis_all_runs()
+        assert len(items) == 1
+        assert items[0]["total_seconds"] is None
+        assert items[0]["net_seconds"] is None
+        summary = summarize(items)
+        assert summary["duration_unknown"] == 1
+    finally:
+        store.close()
+
+
+def test_analysis_run_any_finds_run_outside_main_database(tmp_path):
+    """A benchmark run must be inspectable even though it is not in the main db."""
+    _make_source_db(
+        tmp_path / ".bot" / "state.db",
+        [{"id": "main-run"}],
+        events=[{"run_id": "main-run", "type": "run.completed"}],
+    )
+    _make_source_db(
+        tmp_path / ".bot" / "benchmarks" / "eval-a" / "state.db",
+        [{"id": "bench-run"}],
+        events=[{"run_id": "bench-run", "type": "run.completed"}],
+    )
+    store = SQLiteSessionStore(tmp_path / ".bot" / "state.db")
+    queries = WebQueries(store, tmp_path)
+    try:
+        detail = queries.analysis_run_any("bench-run")
+        assert detail["run_id"] == "bench-run"
+        assert detail["source_kind"] == "benchmark"
+    finally:
+        store.close()
+

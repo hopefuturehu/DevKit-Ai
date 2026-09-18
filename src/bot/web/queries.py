@@ -15,6 +15,21 @@ from uuid import uuid4
 
 from bot.sessions import SQLiteSessionStore
 from bot.web.analysis import DEFAULT_GAP_THRESHOLD_SECONDS, analyze_run
+from bot.web.sorting import sort_analyses
+from bot.web.sources import collect_runs
+
+
+def _prompt_from_events(events: list[dict[str, Any]]) -> str:
+    """Extract the run prompt from its ``run.started`` event, if present."""
+    for event in events:
+        if event.get("type") != "run.started":
+            continue
+        try:
+            payload = json.loads(event.get("payload_json") or "{}")
+        except (TypeError, ValueError):
+            return ""
+        return payload.get("prompt") or ""
+    return ""
 
 
 class CursorExpired(ValueError):
@@ -139,12 +154,18 @@ class WebQueries:
         search: str | None = None,
         since: str | None = None,
         until: str | None = None,
+        sort: str = "started",
+        order: str = "desc",
         gap_threshold_seconds: float = DEFAULT_GAP_THRESHOLD_SECONDS,
     ) -> dict[str, Any]:
         """Cross-session run list with net-duration and stop-reason analysis.
 
         Filtering happens in SQL for the cheap columns; stop-reason filtering is
         applied after analysis because the reason lives in event payloads.
+
+        Sorting is applied to the **whole filtered set** before pagination. Doing
+        it the other way round silently drops long runs that started early: they
+        fall outside the first page and never get a chance to rank first.
         """
         clauses = ["s.workspace=?"]
         args: list[Any] = [str(self.workspace)]
@@ -197,14 +218,18 @@ class WebQueries:
         if stop_reason:
             analyses = [item for item in analyses if item["stop_reason"] == stop_reason]
 
-        total = len(analyses)
-        page = analyses[offset : offset + limit]
+        # Sort the full filtered set first; only then slice the requested page.
+        ordered = sort_analyses(analyses, sort=sort, order=order)
+        total = len(ordered)
+        page = ordered[offset : offset + limit]
         return {
             "runs": page,
             "total": total,
             "limit": limit,
             "offset": offset,
             "has_more": offset + limit < total,
+            "sort": sort,
+            "order": order,
         }
 
     def analysis_run(
@@ -224,6 +249,107 @@ class WebQueries:
         result["cost_usd"] = run.get("cost_usd")
         result["session_id"] = run["session_id"]
         return result
+
+    def analysis_sources(self) -> dict[str, Any]:
+        """Discover every history database and de-duplicate the runs inside them.
+
+        The result is cached per query object: discovery walks hundreds of files,
+        and the analysis endpoints are called repeatedly while the user filters.
+        """
+        cached = getattr(self, "_analysis_sources", None)
+        if cached is None:
+            deduped, problems, summary = collect_runs(self.workspace)
+            cached = {
+                "runs": deduped,
+                "problems": problems,
+                "summary": summary,
+            }
+            self._analysis_sources = cached
+        return cached
+
+    def analysis_all_runs(
+        self,
+        *,
+        status: str | None = None,
+        stop_reason: str | None = None,
+        session_id: str | None = None,
+        search: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        source_kind: str | None = None,
+        gap_threshold_seconds: float = DEFAULT_GAP_THRESHOLD_SECONDS,
+    ) -> list[dict[str, Any]]:
+        """Analyse every de-duplicated run across all discovered sources.
+
+        Filtering happens in Python because the interesting fields (net duration,
+        stop reason) only exist after analysis. The caller sorts and paginates the
+        returned list, so the whole filtered set is always available.
+        """
+        sources = self.analysis_sources()
+        items: list[dict[str, Any]] = []
+        for entry in sources["runs"]:
+            copy = entry.chosen
+            if source_kind and copy.source_kind != source_kind:
+                continue
+            run = copy.run
+            if status and run.get("status") != status:
+                continue
+            if session_id and run.get("session_id") != session_id:
+                continue
+            if since and (run.get("started_at") or "") < since:
+                continue
+            if until and (run.get("started_at") or "") > until:
+                continue
+            analysis = analyze_run(
+                run, copy.events, gap_threshold_seconds=gap_threshold_seconds
+            )
+            item = analysis.as_dict()
+            item["prompt"] = _prompt_from_events(copy.events)
+            item["workspace"] = str(self.workspace)
+            item["input_tokens"] = run.get("input_tokens") or 0
+            item["output_tokens"] = run.get("output_tokens") or 0
+            item["cost_usd"] = run.get("cost_usd")
+            item["source_kind"] = copy.source_kind
+            item["source_path"] = copy.source_path
+            item["duplicate_count"] = len(entry.duplicates)
+            item["duplicate_sources"] = [dup.source_path for dup in entry.duplicates]
+            item["source_conflict"] = entry.conflict
+            item["source_conflict_reason"] = entry.conflict_reason
+            items.append(item)
+
+        if stop_reason:
+            items = [item for item in items if item["stop_reason"] == stop_reason]
+        if search:
+            needle = search.lower()
+            items = [item for item in items if needle in (item.get("prompt") or "").lower()]
+        return items
+
+    def analysis_run_any(
+        self, run_id: str, *, gap_threshold_seconds: float = DEFAULT_GAP_THRESHOLD_SECONDS
+    ):
+        """Analyse one run from whichever source holds it, main database first."""
+        sources = self.analysis_sources()
+        for entry in sources["runs"]:
+            if entry.run_id != run_id:
+                continue
+            copy = entry.chosen
+            analysis = analyze_run(
+                copy.run, copy.events, gap_threshold_seconds=gap_threshold_seconds
+            )
+            result = analysis.as_dict()
+            result["prompt"] = _prompt_from_events(copy.events)
+            result["input_tokens"] = copy.run.get("input_tokens") or 0
+            result["output_tokens"] = copy.run.get("output_tokens") or 0
+            result["cost_usd"] = copy.run.get("cost_usd")
+            result["session_id"] = copy.run.get("session_id")
+            result["source_kind"] = copy.source_kind
+            result["source_path"] = copy.source_path
+            result["duplicate_count"] = len(entry.duplicates)
+            result["duplicate_sources"] = [dup.source_path for dup in entry.duplicates]
+            result["source_conflict"] = entry.conflict
+            result["source_conflict_reason"] = entry.conflict_reason
+            return result
+        raise LookupError("任务运行不存在")
 
     def cursor(self, position: int) -> str:
         return f"{self.epoch}:{position}"

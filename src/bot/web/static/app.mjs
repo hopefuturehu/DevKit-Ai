@@ -1,6 +1,6 @@
 import {TraceModel,statusLabel,toolSummary} from './trace-model.mjs';
 import {markdown} from './markdown.mjs';
-import {UNKNOWN,breakdown,buildQuery,describeGaps,formatDuration,formatPercent,formatTimestamp,sortRuns,stopReasonLabel,stopReasonTone,summarizeReasons} from './analysis-model.mjs';
+import {UNKNOWN,breakdown,buildQuery,describeGaps,describeSource,formatDuration,formatPercent,formatTimestamp,sortRuns,stopReasonLabel,stopReasonTone,summarizeReasons} from './analysis-model.mjs';
 
 const $=id=>document.getElementById(id);
 const el=(tag,className,text)=>{const n=document.createElement(tag);if(className)n.className=className;if(text!==undefined)n.textContent=text;return n;};
@@ -383,6 +383,7 @@ function analysisFilters(){
   return {
     status:$('filterStatus').value,
     stop_reason:$('filterReason').value,
+    source_kind:$('filterSource').value,
     sort:$('filterSort').value,
     order:$('filterOrder').value,
     search:$('filterSearch').value.trim(),
@@ -397,6 +398,8 @@ async function loadAnalysis(){
   analysisState.runs=data.runs;
   analysisState.summary=data.summary;
   analysisState.methodology=data.methodology;
+  analysisState.sources=data.sources||null;
+  analysisState.summaryScope=data.summary_scope||null;
   return data;
 }
 
@@ -484,6 +487,10 @@ function renderTable(){
     const title=el('div','cell');
     title.append(el('div','title',run.prompt||'(无任务描述)'));
     title.append(el('div','sub',`${formatTimestamp(run.started_at)} · ${run.session_id.slice(0,8)}`));
+    const source=describeSource(run);
+    const sourceLine=el('div','sub',`来源：${source.label}${source.note?` · ${source.note}`:''}`);
+    if(source.conflict)sourceLine.classList.add('conflict');
+    title.append(sourceLine);
     row.append(title);
 
     const cells=[
@@ -727,7 +734,7 @@ $('theme').addEventListener('change',theme);theme();
 for(const b of document.querySelectorAll('[data-panel]'))b.addEventListener('click',()=>switchPanel(b.dataset.panel));
 $('analysisRefresh').addEventListener('click',safe(refreshAnalysis));
 $('analysisExport').addEventListener('click',exportAnalysis);
-for(const id of ['filterStatus','filterReason','filterSort','filterOrder','filterGap'])$(id).addEventListener('change',safe(refreshAnalysis));
+for(const id of ['filterStatus','filterReason','filterSource','filterSort','filterOrder','filterGap'])$(id).addEventListener('change',safe(refreshAnalysis));
 let searchTimer=null;
 $('filterSearch').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>safe(refreshAnalysis)(),300);});
 for(const b of document.querySelectorAll('[data-detail]'))b.addEventListener('click',()=>{detailTab=b.dataset.detail;outputFollowing=false;renderToolDetail();if(detailTab==='events'&&!rawEvents)safe(()=>loadRawEvents())();});

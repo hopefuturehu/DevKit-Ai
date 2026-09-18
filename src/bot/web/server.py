@@ -7,7 +7,7 @@ import json
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 from urllib.parse import quote, urlparse
 from uuid import uuid4
 
@@ -18,6 +18,7 @@ from bot.core.events import CallbackEventSink
 from bot.web.analysis import summarize as summarize_analyses
 from bot.web.queries import CursorExpired
 from bot.web.sink import WebSocketEventSink
+from bot.web.sorting import sort_analyses
 from bot.web.workbench import WebApprovalHandler, WebWorkbench
 
 try:
@@ -57,45 +58,6 @@ def _delta(left: float | None, right: float | None) -> float | None:
     if left is None or right is None:
         return None
     return right - left
-
-
-def sort_analyses(
-    runs: list[dict[str, Any]], *, sort: str = "started", order: str = "desc"
-) -> list[dict[str, Any]]:
-    """Sort analysed runs, keeping unknown durations last regardless of direction.
-
-    Unknown values must not masquerade as the fastest or slowest run, so they are
-    always pushed to the end of the list.
-    """
-    keys = {
-        "net": "net_seconds",
-        "total": "total_seconds",
-        "approval": "approval_seconds",
-        "started": "started_at",
-        "events": "event_count",
-    }
-    key = keys.get(sort)
-    if key is None:
-        raise ValueError(f"不支持的排序字段: {sort}")
-    reverse = order == "desc"
-
-    def sort_key(item: dict[str, Any]):
-        value = item.get(key)
-        unknown = value is None
-        if unknown:
-            # Unknown always sorts last: use a flag that dominates the comparison.
-            return (1, 0, "")
-        if isinstance(value, str):
-            return (0, 0, value)
-        return (0, value, "")
-
-    ordered = sorted(runs, key=sort_key, reverse=reverse)
-    if reverse:
-        # ``reverse`` also flips the unknown flag, so re-partition explicitly.
-        known = [item for item in ordered if item.get(key) is not None]
-        unknown = [item for item in ordered if item.get(key) is None]
-        return known + unknown
-    return ordered
 
 
 class StartRequest(BaseModel):
@@ -259,30 +221,47 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
         search: str | None = None,
         since: str | None = None,
         until: str | None = None,
+        source_kind: Literal["main", "benchmark", "artifact"] | None = None,
         sort: Literal["net", "total", "approval", "started", "events"] = "started",
         order: Literal["asc", "desc"] = "desc",
         gap_threshold_seconds: Annotated[float, Query(ge=0, le=86400)] = 120.0,
     ):
-        """Cross-session run list with net duration, filters and stop reasons."""
+        """Cross-session run list with net duration, filters and stop reasons.
+
+        Covers every discovered history database (main, benchmarks, artifacts),
+        de-duplicated by run id. Sorting is applied to the whole filtered set
+        before pagination, so an early long run cannot be dropped by the page
+        window.
+        """
         service = wb()
-        page = service.queries.analysis_runs(
-            limit=limit,
-            offset=offset,
+        items = service.queries.analysis_all_runs(
             status=status,
             stop_reason=stop_reason,
             session_id=session_id,
             search=search,
             since=since,
             until=until,
+            source_kind=source_kind,
             gap_threshold_seconds=gap_threshold_seconds,
         )
-        runs = sort_analyses(page["runs"], sort=sort, order=order)
+        ordered = sort_analyses(items, sort=sort, order=order)
+        total = len(ordered)
+        page = ordered[offset : offset + limit]
+        sources = service.queries.analysis_sources()
         return {
-            **page,
-            "runs": runs,
+            "runs": page,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total,
             "sort": sort,
             "order": order,
-            "summary": summarize_analyses(runs),
+            "summary": summarize_analyses(ordered),
+            "summary_scope": "all_filtered",
+            "sources": {
+                **sources["summary"],
+                "problems": [problem.as_dict() for problem in sources["problems"]],
+            },
             "methodology": ANALYSIS_METHODOLOGY,
         }
 
@@ -291,9 +270,13 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
         run_id: str,
         gap_threshold_seconds: Annotated[float, Query(ge=0, le=86400)] = 120.0,
     ):
-        """Timing breakdown for one run, with approval intervals and unknown gaps."""
+        """Timing breakdown for one run, with approval intervals and unknown gaps.
+
+        The run is looked up across every discovered source, so a benchmark or
+        archived run can be inspected even though it is not in the live database.
+        """
         service = wb()
-        detail = service.queries.analysis_run(
+        detail = service.queries.analysis_run_any(
             run_id, gap_threshold_seconds=gap_threshold_seconds
         )
         detail["methodology"] = ANALYSIS_METHODOLOGY
@@ -307,10 +290,10 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
     ):
         """Compare two runs on total/net/approval duration and stop reason."""
         service = wb()
-        left_run = service.queries.analysis_run(
+        left_run = service.queries.analysis_run_any(
             left, gap_threshold_seconds=gap_threshold_seconds
         )
-        right_run = service.queries.analysis_run(
+        right_run = service.queries.analysis_run_any(
             right, gap_threshold_seconds=gap_threshold_seconds
         )
         return {
@@ -336,24 +319,30 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
         search: str | None = None,
         since: str | None = None,
         until: str | None = None,
+        source_kind: Literal["main", "benchmark", "artifact"] | None = None,
         sort: Literal["net", "total", "approval", "started", "events"] = "started",
         order: Literal["asc", "desc"] = "desc",
         gap_threshold_seconds: Annotated[float, Query(ge=0, le=86400)] = 120.0,
     ):
-        """Download the current analysis view as a JSON report."""
+        """Download the current analysis view as a JSON report.
+
+        The export uses the same filter set and the same whole-set ordering as the
+        list endpoint, and records the source, de-duplication and scope metadata
+        so the numbers can be reproduced.
+        """
         service = wb()
-        page = service.queries.analysis_runs(
-            limit=100000,
-            offset=0,
+        items = service.queries.analysis_all_runs(
             status=status,
             stop_reason=stop_reason,
             session_id=session_id,
             search=search,
             since=since,
             until=until,
+            source_kind=source_kind,
             gap_threshold_seconds=gap_threshold_seconds,
         )
-        runs = sort_analyses(page["runs"], sort=sort, order=order)
+        runs = sort_analyses(items, sort=sort, order=order)
+        sources = service.queries.analysis_sources()
         report = {
             "schema": "bot.run-analysis.v1",
             "generated_at": datetime.now(UTC).isoformat(),
@@ -365,9 +354,19 @@ def create_app(workspace: Path | None = None, config_path: Path | None = None) -
                 "search": search,
                 "since": since,
                 "until": until,
+                "source_kind": source_kind,
                 "sort": sort,
                 "order": order,
                 "gap_threshold_seconds": gap_threshold_seconds,
+            },
+            "scope": {
+                "summary_scope": "all_filtered",
+                "exported_runs": len(runs),
+                "note": "汇总与导出均覆盖全部筛选结果，不受分页影响。",
+            },
+            "sources": {
+                **sources["summary"],
+                "problems": [problem.as_dict() for problem in sources["problems"]],
             },
             "summary": summarize_analyses(runs),
             "methodology": ANALYSIS_METHODOLOGY,

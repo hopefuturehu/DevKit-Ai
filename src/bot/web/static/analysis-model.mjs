@@ -89,6 +89,37 @@ export function summarizeReasons(summary){
   }));
 }
 
+// Source kinds are the physical databases a run was read from. They are shown so
+// a benchmark or archived run is never mistaken for a live workspace run.
+export const SOURCE_LABELS={main:'主会话库',benchmark:'评测库',artifact:'归档产物'};
+export function sourceLabel(kind){
+  if(!kind)return UNKNOWN;
+  return SOURCE_LABELS[kind]||kind;
+}
+
+// A run that exists in several databases is de-duplicated server-side; surface
+// the chosen source and any conflict so the numbers can be traced back.
+export function describeSource(run){
+  const duplicates=run.duplicate_count||0;
+  return {
+    kind:run.source_kind||null,
+    label:sourceLabel(run.source_kind),
+    path:run.source_path||null,
+    duplicates,
+    conflict:Boolean(run.source_conflict),
+    conflictReason:run.source_conflict_reason||null,
+    note:duplicates?`另有 ${duplicates} 份副本已去重`:'',
+  };
+}
+
+// Acceptance is never inferred from status=completed: without recorded evidence
+// the run is explicitly marked as unverified.
+export function verificationLabel(run){
+  if(run.verified===true)return {label:'已核验',tone:'ok'};
+  if(run.verified===false)return {label:'未通过',tone:'bad'};
+  return {label:'未核验',tone:'muted'};
+}
+
 export function describeGaps(run){
   const gaps=run.gaps||[];
   if(!gaps.length)return [];
