@@ -12,6 +12,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [原生沙箱面试问答](native-sandbox-interview-guide.md) | 核验 4 篇公开面经主题，整理 18 题及追问；逐项对应原生沙箱方案，明确待实施和未实测边界 |
 | [面试材料与当前实现核对](implementation-audit.md) | 文档职责、12 类差异与遗漏、当前默认值及离线验证入口 |
 | [AI Agent 面试答题与批改工作簿](ai-agent-interview-workbook.md) | 24 道核心题、6 道扩展题；保留原回答、Codex 指正和修订区，可按题分批作答与复评 |
 | [赛文X 100+ 社招面经：Agent 高频题与代码印证手册](nowcoder-agent-interview-handbook.md) | 遍历牛客汇总帖的 78 篇子面经，整理 Agent runtime、工具、上下文、RAG、多 Agent、评测、安全与云端部署；区分本地实证和延伸设计 |
