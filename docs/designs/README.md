@@ -14,6 +14,7 @@
 
 | 文档 | 状态与用途 |
 |---|---|
+| [原生沙箱接入执行方案](native-sandbox-execution-plan.md) | 待实施；SRT、调用级策略、受限工具进程、六阶段交付与两平台验收 |
 | [移除 Active Skill 独立层：首版方案](active-skill-layer-removal-plan.md) | A–C 已实现；D 有小规模行为对照，完整成本评测待补 |
 | [Skill 上下文生命周期设计](skill-run-lifecycle-design.md) | 原始完整提案；Run 隔离、历史交付和恢复已落地，通用投影与微裁剪待实施 |
 | [重复工具调用：四项调整](repeated-tool-execution-plan.md) | 首版已落地，默认观测；包含开源比较、误拦边界和验收方案 |
