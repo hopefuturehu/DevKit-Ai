@@ -7,7 +7,7 @@
     "P0": "in_progress",
     "P1": "in_progress",
     "P2": "in_progress",
-    "P3": "not_delivered",
+    "P3": "in_progress",
     "P4": "not_delivered",
     "P5": "not_delivered"
   },
@@ -319,6 +319,16 @@
     "macos_regression_passed": 141,
     "macos_lifecycle_passed": 72,
     "linux_passed": 31,
-    "stage_complete": false
+    "stage_complete": false,
+    "commit": "2e5cc62"
+  },
+  "worker_protocol_validation": {
+    "artifact": "docs/data/native-sandbox-p3-worker-protocol.json",
+    "sha256": "9b02ae3f2416e39ea5381ffc406ed9ed4eb28a0738681f25421a8eee4a18a326",
+    "macos_passed": 35,
+    "linux_passed": 35,
+    "stage_complete": false,
+    "os_isolation_proven": false,
+    "required_execution_enabled": false
   }
 }

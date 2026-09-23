@@ -1,6 +1,6 @@
 # 原生沙箱验证记录
 
-日期：2026-09-23。当前为 **P0/P1 及 P2 受管命令原型，未通过完整阶段门槛，未发布 required 模式**。
+日期：2026-09-23。当前为 **P0/P1、P2 受管命令及 P3 worker 协议原型，未通过完整阶段门槛，未发布 required 模式**。
 off 的实际执行路径仍为 Local；required 由工厂明确拒绝，没有宿主兜底。本报告中的探针独立于业务运行时。进程管理增加了供原生
 后端启用的可选保守检查，默认 off 路径未启用该检查。
 
@@ -335,3 +335,34 @@ Linux 镜像 `bot-native-scopes-env:20260923` 已保留，测试容器已停止�
 
 生产工厂和 allowlist 仍关闭；父子/worktree 委派、完整恢复、启动证明、实时能力检查、并发
 准入、worker、brokers、外围入口与 P5 门槛仍待交付，六阶段目标保持不变。
+
+## P3 独立 worker 操作与协议原型
+
+新增标准库实现 [worker.py](../../src/bot/sandbox/worker.py) 及可信侧协议 codec
+[client.py](../../src/bot/sandbox/client.py)。固定 read/search/apply_patch/fetch/file_version 五种操作；
+请求只接受固定字段、操作参数和 host context，不接受任意 Python 函数、代码、pickle 或策略更新。
+协议要求一个完整 JSON 行和 EOF，再执行操作；重复键、非有限数字、额外字段、多个请求在执行前拒绝。
+响应逐操作校验 ID、字段、类型、metadata、进展类型和输出预算；worker 不能通过响应设置 executed、
+进程状态或其他宿主控制字段。错误响应也不得夹带成功证据。命令 stdout 不进入此 codec。
+
+读文件和版本操作检查普通文件、大小、硬链接及读取前后身份；search 保留匹配/进展语义并增加
+输出和遍历上限。patch 保留唯一匹配、原子替换、权限位和前后哈希，替换前再次比较目标元数据，
+失败清理临时文件。该比较不等于跨进程的原子 compare-and-swap，完整并发验收仍待进行。
+原型上限为请求 2 MB、响应 8 MB、文本输出 1 MB、单文件 16 MB、搜索单文件 5 MB/25 万项。
+这些约束须在后续工具接线时明确处理，不能让协议失败冒充操作从未执行。
+
+fetch 使用明确的本机受控 HTTP 代理，逐跳检查 URL 白名单，缺代理或 deny 模式不会直接连接。
+响应按上限增量读取；声明长度未收齐时失败。当前请求 identity 编码，服务器仍返回压缩内容时
+明确拒绝；压缩兼容、TLS CONNECT/证书、DNS 与私网出口尚未验收，allowlist 仍关闭。
+
+macOS Python 3.14 与 Linux Python 3.12 各 **35 passed**，无 skip；测试包括独立 `-I -S` 进程
+不加载项目同名模块和 PYTHONPATH、第二条请求不导致部分写入、patch 并发变化/替换失败、
+UTF-8 截断、路径别名/FIFO/大文件及畸形响应、模拟本机 HTTP 代理和不完整响应。Linux 使用
+安装后的 wheel、非 root 用户和普通容器，无本轮原生嵌套沙箱权限。首次在外层沙箱内运行的
+macOS HTTP 夹具因 bind EPERM 失败，之后在外层沙箱之外完成验证，没有放宽生产隔离策略。
+
+这些是操作语义与协议测试，**不证明 worker 已在原生沙箱运行，也不表示 P3 完成**。worker
+可信安装、解释器与库路径验证、受管 IPC 的退出/超时/取消/截断处理、四个业务工具和重复读取
+file_version 接线仍待实现。required 生产入口仍拒绝启动，内部 Native Agent 的文件工具入口
+仍拒绝，未回退宿主路径；off 模式保持原行为。
+详见 [P3 原型证据](../data/native-sandbox-p3-worker-protocol.json)。
