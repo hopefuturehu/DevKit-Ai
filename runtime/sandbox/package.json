@@ -1,0 +1,9 @@
+{
+  "name": "bot-native-sandbox-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pinned native sandbox dependencies; installed separately from task workspaces",
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.77"
+  }
+}

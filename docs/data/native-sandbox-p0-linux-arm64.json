@@ -1,0 +1,172 @@
+{
+  "phase": "P0",
+  "platform": "Linux-5.15.49-linuxkit-pr-aarch64-with-glibc2.35",
+  "machine": "aarch64",
+  "python": "3.10.12",
+  "node": "v24.14.0",
+  "srt": "0.0.77",
+  "policy": {
+    "filesystem": {
+      "denyRead": [
+        "/",
+        "/tmp/bot-native-p0-xgiks1x8/work/.env",
+        "/tmp/bot-native-p0-xgiks1x8/work/secret"
+      ],
+      "allowRead": [
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/dev",
+        "/lib",
+        "/lib64",
+        "/proc",
+        "/etc/ld.so.cache",
+        "/etc/ssl",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/etc/nsswitch.conf",
+        "/etc/passwd",
+        "/etc/group",
+        "/opt/bot-sandbox-runtime",
+        "/tmp/bot-native-p0-xgiks1x8/work",
+        "/tmp/bot-native-p0-xgiks1x8/home",
+        "/tmp/bot-native-p0-xgiks1x8/tmp",
+        "/tmp/bot-native-p0-xgiks1x8/cache"
+      ],
+      "allowWrite": [
+        "/tmp/bot-native-p0-xgiks1x8/work",
+        "/tmp/bot-native-p0-xgiks1x8/home",
+        "/tmp/bot-native-p0-xgiks1x8/tmp",
+        "/tmp/bot-native-p0-xgiks1x8/cache"
+      ],
+      "denyWrite": [
+        "/tmp/bot-native-p0-xgiks1x8/work/.env",
+        "/tmp/bot-native-p0-xgiks1x8/work/secret"
+      ]
+    },
+    "network": {
+      "allowedDomains": [],
+      "deniedDomains": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "deniedResolvedAddresses": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "fc00::/7"
+      ]
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false
+  },
+  "cases": [
+    {
+      "name": "filesystem_and_descendants",
+      "returncode": 1,
+      "duration_seconds": 0.2142,
+      "stdout": "",
+      "stderr": "bwrap: Can't mount proc on /newroot/proc: Operation not permitted\n",
+      "passed": false
+    },
+    {
+      "name": "argv_exact",
+      "returncode": 1,
+      "duration_seconds": 0.1995,
+      "stdout": "",
+      "stderr": "bwrap: Can't mount proc on /newroot/proc: Operation not permitted\n",
+      "passed": false
+    },
+    {
+      "name": "stdin_utf8",
+      "returncode": 1,
+      "duration_seconds": 0.2022,
+      "stdout": "",
+      "stderr": "bwrap: Can't mount proc on /newroot/proc: Operation not permitted\n",
+      "passed": false
+    },
+    {
+      "name": "large_output",
+      "returncode": 1,
+      "duration_seconds": 0.2025,
+      "stderr": "bwrap: Can't mount proc on /newroot/proc: Operation not permitted\n",
+      "passed": false,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": null
+    },
+    {
+      "name": "tcp6_fixture",
+      "passed": false,
+      "error": "[Errno 99] Cannot assign requested address"
+    },
+    {
+      "name": "direct_network_deny",
+      "returncode": 1,
+      "duration_seconds": 0.2318,
+      "stdout": "",
+      "stderr": "bwrap: Can't mount proc on /newroot/proc: Operation not permitted\n",
+      "passed": false,
+      "positive_control": [
+        "tcp4",
+        "udp4",
+        "unix"
+      ],
+      "received": []
+    },
+    {
+      "name": "empty_config",
+      "returncode": 1,
+      "duration_seconds": 0.1068,
+      "stdout": "",
+      "stderr": "Error: /tmp/bot-native-p0-xgiks1x8/control/policy.json is empty. Delete it, or put a config in it.\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "invalid_config",
+      "returncode": 1,
+      "duration_seconds": 0.0586,
+      "stdout": "",
+      "stderr": "Error: /tmp/bot-native-p0-xgiks1x8/control/policy.json is not valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "cli_sigterm_descendant_cleanup",
+      "passed": false,
+      "tree": [
+        {
+          "pid": 2994,
+          "started": 1790133875.21,
+          "name": "socat"
+        },
+        {
+          "pid": 2995,
+          "started": 1790133875.31,
+          "name": "rg"
+        },
+        {
+          "pid": 3002,
+          "started": 1790133875.33,
+          "name": "sh"
+        },
+        {
+          "pid": 3003,
+          "started": 1790133875.33,
+          "name": "bwrap"
+        },
+        {
+          "pid": 3004,
+          "started": 1790133875.33,
+          "name": "bwrap"
+        }
+      ],
+      "remaining_after_sigterm": [],
+      "stdout": "",
+      "stderr": "bwrap: Can't mount proc on /newroot/proc: Operation not permitted\n",
+      "returncode": 1,
+      "probe_forced_cleanup": false
+    }
+  ],
+  "passed": false,
+  "allowlist": "unverified",
+  "release_ready": false
+}

@@ -1,0 +1,208 @@
+{
+  "phase": "P0",
+  "platform": "Linux-5.15.49-linuxkit-pr-aarch64-with-glibc2.35",
+  "machine": "aarch64",
+  "python": "3.10.12",
+  "node": "v24.14.0",
+  "srt": "0.0.77",
+  "policy": {
+    "filesystem": {
+      "denyRead": [
+        "/",
+        "/tmp/bot-native-p0-he92yau5/work/.env",
+        "/tmp/bot-native-p0-he92yau5/work/secret"
+      ],
+      "allowRead": [
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/dev",
+        "/lib",
+        "/lib64",
+        "/proc",
+        "/etc/ld.so.cache",
+        "/etc/ssl",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/etc/nsswitch.conf",
+        "/etc/passwd",
+        "/etc/group",
+        "/opt/bot-sandbox-runtime",
+        "/tmp/bot-native-p0-he92yau5/work",
+        "/tmp/bot-native-p0-he92yau5/home",
+        "/tmp/bot-native-p0-he92yau5/tmp",
+        "/tmp/bot-native-p0-he92yau5/cache"
+      ],
+      "allowWrite": [
+        "/tmp/bot-native-p0-he92yau5/work",
+        "/tmp/bot-native-p0-he92yau5/home",
+        "/tmp/bot-native-p0-he92yau5/tmp",
+        "/tmp/bot-native-p0-he92yau5/cache"
+      ],
+      "denyWrite": [
+        "/tmp/bot-native-p0-he92yau5/work/.env",
+        "/tmp/bot-native-p0-he92yau5/work/secret"
+      ]
+    },
+    "network": {
+      "allowedDomains": [],
+      "deniedDomains": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "deniedResolvedAddresses": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "fc00::/7"
+      ]
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false
+  },
+  "cases": [
+    {
+      "name": "filesystem_and_descendants",
+      "returncode": 0,
+      "duration_seconds": 0.3733,
+      "stdout": "{\"read:work/normal\":{\"ok\":true,\"value\":\"normal-fixture\"},\"read:work/.env\":{\"ok\":false,\"code\":\"EACCES\"},\"read:work/secret\":{\"ok\":false,\"code\":\"EACCES\"},\"read:outside/secret\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:control/state.db\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:control/policy.json\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:work/outside-link/secret\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:work/hardlink-secret\":{\"ok\":true,\"value\":\"synthetic-secret\"},\"write:work/created\":{\"ok\":true,\"value\":true},\"write:outside/sentinel\":{\"ok\":false,\"code\":\"ENOENT\"},\"write:work/.env\":{\"ok\":false,\"code\":\"EACCES\"},\"write:work/outside-link/sentinel\":{\"ok\":false,\"code\":\"ENOENT\"},\"write:work/hardlink-sentinel\":{\"ok\":true,\"value\":true},\"link:outside\":{\"ok\":false,\"code\":\"ENOENT\"},\"rename:secret\":{\"ok\":false,\"code\":\"EBUSY\"},\"grandchild\":{\"status\":0,\"stdout\":\"ENOENT\\n\",\"stderr\":\"\"}}\n",
+      "stderr": "",
+      "passed": false,
+      "failed_checks": [
+        "read:work/hardlink-secret",
+        "write:work/hardlink-sentinel",
+        "outside sentinel changed"
+      ]
+    },
+    {
+      "name": "argv_exact",
+      "returncode": 0,
+      "duration_seconds": 0.2363,
+      "stdout": "[\"\",\"a b\",\"'quoted'\",\"\\\"double\\\"\",\"中文🙂\",\"line1\\nline2\",\"\\\\\",\"--settings\",\"-c\",\"$(touch argv-pwned)\",\"`touch argv-pwned`\",\"; touch argv-pwned\",\"*\"]\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "stdin_utf8",
+      "returncode": 0,
+      "duration_seconds": 0.2279,
+      "stdout": "输入🙂\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "large_output",
+      "returncode": 0,
+      "duration_seconds": 0.2258,
+      "stderr": "diagnostic",
+      "passed": true,
+      "stdout_sha256": "896531f80a26e1a3a10ceebe2d2d8549e80979667e71493cbf93e8edff400c3a",
+      "stdout_bytes": 300000
+    },
+    {
+      "name": "direct_network_deny",
+      "returncode": 0,
+      "duration_seconds": 0.1521,
+      "stdout": "[{\"name\":\"tcp4\",\"outcome\":\"ECONNREFUSED\"},{\"name\":\"tcp6\",\"outcome\":\"ECONNREFUSED\"},{\"name\":\"udp4\",\"outcome\":\"sent\"},{\"name\":\"unix\",\"outcome\":\"EPERM\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "positive_control": [
+        "tcp4",
+        "tcp6",
+        "udp4",
+        "unix"
+      ],
+      "received": []
+    },
+    {
+      "name": "empty_config",
+      "returncode": 1,
+      "duration_seconds": 0.077,
+      "stdout": "",
+      "stderr": "Error: /tmp/bot-native-p0-he92yau5/control/policy.json is empty. Delete it, or put a config in it.\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "invalid_config",
+      "returncode": 1,
+      "duration_seconds": 0.059,
+      "stdout": "",
+      "stderr": "Error: /tmp/bot-native-p0-he92yau5/control/policy.json is not valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "cli_sigterm_descendant_cleanup",
+      "passed": true,
+      "tree": [
+        {
+          "pid": 260,
+          "started": 1790134036.1,
+          "name": "socat"
+        },
+        {
+          "pid": 261,
+          "started": 1790134036.21,
+          "name": "rg"
+        },
+        {
+          "pid": 268,
+          "started": 1790134036.23,
+          "name": "sh"
+        },
+        {
+          "pid": 269,
+          "started": 1790134036.23,
+          "name": "bwrap"
+        },
+        {
+          "pid": 270,
+          "started": 1790134036.23,
+          "name": "bwrap"
+        },
+        {
+          "pid": 271,
+          "started": 1790134036.23,
+          "name": "bash"
+        },
+        {
+          "pid": 272,
+          "started": 1790134036.24,
+          "name": "socat"
+        },
+        {
+          "pid": 273,
+          "started": 1790134036.24,
+          "name": "socat"
+        },
+        {
+          "pid": 274,
+          "started": 1790134036.24,
+          "name": "apply-seccomp"
+        },
+        {
+          "pid": 275,
+          "started": 1790134036.24,
+          "name": "apply-seccomp"
+        },
+        {
+          "pid": 276,
+          "started": 1790134036.24,
+          "name": "MainThread"
+        },
+        {
+          "pid": 283,
+          "started": 1790134036.26,
+          "name": "MainThread"
+        }
+      ],
+      "remaining_after_sigterm": [],
+      "stdout": "ready\n",
+      "stderr": "",
+      "returncode": 0,
+      "probe_forced_cleanup": false
+    }
+  ],
+  "passed": false,
+  "allowlist": "unverified",
+  "release_ready": false
+}

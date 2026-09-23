@@ -1,0 +1,154 @@
+{
+  "phase": "P0",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "python": "3.14.5",
+  "node": "v24.14.0",
+  "srt": "0.0.77",
+  "policy": {
+    "filesystem": {
+      "denyRead": [
+        "/",
+        "/private/tmp/bot-native-p0-x0u1s42o/work/.env",
+        "/private/tmp/bot-native-p0-x0u1s42o/work/secret"
+      ],
+      "allowRead": [
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/dev",
+        "/System",
+        "/private/etc/ssl",
+        "/private/etc/hosts",
+        "/private/etc/resolv.conf",
+        "/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0",
+        "/private/tmp/bot-native-p0-x0u1s42o/work",
+        "/private/tmp/bot-native-p0-x0u1s42o/home",
+        "/private/tmp/bot-native-p0-x0u1s42o/tmp",
+        "/private/tmp/bot-native-p0-x0u1s42o/cache"
+      ],
+      "allowWrite": [
+        "/private/tmp/bot-native-p0-x0u1s42o/work",
+        "/private/tmp/bot-native-p0-x0u1s42o/home",
+        "/private/tmp/bot-native-p0-x0u1s42o/tmp",
+        "/private/tmp/bot-native-p0-x0u1s42o/cache"
+      ],
+      "denyWrite": [
+        "/private/tmp/bot-native-p0-x0u1s42o/work/.env",
+        "/private/tmp/bot-native-p0-x0u1s42o/work/secret"
+      ]
+    },
+    "network": {
+      "allowedDomains": [],
+      "deniedDomains": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "deniedResolvedAddresses": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "fc00::/7"
+      ]
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false
+  },
+  "cases": [
+    {
+      "name": "filesystem_and_descendants",
+      "returncode": 0,
+      "duration_seconds": 0.2067,
+      "stdout": "{\"read:work/normal\":{\"ok\":true,\"value\":\"normal-fixture\"},\"read:work/.env\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:outside/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:control/state.db\":{\"ok\":false,\"code\":\"EPERM\"},\"read:control/policy.json\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/outside-link/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/hardlink-secret\":{\"ok\":true,\"value\":\"synthetic-secret\"},\"write:work/created\":{\"ok\":true,\"value\":true},\"write:outside/sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/.env\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/outside-link/sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/hardlink-sentinel\":{\"ok\":true,\"value\":true},\"link:outside\":{\"ok\":false,\"code\":\"EPERM\"},\"rename:secret\":{\"ok\":false,\"code\":\"EPERM\"},\"grandchild\":{\"status\":0,\"stdout\":\"EPERM\\n\",\"stderr\":\"\"}}\n",
+      "stderr": "",
+      "passed": false,
+      "failed_checks": [
+        "read:work/hardlink-secret",
+        "write:work/hardlink-sentinel",
+        "outside sentinel changed"
+      ]
+    },
+    {
+      "name": "argv_exact",
+      "returncode": 0,
+      "duration_seconds": 0.0892,
+      "stdout": "[\"\",\"a b\",\"'quoted'\",\"\\\"double\\\"\",\"中文🙂\",\"line1\\nline2\",\"\\\\\",\"--settings\",\"-c\",\"$(touch argv-pwned)\",\"`touch argv-pwned`\",\"; touch argv-pwned\",\"*\"]\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "stdin_utf8",
+      "returncode": 0,
+      "duration_seconds": 0.0876,
+      "stdout": "输入🙂\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "large_output",
+      "returncode": 0,
+      "duration_seconds": 0.0867,
+      "stderr": "diagnostic",
+      "passed": true,
+      "stdout_sha256": "896531f80a26e1a3a10ceebe2d2d8549e80979667e71493cbf93e8edff400c3a",
+      "stdout_bytes": 300000
+    },
+    {
+      "name": "direct_network_deny",
+      "returncode": 0,
+      "duration_seconds": 0.1348,
+      "stdout": "[{\"name\":\"tcp4\",\"outcome\":\"EPERM\"},{\"name\":\"tcp6\",\"outcome\":\"EPERM\"},{\"name\":\"udp4\",\"outcome\":\"EPERM\"},{\"name\":\"unix\",\"outcome\":\"EPERM\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "positive_control": [
+        "tcp4",
+        "tcp6",
+        "udp4",
+        "unix"
+      ],
+      "received": []
+    },
+    {
+      "name": "empty_config",
+      "returncode": 1,
+      "duration_seconds": 0.0849,
+      "stdout": "",
+      "stderr": "Error: /private/tmp/bot-native-p0-x0u1s42o/control/policy.json is empty. Delete it, or put a config in it.\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "invalid_config",
+      "returncode": 1,
+      "duration_seconds": 0.0518,
+      "stdout": "",
+      "stderr": "Error: /private/tmp/bot-native-p0-x0u1s42o/control/policy.json is not valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "cli_sigterm_descendant_cleanup",
+      "passed": false,
+      "tree": [
+        {
+          "pid": 19835,
+          "started": 1790133792.648791,
+          "name": "node"
+        },
+        {
+          "pid": 19836,
+          "started": 1790133792.67625,
+          "name": "node"
+        }
+      ],
+      "remaining_after_sigterm": [
+        19836
+      ],
+      "stdout": "ready\n",
+      "stderr": "",
+      "returncode": 0,
+      "probe_forced_cleanup": true
+    }
+  ],
+  "passed": false,
+  "allowlist": "unverified",
+  "release_ready": false
+}

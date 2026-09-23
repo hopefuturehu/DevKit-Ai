@@ -1,6 +1,7 @@
 # 原生沙箱接入执行方案
 
-> 状态：待实施，本文不表示 bot 已具备操作系统沙箱。
+> 状态：P0 实测进行中，发现硬链接和 macOS CLI 清理缺口；尚未通过 P0，bot 尚未接入操作系统沙箱。
+> 实测记录：[native-sandbox-validation.md](../evaluations/native-sandbox-validation.md)。
 > 日期：2026-09-22。基线：`84c5996`，并核对当前工作区源码。
 > 目标平台：macOS、Linux。首版选择 SRT，保留现有 Tool 层授权，在工具实际访问文件、执行命令和联网时增加系统约束。
 
@@ -298,4 +299,5 @@ git diff --check
 - [Landlock 内核文档](https://docs.kernel.org/userspace-api/landlock.html)：权限收紧、ABI 能力与限制，不能无条件作为等价回退。
 - [cgroups v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)：资源限制与进程组织，后续增强依据。
 
-本轮仅新增执行方案与索引，没有安装依赖、执行沙箱探针或改动运行逻辑；实施与实测结果需在后续阶段补充。
+2026-09-23 已安装锁定 Node/SRT 并执行两平台独立探针，业务运行逻辑尚未修改。
+P0 的失败证据与后续门槛见实测记录，六阶段范围保持不变。

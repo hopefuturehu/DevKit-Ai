@@ -1,0 +1,20 @@
+# P0 lab only. This is not a production execution backend.
+FROM --platform=linux/arm64 ubuntu@sha256:6120be6a2b7ce665d0cbddc3ce6eae60fe94637c6a66985312d1f02f63cc0bcd
+
+RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    bubblewrap=0.6.1-1ubuntu0.3 socat=1.7.4.1-3ubuntu4 ripgrep=13.0.0-2ubuntu0.1 \
+    python3=3.10.6-1~22.04.1 python3-psutil=5.9.0-1build1 ca-certificates curl procps \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/bot-sandbox-runtime
+COPY runtime/sandbox/package.json runtime/sandbox/package-lock.json runtime/sandbox/runtime-lock.json ./
+RUN curl --fail --silent --show-error --connect-timeout 10 --max-time 180 \
+    https://nodejs.org/dist/v24.14.0/node-v24.14.0-linux-arm64.tar.gz -o /tmp/node.tar.gz \
+    && printf '%s  %s\n' f44740cd218de8127f1c44c41510a3a740fa5c9c8d1cdce1c3bedada79f3cde7 /tmp/node.tar.gz | sha256sum -c - \
+    && mkdir node && tar -xzf /tmp/node.tar.gz --strip-components=1 -C node \
+    && rm /tmp/node.tar.gz
+ENV PATH="/opt/bot-sandbox-runtime/node/bin:/usr/bin:/bin"
+RUN npm ci --ignore-scripts --no-audit --no-fund --fetch-retries=0 --fetch-timeout=30000
+COPY scripts/probe_native_sandbox.py /opt/probe_native_sandbox.py
+USER 65534:65534
+ENTRYPOINT ["python3", "/opt/probe_native_sandbox.py", "--runtime", "/opt/bot-sandbox-runtime"]
