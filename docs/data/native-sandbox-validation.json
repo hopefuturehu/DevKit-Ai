@@ -5,7 +5,7 @@
   "release_ready": false,
   "stages": {
     "P0": "in_progress",
-    "P1": "not_delivered",
+    "P1": "in_progress",
     "P2": "not_delivered",
     "P3": "not_delivered",
     "P4": "not_delivered",
@@ -108,5 +108,60 @@
     "macOS x64",
     "Linux x64",
     "kernel-level macOS process containment"
-  ]
+  ],
+  "p1_foundation": {
+    "required_execution_enabled": false,
+    "unit_regression": {
+      "passed": 162,
+      "failed": 0,
+      "command": ".venv/bin/pytest tests/unit/test_sandbox_config.py tests/unit/test_sandbox_admission.py tests/unit/test_sandbox_policy.py tests/unit/test_sandbox_runtime.py tests/unit/test_config.py tests/unit/test_cli.py tests/integration/test_cli_e2e.py tests/unit/test_strict_process_scope.py tests/unit/test_process_cleanup.py tests/unit/test_runtime_cleanup.py tests/unit/test_execution_tools_policy.py tests/unit/test_sandbox_runtime_install.py",
+      "environment": "macOS, outside enclosing sandbox for process sysctl access"
+    },
+    "installation_metadata": {
+      "valid": true,
+      "capabilities": {
+        "backend": "srt",
+        "backend_version": "0.0.77",
+        "node_version": "24.14.0",
+        "os_version": "Darwin 25.6.0",
+        "architecture": "arm64",
+        "file_read": "unverified",
+        "file_write": "unverified",
+        "network_filter": "unverified",
+        "process_isolation": "unverified",
+        "resource_limits": "unavailable",
+        "evidence": [
+          "metadata inspection only; isolation probes not run"
+        ]
+      }
+    },
+    "wheel_manifests": "built with hatchling; all three packaged manifests byte-equal to source",
+    "source_sha256": {
+      "src/bot/sandbox/__init__.py": "f10fd88846b86cf249505d01da0da2bdb4a39d22acd17c0632c333d58ff7f92d",
+      "src/bot/sandbox/admission.py": "a878bc7e56048d8aa1bcce1d0f1989ff36e3d6f7aae1712f32a4e8dea76c2c19",
+      "src/bot/sandbox/config.py": "96f81776869f5cc84ce2c82b2cd6beac8603c157941022ac880c0bef8abf6f14",
+      "src/bot/sandbox/models.py": "63dfea48a60efa56ec721b3db61f49e33d1371f58a82c9ff6d3a1fad4b78a300",
+      "src/bot/sandbox/policy.py": "68740d86db9045d7b08ef44e9ab4cacf65526b4e228f939bed190b0d768776fc",
+      "src/bot/sandbox/runtime.py": "cb4ee1b45af683402a7ea49013791efc026855eba169b22ffa5964ab06ead4f5",
+      "src/bot/execution/factory.py": "0053c26750e7ca9320b651752d19f3150d0a6a3d348c699aed5006953654cc5e",
+      "src/bot/config/loader.py": "4a449bd73e6724a4efb56218578932d3433087ad0ab287e287de749835a1770b",
+      "src/bot/config/models.py": "aba4733fd6ae74c4167e148d2e054d70d6ae48085c53112099db48121c751843",
+      "src/bot/cli/app.py": "28d4addba2d20f4b4388040c9924a6b0b46b6033ece55f5e38cbd63bd88790e0",
+      "src/bot/cli/runtime.py": "8c3e7192acf0447ae95567b55f5ddd81e386e5870322728a1330ecd3519bc332",
+      "pyproject.toml": "0455e770876280290c996bfcd32fdd66f4e2380ee8d00203cb7b7423358f833b",
+      "tests/unit/test_sandbox_config.py": "9822d8c375beeddb9e64c11906d07c0f5238c01e263735bab84e3299e192ecfb",
+      "tests/unit/test_sandbox_admission.py": "7dd818735d646da5746759e1f483700de6848a900556395f74848d1b360e4e69",
+      "tests/unit/test_sandbox_policy.py": "70edf6f63066b1e4f142137eadaa593c3b82c0e3383ef9718f829e8a14d8ce33",
+      "tests/unit/test_sandbox_runtime.py": "b88ad3772bdf2529f022100d41c4b428b34315f8268c511b95cf68b8c2312114"
+    },
+    "not_proven": [
+      "compiled policy OS enforcement",
+      "admission/launch concurrency coordination",
+      "launcher executable integrity",
+      "live backend capability preflight",
+      "worktree delegation",
+      "complete native tool coverage",
+      "S01-S15 and performance acceptance"
+    ]
+  }
 }

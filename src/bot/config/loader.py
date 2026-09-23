@@ -9,7 +9,14 @@ from typing import Any
 
 from dotenv import dotenv_values
 
-from bot.config.models import AppConfig, ModelConfig
+from bot.config.models import AppConfig, ModelConfig, PermissionsConfig
+from bot.sandbox.config import (
+    PermissionCeiling,
+    SandboxConfig,
+    SandboxTrust,
+    assert_at_most,
+    assert_permissions_at_most,
+)
 
 
 class ConfigError(RuntimeError):
@@ -36,12 +43,14 @@ def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]
     return result
 
 
-def _read_toml(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
+def _read_toml(path: Path, *, required: bool = False) -> dict[str, Any]:
     try:
         with path.open("rb") as handle:
             return tomllib.load(handle)
+    except FileNotFoundError as exc:
+        if not required and not os.path.lexists(path):
+            return {}
+        raise ConfigError(f"无法读取配置 {path}: {exc}") from exc
     except (OSError, tomllib.TOMLDecodeError) as exc:
         raise ConfigError(f"无法读取配置 {path}: {exc}") from exc
 
@@ -71,16 +80,59 @@ def load_config(
     overrides: dict[str, Any] | None = None,
 ) -> AppConfig:
     workspace = workspace.resolve()
-    data: dict[str, Any] = {}
-    if config_path:
-        data = _deep_merge(data, _read_toml(config_path.resolve()))
-    else:
-        data = _deep_merge(data, _read_toml(Path("~/.bot/config.toml").expanduser()))
-        data = _deep_merge(data, _read_toml(workspace / ".bot" / "config.toml"))
-    data = _deep_merge(data, _environment_overlay())
-    data = _deep_merge(data, overrides or {})
+    trusted_source = Path(os.path.abspath((config_path or Path("~/.bot/config.toml")).expanduser()))
+    trusted_path = trusted_source.resolve()
+    project_path = None if config_path else workspace / ".bot" / "config.toml"
+    trusted_data = _read_toml(trusted_source, required=config_path is not None)
+    project_data = _read_toml(project_path) if project_path else {}
+    environment = _environment_overlay()
+    # Environment and explicit host overrides are trusted configuration inputs.
+    # Preserve their existing precedence for ordinary configuration, but never
+    # derive the security ceiling from the already-merged project values.
+    ceiling_data = _deep_merge(_deep_merge(trusted_data, environment), overrides or {})
+    data = _deep_merge(trusted_data, project_data)
+    data = _deep_merge(_deep_merge(data, environment), overrides or {})
     try:
-        return AppConfig.model_validate(data)
+        config = AppConfig.model_validate(data)
+        ceiling = SandboxConfig.model_validate(ceiling_data.get("sandbox", {}))
+        permission_ceiling = PermissionCeiling(
+            **PermissionsConfig.model_validate(ceiling_data.get("permissions", {})).model_dump()
+        )
+        if ceiling.mode == "required" or config.sandbox.mode == "required":
+            assert_at_most(config.sandbox, ceiling)
+            assert_permissions_at_most(config.permissions, permission_ceiling)
+        config._sandbox_trust = SandboxTrust(
+            sandbox=ceiling,
+            permissions=permission_ceiling,
+            trusted_config=trusted_path,
+            project_config=project_path,
+            require_sandbox=config.sandbox.mode == "required",
+            source_paths=tuple(
+                sorted(
+                    {
+                        trusted_source,
+                        trusted_path,
+                        *((project_path, project_path.resolve()) if project_path else ()),
+                    }
+                )
+            ),
+            trusted_overrides=tuple(
+                sorted(
+                    [
+                        f"environment:{section}.{key}"
+                        for section, values in environment.items()
+                        for key in values
+                    ]
+                    + [
+                        f"override:{section}.{key}"
+                        for section, values in (overrides or {}).items()
+                        if isinstance(values, dict)
+                        for key in values
+                    ]
+                )
+            ),
+        )
+        return config
     except Exception as exc:
         detail = redact_config_secrets(str(exc), data)
         raise ConfigError(f"配置校验失败: {detail}") from exc

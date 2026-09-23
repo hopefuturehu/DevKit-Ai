@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, SecretStr, model_validator
+
+from bot.sandbox.config import SandboxConfig, SandboxTrust
 
 
 class StrictModel(BaseModel):
@@ -292,6 +294,8 @@ class StorageConfig(StrictModel):
 
 
 class AppConfig(StrictModel):
+    _sandbox_trust: SandboxTrust | None = PrivateAttr(default=None)
+    sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
     subagents: SubagentsConfig = Field(default_factory=SubagentsConfig)

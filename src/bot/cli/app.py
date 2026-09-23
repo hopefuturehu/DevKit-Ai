@@ -46,6 +46,8 @@ from bot.execution import LocalExecutionTarget
 from bot.memory import MarkdownMemoryStore
 from bot.observability import export_trace_bundle
 from bot.providers import ProviderError
+from bot.sandbox.models import SandboxError
+from bot.sandbox.runtime import inspect_runtime
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillCatalog
 from bot.subagents import AgentCatalog
@@ -273,7 +275,7 @@ def _runtime(
             approval.redactor = runtime.runner.redactor
         runtime.cli_ui = ui
         return runtime
-    except (ConfigError, ProviderError) as exc:
+    except (ConfigError, ProviderError, SandboxError) as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(2) from exc
 
@@ -829,6 +831,28 @@ def doctor_command(ctx: typer.Context) -> None:
     except ConfigError as exc:
         console.print(f"[red]✗[/red] {exc}")
         raise typer.Exit(2) from exc
+    if config.sandbox.mode == "off":
+        console.print("[yellow]![/yellow] Sandbox: off（宿主执行，未启用 OS 隔离）")
+    else:
+        errors += 1
+        console.print("[red]✗[/red] Sandbox: required / srt，原生工具接入尚未完成；执行已关闭")
+        inspection = inspect_runtime(workspace)
+        capabilities = inspection.capabilities
+        console.print(f"Sandbox 安装目录: {inspection.root}")
+        console.print(
+            f"Sandbox 安装记录: SRT={capabilities.backend_version or '未知'}, "
+            f"Node={capabilities.node_version or '未知'}；本次仅检查元数据，未运行隔离探针"
+        )
+        console.print(
+            f"Sandbox 能力: file_read={capabilities.file_read}, "
+            f"file_write={capabilities.file_write}, network_filter={capabilities.network_filter}, "
+            f"process_isolation={capabilities.process_isolation}, "
+            f"resource_limits={capabilities.resource_limits}"
+        )
+        for error in inspection.errors:
+            console.print(f"[red]✗[/red] {error}")
+    if config._sandbox_trust is not None:
+        console.print(f"Sandbox 安全上限来源: {config._sandbox_trust.trusted_config}")
     if config.model.base_url:
         console.print(f"[green]✓[/green] Model base_url: {config.model.base_url}")
     else:

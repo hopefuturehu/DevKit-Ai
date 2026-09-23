@@ -13,6 +13,7 @@ from bot.core.context import ContextAssembler
 from bot.core.events import CallbackEventSink, EventBus, EventSink, EventType
 from bot.core.models import RunRequest
 from bot.execution import LocalExecutionTarget, ProcessSpec
+from bot.execution.factory import create_execution_target
 from bot.memory import MarkdownMemoryStore, MemoryExtractor
 from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine
@@ -101,6 +102,7 @@ def build_runtime(
 ) -> Runtime:
     workspace = workspace.resolve()
     config = load_config(workspace, config_path=config_path, overrides=config_overrides)
+    target = create_execution_target(config)
     if not config.model.name:
         raise ConfigError("model.name 未配置")
     api_key = resolve_model_api_key(config.model, workspace=workspace)
@@ -110,10 +112,6 @@ def build_runtime(
         timeout_seconds=config.model.timeout_seconds,
     )
     redactor = Redactor([api_key])
-    target = LocalExecutionTarget(
-        max_managed_processes=config.agent.max_managed_processes,
-        cleanup=config.agent.process_cleanup,
-    )
     catalog = SkillCatalog(config.skill_path(workspace))
     catalog.scan()
     skills = SkillManager(catalog, max_auto_activated=config.skills.max_auto_activated)
