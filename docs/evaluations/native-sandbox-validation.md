@@ -1,7 +1,8 @@
 # 原生沙箱验证记录
 
 日期：2026-09-23。当前为 **P0 实测原型，未通过阶段门槛，未发布 required 模式**。
-bot 的实际执行路径仍为 Local；本报告中的探针独立于业务运行时。
+bot 的实际执行路径仍为 Local；本报告中的探针独立于业务运行时。进程管理增加了供原生
+后端启用的可选保守检查，默认 off 路径未启用该检查。
 
 ## 已锁定的运行时
 
@@ -77,15 +78,70 @@ uv run python scripts/probe_native_sandbox.py --runtime /tmp/bot-srt-p0 --output
 ```
 
 Linux 实验镜像配方位于 [Dockerfile.probe](../../runtime/sandbox/Dockerfile.probe)，以仓库根目录为
-构建上下文；该配方尚未单独执行 docker build 验证。本轮实测由同一基础镜像和依赖手动准备，
-镜像摘要为 `b859c6d32b2ae7425696d06bfdecd2b0ffddac12f9c2b5898955409c02beae9f`。
-后续需用配方重建并重测。探针在任一必要检查失败时返回非零，这是预期行为。
+构建上下文。已完成从配方构建并直接运行镜像，镜像摘要为
+`a2e8c5648b5c0817ec984cfde031912ad5bf736a563f3f8a1f1bba11c66cc680`。
+镜像只 COPY 锁定清单和探针，无宿主目录挂载；本机构建日志中的上下文传输量约 24.5 KB。
+附有专用 dockerignore，但旧构建器是否识别它未验证；生产安装不依赖 Docker 构建。
+
+```bash
+docker build -f runtime/sandbox/Dockerfile.probe -t bot-native-p0-repro .
+docker run --name bot-native-p0-check --cap-add SYS_ADMIN \
+  --security-opt seccomp=unconfined --security-opt systempaths=unconfined \
+  --sysctl net.ipv6.conf.all.disable_ipv6=0 \
+  --sysctl net.ipv6.conf.default.disable_ipv6=0 \
+  bot-native-p0-repro --deny-hardlinks --output /tmp/p0-linux.json
+docker cp bot-native-p0-check:/tmp/p0-linux.json /tmp/p0-linux.json
+```
+
+探针在任一必要检查失败时返回非零，这是预期行为。
+
+## 收紧规则后的复测
+
+新增 `--deny-hardlinks` 候选策略：扫描工作区普通文件的 link count，将大于 1 的路径同时编译为
+OS 的 read/write deny。两平台实测均拒绝这些别名的读取、写入、再链接和 rename。
+这证明 OS 规则能够保护已识别的别名；**不证明一次扫描已经解决准入和并发变化**。
+后续 resolver 仍需稳定的根目录检查、作用域协调和竞态测试，不能只复制探针里的扫描代码。
+
+新增受控 HTTP 检查：允许的精确 IP:port 请求成功；不在白名单内的目标、允许域名解析到
+loopback、跳转到该 loopback 域名均被代理拒绝。使用 `127.0.0.1.nip.io` 时先在可信侧确认
+DNS 确实返回 `127.0.0.1`，实际目标为自行启动的本地服务器。该检查依赖外部 DNS，
+不冒充自建 DNS rebinding 验证；私网/链路本地、TLS CONNECT 和 SOCKS 仍需补测。
+
+macOS 当前严格读取规则下，SRT 生成的 `HTTP_PROXY=...localhost:port` 无法在目标进程中解析。
+探针将**访问代理的地址**固定为 `127.0.0.1` 后通过，目标域名仍交由可信侧代理解析。
+未放开 mDNS/任意 DNS 通道；生产启动器仍需落实该规范化，allowlist 尚未发布。
+
+| 复测 | 结果 |
+|---|---|
+| Linux 配方构建镜像，收紧别名及受控 HTTP 后 | 9/9 探针通过 |
+| macOS 同一组探针 | 8/9，通过项相同；裸 CLI 清理仍失败 |
+| macOS 原有受管执行，普通取消 | 通过 |
+| macOS 原有受管执行，父进程快速退出/关闭流/子进程 setsid | 3/3 复现错误 completed |
+| macOS 保守检查，普通取消 | 通过，observed_empty |
+| macOS 保守检查，同一快速退出夹具 | 3/3 返回 cleanup_failed/unknown，保留占用并阻止同会话后续执行 |
+
+保守检查在启动前保存进程身份基线；发现无法归属的新孤儿或不可观察的新进程时，不能判定
+调用已清空。它不按名称、时间接近或裸 PID 自动认领/杀进程。缺启动前基线时不启动目标；
+恢复时保存基线，使用独立的 progress/cleanup scope，避免混用普通 Local 的恢复记录。
+
+**该检查仍是进程观察，不是内核 containment。** 无关程序新建孤儿进程也会导致保守阻塞，
+本次实测已出现这种情况。需要继续评估作用域归属和兼容性，不能为了减少误报直接忽略
+无法归属的进程。探针最后只清理独立识别的自建夹具子进程，其他进程不受影响。
+
+受影响回归共 **60 passed**，覆盖进程清理、runtime 关闭、执行工具策略、安装器及新增 guard。
+最初在 Codex 外层受限环境内运行时，`psutil.pids()` 的 sysctl 被拒绝，导致生命周期用例失败；
+该次运行已中断，随后在正常进程观察权限下重跑并通过。未执行全仓回归或性能发布验收。
 
 ## 原始证据与后续门槛
 
 - [macOS 首轮](../data/native-sandbox-p0-macos.json)
 - [Linux 外层环境缺能力](../data/native-sandbox-p0-linux-arm64.json)
 - [Linux 修正外层环境后](../data/native-sandbox-p0-linux-arm64-fullproc.json)
+- [macOS 收紧规则后](../data/native-sandbox-p0-macos-hardened.json)
+- [Linux 配方构建镜像复测](../data/native-sandbox-p0-linux-arm64-hardened.json)
+- [macOS 原有进程管理](../data/native-sandbox-p0-macos-manager.json)
+- [macOS 保守进程检查](../data/native-sandbox-p0-macos-manager-strict.json)
+- [机器可读阶段状态与源码摘要](../data/native-sandbox-validation.json)
 
-P0 尚需：解决硬链接及 macOS 生命周期接入方式、验证 allowlist、执行可复现 Linux 构建并补齐依赖清单。
+P0 尚需：收敛硬链接准入/并发方案和 macOS 生命周期保守阻塞、补全 allowlist 出口证据与能力清单。
 P1–P5 尚未开始交付；不能以本轮独立探针替代配置上限、业务工具接线、子 Agent、worker 协议及发布验收。

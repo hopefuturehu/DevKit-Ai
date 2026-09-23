@@ -15,10 +15,12 @@ import os
 import platform
 import signal
 import socket
+import stat
 import subprocess
 import tempfile
 import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import psutil
@@ -72,7 +74,7 @@ def settings(runtime: Path, fixture: Path) -> dict:
 
 
 class Probe:
-    def __init__(self, runtime: Path, fixture: Path):
+    def __init__(self, runtime: Path, fixture: Path, *, deny_hardlinks: bool = False):
         self.runtime = runtime
         self.fixture = fixture
         self.node = runtime / "node/bin/node"
@@ -80,6 +82,7 @@ class Probe:
         self.policy = fixture / "control/policy.json"
         self.env = clean_environment(runtime, fixture)
         self.cases: list[dict] = []
+        self.deny_hardlinks = deny_hardlinks
 
     def argv(self, code: str, *args: str) -> list[str]:
         return [
@@ -135,6 +138,18 @@ class Probe:
         # path-based allowlist must not be credited with inode isolation.
         os.link(fixture / "outside/secret", fixture / "work/hardlink-secret")
         os.link(fixture / "outside/sentinel", fixture / "work/hardlink-sentinel")
+        if self.deny_hardlinks:
+            # P0 candidate only. P1 must add admission/locking and concurrent
+            # mutation handling; this scan alone is not a race-free boundary.
+            aliases = [
+                str(path)
+                for path in (fixture / "work").rglob("*")
+                if stat.S_ISREG((info := path.lstat()).st_mode) and info.st_nlink > 1
+            ]
+            config = json.loads(self.policy.read_text())
+            config["filesystem"]["denyRead"].extend(aliases)
+            config["filesystem"]["denyWrite"].extend(aliases)
+            self.policy.write_text(json.dumps(config))
         code = r"""
 const fs = require('node:fs');
 const path = require('node:path');
@@ -156,6 +171,13 @@ for (const file of ['work/created','outside/sentinel','work/.env','work/outside-
 }
 attempt('link:outside', () => {
   fs.linkSync(path.join(root,'outside/secret'), path.join(root,'work/new-link'));return true;
+});
+attempt('link:denied-alias', () => {
+  fs.linkSync(path.join(root,'work/hardlink-secret'), path.join(root,'work/new-alias'));return true;
+});
+attempt('rename:denied-alias', () => {
+  fs.renameSync(path.join(root,'work/hardlink-secret'), path.join(root,'work/moved-alias'));
+  return true;
 });
 attempt('rename:secret', () => {
   fs.renameSync(path.join(root,'work/secret'), path.join(root,'work/renamed'));return true;
@@ -319,6 +341,121 @@ Promise.all(endpoints.map(e => new Promise(resolve => {
             result["passed"] = result["returncode"] != 0 and not marker.exists()
         self.policy.write_text(original)
 
+    def allowlist(self) -> None:
+        """Controlled HTTP positive case, redirect denial, and loopback SSRF.
+
+        An explicit loopback IP:port is admitted only for the positive fixture.
+        The separate SSRF listener is NOT admitted by IP. This does not verify
+        public DNS rebinding, private-range routing, TLS, or SOCKS coverage.
+        """
+        requests_seen: list[str] = []
+        ssrf_name = "127.0.0.1.nip.io"
+        dns_code = (
+            "require('node:dns').lookup(process.argv[1],{all:true},(e,a)=>"
+            "{if(e){console.error(e.code);process.exit(1)}console.log(JSON.stringify(a))})"
+        )
+        control = subprocess.run(
+            [str(self.node), "--eval", dns_code, "--", ssrf_name],
+            env=self.env,
+            text=True,
+            capture_output=True,
+            timeout=10,
+        )
+        try:
+            addresses = {item["address"] for item in json.loads(control.stdout)}
+        except ValueError:
+            addresses = set()
+        if control.returncode != 0 or addresses != {"127.0.0.1"}:
+            self.cases.append(
+                {
+                    "name": "ssrf_dns_fixture",
+                    "passed": False,
+                    "addresses": sorted(addresses),
+                    "stderr": control.stderr,
+                }
+            )
+            return
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                requests_seen.append(f"{self.server.server_port}:{self.path}")
+                if self.path == "/redirect":
+                    self.send_response(302)
+                    self.send_header("Location", f"http://{ssrf_name}:{ssrf.server_port}/secret")
+                    self.end_headers()
+                else:
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b"controlled-fixture")
+
+            def log_message(self, *args):
+                pass
+
+        allowed = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        ssrf = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        for server in (allowed, ssrf):
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+        original = self.policy.read_text()
+        config = json.loads(original)
+        config["network"]["allowedDomains"] = [
+            f"127.0.0.1:{allowed.server_port}",
+            f"{ssrf_name}:{ssrf.server_port}",
+        ]
+        self.policy.write_text(json.dumps(config))
+        code = r"""
+const http=require('node:http');
+const proxy=new URL(process.env.HTTP_PROXY);
+// No child-side DNS exception: the parent-side proxy owns destination DNS.
+const endpoint=proxy.hostname==='localhost' ? '127.0.0.1' : proxy.hostname;
+const urls=JSON.parse(process.argv[1]);
+function get(url,depth=0) {
+  return new Promise(resolve=>{
+    const target=new URL(url);
+    const headers={Host:target.host};
+    if(proxy.username || proxy.password)headers['Proxy-Authorization']='Basic '+Buffer.from(
+      decodeURIComponent(proxy.username)+':'+decodeURIComponent(proxy.password)).toString('base64');
+    const request=http.get({hostname:endpoint,port:proxy.port,path:url,headers},response=>{
+      let body='';response.on('data',chunk=>body+=chunk);
+      response.on('end',async()=>{
+        if(response.statusCode===302 && depth<3)
+          resolve(await get(response.headers.location,depth+1));
+        else resolve({status:response.statusCode,body});
+      });
+    });
+    request.on('error',e=>resolve({error:e.code}));
+    request.setTimeout(2000,()=>request.destroy(new Error('timeout')));
+  });
+}
+Promise.all(urls.map(url=>get(url))).then(results=>console.log(JSON.stringify(results)));
+"""
+        urls = [
+            f"http://127.0.0.1:{allowed.server_port}/allowed",
+            f"http://127.0.0.1:{ssrf.server_port}/not-allowlisted",
+            f"http://{ssrf_name}:{ssrf.server_port}/secret",
+            f"http://127.0.0.1:{allowed.server_port}/redirect",
+        ]
+        try:
+            result = self.run("http_allowlist_redirect_loopback", code, json.dumps(urls))
+            result["requests_seen"] = requests_seen.copy()
+            result["dns_positive_control"] = {ssrf_name: sorted(addresses)}
+            result["proxy_endpoint"] = "literal-loopback; no child DNS needed"
+            try:
+                values = json.loads(result["stdout"])
+            except ValueError:
+                return
+            result["passed"] = (
+                result["returncode"] == 0
+                and [value.get("status") for value in values] == [200, 403, 403, 403]
+                and values[0].get("body") == "controlled-fixture"
+                and sorted(requests_seen)
+                == sorted([f"{allowed.server_port}:/allowed", f"{allowed.server_port}:/redirect"])
+            )
+        finally:
+            self.policy.write_text(original)
+            for server in (allowed, ssrf):
+                server.shutdown()
+                server.server_close()
+
     def cancellation(self) -> None:
         heartbeat = self.fixture / "work/heartbeat"
         child_code = "setInterval(()=>require('node:fs').appendFileSync(process.argv[1],'.'),50)"
@@ -389,6 +526,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--deny-hardlinks",
+        action="store_true",
+        help="P0 candidate: compile existing hardlink aliases as OS denies",
+    )
     args = parser.parse_args()
     runtime = args.runtime.resolve()
     lock = json.loads((runtime / "runtime-lock.json").read_text())
@@ -406,12 +548,13 @@ def main() -> None:
         fixture = Path(temp).resolve()
         for name in ("work", "outside", "control", "home", "tmp", "cache"):
             (fixture / name).mkdir()
-        probe = Probe(runtime, fixture)
+        probe = Probe(runtime, fixture, deny_hardlinks=args.deny_hardlinks)
         config = settings(runtime, fixture)
         probe.policy.write_text(json.dumps(config))
         probe.filesystem()
         probe.argv_and_stdio()
         probe.network()
+        probe.allowlist()
         probe.invalid_config()
         probe.cancellation()
         evidence = {
@@ -421,7 +564,9 @@ def main() -> None:
             "python": platform.python_version(),
             "node": node_version,
             "srt": package["version"],
-            "policy": config,
+            "policy": json.loads(probe.policy.read_text()),
+            "deny_hardlinks": args.deny_hardlinks,
+            "probe_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "cases": probe.cases,
             "passed": all(case["passed"] for case in probe.cases),
             "allowlist": "unverified",

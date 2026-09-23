@@ -1,0 +1,174 @@
+{
+  "phase": "P0",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "python": "3.14.5",
+  "node": "v24.14.0",
+  "srt": "0.0.77",
+  "policy": {
+    "filesystem": {
+      "denyRead": [
+        "/",
+        "/private/tmp/bot-native-p0-vlk9y508/work/.env",
+        "/private/tmp/bot-native-p0-vlk9y508/work/secret",
+        "/private/tmp/bot-native-p0-vlk9y508/work/hardlink-secret",
+        "/private/tmp/bot-native-p0-vlk9y508/work/hardlink-sentinel"
+      ],
+      "allowRead": [
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/dev",
+        "/System",
+        "/private/etc/ssl",
+        "/private/etc/hosts",
+        "/private/etc/resolv.conf",
+        "/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0",
+        "/private/tmp/bot-native-p0-vlk9y508/work",
+        "/private/tmp/bot-native-p0-vlk9y508/home",
+        "/private/tmp/bot-native-p0-vlk9y508/tmp",
+        "/private/tmp/bot-native-p0-vlk9y508/cache"
+      ],
+      "allowWrite": [
+        "/private/tmp/bot-native-p0-vlk9y508/work",
+        "/private/tmp/bot-native-p0-vlk9y508/home",
+        "/private/tmp/bot-native-p0-vlk9y508/tmp",
+        "/private/tmp/bot-native-p0-vlk9y508/cache"
+      ],
+      "denyWrite": [
+        "/private/tmp/bot-native-p0-vlk9y508/work/.env",
+        "/private/tmp/bot-native-p0-vlk9y508/work/secret",
+        "/private/tmp/bot-native-p0-vlk9y508/work/hardlink-secret",
+        "/private/tmp/bot-native-p0-vlk9y508/work/hardlink-sentinel"
+      ]
+    },
+    "network": {
+      "allowedDomains": [],
+      "deniedDomains": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "deniedResolvedAddresses": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "fc00::/7"
+      ]
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false
+  },
+  "deny_hardlinks": true,
+  "probe_source_sha256": "8309a8a4cc69c8e9b6c56e079c00f2e42d6caa5e3e37b99f0cb40b87ebb0ec61",
+  "cases": [
+    {
+      "name": "filesystem_and_descendants",
+      "returncode": 0,
+      "duration_seconds": 0.1838,
+      "stdout": "{\"read:work/normal\":{\"ok\":true,\"value\":\"normal-fixture\"},\"read:work/.env\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:outside/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:control/state.db\":{\"ok\":false,\"code\":\"EPERM\"},\"read:control/policy.json\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/outside-link/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/hardlink-secret\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/created\":{\"ok\":true,\"value\":true},\"write:outside/sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/.env\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/outside-link/sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/hardlink-sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"link:outside\":{\"ok\":false,\"code\":\"EPERM\"},\"link:denied-alias\":{\"ok\":false,\"code\":\"EPERM\"},\"rename:denied-alias\":{\"ok\":false,\"code\":\"EPERM\"},\"rename:secret\":{\"ok\":false,\"code\":\"EPERM\"},\"grandchild\":{\"status\":0,\"stdout\":\"EPERM\\n\",\"stderr\":\"\"}}\n",
+      "stderr": "",
+      "passed": true,
+      "failed_checks": []
+    },
+    {
+      "name": "argv_exact",
+      "returncode": 0,
+      "duration_seconds": 0.0884,
+      "stdout": "[\"\",\"a b\",\"'quoted'\",\"\\\"double\\\"\",\"中文🙂\",\"line1\\nline2\",\"\\\\\",\"--settings\",\"-c\",\"$(touch argv-pwned)\",\"`touch argv-pwned`\",\"; touch argv-pwned\",\"*\"]\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "stdin_utf8",
+      "returncode": 0,
+      "duration_seconds": 0.088,
+      "stdout": "输入🙂\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "large_output",
+      "returncode": 0,
+      "duration_seconds": 0.0883,
+      "stderr": "diagnostic",
+      "passed": true,
+      "stdout_sha256": "896531f80a26e1a3a10ceebe2d2d8549e80979667e71493cbf93e8edff400c3a",
+      "stdout_bytes": 300000
+    },
+    {
+      "name": "direct_network_deny",
+      "returncode": 0,
+      "duration_seconds": 0.1231,
+      "stdout": "[{\"name\":\"tcp4\",\"outcome\":\"EPERM\"},{\"name\":\"tcp6\",\"outcome\":\"EPERM\"},{\"name\":\"udp4\",\"outcome\":\"EPERM\"},{\"name\":\"unix\",\"outcome\":\"EPERM\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "positive_control": [
+        "tcp4",
+        "tcp6",
+        "udp4",
+        "unix"
+      ],
+      "received": []
+    },
+    {
+      "name": "http_allowlist_redirect_loopback",
+      "returncode": 0,
+      "duration_seconds": 0.2262,
+      "stdout": "[{\"status\":200,\"body\":\"controlled-fixture\"},{\"status\":403,\"body\":\"Connection blocked by network allowlist\\n\"},{\"status\":403,\"body\":\"Connection to 127.0.0.1.nip.io blocked: resolved to a loopback address\\n\"},{\"status\":403,\"body\":\"Connection to 127.0.0.1.nip.io blocked: resolved to a loopback address\\n\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "requests_seen": [
+        "49782:/allowed",
+        "49782:/redirect"
+      ],
+      "dns_positive_control": {
+        "127.0.0.1.nip.io": [
+          "127.0.0.1"
+        ]
+      },
+      "proxy_endpoint": "literal-loopback; no child DNS needed"
+    },
+    {
+      "name": "empty_config",
+      "returncode": 1,
+      "duration_seconds": 0.0762,
+      "stdout": "",
+      "stderr": "Error: /private/tmp/bot-native-p0-vlk9y508/control/policy.json is empty. Delete it, or put a config in it.\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "invalid_config",
+      "returncode": 1,
+      "duration_seconds": 0.0531,
+      "stdout": "",
+      "stderr": "Error: /private/tmp/bot-native-p0-vlk9y508/control/policy.json is not valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)\nRefusing to run with the built-in defaults, which would drop this file's rules (its denyRead, allowRead and credential entries included).\n",
+      "passed": true
+    },
+    {
+      "name": "cli_sigterm_descendant_cleanup",
+      "passed": false,
+      "tree": [
+        {
+          "pid": 26033,
+          "started": 1790134744.705003,
+          "name": "node"
+        },
+        {
+          "pid": 26034,
+          "started": 1790134744.732742,
+          "name": "node"
+        }
+      ],
+      "remaining_after_sigterm": [
+        26034
+      ],
+      "stdout": "ready\n",
+      "stderr": "",
+      "returncode": 0,
+      "probe_forced_cleanup": true
+    }
+  ],
+  "passed": false,
+  "allowlist": "unverified",
+  "release_ready": false
+}

@@ -92,7 +92,13 @@ class ProcessInventory:
 
 
 class ProcessScope:
-    def __init__(self, root_pid: int) -> None:
+    def __init__(
+        self,
+        root_pid: int,
+        *,
+        strict: bool = False,
+        baseline: Inventory | None = None,
+    ) -> None:
         self.root_pid = root_pid
         self.sid = root_pid if os.name == "posix" else None
         self.known: dict[int, ProcessIdentity] = {}
@@ -105,6 +111,34 @@ class ProcessScope:
             pass
         self.live: dict[int, ProcessIdentity] = {}
         self.unknown = False
+        self.strict = strict
+        self.baseline_births = (
+            {pid: item.start_time for pid, item in baseline.processes.items()}
+            if baseline is not None
+            else None
+        )
+        self.baseline_inaccessible = set(baseline.inaccessible) if baseline is not None else set()
+        # These may belong to someone else. Never adopt or signal them merely
+        # because they appeared during this call. Their presence prevents a
+        # positive claim that this scope is empty.
+        self.unattributed: dict[int, ProcessIdentity] = {}
+
+    def guard_record(self) -> dict | None:
+        if not self.strict:
+            return None
+        return {
+            "baseline_births": self.baseline_births,
+            "baseline_inaccessible": sorted(self.baseline_inaccessible),
+        }
+
+    def restore_guard(self, record: dict | None) -> None:
+        if not self.strict or record is None:
+            return  # A missing strict baseline stays unknown, never an empty success.
+        births = record["baseline_births"]
+        self.baseline_births = (
+            {int(pid): born for pid, born in births.items()} if births is not None else None
+        )
+        self.baseline_inaccessible = set(record["baseline_inaccessible"])
 
     def update(self, snapshot: Inventory) -> None:
         # Never adopt an unrelated session if its numeric SID was reused after restart.
@@ -126,6 +160,19 @@ class ProcessScope:
                     live[pid] = identity
                     changed = True
         self.unknown = bool(snapshot.inaccessible & (self.known.keys() | {self.root_pid}))
+        if self.strict:
+            self.unattributed = {
+                pid: identity
+                for pid, identity in snapshot.processes.items()
+                if pid not in live
+                and identity.ppid == 1
+                and (self.baseline_births or {}).get(pid) != identity.start_time
+            }
+            self.unknown |= (
+                self.baseline_births is None
+                or bool(self.unattributed)
+                or bool(snapshot.inaccessible - self.baseline_inaccessible - self.known.keys())
+            )
         self.live = live
         self.known.update(live)
 

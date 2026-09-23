@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "goal_complete": false,
+  "release_ready": false,
+  "stages": {
+    "P0": "in_progress",
+    "P1": "not_delivered",
+    "P2": "not_delivered",
+    "P3": "not_delivered",
+    "P4": "not_delivered",
+    "P5": "not_delivered"
+  },
+  "runtime": {
+    "node": "24.14.0",
+    "srt": "0.0.77",
+    "bubblewrap": "0.6.1-1ubuntu0.3",
+    "socat": "1.7.4.1-3ubuntu4",
+    "ripgrep": "13.0.0-2ubuntu0.1",
+    "linux_image": "sha256:a2e8c5648b5c0817ec984cfde031912ad5bf736a563f3f8a1f1bba11c66cc680"
+  },
+  "results": {
+    "macos_raw": {
+      "artifact": "docs/data/native-sandbox-p0-macos.json",
+      "sha256": "4bbf68e75d8e38cae0006a2d234e1e60ad29ba0e25f5a61f728a621f197e22aa",
+      "passed": 6,
+      "total": 8,
+      "all_passed": false,
+      "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O"
+    },
+    "linux_outer_restricted": {
+      "artifact": "docs/data/native-sandbox-p0-linux-arm64.json",
+      "sha256": "abd17d9522918ed3e77a1027fedcd21ca387c9320a86e5138d614b99bf4076bc",
+      "passed": 2,
+      "total": 9,
+      "all_passed": false,
+      "platform": "Linux-5.15.49-linuxkit-pr-aarch64-with-glibc2.35"
+    },
+    "linux_raw": {
+      "artifact": "docs/data/native-sandbox-p0-linux-arm64-fullproc.json",
+      "sha256": "7dfab0200873de2767b8a7d7178c43d9b67b97aa21bcdffef6925c1b3ed122a4",
+      "passed": 7,
+      "total": 8,
+      "all_passed": false,
+      "platform": "Linux-5.15.49-linuxkit-pr-aarch64-with-glibc2.35"
+    },
+    "macos_hardened": {
+      "artifact": "docs/data/native-sandbox-p0-macos-hardened.json",
+      "sha256": "db9d64467259e8761685ac7ef2c26b4d4d589c22b6f516c4c44effa5454f71c7",
+      "passed": 8,
+      "total": 9,
+      "all_passed": false,
+      "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O"
+    },
+    "linux_hardened": {
+      "artifact": "docs/data/native-sandbox-p0-linux-arm64-hardened.json",
+      "sha256": "e660752c483c6086088ea79aa10439220b6c815c8f862c6d388093a216dcadff",
+      "passed": 9,
+      "total": 9,
+      "all_passed": true,
+      "platform": "Linux-5.15.49-linuxkit-pr-aarch64-with-glibc2.35"
+    },
+    "macos_manager_original": {
+      "artifact": "docs/data/native-sandbox-p0-macos-manager.json",
+      "sha256": "bbcafcb56f3e7c560a07f5adda7f8388d9670e57ded42a7a4fd6058d693b7855",
+      "passed": 1,
+      "total": 4,
+      "all_passed": false,
+      "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O"
+    },
+    "macos_manager_strict": {
+      "artifact": "docs/data/native-sandbox-p0-macos-manager-strict.json",
+      "sha256": "42746cd75135fba9752faca89b54fe72654f9600659305739fb30ca97403e05d",
+      "passed": 4,
+      "total": 4,
+      "all_passed": true,
+      "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O"
+    }
+  },
+  "unit_regression": {
+    "passed": 60,
+    "failed": 0,
+    "command": ".venv/bin/pytest tests/unit/test_strict_process_scope.py tests/unit/test_process_cleanup.py tests/unit/test_runtime_cleanup.py tests/unit/test_execution_tools_policy.py tests/unit/test_sandbox_runtime_install.py",
+    "environment": "macOS, outside enclosing sandbox; restricted run was interrupted after sysctl refusal"
+  },
+  "source_sha256": {
+    "src/bot/execution/local.py": "6a04c5270b5a4e1968195296f521e553330782cc5b682ff585003a15fe180135",
+    "src/bot/execution/process_scope.py": "7cb24bc3f0e4cfa78e29581edad6d68439aa9f9615538ab6467dbf8d9d582b98",
+    "scripts/probe_native_sandbox.py": "8309a8a4cc69c8e9b6c56e079c00f2e42d6caa5e3e37b99f0cb40b87ebb0ec61",
+    "scripts/probe_srt_process_management.py": "fd8dae7457892b0478d48118e5ac4e187e3b80430e8e6e39be4bc22678203085",
+    "scripts/install_sandbox_runtime.py": "6c58f8290fa555a7bdfb8558895fdf4d573881989cb1da7a5a361fd281518391",
+    "runtime/sandbox/Dockerfile.probe": "e1110ce7cd83fe1553b98dabcf08370615eb82f78f70c41f69387101dfa7dd1a",
+    "runtime/sandbox/package-lock.json": "f3d198810827d30f8a2ae178bb8653e49d74caa6ce5260ef2ee1d15cfbc53223",
+    "runtime/sandbox/runtime-lock.json": "2f4272ed7be6ceaca2b63352d13b3fb189a1948eb8d7bdcd92672ea2facfcf87"
+  },
+  "remaining_p0": [
+    "Harden hardlink admission and concurrent path mutation; current scan is only a candidate",
+    "Refine conservative macOS orphan attribution without signalling unrelated processes",
+    "Verify private/link-local targets, DNS rebinding, CONNECT and SOCKS before allowlist release",
+    "Implement literal-loopback proxy normalization in the actual launcher",
+    "Complete platform capability and system dependency startup checks"
+  ],
+  "not_proven": [
+    "S01-S15 acceptance",
+    "full business tool confinement",
+    "full regression",
+    "performance targets",
+    "macOS x64",
+    "Linux x64",
+    "kernel-level macOS process containment"
+  ]
+}

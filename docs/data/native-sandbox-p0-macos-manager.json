@@ -1,0 +1,62 @@
+{
+  "phase": "P0",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "cases": [
+    {
+      "name": "cancel_detached_child",
+      "passed": true,
+      "child_observed": true,
+      "child_live": false,
+      "status": "cancelled",
+      "cleanup_status": "observed_empty",
+      "containment": "session_scan",
+      "output_complete": true,
+      "false_completion": false,
+      "quota_retained": false,
+      "resume_blocked": null
+    },
+    {
+      "name": "immediate_exit_detached_child",
+      "passed": false,
+      "child_observed": true,
+      "child_live": true,
+      "status": "completed",
+      "cleanup_status": "not_requested",
+      "containment": "session_scan",
+      "output_complete": true,
+      "false_completion": true,
+      "quota_retained": false,
+      "resume_blocked": null
+    },
+    {
+      "name": "immediate_exit_detached_child",
+      "passed": false,
+      "child_observed": true,
+      "child_live": true,
+      "status": "completed",
+      "cleanup_status": "not_requested",
+      "containment": "session_scan",
+      "output_complete": true,
+      "false_completion": true,
+      "quota_retained": false,
+      "resume_blocked": null
+    },
+    {
+      "name": "immediate_exit_detached_child",
+      "passed": false,
+      "child_observed": true,
+      "child_live": true,
+      "status": "completed",
+      "cleanup_status": "not_requested",
+      "containment": "session_scan",
+      "output_complete": true,
+      "false_completion": true,
+      "quota_retained": false,
+      "resume_blocked": null
+    }
+  ],
+  "passed": false,
+  "release_ready": false,
+  "strict": false,
+  "probe_source_sha256": "fd8dae7457892b0478d48118e5ac4e187e3b80430e8e6e39be4bc22678203085"
+}

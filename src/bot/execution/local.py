@@ -64,7 +64,8 @@ class LocalExecutionTarget(ExecutionTarget):
         for record in records:
             if record.get("cleanup_scope") != self.cleanup_scope:
                 continue
-            scope = ProcessScope(record["scope_root_pid"])
+            scope = ProcessScope(record["scope_root_pid"], strict=self.strict_process_scope)
+            scope.restore_guard(record.get("process_guard"))
             scope.known = {
                 item["pid"]: ProcessIdentity(**item) for item in record["known_processes"]
             }
@@ -91,18 +92,21 @@ class LocalExecutionTarget(ExecutionTarget):
     def progress_scope(self) -> str:
         from bot.core.termination.identity import fingerprint
 
-        return fingerprint("local", socket.gethostname(), self._safe_environment())
+        base = fingerprint("local", socket.gethostname(), self._safe_environment())
+        return fingerprint(base, "strict-process-scope-v1") if self.strict_process_scope else base
 
     def __init__(
         self,
         *,
         max_managed_processes: int = 16,
         cleanup: ProcessCleanupConfig | None = None,
+        strict_process_scope: bool = False,
     ) -> None:
         if max_managed_processes < 1:
             raise ValueError("max_managed_processes 必须大于 0")
         self.max_managed_processes = max_managed_processes
         self.cleanup = cleanup or ProcessCleanupConfig()
+        self.strict_process_scope = strict_process_scope
         self.cleanup_observer: CleanupObserver | None = None
         self._managed_processes: dict[str, _ManagedProcess] = {}
         self._inventory = ProcessInventory()
@@ -155,6 +159,12 @@ class LocalExecutionTarget(ExecutionTarget):
             spec = spec.model_copy(update={"cwd": cwd})
             environment = self._safe_environment()
             environment.update(spec.env)
+            baseline = None
+            if self.strict_process_scope:
+                # This must be a fresh, successful observation before any target
+                # launch. A stuck collector is an unavailable execution boundary.
+                async with asyncio.timeout(self.cleanup.total_timeout_seconds):
+                    baseline = await self._inventory.read()
             protocol = ProcessTransport(spec.output_limit_bytes)
             spawning = asyncio.create_task(
                 asyncio.get_running_loop().subprocess_exec(
@@ -184,7 +194,15 @@ class LocalExecutionTarget(ExecutionTarget):
                 spawning.result()
             process_id = f"proc_{uuid4().hex}"
             managed = _ManagedProcess(
-                process_id, spec, protocol, ProcessScope(protocol.pid), monotonic()
+                process_id,
+                spec,
+                protocol,
+                ProcessScope(
+                    protocol.pid,
+                    strict=self.strict_process_scope,
+                    baseline=baseline,
+                ),
+                monotonic(),
             )
             self._managed_processes[process_id] = managed
             if self._monitor is None or self._monitor.done():
@@ -212,6 +230,17 @@ class LocalExecutionTarget(ExecutionTarget):
                 for managed in active:
                     managed.scope.update(inventory)
                     process = managed.process
+                    if (
+                        managed.scope.strict
+                        and managed.scope.unknown
+                        and managed.status == ProcessStatus.RUNNING
+                        and managed.process_id in exited
+                    ):
+                        self._begin_cleanup(
+                            managed,
+                            "无法确认调用结束后的进程归属，保留清理占用",
+                            ProcessStatus.FAILED,
+                        )
                     if (
                         managed.status == ProcessStatus.RUNNING
                         and managed.process_id in exited
@@ -339,6 +368,7 @@ class LocalExecutionTarget(ExecutionTarget):
                             "cleanup_scope": self.cleanup_scope,
                             "scope_root_pid": managed.scope.root_pid,
                             "known_processes": [asdict(p) for p in managed.scope.known.values()],
+                            "process_guard": managed.scope.guard_record(),
                             "spec": managed.spec.model_dump(mode="json"),
                         },
                     )
