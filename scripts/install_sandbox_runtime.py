@@ -54,7 +54,7 @@ def install(destination: Path) -> Path:
         root = stage / "runtime"
         root.mkdir(mode=0o700)
         (stage / artifact).rename(root / "node")
-        for name in ("package.json", "package-lock.json", "runtime-lock.json"):
+        for name in ("package.json", "package-lock.json", "runtime-lock.json", "launcher.mjs"):
             shutil.copyfile(SOURCE / name, root / name)
         node = root / "node" / "bin" / "node"
         npm = root / "node" / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js"
@@ -100,7 +100,7 @@ def install(destination: Path) -> Path:
             raise ValueError("installed Node version does not match lock")
         hashes = {
             name: hashlib.sha256((root / name).read_bytes()).hexdigest()
-            for name in ("package.json", "package-lock.json", "runtime-lock.json")
+            for name in ("package.json", "package-lock.json", "runtime-lock.json", "launcher.mjs")
         }
         (root / "installation.json").write_text(
             json.dumps({"platform": target, "source_hashes": hashes, "node": version}, indent=2)

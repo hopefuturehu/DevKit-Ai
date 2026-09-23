@@ -47,6 +47,7 @@ packages = ["src/bot"]
 "runtime/sandbox/package.json" = "bot/assets/sandbox/package.json"
 "runtime/sandbox/package-lock.json" = "bot/assets/sandbox/package-lock.json"
 "runtime/sandbox/runtime-lock.json" = "bot/assets/sandbox/runtime-lock.json"
+"runtime/sandbox/launcher.mjs" = "bot/assets/sandbox/launcher.mjs"
 
 [tool.pytest.ini_options]
 addopts = "-q"

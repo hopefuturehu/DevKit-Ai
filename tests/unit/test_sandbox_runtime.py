@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bot.cli.app import app
-from bot.sandbox.runtime import MANIFEST_NAMES, inspect_runtime, manifest_directory
+from bot.sandbox.runtime import RUNTIME_ASSET_NAMES, inspect_runtime, manifest_directory
 
 
 @pytest.fixture
@@ -19,14 +19,15 @@ def installation(tmp_path, monkeypatch):
     root.mkdir(mode=0o700)
     workspace.mkdir()
     source = manifest_directory()
-    for name in MANIFEST_NAMES:
+    for name in RUNTIME_ASSET_NAMES:
         shutil.copyfile(source / name, root / name)
     lock = json.loads((root / "runtime-lock.json").read_text())
     record = {
         "platform": "darwin-arm64",
         "node": "v" + lock["node_version"],
         "source_hashes": {
-            name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in MANIFEST_NAMES
+            name: hashlib.sha256((root / name).read_bytes()).hexdigest()
+            for name in RUNTIME_ASSET_NAMES
         },
     }
     (root / "installation.json").write_text(json.dumps(record))
@@ -59,7 +60,9 @@ def test_matching_metadata_never_claims_enforcement_or_runs_a_binary(installatio
     assert dict(inspection.executables)["node"] == root / "node/bin/node"
 
 
-@pytest.mark.parametrize("change", ["version", "lock", "platform", "missing", "symlink", "mode"])
+@pytest.mark.parametrize(
+    "change", ["version", "lock", "helper", "platform", "missing", "symlink", "mode"]
+)
 def test_changed_or_untrusted_installation_is_unavailable(installation, tmp_path, change):
     workspace, root, _ = installation
     if change == "version":
@@ -69,6 +72,8 @@ def test_changed_or_untrusted_installation_is_unavailable(installation, tmp_path
     elif change == "lock":
         with (root / "package-lock.json").open("a") as stream:
             stream.write(" ")
+    elif change == "helper":
+        (root / "launcher.mjs").write_text("modified launcher")
     elif change == "platform":
         record = json.loads((root / "installation.json").read_text())
         record["platform"] = "linux-arm64"

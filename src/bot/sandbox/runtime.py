@@ -18,6 +18,7 @@ from pathlib import Path
 from bot.sandbox.models import SandboxCapabilities
 
 MANIFEST_NAMES = ("package.json", "package-lock.json", "runtime-lock.json")
+RUNTIME_ASSET_NAMES = (*MANIFEST_NAMES, "launcher.mjs")
 
 
 def manifest_directory() -> Path:
@@ -65,7 +66,7 @@ def inspect_runtime(workspace: Path, *, root: Path | None = None) -> RuntimeInsp
         if info.st_uid not in {0, os.getuid()}:
             raise ValueError("运行时目录所有者无效")
         source = manifest_directory()
-        pinned = {name: _read(source / name) for name in MANIFEST_NAMES}
+        pinned = {name: _read(source / name) for name in RUNTIME_ASSET_NAMES}
         lock = json.loads(pinned["runtime-lock.json"])
         architecture = {"arm64": "arm64", "aarch64": "arm64", "x86_64": "x64"}.get(
             platform.machine().lower(), "unsupported"
@@ -95,6 +96,7 @@ def inspect_runtime(workspace: Path, *, root: Path | None = None) -> RuntimeInsp
         for name, relative in (
             ("node", "node/bin/node"),
             ("srt", "node_modules/@anthropic-ai/sandbox-runtime/dist/cli.js"),
+            ("launcher", "launcher.mjs"),
         ):
             path = (root / relative).resolve()
             if not path.is_relative_to(root) or not path.is_file():

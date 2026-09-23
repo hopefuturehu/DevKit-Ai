@@ -97,8 +97,8 @@
     "Harden hardlink admission and concurrent path mutation; current scan is only a candidate",
     "Refine conservative macOS orphan attribution without signalling unrelated processes",
     "Verify private/link-local targets, DNS rebinding, CONNECT and SOCKS before allowlist release",
-    "Implement literal-loopback proxy normalization in the actual launcher",
-    "Complete platform capability and system dependency startup checks"
+    "Complete platform capability and system dependency startup checks",
+    "Helper proxy normalization implemented; full clients/allowlist acceptance still required"
   ],
   "not_proven": [
     "S01-S15 acceptance",
@@ -162,6 +162,71 @@
       "worktree delegation",
       "complete native tool coverage",
       "S01-S15 and performance acceptance"
-    ]
+    ],
+    "commit": "dee17cc"
+  },
+  "compiled_policy_validation": {
+    "artifacts": {
+      "macos": {
+        "artifact": "docs/data/native-sandbox-p1-macos.json",
+        "sha256": "e76e529b7e38389d92dd91d090baeefb128bc83045fc80b9c6594124df701025",
+        "passed": 11,
+        "total": 11,
+        "all_passed": true
+      },
+      "linux_arm64": {
+        "artifact": "docs/data/native-sandbox-p1-linux_arm64.json",
+        "sha256": "c1d4420cc91ac269bd2aa6e7ae448fef8477e2447c26c832e7a4bea3900e586f",
+        "passed": 11,
+        "total": 11,
+        "all_passed": true
+      }
+    },
+    "macos_affected_regression": {
+      "passed": 188,
+      "failed": 0,
+      "skipped": 0
+    },
+    "source_sha256": {
+      "src/bot/sandbox/policy.py": "00ece348e6ba70019618706a02a768c0e31920f92553c4ac4d9068b3fc084df7",
+      "src/bot/sandbox/srt.py": "dbf9306e06238d5ef347470dbd163a718bb0ac66aa642378d85a32b70c66fe75",
+      "src/bot/sandbox/runtime.py": "1a4c0de84ecb5f04b422b9b7172d24eefebd4af7790033c7ca65741a138e7a41",
+      "runtime/sandbox/launcher.mjs": "6d4f0ddb224d6663779b55e2ec4a4a422fb8d57c1e5b5e41965d046c579fe744",
+      "scripts/install_sandbox_runtime.py": "03fe2f21dd18e2cdfb9ac87f448e32536a72ac84572e41e1b7c8e7ad7009d88a",
+      "scripts/probe_native_sandbox.py": "7945b4b4f21e89a7156ec4e9fa6f6aba2005ca05c5957846b280607184ab0f2b",
+      "scripts/probe_srt_process_management.py": "92b31c8cc8804b3becf350e25ae3289aa63e77d5e5c58cb6db71a7506b998903",
+      "tests/unit/test_sandbox_srt.py": "bfaa31acc3916fd44aedc8c29892e41b6b2221904870d62ec91a45206a601b34",
+      "tests/unit/test_sandbox_policy.py": "1b28d814d2c70205ad78f1084078cbee68e2b823515d09f69de454cfd0add4e8",
+      "tests/unit/test_sandbox_runtime.py": "b9f387a14ae123c7055ee27dadb8600da210c9116f3cd048458cfd5eed4144b9",
+      "tests/unit/test_sandbox_runtime_install.py": "408a8aedf38f10002cbd8382805c92c186fcb11bf6632bf659dad17fd7a3d909",
+      "tests/integration/test_native_sandbox.py": "40f3af10b42e0f086fa4d286558f188e8ae2e4af737326493dc2411ab4f5790e",
+      "pyproject.toml": "b1467272eadd880929e3c272c8f84620b1d8c0730f7b92b740ccb52cb557acf9"
+    },
+    "required_execution_enabled": false,
+    "scope": "resolver + exact SRT wrapper helper + explicit launcher environment; not the managed Native target"
+  },
+  "p0_source_commit": "6cde1e0",
+  "helper_p0_revalidation": {
+    "macos": {
+      "artifact": "docs/data/native-sandbox-p0-helper-macos.json",
+      "sha256": "18ece387e484b7e747b3a9255e8d5d43735b83a05a9deadd9de9baadfad5b642",
+      "passed": 8,
+      "total": 9,
+      "all_passed": false
+    },
+    "linux_arm64": {
+      "artifact": "docs/data/native-sandbox-p0-helper-linux_arm64.json",
+      "sha256": "aa4bc2d1e02a88b6766798b55a91983375a1ae30f452abdad9066759874a42b4",
+      "passed": 9,
+      "total": 9,
+      "all_passed": true
+    },
+    "macos_manager_strict": {
+      "artifact": "docs/data/native-sandbox-p0-helper-macos_manager_strict.json",
+      "sha256": "4970a0938555802b49303128e6d2f6f03ea5ed5986c3e6d2731bc867fc633a6a",
+      "passed": 4,
+      "total": 4,
+      "all_passed": true
+    }
   }
 }

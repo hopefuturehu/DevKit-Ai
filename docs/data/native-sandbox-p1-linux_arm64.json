@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "phase": "policy compiler native verification",
+  "production_target_enabled": false,
+  "platform": {
+    "os": "Linux 5.15.49-linuxkit-pr",
+    "architecture": "aarch64",
+    "python": "3.12.11",
+    "uid": 65534,
+    "init": true,
+    "image": "sha256:cfd85214fca860da6bc1325c980d41df485d5f770918bdffe5ad098963785d24",
+    "base_image": "sha256:a2e8c5648b5c0817ec984cfde031912ad5bf736a563f3f8a1f1bba11c66cc680",
+    "outer_lab_flags": [
+      "SYS_ADMIN",
+      "seccomp=unconfined",
+      "systempaths=unconfined",
+      "IPv6 enabled"
+    ],
+    "no_host_mounts": true,
+    "post_test_processes": [
+      "docker-init",
+      "sleep infinity"
+    ],
+    "uv_version": "0.8.0",
+    "uv_archive_sha256": "61f136a187150624c10ec7025137fdf5391ef083a4cab0eba4fbdb2a928de16b"
+  },
+  "runtime": {
+    "node": "24.14.0",
+    "srt": "0.0.77"
+  },
+  "suite": {
+    "tests": "11",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "2.504",
+    "timestamp": "2026-09-23T05:03:41.154120+00:00"
+  },
+  "native_tests": [
+    {
+      "name": "test_native_compiled_policy_preserves_argv_and_workspace_io",
+      "passed": true,
+      "seconds": 0.306
+    },
+    {
+      "name": "test_native_compiled_policy_denies_secrets_control_and_other_runs",
+      "passed": true,
+      "seconds": 0.146
+    },
+    {
+      "name": "test_native_compiled_policy_denies_external_write_and_child_write",
+      "passed": true,
+      "seconds": 0.28
+    },
+    {
+      "name": "test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+      "passed": true,
+      "seconds": 0.272
+    },
+    {
+      "name": "test_native_cannot_link_a_readable_readonly_file_into_workspace",
+      "passed": true,
+      "seconds": 0.256
+    },
+    {
+      "name": "test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+      "passed": true,
+      "seconds": 0.143
+    },
+    {
+      "name": "test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+      "passed": true,
+      "seconds": 0.136
+    },
+    {
+      "name": "test_native_srt_implicit_shared_tmp_write_is_overridden",
+      "passed": true,
+      "seconds": 0.27
+    },
+    {
+      "name": "test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+      "passed": true,
+      "seconds": 0.269
+    },
+    {
+      "name": "test_native_environment_excludes_host_keys_and_loaders",
+      "passed": true,
+      "seconds": 0.145
+    },
+    {
+      "name": "test_native_launch_closes_inheritable_host_descriptors",
+      "passed": true,
+      "seconds": 0.147
+    }
+  ],
+  "source_sha256": {
+    "src/bot/sandbox/policy.py": "00ece348e6ba70019618706a02a768c0e31920f92553c4ac4d9068b3fc084df7",
+    "src/bot/sandbox/srt.py": "dbf9306e06238d5ef347470dbd163a718bb0ac66aa642378d85a32b70c66fe75",
+    "src/bot/sandbox/runtime.py": "1a4c0de84ecb5f04b422b9b7172d24eefebd4af7790033c7ca65741a138e7a41",
+    "runtime/sandbox/launcher.mjs": "6d4f0ddb224d6663779b55e2ec4a4a422fb8d57c1e5b5e41965d046c579fe744",
+    "scripts/install_sandbox_runtime.py": "03fe2f21dd18e2cdfb9ac87f448e32536a72ac84572e41e1b7c8e7ad7009d88a",
+    "scripts/probe_native_sandbox.py": "7945b4b4f21e89a7156ec4e9fa6f6aba2005ca05c5957846b280607184ab0f2b",
+    "scripts/probe_srt_process_management.py": "92b31c8cc8804b3becf350e25ae3289aa63e77d5e5c58cb6db71a7506b998903",
+    "tests/unit/test_sandbox_srt.py": "bfaa31acc3916fd44aedc8c29892e41b6b2221904870d62ec91a45206a601b34",
+    "tests/unit/test_sandbox_policy.py": "1b28d814d2c70205ad78f1084078cbee68e2b823515d09f69de454cfd0add4e8",
+    "tests/unit/test_sandbox_runtime.py": "b9f387a14ae123c7055ee27dadb8600da210c9116f3cd048458cfd5eed4144b9",
+    "tests/unit/test_sandbox_runtime_install.py": "408a8aedf38f10002cbd8382805c92c186fcb11bf6632bf659dad17fd7a3d909",
+    "tests/integration/test_native_sandbox.py": "40f3af10b42e0f086fa4d286558f188e8ae2e4af737326493dc2411ab4f5790e",
+    "pyproject.toml": "b1467272eadd880929e3c272c8f84620b1d8c0730f7b92b740ccb52cb557acf9"
+  },
+  "not_proven": [
+    "native managed target",
+    "complete tools and brokers",
+    "admission/launch races",
+    "crash recovery",
+    "S01-S15 full matrix",
+    "performance release gates",
+    "complete allowlist and proxy normalization coverage for all clients"
+  ],
+  "earlier_trial": {
+    "tests": "11",
+    "failures": [
+      {
+        "test": "test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+        "details": "native = (<function native.<locals>.run at 0xffffaf2160c0>, PosixPath('/tmp/pytest-of-nobody/pytest-2/test_native_protected_con...'/tmp/pytest-of-nobody/pytest-2/test_native_protected_configur0/runs/first')), PosixPath('/tmp/bot-srt-j5fkr5h2'), ...)\n\n    def test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed(native):\n        run, work, sentinel, *_ = native\n        alias = work / \".bot/config.toml\"\n        alias.unlink()\n        alias.symlink_to(sentinel)\n        result = run(\n            \"\"\"const fs=require('fs');let results=[];\n    for(const action of [()=>fs.readFileSync('.bot/config.toml'),\n    ()=>fs.unlinkSync('.bot/config.toml'),()=>fs.renameSync('.bot','moved-bot')]){\n    try{action();results.push('allowed')}catch(e){results.push(e.code)}}\n    console.log(JSON.stringify(results));\"\"\"\n        )\n>       assert all(value in {\"EPERM\", \"EACCES\", \"EROFS\", \"EBUSY\", \"ENOENT\"} for value in result)\nE       assert False\nE        +  where False = all(<generator object test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed.<locals>.<genexpr> at 0xffffaf1ac790>)\n\n/opt/test_native_sandbox.py:216: AssertionError"
+      }
+    ],
+    "observed_alias_operations": [
+      "ENOENT",
+      "allowed unlink",
+      "EBUSY"
+    ],
+    "fix": "hide writable parent of protected symlink; reject guards that consume a whole write root",
+    "intermediate_failure": "read-only parent alone prevented bwrap from creating absent denied child mounts",
+    "lab_lifecycle": "initial sleep PID 1 retained zombies; stopped container and reran with --init",
+    "shared_tmp_read_gap": {
+      "observed": "synthetic-shared-sentinel was readable despite denyRead and denyWrite /tmp/claude",
+      "fix": "pinned helper calls low-level SRT wrappers with exact write roots, excluding implicit defaults"
+    }
+  },
+  "launcher": "bot-library-helper"
+}

@@ -31,12 +31,14 @@ class ProbeTarget(LocalExecutionTarget):
         return {}
 
 
-async def check_case(runtime: Path, *, immediate_exit: bool, strict: bool) -> dict:
+async def check_case(
+    runtime: Path, *, immediate_exit: bool, strict: bool, helper: bool = False
+) -> dict:
     with tempfile.TemporaryDirectory(prefix="bot-srt-manager-", dir="/tmp") as temp:
         fixture = Path(temp).resolve()
         for name in ("work", "outside", "control", "home", "tmp", "cache"):
             (fixture / name).mkdir()
-        probe = Probe(runtime, fixture)
+        probe = Probe(runtime, fixture, helper=helper)
         probe.policy.write_text(json.dumps(settings(runtime, fixture)))
         heartbeat = fixture / "work/child.json"
         child_code = (
@@ -158,13 +160,20 @@ async def main() -> None:
     parser.add_argument("--runtime", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--helper", action="store_true")
     args = parser.parse_args()
     if platform.system() != "Darwin":
         raise SystemExit("This diagnostic uses macOS host PID fixture semantics")
-    cases = [await check_case(args.runtime.resolve(), immediate_exit=False, strict=args.strict)]
+    cases = [
+        await check_case(
+            args.runtime.resolve(), immediate_exit=False, strict=args.strict, helper=args.helper
+        )
+    ]
     for _ in range(3):
         cases.append(
-            await check_case(args.runtime.resolve(), immediate_exit=True, strict=args.strict)
+            await check_case(
+                args.runtime.resolve(), immediate_exit=True, strict=args.strict, helper=args.helper
+            )
         )
     evidence = {
         "phase": "P0",
@@ -173,6 +182,7 @@ async def main() -> None:
         "passed": all(case["passed"] for case in cases),
         "release_ready": False,
         "strict": args.strict,
+        "launcher": "bot-library-helper" if args.helper else "srt-cli",
         "probe_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

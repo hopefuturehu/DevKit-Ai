@@ -74,7 +74,9 @@ def settings(runtime: Path, fixture: Path) -> dict:
 
 
 class Probe:
-    def __init__(self, runtime: Path, fixture: Path, *, deny_hardlinks: bool = False):
+    def __init__(
+        self, runtime: Path, fixture: Path, *, deny_hardlinks: bool = False, helper: bool = False
+    ):
         self.runtime = runtime
         self.fixture = fixture
         self.node = runtime / "node/bin/node"
@@ -83,12 +85,16 @@ class Probe:
         self.env = clean_environment(runtime, fixture)
         self.cases: list[dict] = []
         self.deny_hardlinks = deny_hardlinks
+        self.helper = helper
 
     def argv(self, code: str, *args: str) -> list[str]:
         return [
             str(self.node),
-            str(self.cli),
-            "--settings",
+            *(
+                [str(self.runtime / "launcher.mjs")]
+                if self.helper
+                else [str(self.cli), "--settings"]
+            ),
             str(self.policy),
             "--",
             str(self.node),
@@ -527,6 +533,9 @@ def main() -> None:
     parser.add_argument("--runtime", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument(
+        "--helper", action="store_true", help="Use the pinned bot SRT library adapter"
+    )
+    parser.add_argument(
         "--deny-hardlinks",
         action="store_true",
         help="P0 candidate: compile existing hardlink aliases as OS denies",
@@ -548,7 +557,7 @@ def main() -> None:
         fixture = Path(temp).resolve()
         for name in ("work", "outside", "control", "home", "tmp", "cache"):
             (fixture / name).mkdir()
-        probe = Probe(runtime, fixture, deny_hardlinks=args.deny_hardlinks)
+        probe = Probe(runtime, fixture, deny_hardlinks=args.deny_hardlinks, helper=args.helper)
         config = settings(runtime, fixture)
         probe.policy.write_text(json.dumps(config))
         probe.filesystem()
@@ -566,6 +575,10 @@ def main() -> None:
             "srt": package["version"],
             "policy": json.loads(probe.policy.read_text()),
             "deny_hardlinks": args.deny_hardlinks,
+            "launcher": "bot-library-helper" if args.helper else "srt-cli",
+            "helper_sha256": hashlib.sha256((runtime / "launcher.mjs").read_bytes()).hexdigest()
+            if args.helper
+            else None,
             "probe_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "cases": probe.cases,
             "passed": all(case["passed"] for case in probe.cases),

@@ -170,3 +170,75 @@ SRT 0.0.77、metadata_valid=true，各 OS 隔离能力仍为 unverified。
 
 尚未证明：上述策略编译后的真实 OS 边界、准入与并发启动协调、启动器完整性、实时能力探针、
 worktree 委派、完整工具覆盖以及 S01–S15。P1 单元测试不是 P0/P5 原生安全验收。
+
+## 策略编译后的两平台实测
+
+继续增加 `sandbox/srt.py`，将 resolver 的快照编译为显式 SRT 设置及完整启动环境。
+新增 [test_native_sandbox.py](../../tests/integration/test_native_sandbox.py) 通过固定 helper 运行锁定的 SRT，
+**仍不是受管 Native target 或完整工具接入**。11 项探针在 macOS ARM64 与 Linux ARM64 均通过：
+
+- 工作区正常读写、精确 argv/UTF-8；外部写入及子进程写入拒绝。
+- 假 SSH 凭证、`.env`、配置、状态库、启动策略和其他任务目录不可读取。
+- 既有硬链接的读取/写入/rename 拒绝；已授权只读外部文件可正常读取，但不能向工作区创建硬链接。
+- 只读任务不能改工作区，仍能使用自己的临时目录。
+- SRT 默认共享临时目录不能读写；活跃 loopback 端点不能直接连接。
+- 宿主假密钥和加载器变量不继承；可继承的宿主 FD 在启动边界关闭。
+- 配置符号链接不能删除或通过重命名父目录绕过；同次调用仍能写普通源码文件。
+
+实测改变了以下实现决策：
+
+1. SRT 0.0.77 即使收到显式 allowWrite，仍额外加入 `/tmp/claude` 等默认写路径。先显式 deny
+   能阻止写入，但补测发现 Linux 仍可读取共享哨兵：默认写挂载重新开放了读取。现改用固定
+   `launcher.mjs` 调用该版本的底层 OS 包装器和代理，精确传入读写集合，不加入共享默认根；
+   两平台复测共享目录读写均拒绝。仍使用独立 HOME/cache 和任务自己的 tmp。
+2. SRT 启动器的 TMPDIR 与任务 tmp 分开。macOS 首次运行因 Unix socket 路径过长而失败，
+   现要求控制目录的编码长度不超过 64 字节；实际夹具由宿主在 `/tmp` 创建 0700 随机短目录。
+   Native target 后续必须负责创建、身份校验和清理这些资源。
+3. 系统读取范围不再直接开放 `/usr` 或 macOS `/System`，避免把 `/System/Volumes` 等区域带入。
+   Linux 不把 `/dev/fd` 解析为宿主测试进程的 `/proc/PID/fd` 再加入读取集合。
+4. Linux 的只读/隐藏目标挂载不能保护原符号链接目录项。初始探针实际观察到 unlink 成功，
+   随后为任务可写区域中的受保护链接隐藏其父控制子目录；不存在的后代拒绝条目由父规则覆盖，
+   避免 bwrap 在只读父目录内创建挂载点失败。该额外保护仅在必要的链接场景生成，不默认隐藏
+   整棵 `.bot`。若保护需要隐藏整个写入根或与显式读取子根冲突，则配置明确拒绝；可将该控制
+   文件放入独立控制目录。worktree/Git broker 后续需使用精确的写根，不能授予整个父工作区。
+5. 任务 home/tmp/cache 即使指向同一私有根下的控制目录也不能为符号链接。
+
+最终 macOS 受影响回归 **188 passed**（包含上述 11 项），Linux 原生探针 **11 passed**，无 skip。
+Linux 在原 P0 镜像上安装固定 Python 3.12.11 和与 macOS 一致版本的 pytest/pydantic 等最小测试
+依赖，通过 wheel 运行；容器内策略与探针源码摘要已与工作树核对一致。实验镜像保存为
+`bot-native-p1-env:20260923`，摘要 `cfd85214fca860da6bc1325c980d41df485d5f770918bdffe5ad098963785d24`。
+Node/SRT/bwrap 等原 P0 依赖及外层实验权限保持不变，仍不代表普通 Docker 容器可用。
+
+首次以 sleep 为 PID 1 的容器会保留已退出的 socat/bwrap 僵尸进程；已停止该容器，最终验证使用
+`--init`，执行后仅剩 docker-init 和 sleep。这不是受管取消/崩溃恢复验收，不替代 P2/P5 生命周期检查。
+
+证据：[macOS 编译策略与回归](../data/native-sandbox-p1-macos.json)、
+[Linux 编译策略及先前失败](../data/native-sandbox-p1-linux_arm64.json)。复现 macOS：
+
+```bash
+BOT_TEST_SANDBOX_RUNTIME=/tmp/bot-srt-p0 BOT_REQUIRE_NATIVE_SANDBOX=1 \
+  uv run pytest tests/integration/test_native_sandbox.py
+```
+
+未选择运行时的普通开发运行可 skip；设置 `BOT_REQUIRE_NATIVE_SANDBOX=1` 后缺依赖必须失败。
+本轮仍未覆盖全部 S01–S15、allowlist、准入/启动竞态、Native target、worker、子 Agent 与性能门槛。
+P0/P1 继续进行中，required 发布开关保持关闭。
+
+### 固定 helper 的 P0 复验
+
+helper 与锁定清单一起安装并随 wheel 分发，启动前的元数据检查逐字节核对 helper；文件缺失或
+被替换时 unavailable。它检查 Node/SRT 的固定版本，目标 argv 使用上游 quote 编码；沙箱内
+再由固定 Node shim 将代理 localhost 规范化为 `127.0.0.1`，随后 execve 原始 argv。
+helper 自身的信号转发不宣称能够回收所有 macOS 后代，受管生命周期仍属于 P2。
+
+已按计划用 `scripts/probe_native_sandbox.py --helper --deny-hardlinks` 重跑原 P0：
+Linux 9/9；macOS 8/9，失败仍是裸信号取消后的 detached 后代。argv、UTF-8 stdin、300 KB
+stdout/stderr、文件/子进程、断网、受控 HTTP 和损坏配置检查均通过。
+另以 `scripts/probe_srt_process_management.py --helper --strict` 复验原有受管保守检查，4/4：
+正常取消为 observed_empty；三次快速根退出均为 unknown，保留配额并阻止同会话继续执行。
+夹具最终只清理独立识别的测试子进程，未知进程不被擅自接管。
+
+证据：[macOS helper P0](../data/native-sandbox-p0-helper-macos.json)、
+[Linux helper P0](../data/native-sandbox-p0-helper-linux_arm64.json)、
+[macOS helper 保守清理](../data/native-sandbox-p0-helper-macos_manager_strict.json)。
+旧 P0 与 P1 基础的源码摘要按其原提交保留，不将历史测试冒充最新 helper 的证据。

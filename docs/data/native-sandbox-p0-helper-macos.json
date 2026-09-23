@@ -1,0 +1,176 @@
+{
+  "phase": "P0",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "python": "3.14.5",
+  "node": "v24.14.0",
+  "srt": "0.0.77",
+  "policy": {
+    "filesystem": {
+      "denyRead": [
+        "/",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/.env",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/secret",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/hardlink-secret",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/hardlink-sentinel"
+      ],
+      "allowRead": [
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/dev",
+        "/System",
+        "/private/etc/ssl",
+        "/private/etc/hosts",
+        "/private/etc/resolv.conf",
+        "/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work",
+        "/private/tmp/bot-native-p0-d4_qp9bo/home",
+        "/private/tmp/bot-native-p0-d4_qp9bo/tmp",
+        "/private/tmp/bot-native-p0-d4_qp9bo/cache"
+      ],
+      "allowWrite": [
+        "/private/tmp/bot-native-p0-d4_qp9bo/work",
+        "/private/tmp/bot-native-p0-d4_qp9bo/home",
+        "/private/tmp/bot-native-p0-d4_qp9bo/tmp",
+        "/private/tmp/bot-native-p0-d4_qp9bo/cache"
+      ],
+      "denyWrite": [
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/.env",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/secret",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/hardlink-secret",
+        "/private/tmp/bot-native-p0-d4_qp9bo/work/hardlink-sentinel"
+      ]
+    },
+    "network": {
+      "allowedDomains": [],
+      "deniedDomains": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "deniedResolvedAddresses": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "fc00::/7"
+      ]
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false
+  },
+  "deny_hardlinks": true,
+  "launcher": "bot-library-helper",
+  "helper_sha256": "6d4f0ddb224d6663779b55e2ec4a4a422fb8d57c1e5b5e41965d046c579fe744",
+  "probe_source_sha256": "7945b4b4f21e89a7156ec4e9fa6f6aba2005ca05c5957846b280607184ab0f2b",
+  "cases": [
+    {
+      "name": "filesystem_and_descendants",
+      "returncode": 0,
+      "duration_seconds": 0.2034,
+      "stdout": "{\"read:work/normal\":{\"ok\":true,\"value\":\"normal-fixture\"},\"read:work/.env\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:outside/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:control/state.db\":{\"ok\":false,\"code\":\"EPERM\"},\"read:control/policy.json\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/outside-link/secret\":{\"ok\":false,\"code\":\"EPERM\"},\"read:work/hardlink-secret\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/created\":{\"ok\":true,\"value\":true},\"write:outside/sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/.env\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/outside-link/sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"write:work/hardlink-sentinel\":{\"ok\":false,\"code\":\"EPERM\"},\"link:outside\":{\"ok\":false,\"code\":\"EPERM\"},\"link:denied-alias\":{\"ok\":false,\"code\":\"EPERM\"},\"rename:denied-alias\":{\"ok\":false,\"code\":\"EPERM\"},\"rename:secret\":{\"ok\":false,\"code\":\"EPERM\"},\"grandchild\":{\"status\":0,\"stdout\":\"EPERM\\n\",\"stderr\":\"\"}}\n",
+      "stderr": "",
+      "passed": true,
+      "failed_checks": []
+    },
+    {
+      "name": "argv_exact",
+      "returncode": 0,
+      "duration_seconds": 0.1039,
+      "stdout": "[\"\",\"a b\",\"'quoted'\",\"\\\"double\\\"\",\"中文🙂\",\"line1\\nline2\",\"\\\\\",\"--settings\",\"-c\",\"$(touch argv-pwned)\",\"`touch argv-pwned`\",\"; touch argv-pwned\",\"*\"]\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "stdin_utf8",
+      "returncode": 0,
+      "duration_seconds": 0.0992,
+      "stdout": "输入🙂\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "large_output",
+      "returncode": 0,
+      "duration_seconds": 0.1005,
+      "stderr": "diagnostic",
+      "passed": true,
+      "stdout_sha256": "896531f80a26e1a3a10ceebe2d2d8549e80979667e71493cbf93e8edff400c3a",
+      "stdout_bytes": 300000
+    },
+    {
+      "name": "direct_network_deny",
+      "returncode": 0,
+      "duration_seconds": 0.1507,
+      "stdout": "[{\"name\":\"tcp4\",\"outcome\":\"EPERM\"},{\"name\":\"tcp6\",\"outcome\":\"EPERM\"},{\"name\":\"udp4\",\"outcome\":\"EPERM\"},{\"name\":\"unix\",\"outcome\":\"EPERM\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "positive_control": [
+        "tcp4",
+        "tcp6",
+        "udp4",
+        "unix"
+      ],
+      "received": []
+    },
+    {
+      "name": "http_allowlist_redirect_loopback",
+      "returncode": 0,
+      "duration_seconds": 0.1245,
+      "stdout": "[{\"status\":200,\"body\":\"controlled-fixture\"},{\"status\":403,\"body\":\"Connection blocked by network allowlist\\n\"},{\"status\":403,\"body\":\"Connection to 127.0.0.1.nip.io blocked: resolved to a loopback address\\n\"},{\"status\":403,\"body\":\"Connection to 127.0.0.1.nip.io blocked: resolved to a loopback address\\n\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "requests_seen": [
+        "54033:/allowed",
+        "54033:/redirect"
+      ],
+      "dns_positive_control": {
+        "127.0.0.1.nip.io": [
+          "127.0.0.1"
+        ]
+      },
+      "proxy_endpoint": "literal-loopback; no child DNS needed"
+    },
+    {
+      "name": "empty_config",
+      "returncode": 1,
+      "duration_seconds": 0.0736,
+      "stdout": "",
+      "stderr": "Sandbox launcher failed: invalid policy size\n",
+      "passed": true
+    },
+    {
+      "name": "invalid_config",
+      "returncode": 1,
+      "duration_seconds": 0.053,
+      "stdout": "",
+      "stderr": "Sandbox launcher failed: Expected property name or '}' in JSON at position 1 (line 1 column 2)\n",
+      "passed": true
+    },
+    {
+      "name": "cli_sigterm_descendant_cleanup",
+      "passed": false,
+      "tree": [
+        {
+          "pid": 59336,
+          "started": 1790139945.537553,
+          "name": "node"
+        },
+        {
+          "pid": 59337,
+          "started": 1790139945.581915,
+          "name": "node"
+        }
+      ],
+      "remaining_after_sigterm": [
+        59337
+      ],
+      "stdout": "ready\n",
+      "stderr": "",
+      "returncode": 143,
+      "probe_forced_cleanup": true
+    }
+  ],
+  "passed": false,
+  "allowlist": "unverified",
+  "release_ready": false
+}

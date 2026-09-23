@@ -117,12 +117,12 @@ def resolve_policy(
             raise ValueError("任务私有目录区域必须位于工作区外，且不能包含工作区")
         if directories.root != private:
             raise ValueError("任务私有目录必须使用规范路径")
-        owned = _paths((directories.home, directories.temp, directories.cache))
-        if any(not path.is_dir() or path.parent != private for path in owned):
+        owned = (directories.home, directories.temp, directories.cache)
+        if any(not path.is_dir() or path.resolve() != path for path in owned):
             raise ValueError("任务 home/tmp/cache 必须为私有根目录的真实子目录")
         runtime_roots = _paths(runtime_read_roots)
-        if not runtime_roots or any(not root.is_dir() for root in runtime_roots):
-            raise ValueError("必须提供已安装的可信运行时目录")
+        if not runtime_roots or any(not root.exists() for root in runtime_roots):
+            raise ValueError("必须提供已安装的可信运行时路径")
         if any(
             workspace.is_relative_to(root) or root.is_relative_to(workspace)
             for root in runtime_roots

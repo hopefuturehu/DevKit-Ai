@@ -217,6 +217,17 @@ def test_private_home_cannot_be_a_symlink_to_workspace(layout):
         resolve(directories=dirs)
 
 
+def test_private_home_cannot_reopen_another_private_control_directory(layout):
+    _, _, _, directories, resolve = layout
+    dirs = directories("linked")
+    control = dirs.root / "control"
+    control.mkdir()
+    dirs.home.rmdir()
+    dirs.home.symlink_to(control, target_is_directory=True)
+    with pytest.raises(SandboxError, match="真实子目录"):
+        resolve(directories=dirs)
+
+
 def test_read_root_cannot_reopen_protected_secret(layout):
     config, _, _, _, resolve = layout
     ssh = Path.home() / ".ssh"

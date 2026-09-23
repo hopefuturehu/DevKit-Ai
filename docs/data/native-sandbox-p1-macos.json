@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "phase": "policy compiler native verification",
+  "production_target_enabled": false,
+  "platform": {
+    "os": "macOS 26.6.2",
+    "architecture": "arm64",
+    "python": "3.14.5",
+    "environment": "outside enclosing sandbox"
+  },
+  "runtime": {
+    "node": "24.14.0",
+    "srt": "0.0.77"
+  },
+  "suite": {
+    "tests": "188",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "11.092",
+    "timestamp": "2026-09-23T13:07:32.524399+08:00"
+  },
+  "native_tests": [
+    {
+      "name": "test_native_compiled_policy_preserves_argv_and_workspace_io",
+      "passed": true,
+      "seconds": 0.127
+    },
+    {
+      "name": "test_native_compiled_policy_denies_secrets_control_and_other_runs",
+      "passed": true,
+      "seconds": 0.123
+    },
+    {
+      "name": "test_native_compiled_policy_denies_external_write_and_child_write",
+      "passed": true,
+      "seconds": 0.138
+    },
+    {
+      "name": "test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+      "passed": true,
+      "seconds": 0.123
+    },
+    {
+      "name": "test_native_cannot_link_a_readable_readonly_file_into_workspace",
+      "passed": true,
+      "seconds": 0.122
+    },
+    {
+      "name": "test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+      "passed": true,
+      "seconds": 0.122
+    },
+    {
+      "name": "test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+      "passed": true,
+      "seconds": 0.121
+    },
+    {
+      "name": "test_native_srt_implicit_shared_tmp_write_is_overridden",
+      "passed": true,
+      "seconds": 0.121
+    },
+    {
+      "name": "test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+      "passed": true,
+      "seconds": 0.125
+    },
+    {
+      "name": "test_native_environment_excludes_host_keys_and_loaders",
+      "passed": true,
+      "seconds": 0.121
+    },
+    {
+      "name": "test_native_launch_closes_inheritable_host_descriptors",
+      "passed": true,
+      "seconds": 0.121
+    }
+  ],
+  "source_sha256": {
+    "src/bot/sandbox/policy.py": "00ece348e6ba70019618706a02a768c0e31920f92553c4ac4d9068b3fc084df7",
+    "src/bot/sandbox/srt.py": "dbf9306e06238d5ef347470dbd163a718bb0ac66aa642378d85a32b70c66fe75",
+    "src/bot/sandbox/runtime.py": "1a4c0de84ecb5f04b422b9b7172d24eefebd4af7790033c7ca65741a138e7a41",
+    "runtime/sandbox/launcher.mjs": "6d4f0ddb224d6663779b55e2ec4a4a422fb8d57c1e5b5e41965d046c579fe744",
+    "scripts/install_sandbox_runtime.py": "03fe2f21dd18e2cdfb9ac87f448e32536a72ac84572e41e1b7c8e7ad7009d88a",
+    "scripts/probe_native_sandbox.py": "7945b4b4f21e89a7156ec4e9fa6f6aba2005ca05c5957846b280607184ab0f2b",
+    "scripts/probe_srt_process_management.py": "92b31c8cc8804b3becf350e25ae3289aa63e77d5e5c58cb6db71a7506b998903",
+    "tests/unit/test_sandbox_srt.py": "bfaa31acc3916fd44aedc8c29892e41b6b2221904870d62ec91a45206a601b34",
+    "tests/unit/test_sandbox_policy.py": "1b28d814d2c70205ad78f1084078cbee68e2b823515d09f69de454cfd0add4e8",
+    "tests/unit/test_sandbox_runtime.py": "b9f387a14ae123c7055ee27dadb8600da210c9116f3cd048458cfd5eed4144b9",
+    "tests/unit/test_sandbox_runtime_install.py": "408a8aedf38f10002cbd8382805c92c186fcb11bf6632bf659dad17fd7a3d909",
+    "tests/integration/test_native_sandbox.py": "40f3af10b42e0f086fa4d286558f188e8ae2e4af737326493dc2411ab4f5790e",
+    "pyproject.toml": "b1467272eadd880929e3c272c8f84620b1d8c0730f7b92b740ccb52cb557acf9"
+  },
+  "not_proven": [
+    "native managed target",
+    "complete tools and brokers",
+    "admission/launch races",
+    "crash recovery",
+    "S01-S15 full matrix",
+    "performance release gates",
+    "complete allowlist and proxy normalization coverage for all clients"
+  ],
+  "launcher": "bot-library-helper"
+}
