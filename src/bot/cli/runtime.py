@@ -12,7 +12,7 @@ from bot.core.approval import ApprovalHandler
 from bot.core.context import ContextAssembler
 from bot.core.events import CallbackEventSink, EventBus, EventSink, EventType
 from bot.core.models import RunRequest
-from bot.execution import LocalExecutionTarget, ProcessSpec
+from bot.execution import ManagedExecutionTarget, ProcessSpec
 from bot.execution.factory import create_execution_target
 from bot.memory import MarkdownMemoryStore, MemoryExtractor
 from bot.observability import Redactor
@@ -32,7 +32,7 @@ class Runtime:
     catalog: SkillCatalog
     skills: SkillManager
     tools: ToolRegistry
-    target: LocalExecutionTarget
+    target: ManagedExecutionTarget
     context: ContextAssembler
     store: SQLiteSessionStore
     compactor: ContextCompactor

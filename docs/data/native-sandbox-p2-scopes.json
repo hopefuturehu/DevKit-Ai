@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "phase": "P2 invocation views and AgentRunner command integration",
+  "required_execution_enabled": false,
+  "stage_complete": false,
+  "reports": {
+    "macos": {
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "141",
+        "time": "18.263",
+        "timestamp": "2026-09-23T14:06:04.095728+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "raw_xml": "/private/tmp/native-scopes-regression-macos.xml",
+      "raw_xml_sha256": "5264c49bc583c579fca059fd060a7cbf42e0a5169c9dcff8135d164b15a589bd",
+      "native_cases": [
+        {
+          "name": "test_native_managed_argv_metadata_io_and_control_cleanup",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_interactive_input_streams_and_nonzero_exit",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "passed": true,
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "timed_out"
+          }
+        },
+        {
+          "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "passed": true,
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "cancelled"
+          }
+        },
+        {
+          "name": "test_native_runs_have_separate_home_and_readonly_workspace",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_command_tools_forward_trusted_scope[command]",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_command_tools_forward_trusted_scope[shell]",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_command_tools_forward_trusted_scope[adapter]",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_invocation_freezes_run_permissions_and_protected_paths",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_agent_binds_native_identity_and_rejects_unconfined_tools",
+          "passed": true,
+          "properties": {}
+        }
+      ]
+    },
+    "macos_lifecycle": {
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "72",
+        "time": "10.728",
+        "timestamp": "2026-09-23T14:08:46.438267+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "raw_xml": "/private/tmp/native-scopes-lifecycle-macos.xml",
+      "raw_xml_sha256": "d922f5d16b4193849378d3fe5f296aed74253aff0db5767e068dec62817b2fcc",
+      "native_cases": []
+    },
+    "linux_arm64": {
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "31",
+        "time": "9.031",
+        "timestamp": "2026-09-23T06:07:59.920480+00:00",
+        "hostname": "219c525a20bc"
+      },
+      "raw_xml": "/private/tmp/native-scopes-linux.xml",
+      "raw_xml_sha256": "766ed949667f3563a8d5651c0c72b56ec8c3bf3bdf08809600c32ec7f634653e",
+      "native_cases": [
+        {
+          "name": "test_native_managed_argv_metadata_io_and_control_cleanup",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_interactive_input_streams_and_nonzero_exit",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "passed": true,
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "timed_out"
+          }
+        },
+        {
+          "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "passed": true,
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "cancelled"
+          }
+        },
+        {
+          "name": "test_native_runs_have_separate_home_and_readonly_workspace",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_command_tools_forward_trusted_scope[command]",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_command_tools_forward_trusted_scope[shell]",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_command_tools_forward_trusted_scope[adapter]",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_invocation_freezes_run_permissions_and_protected_paths",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_agent_binds_native_identity_and_rejects_unconfined_tools",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_compiled_policy_denies_external_write_and_child_write",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_environment_excludes_host_keys_and_loaders",
+          "passed": true,
+          "properties": {}
+        },
+        {
+          "name": "test_native_launch_closes_inheritable_host_descriptors",
+          "passed": true,
+          "properties": {}
+        }
+      ]
+    }
+  },
+  "source_sha256": {
+    "src/bot/execution/base.py": "9760315c8b3d9226ac29e8af5ec7b81be29e2a6ad4644ea930955ead82331b2c",
+    "src/bot/execution/local.py": "983d8462a1a9111ab253e23672905f985444367341a449f695d2b7ec03bc18c3",
+    "src/bot/execution/native.py": "30316a2caffd7505681b6991e0bea5d63afe539f6b6033bacedccaacead7beb3",
+    "src/bot/execution/scoped.py": "999265851293c7f40702392de2830597c58285e660d91ac8bca902e7b9cecf6a",
+    "src/bot/execution/factory.py": "af692c6cc721f8734dbc019b0fa94d902ee4e691c4eb931002c912f2c8044f45",
+    "src/bot/execution/__init__.py": "f08319c53f3274526dc884276e8d506f19d69997e2d5aa85f06707c26d8d12d7",
+    "src/bot/core/agent.py": "52b3f0fe23fae83d375fd5f1674f29e988d7604f02ee03760b81e66c57567158",
+    "src/bot/cli/runtime.py": "95a7dbe1ae8bf66d871eb16c2108c2022829cd94a63e6e853f2a013bbc1faec9",
+    "src/bot/tools/native_boundary.py": "923b27e476613722123710465317dd68a3b8e9da6791c59e025320d53c44c492",
+    "src/bot/tools/builtins.py": "cf65716eb0f8639fd73c7dbff34941509c41626a221750ee0fbdef75512a7fa2",
+    "tests/integration/test_native_execution.py": "629ac30e8f6486051be7609593fa17978898e890cce617e2579505ba2224f0f8"
+  },
+  "wheel_sha256": "da0b17bd4a863fd8286c2006955548b98ebb36d8f997f4722883a01fc817ff0c",
+  "wheel_sources_match": true,
+  "linux_image": "bot-native-scopes-env:20260923",
+  "linux_image_id": "sha256:72fe333e653fb26957706b49014b3b48ddc73b49381bb0fa575630bddef9494c",
+  "environment": {
+    "macos": "26.6.2 arm64, Python 3.14.5; outside enclosing Seatbelt",
+    "linux": "5.15.49-linuxkit-pr aarch64, Python 3.12.11; non-root 65534 in dedicated Docker lab, no host mounts",
+    "node": "24.14.0",
+    "srt": "0.0.77"
+  },
+  "earlier_test_failure": "First macOS attempt: 3 passed, 1 failed because the new test incorrectly expected RunResult.run_id. Corrected to verify the process identity against persisted event run IDs and tool results. No implementation weakening.",
+  "limits": [
+    "factory remains closed; no production native release",
+    "temporary exact implementation allowlist only; complete registry classification and brokers pending",
+    "parent/child and worktree scope delegation pending",
+    "run lifecycle and restart recovery acceptance pending",
+    "trusted launch status, runtime integrity and live preflight pending",
+    "worker/client, full CLI/Web/eval wiring and P5 gates pending"
+  ],
+  "lint": "changed Python files pass Ruff lint",
+  "format": "10 changed Python files pass; builtins.py retains pre-existing formatting differences at HEAD and current"
+}

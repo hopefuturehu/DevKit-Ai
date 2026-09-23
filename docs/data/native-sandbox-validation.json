@@ -309,6 +309,16 @@
     ],
     "lint": "modified Python lint passed",
     "format": "12 changed Python files passed; builtins.py has the same pre-existing formatter differences at HEAD, kept to avoid unrelated changes",
-    "syntax": "Node --check and bash -n passed"
+    "syntax": "Node --check and bash -n passed",
+    "commit": "332934d"
+  },
+  "invocation_scope_validation": {
+    "artifact": "docs/data/native-sandbox-p2-scopes.json",
+    "sha256": "df42d163f9d28c982fcbccf763a916e47d58d5e04a595e8679e545eab77058df",
+    "required_execution_enabled": false,
+    "macos_regression_passed": 141,
+    "macos_lifecycle_passed": 72,
+    "linux_passed": 31,
+    "stage_complete": false
   }
 }

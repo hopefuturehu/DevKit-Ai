@@ -323,3 +323,9 @@ Linux 的共享临时目录补充读取检查证明，单靠 CLI 配置无法排
 伴随脚本对掩蔽挂载收紧写权限；宿主哨兵在修复前后均未改变。macOS 清理的 observed_empty
 与 unknown 分别保留真实记录。普通 AgentRunner、跨作用域进程控制、完整恢复及 P3–P5 仍未交付，
 生产 required 与 Native allowlist 门槛保持关闭，六阶段目标不变。
+
+随后接入调用级 Native 视图及普通 AgentRunner 的可信绑定：进程查询、输出、输入、终止按
+session/run 校验，Run 只读与保护路径不能改变，视图释放保留后台进程。两平台真实测试已覆盖
+该边界，macOS 141 项受影响回归及 72 项生命周期回归、Linux 31 项均通过。尚未接入的工具
+由精确实现类型清单拒绝；文件 worker、完整工具分类和父子/worktree 委派继续按 P3/P4 推进。
+required 仍未发布，完整证据及剩余门槛见验证记录的“P2 调用视图与 AgentRunner 接线”。

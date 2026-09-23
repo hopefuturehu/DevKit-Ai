@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import os
 import platform
 import shutil
 import signal
 import socket
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from time import monotonic
@@ -15,8 +16,9 @@ from uuid import uuid4
 
 from bot.config.models import ProcessCleanupConfig
 from bot.execution.base import (
+    CleanupObserver,
     EnvironmentCapabilities,
-    ExecutionTarget,
+    ManagedExecutionTarget,
     ProcessEvent,
     ProcessEventKind,
     ProcessSnapshot,
@@ -66,10 +68,7 @@ class _ManagedProcess:
     timeout_task: asyncio.Task[None] | None = None
 
 
-CleanupObserver = Callable[[ProcessSpec, str, dict], Awaitable[None]]
-
-
-class LocalExecutionTarget(ExecutionTarget):
+class LocalExecutionTarget(ManagedExecutionTarget):
     @property
     def cleanup_scope(self) -> str:
         import psutil
@@ -544,7 +543,9 @@ class LocalExecutionTarget(ExecutionTarget):
             session_id=managed.spec.session_id,
             run_id=managed.spec.run_id,
             scope=managed.spec.scope,
-            execution_metadata=managed.launch.metadata if managed.launch is not None else {},
+            execution_metadata=copy.deepcopy(managed.launch.metadata)
+            if managed.launch is not None
+            else {},
             process_id=managed.process_id,
             status=managed.status,
             argv=managed.spec.argv,

@@ -592,6 +592,8 @@ class PollProcessTool(Tool):
                 wait_seconds=float(arguments.get("wait_seconds", 0)),
             )
             return _process_tool_result(snapshot)
+        except SandboxError as exc:
+            return sandbox_failure(exc)
         except (KeyError, NotImplementedError, ValueError) as exc:
             return ToolResult(success=False, error=str(exc))
 
@@ -642,6 +644,8 @@ class SendProcessInputTool(Tool):
                     ),
                 ),
             )
+        except SandboxError as exc:
+            return sandbox_failure(exc)
         except (KeyError, NotImplementedError, OSError, ValueError) as exc:
             return ToolResult(success=False, error=str(exc))
 
@@ -693,6 +697,8 @@ class TerminateProcessTool(Tool):
                 ),
                 truncated=snapshot.truncated,
             )
+        except SandboxError as exc:
+            return sandbox_failure(exc)
         except (KeyError, NotImplementedError, ValueError) as exc:
             return ToolResult(success=False, error=str(exc))
 
@@ -710,6 +716,8 @@ class ListProcessesTool(Tool):
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
         try:
             snapshots = await context.execution_target.list_processes()
+        except SandboxError as exc:
+            return sandbox_failure(exc)
         except NotImplementedError as exc:
             return ToolResult(success=False, error=str(exc))
         if not snapshots:

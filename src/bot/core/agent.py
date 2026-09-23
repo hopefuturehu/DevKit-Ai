@@ -59,11 +59,12 @@ from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
 from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
 from bot.providers.base import ProviderStream, estimate_input_tokens
+from bot.sandbox.models import SandboxError
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillManager
 from bot.skills.runtime import RunSkillState, SkillContextError
 from bot.tools import Tool, ToolContext, ToolRegistry, ToolResult, ToolResultStatus
-from bot.tools.base import resolve_path
+from bot.tools.base import resolve_path, sandbox_failure
 from bot.tools.builtins import (
     PollProcessTool,
     ReadFileTool,
@@ -4895,6 +4896,10 @@ class AgentRunner:
         if record is None:
             return None
         if tool_call.name == "read_file" and inspect_resource and record.limited:
+            if self.execution_target.requires_confinement:
+                # P3 routes this through file_version in the confined worker.
+                # Never inspect model-selected file contents on the host.
+                return None
             context = ToolContext(
                 workspace=self.workspace,
                 execution_target=self.execution_target,
@@ -5179,22 +5184,40 @@ class AgentRunner:
                 },
             )
 
-        context = ToolContext(
-            workspace=self.workspace,
-            session_id=session_id,
-            run_id=run_id,
-            execution_target=self.execution_target,
-            workspace_only=self.config.permissions.workspace_only,
-            max_output_bytes=self.config.agent.max_tool_output_bytes,
-            process_wait_seconds=self.config.agent.process_wait_seconds,
-            process_hard_timeout_seconds=self.config.agent.process_hard_timeout_seconds,
-            output_callback=publish_tool_output,
-            denied_paths=self.denied_tool_paths,
-        )
+        invocation = None
         try:
+            if self.execution_target.requires_confinement:
+                from bot.tools.native_boundary import assert_native_tool_supported
+
+                assert_native_tool_supported(tool)
+            invocation = self.execution_target.for_invocation(
+                workspace=self.workspace,
+                session_id=session_id,
+                run_id=run_id,
+                tool_call_id=tool_call.id,
+                read_only=self.config.permissions.mode == "read-only",
+                denied_paths=self.denied_tool_paths,
+            )
+            context = ToolContext(
+                workspace=self.workspace,
+                session_id=session_id,
+                run_id=run_id,
+                execution_target=invocation,
+                workspace_only=self.config.permissions.workspace_only,
+                max_output_bytes=self.config.agent.max_tool_output_bytes,
+                process_wait_seconds=self.config.agent.process_wait_seconds,
+                process_hard_timeout_seconds=self.config.agent.process_hard_timeout_seconds,
+                output_callback=publish_tool_output,
+                denied_paths=self.denied_tool_paths,
+            )
             result = await tool.execute(context, tool_call.arguments)
+        except SandboxError as exc:
+            result = sandbox_failure(exc)
         except Exception as exc:
             result = ToolResult(success=False, error=f"Tool 未处理异常: {exc}")
+        finally:
+            if invocation is not None:
+                invocation.release_invocation()
         if tool.name == "update_plan" and result.success:
             plan_update = validate_plan_payload(result.metadata.get("plan_update"))
             if plan_update is None:

@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import platform
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -240,3 +241,249 @@ async def test_native_command_tools_forward_trusted_scope(native_target, kind):
     denied = await tool.execute(context, arguments)
     assert not denied.success and denied.metadata["executed"] is False
     assert denied.metadata["reason_code"] == "SANDBOX_CONFIG_INVALID"
+
+
+def invocation(target, work, *, session="session", run="run", call="call", **kwargs):
+    return target.for_invocation(
+        workspace=work, session_id=session, run_id=run, tool_call_id=call, **kwargs
+    )
+
+
+@pytest.mark.asyncio
+async def test_invocation_rejects_foreign_process_controls_without_consuming_output(native_target):
+    target, work, node = native_target
+    owner = invocation(target, work)
+    pid = await owner.start_process(
+        ProcessSpec(
+            argv=[
+                str(node),
+                "-e",
+                "console.log('private-ready');process.stdin.on('data',d=>process.stdout.write(d));"
+                "process.stdin.on('end',()=>console.log('private-end'))",
+            ],
+            cwd=work,
+            interactive=True,
+            timeout_seconds=20,
+        )
+    )
+    async with asyncio.timeout(10):
+        while "private-ready" not in (await owner.poll_process(pid, consume_output=False)).stdout:  # noqa: ASYNC110 - native output handshake
+            await asyncio.sleep(0.02)
+    # Releasing a tool call must leave its background process available to the
+    # next authorized tool. Closing the view must not close the shared manager.
+    await owner.aclose()
+    assert target.has_live_processes
+    with pytest.raises(SandboxError, match="已释放"):
+        await owner.poll_process(pid)
+    for session, run in (("other-session", "run"), ("session", "other-run")):
+        foreign = invocation(target, work, session=session, run=run)
+        try:
+            assert await foreign.list_processes() == []
+            for process_id in (pid, "unknown-process"):
+                operations = (
+                    (foreign.poll_process, {}),
+                    (foreign.read_process_output, {}),
+                    (foreign.send_process_input, {"data": "injected", "eof": True}),
+                    (foreign.terminate_process, {}),
+                )
+                for operation, arguments in operations:
+                    with pytest.raises(SandboxError) as rejected:
+                        await operation(process_id, **arguments)
+                    assert rejected.value.code.value == "POLICY_DENIED"
+                    assert rejected.value.stage == "ownership"
+        finally:
+            foreign.release_invocation()
+    reader = invocation(target, work, call="read")
+    try:
+        assert [p.process_id for p in await reader.list_processes()] == [pid]
+        await reader.send_process_input(pid, "owner-input\n", eof=True)
+        result = await reader.poll_process(pid, wait_seconds=10)
+        assert result.status == ProcessStatus.COMPLETED, result
+        assert result.stdout == "private-ready\nowner-input\nprivate-end\n"
+        assert result.scope.session_id == "session" and result.scope.run_id == "run"
+        assert result.scope.tool_call_id == "call"
+        record = await reader.read_process_output(pid)
+        assert record["stdout"] == result.stdout
+        # Returned nested cleanup metadata is not authority to change the
+        # manager's stored resource identity or its eventual cleanup path.
+        result.execution_metadata["run_directory"]["path"] = str(work)
+        fresh = await reader.poll_process(pid)
+        assert fresh.execution_metadata["run_directory"]["path"] != str(work)
+    finally:
+        reader.release_invocation()
+
+
+@pytest.mark.asyncio
+async def test_invocation_rejects_identity_spoof_and_discards_unstarted_scope(native_target):
+    target, work, node = native_target
+    owner = invocation(target, work)
+    spec = ProcessSpec(argv=[str(node), "-e", "0"], cwd=work)
+    try:
+        for update in ({"session_id": "other"}, {"run_id": "other"}):
+            with pytest.raises(SandboxError, match="不能替换"):
+                await owner.start_process(spec.model_copy(update=update))
+        assert not target._bindings and not target._runs
+        raw = scoped_spec(target, work, [node, "-e", "0"], call="host-call")
+        with pytest.raises(SandboxError, match="不能替换"):
+            await owner.start_process(raw)
+        target.discard_scope(raw.scope)
+        # Creating but never iterating a stream reserves a scope. Releasing
+        # the view must discard it and must prevent invocation-ID replay.
+        stream = owner.execute(spec)
+        assert len(target._bindings) == 1
+        owner.release_invocation()
+        await stream.aclose()
+        assert not target._bindings and not target.has_live_processes
+        replay = invocation(target, work)
+        try:
+            with pytest.raises(SandboxError, match="不能重复"):
+                await replay.start_process(spec)
+        finally:
+            replay.release_invocation()
+        with pytest.raises(SandboxError, match="子工作区"):
+            invocation(target, work.parent)
+    finally:
+        owner.release_invocation()
+
+
+@pytest.mark.asyncio
+async def test_invocation_freezes_run_permissions_and_protected_paths(native_target):
+    target, work, node = native_target
+    protected = work / "private.txt"
+    protected.write_text("host-private")
+    script = """const fs=require('fs');let readDenied=false,writeDenied=false;
+try{fs.readFileSync('private.txt')}catch{readDenied=true}
+try{fs.writeFileSync('marker','ok')}catch{writeDenied=true}
+console.log(JSON.stringify({readDenied,writeDenied}));"""
+    for readonly in (True, False):
+        owner = invocation(
+            target, work, run=str(readonly), read_only=readonly, denied_paths=(protected,)
+        )
+        try:
+            pid = await owner.start_process(ProcessSpec(argv=[str(node), "-e", script], cwd=work))
+            result = await owner.poll_process(pid, wait_seconds=10)
+            assert result.status == ProcessStatus.COMPLETED, result
+            assert json.loads(result.stdout) == {"readDenied": True, "writeDenied": readonly}
+        finally:
+            owner.release_invocation()
+        for update in ({"read_only": not readonly}, {"denied_paths": ()}):
+            changed = invocation(
+                target,
+                work,
+                run=str(readonly),
+                call="changed",
+                **({"read_only": readonly, "denied_paths": (protected,)} | update),
+            )
+            try:
+                with pytest.raises(SandboxError, match="不能改变"):
+                    await changed.start_process(ProcessSpec(argv=[str(node), "-e", "0"], cwd=work))
+            finally:
+                changed.release_invocation()
+    assert protected.read_text() == "host-private" and (work / "marker").read_text() == "ok"
+
+
+@pytest.mark.asyncio
+async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_target, monkeypatch):
+    from bot.core import AgentRunner, RunRequest
+    from bot.core.approval import AllowApprovalHandler
+    from bot.core.context import ContextAssembler
+    from bot.core.events import EventBus, EventType
+    from bot.core.models import ModelCapabilities, ModelEvent, ModelEventKind
+    from bot.policy import DefaultPolicyEngine
+    from bot.providers import ModelProvider
+    from bot.sessions import SQLiteSessionStore
+    from bot.skills import SkillCatalog, SkillManager
+    from bot.tools import ToolRegistry
+    from bot.tools.builtins import ReadFileTool
+
+    target, work, node = native_target
+    calls = [
+        ("command-call", "run_command", {"argv": [str(node), "-e", "console.log('agent-native')"]}),
+        ("read-call", "read_file", {"path": "secret"}),
+        ("custom-call", "custom_command", {"argv": [str(node), "-e", "0"]}),
+    ]
+
+    class ScriptedProvider(ModelProvider):
+        def capabilities(self, model):
+            return ModelCapabilities()
+
+        async def stream(self, request):
+            if calls:
+                call, name, args = calls.pop(0)
+                yield ModelEvent(
+                    kind=ModelEventKind.TOOL_CALL_DELTA,
+                    tool_index=0,
+                    tool_call_id=call,
+                    tool_name=name,
+                    arguments_delta=json.dumps(args),
+                )
+                yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="tool_calls")
+            else:
+                yield ModelEvent(kind=ModelEventKind.TEXT_DELTA, text="finished")
+                yield ModelEvent(kind=ModelEventKind.FINISH, finish_reason="stop")
+
+    class CustomCommand(RunCommandTool):
+        name = "custom_command"
+
+        async def execute(self, context, arguments):
+            pytest.fail("unreviewed subclass must not be invoked")
+
+    async def forbidden_read(*args, **kwargs):
+        pytest.fail("host file implementation must not be invoked")
+
+    monkeypatch.setattr(ReadFileTool, "execute", forbidden_read)
+    config = target.config.model_copy(deep=True)
+    config.storage.state_path = str(work.parent / "state.db")
+    registry = ToolRegistry()
+    for tool in (RunCommandTool(), ReadFileTool(), CustomCommand()):
+        registry.register(tool)
+    catalog = SkillCatalog(work.parent / "skills")
+    catalog.scan()
+    store = SQLiteSessionStore(Path(config.storage.state_path))
+    try:
+        runner = AgentRunner(
+            config=config,
+            workspace=work,
+            provider=ScriptedProvider(),
+            tool_registry=registry,
+            policy=DefaultPolicyEngine(config.permissions, work),
+            execution_target=target,
+            skills=SkillManager(catalog),
+            context=ContextAssembler(workspace=work, skill_catalog=catalog),
+            store=store,
+            event_bus=EventBus([store]),
+            approval_handler=AllowApprovalHandler(),
+        )
+        result = await runner.run(RunRequest(prompt="exercise command and denied entrypoints"))
+        assert result.status == "completed", result
+        snapshots = await target.list_processes()
+        assert len(snapshots) == 1
+        process = snapshots[0]
+        assert process.status == ProcessStatus.COMPLETED
+        assert process.session_id == result.session_id
+        assert process.scope.tool_call_id == "command-call"
+        events = [
+            e
+            for e in store.list_events(result.session_id)
+            if e["type"] == EventType.TOOL_COMPLETED.value
+        ]
+        assert len(events) == 3
+        assert all(event["run_id"] == process.run_id for event in events)
+        assert events[0]["payload"]["success"] is True
+        for event in events[1:]:
+            assert event["payload"]["success"] is False
+        with sqlite3.connect(config.storage.state_path) as database:
+            rows = database.execute(
+                "SELECT tool_call_id, result_json FROM tool_runs WHERE session_id = ?",
+                (result.session_id,),
+            ).fetchall()
+        records = {call: json.loads(raw) for call, raw in rows}
+        for call in ("read-call", "custom-call"):
+            assert records[call]["metadata"]["stage"] == "tool_boundary"
+            assert records[call]["metadata"]["executed"] is False
+        assert records["command-call"]["metadata"]["execution_scope"] == process.scope.model_dump(
+            mode="json"
+        )
+        assert not target._bindings
+    finally:
+        store.close()

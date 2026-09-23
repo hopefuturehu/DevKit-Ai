@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from bot.execution.base import ManagedExecutionTarget
 from bot.execution.local import LocalExecutionTarget
 from bot.sandbox.models import SandboxError, SandboxErrorCode
 from bot.sandbox.policy import validate_security_context
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from bot.config.models import AppConfig
 
 
-def create_execution_target(config: AppConfig) -> LocalExecutionTarget:
+def create_execution_target(config: AppConfig) -> ManagedExecutionTarget:
     sandbox = validate_security_context(config)
     if sandbox.mode == "required":
         # Keep the gate closed until command AND file/network entrypoints use

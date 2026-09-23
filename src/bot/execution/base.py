@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from enum import StrEnum
 from pathlib import Path
 from typing import Literal
@@ -94,6 +94,27 @@ class EnvironmentCapabilities(BaseModel):
 
 class ExecutionTarget(ABC):
     @property
+    def requires_confinement(self) -> bool:
+        return False
+
+    def for_invocation(
+        self,
+        *,
+        workspace: Path,
+        session_id: str,
+        run_id: str,
+        tool_call_id: str,
+        read_only: bool = False,
+        denied_paths: tuple[Path, ...] = (),
+    ) -> ExecutionTarget:
+        """Bind trusted caller identity without changing shared target state."""
+        return self
+
+    def release_invocation(self) -> None:
+        """Release an invocation view, not its background processes or shared runtime."""
+        return None
+
+    @property
     def progress_scope(self) -> str:
         """Override with a stable target/environment identity for cross-run restore."""
         return self.__dict__.setdefault("_progress_scope", uuid4().hex)
@@ -154,3 +175,24 @@ class ExecutionTarget(ABC):
 
     async def aclose(self) -> None:
         return None
+
+
+CleanupObserver = Callable[[ProcessSpec, str, dict], Awaitable[None]]
+
+
+class ManagedExecutionTarget(ExecutionTarget):
+    cleanup_observer: CleanupObserver | None = None
+
+    @property
+    @abstractmethod
+    def cleanup_scope(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def has_live_processes(self) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def restore_cleanups(self, records: list[dict]) -> None:
+        raise NotImplementedError

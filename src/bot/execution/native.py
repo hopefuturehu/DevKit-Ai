@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bot.config.models import AppConfig
-from bot.execution.base import EnvironmentCapabilities, ProcessSpec
+from bot.execution.base import EnvironmentCapabilities, ExecutionTarget, ProcessSpec
 from bot.execution.local import LocalExecutionTarget, PreparedLaunch
 from bot.sandbox.models import ExecutionScope, SandboxError, SandboxErrorCode
 from bot.sandbox.policy import (
@@ -26,14 +26,15 @@ from bot.sandbox.policy import (
     validate_security_context,
 )
 from bot.sandbox.resources import DirectoryIdentity, OwnedDirectory
-from bot.sandbox.runtime import inspect_runtime
+from bot.sandbox.runtime import RUNTIME_ASSET_NAMES, inspect_runtime
 from bot.sandbox.srt import compile_srt_config, launcher_environment, system_read_paths
 
 
-@dataclass
+@dataclass(frozen=True)
 class _Run:
     directory: OwnedDirectory
     read_only: bool
+    denied_paths: tuple[Path, ...] = ()
 
 
 class NativeSandboxExecutionTarget(LocalExecutionTarget):
@@ -55,6 +56,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         self.runtime = inspect_runtime(self.workspace, root=runtime_root)
         if not self.runtime.metadata_valid:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "; ".join(self.runtime.errors))
+        self._runtime_fingerprint = tuple(
+            (name, hashlib.sha256((self.runtime.root / name).read_bytes()).hexdigest())
+            for name in RUNTIME_ASSET_NAMES
+        )
         self.state_root = state_root.resolve()
         for root in (self.workspace, self.runtime.root):
             if self.state_root.is_relative_to(root) or root.is_relative_to(self.state_root):
@@ -78,15 +83,67 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         from bot.core.termination.identity import fingerprint
 
         return fingerprint(
-            "native-srt-managed-v1",
+            "native-srt-managed-v2",
+            str(self.workspace),
             str(self.runtime.root),
             str(self.state_root),
             self.runtime.capabilities.model_dump(mode="json"),
-            hashlib.sha256((self.runtime.root / "launcher.mjs").read_bytes()).hexdigest(),
+            self._runtime_fingerprint,
         )
 
+    @property
+    def requires_confinement(self) -> bool:
+        return True
+
+    def for_invocation(
+        self,
+        *,
+        workspace: Path,
+        session_id: str,
+        run_id: str,
+        tool_call_id: str,
+        read_only: bool = False,
+        denied_paths: tuple[Path, ...] = (),
+    ) -> ExecutionTarget:
+        from bot.execution.scoped import InvocationIdentity, NativeInvocationTarget
+
+        if self._closed or self._recovery_error:
+            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "原生执行环境不可用")
+        if workspace.resolve() != self.workspace:
+            raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "子工作区需要经过专用策略委派")
+        if not all(
+            isinstance(value, str) and value for value in (session_id, run_id, tool_call_id)
+        ):
+            raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "调用缺少 session/run/tool 身份")
+        return NativeInvocationTarget(
+            self,
+            InvocationIdentity(
+                self.workspace, session_id, run_id, tool_call_id, read_only, tuple(denied_paths)
+            ),
+        )
+
+    def authorize_process(self, process_id: str, *, session_id: str, run_id: str) -> None:
+        managed = self._managed_processes.get(process_id)
+        if managed is None or (managed.spec.session_id, managed.spec.run_id) != (
+            session_id,
+            run_id,
+        ):
+            raise SandboxError(
+                SandboxErrorCode.POLICY_DENIED, "进程不属于当前 session/run", stage="ownership"
+            )
+
+    def discard_scope(self, scope: ExecutionScope) -> None:
+        if self._bindings.pop(scope, None) is not None:
+            self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
+
     def bind_scope(
-        self, *, session_id: str, run_id: str, tool_call_id: str, read_only: bool = False
+        self,
+        *,
+        session_id: str,
+        run_id: str,
+        tool_call_id: str,
+        read_only: bool = False,
+        denied_paths: tuple[Path, ...] = (),
     ) -> ExecutionScope:
         """Trusted host API, invoked after tool authorization, never a model argument."""
         if self._closed or self._recovery_error:
@@ -110,10 +167,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             except BaseException:
                 owned.remove()
                 raise
-            self._runs[key] = _Run(owned, read_only)
+            self._runs[key] = _Run(owned, read_only, tuple(denied_paths))
         run = self._runs[key]
-        if run.read_only != read_only:
-            raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "运行期间不能改变 Run 的只读策略")
+        if run.read_only != read_only or run.denied_paths != tuple(denied_paths):
+            raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "运行期间不能改变 Run 的权限策略")
         run.directory.identity.verify()
         resolved = resolve_policy(
             self.config,
@@ -121,6 +178,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             directories=RunDirectories(run.directory.path),
             runtime_read_roots=(self.runtime.root, *system_read_paths()),
             read_only=read_only,
+            protected_paths=run.denied_paths,
         )
         scope = ExecutionScope(
             session_id=session_id,
@@ -190,6 +248,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 "control_directory": control.identity.record(),
                 "run_directory": run.directory.identity.record(),
                 "read_only": run.read_only,
+                "denied_paths": list(map(str, run.denied_paths)),
                 "executed": None,
             },
             release=control.remove,
@@ -214,6 +273,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         metadata = record["launch_metadata"]
         spec = ProcessSpec.model_validate(record["spec"])
         scope = ExecutionScope.model_validate(metadata["scope"])
+        denied_paths = metadata.get("denied_paths")
         if (
             metadata["backend"] != "srt"
             or metadata["backend_version"] != self.runtime.capabilities.backend_version
@@ -222,6 +282,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             or (spec.session_id, spec.run_id) != (scope.session_id, scope.run_id)
             or scope.workspace != self.workspace
             or type(metadata["read_only"]) is not bool
+            or not isinstance(denied_paths, list)
+            or any(
+                not isinstance(path, str) or not Path(path).is_absolute() for path in denied_paths
+            )
         ):
             raise ValueError("沙箱恢复记录身份不一致")
         control = OwnedDirectory(DirectoryIdentity(**metadata["control_directory"]))
@@ -236,9 +300,16 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         control.identity.verify()
         owned.identity.verify()
         key = (scope.session_id, scope.run_id)
-        if key in self._runs and self._runs[key].directory.identity != owned.identity:
-            raise ValueError("同一 Run 的恢复目录不一致")
-        self._runs[key] = _Run(owned, metadata["read_only"])
+        restored_run = _Run(owned, metadata["read_only"], tuple(map(Path, denied_paths)))
+        if key in self._runs:
+            current = self._runs[key]
+            if (
+                current.directory.identity != owned.identity
+                or current.read_only != restored_run.read_only
+                or current.denied_paths != restored_run.denied_paths
+            ):
+                raise ValueError("同一 Run 的恢复目录或策略不一致")
+        self._runs[key] = restored_run
         self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
         return PreparedLaunch(tuple(spec.argv), {}, metadata=metadata, release=control.remove)
 

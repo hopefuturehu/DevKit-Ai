@@ -305,3 +305,33 @@ wheel、启动器和测试文件已与宿主源码核对。测试结束后容器
 
 修改的 Python 文件通过 Ruff lint；12 个文件通过格式检查。`tools/builtins.py` 的既有格式差异
 在 HEAD 与当前文件中相同，已执行检查并保留，未混入无关格式修改。Node/Bash 语法检查通过。
+
+## P2 调用视图与 AgentRunner 接线
+
+后续增加 `NativeInvocationTarget`：可信主进程为每次工具调用固定 workspace/session/run/tool
+身份，工具不能覆盖这些字段或提交另一个 policy/scope。共享后端继续管理进程，调用视图在
+poll、读取输出、发送输入和终止之前检查 session/run，列表也只返回同一 session/run 的进程。
+释放视图不会终止后台进程或关闭共享 target；未启动的预留 scope 被丢弃，调用标识不能重放。
+Run 的只读模式和额外保护路径固定，不能在后续调用中放宽。返回快照深拷贝控制目录身份，
+调用方修改返回值不会改变清理目标。运行时指纹包含 workspace 和全部伴随资产，并在实例创建
+时固定；恢复记录校验同一 Run 的目录和策略一致性，但完整恢复验收仍未完成。
+
+AgentRunner 已自动创建、注入和释放调用视图。内部 Native 路径目前只接受经过审计的六种
+命令/进程工具的精确实现类型；尚未接入的文件工具和任意派生自定义工具在调用前拒绝。
+这是接线过程中的关闭措施，不能代替 P3 文件 worker 和 P4 完整注册分类。重复读取辅助检查
+也不会在原生模式下走宿主文件内容读取；受限 file_version 接口仍待接入。
+
+真实测试覆盖跨 session 和跨 run 的四种进程操作、未知 ID、列表隔离、拒绝后输出未被消费/
+输入未被注入/进程未被终止、调用释放后继续交互、身份伪造、scope 重放、只读与保护路径隔离，
+以及真实 AgentRunner 的绑定和未接入工具拒绝。macOS 受影响回归 **141 passed**（13 项受管
+原生测试），另有生命周期/工具/安装发现回归 **72 passed**。Linux 从当前 wheel 安装后
+**31 passed**（24 项原生测试及 7 项启动资源检查）。均无失败、错误或 skip；两平台该轮超时/
+取消均为 observed_empty。Linux 有一条 pytest 缓存目录不可写警告，不影响测试或隔离。
+
+首次新增 AgentRunner 测试误用了不存在的 RunResult.run_id，出现 3 passed/1 failed；修正后
+以持久化事件的 run_id 和工具记录验证实际绑定。没有改变隔离实现来绕过该测试错误。
+详见 [本轮证据](../data/native-sandbox-p2-scopes.json)，包含源码与 wheel 摘要、报告摘要和用例。
+Linux 镜像 `bot-native-scopes-env:20260923` 已保留，测试容器已停止并移除。
+
+生产工厂和 allowlist 仍关闭；父子/worktree 委派、完整恢复、启动证明、实时能力检查、并发
+准入、worker、brokers、外围入口与 P5 门槛仍待交付，六阶段目标保持不变。
