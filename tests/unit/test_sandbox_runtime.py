@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from bot.cli.app import app
 from bot.sandbox.runtime import RUNTIME_ASSET_NAMES, inspect_runtime, runtime_asset
+from bot.sandbox.runtime_integrity import seal_runtime
 
 
 @pytest.fixture
@@ -57,6 +58,8 @@ def installation(tmp_path, monkeypatch):
     node = root / "node/bin/node"
     node.parent.mkdir(parents=True)
     node.touch(mode=0o700)
+    record["runtime_files_sha256"] = seal_runtime(root, workspace=workspace)
+    (root / "installation.json").write_text(json.dumps(record))
     return workspace, root, lock
 
 
@@ -81,7 +84,20 @@ def test_matching_metadata_never_claims_enforcement_or_runs_a_binary(installatio
 
 @pytest.mark.parametrize(
     "change",
-    ["version", "lock", "helper", "bwrap_helper", "platform", "missing", "symlink", "mode"],
+    [
+        "version",
+        "lock",
+        "helper",
+        "bwrap_helper",
+        "platform",
+        "missing",
+        "symlink",
+        "mode",
+        "asset_permissions",
+        "metadata_permissions",
+        "asset_hardlink",
+        "parent_permissions",
+    ],
 )
 def test_changed_or_untrusted_installation_is_unavailable(installation, tmp_path, change):
     workspace, root, _ = installation
@@ -107,8 +123,16 @@ def test_changed_or_untrusted_installation_is_unavailable(installation, tmp_path
         external.write_text("{}")
         (root / "installation.json").unlink()
         (root / "installation.json").symlink_to(external)
-    else:
+    elif change == "mode":
         root.chmod(0o777)
+    elif change == "asset_permissions":
+        (root / "launcher.mjs").chmod(0o666)
+    elif change == "metadata_permissions":
+        (root / "installation.json").chmod(0o666)
+    elif change == "asset_hardlink":
+        (tmp_path / "launcher-alias").hardlink_to(root / "launcher.mjs")
+    else:
+        root.parent.chmod(0o777)
     inspection = inspect_runtime(workspace, root=root)
     assert inspection.errors
     assert inspection.capabilities.file_read == "unavailable"

@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import platform
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -595,3 +596,41 @@ async def test_native_file_tools_share_os_boundary_and_hide_worker_controls(nati
         readonly.release_invocation()
     assert (work / "sample.txt").read_text() == "changed line\n"
     assert outside.read_text() == "external-sentinel"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("asset", ["node/bin/node", "node_modules/zod/package.json"])
+async def test_installed_runtime_tamper_refuses_launch_before_target_runs(
+    native_target, tmp_path, asset
+):
+    original, work, _ = native_target
+    runtime = tmp_path / "separate-runtime"
+    shutil.copytree(original.runtime.root, runtime, symlinks=True)
+    target = NativeSandboxExecutionTarget(
+        original.config, workspace=work, runtime_root=runtime, state_root=tmp_path / "tamper-runs"
+    )
+    try:
+        candidate = runtime / asset
+        assert candidate.is_file()
+        with candidate.open("ab") as stream:
+            stream.write(b"\nchanged-after-verification\n")
+        view = invocation(target, work, call="tampered-installation")
+        try:
+            with pytest.raises(SandboxError) as error:
+                await view.start_process(
+                    ProcessSpec(
+                        argv=[
+                            str(runtime / "node/bin/node"),
+                            "-e",
+                            "require('fs').writeFileSync('should-not-run','bad')",
+                        ],
+                        cwd=work,
+                    )
+                )
+            assert error.value.executed is False
+            assert not (work / "should-not-run").exists()
+            assert await target.list_processes() == []
+        finally:
+            view.release_invocation()
+    finally:
+        await target.aclose()

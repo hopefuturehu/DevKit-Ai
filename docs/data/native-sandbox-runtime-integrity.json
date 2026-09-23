@@ -1,0 +1,921 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "phase": "P0/P1 installed runtime integrity; P2 launch admission",
+  "base_commit": "bced1d9d0436d741abf4d97ab3527351ff979455",
+  "stage_complete": false,
+  "required_execution_enabled": false,
+  "automatic_isolation_attestation_delivered": false,
+  "source_sha256": {
+    "src/bot/sandbox/runtime_integrity.py": "105a98bc93dbae0644dd6f801a942b9d948f5465aff2190fc3c1597fe39be8bd",
+    "src/bot/sandbox/runtime.py": "dc79dd040d71badda88d5e619dd9ce3cf760d70692a5a32bb382bc77279ee271",
+    "src/bot/execution/native.py": "111627a0559d5f5f914ccb8fb699595392a149abe26eaa1bec4a405fdd76cd3d",
+    "scripts/install_sandbox_runtime.py": "42851e0cb88b2090c80f2e4669d46133305bac32eb0c6ba7b1987290aa89954a",
+    "tests/unit/test_runtime_integrity.py": "e4299a572ea8a3289ce8adf3d2c11150e02e375b93661072cef0b95f9a4cae02",
+    "tests/unit/test_sandbox_runtime.py": "dcb2803d7a3a718dbb85f0177247400b90ae9a77721e8b75de02d796c795bd7e",
+    "tests/integration/test_native_execution.py": "b3786be19f64810efc685aab038ea26826778653d2eb9774121dccae5345d7bb"
+  },
+  "reports": {
+    "macos": {
+      "raw_xml": "/private/tmp/native-runtime-integrity-macos-final.xml",
+      "raw_xml_sha256": "5d394e7a93038e8910144b6950a1fd4d6aebc1a1c2722973d2b6e06bf75d21e6",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "89",
+        "time": "45.170",
+        "timestamp": "2026-09-23T15:20:34.799225+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node/bin/node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node_modules/zod/package.json]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_discovery_hashes_once_then_checks_identities_without_executing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[vendor]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[restored_mtime]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[added]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[removed]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[link]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[escape]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[loop]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[parent]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest_fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_file_replacement_with_same_bytes_invalidates_live_snapshot",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_manifest_must_describe_the_entire_tree_and_cannot_be_resealed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_workspace_and_sibling_unsealed_link_are_rejected",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_matching_metadata_never_claims_enforcement_or_runs_a_binary",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[lock]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[bwrap_helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[platform]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[missing]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[metadata_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[parent_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_project_runtime_and_path_override_are_not_trusted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_missing_runtime_is_reported_without_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_cli_required_reports_closed_gate_without_provider_or_target_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_doctor_distinguishes_unavailable_runtime_from_os_enforcement",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_workspace_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_never_overwrites_existing_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_download_before_extraction_if_checksum_differs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_tar_cannot_write_outside_staging_area",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_npm_failure_does_not_publish_partial_runtime",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_install_uses_lock_and_isolated_npm_config",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_inspection_never_executes_candidate_and_reuses_verified_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[binary]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[module]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[new_module]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[cache]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[manifest]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[worker]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[parent]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[workspace]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_ambient_stdlib_cache_is_unused_and_not_part_of_admission",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed"
+        }
+      ]
+    },
+    "linux_arm64": {
+      "raw_xml": "/private/tmp/native-runtime-integrity-linux.xml",
+      "raw_xml_sha256": "be2f1f01f9c6da94c728a1c1373dd70b52e99a5396aac50184ff03f18e7ba123",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "89",
+        "time": "40.338",
+        "timestamp": "2026-09-23T07:18:38.073756+00:00",
+        "hostname": "257f21145450"
+      },
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node/bin/node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node_modules/zod/package.json]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_discovery_hashes_once_then_checks_identities_without_executing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[vendor]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[restored_mtime]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[added]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[removed]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[link]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[escape]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[loop]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[parent]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest_fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_file_replacement_with_same_bytes_invalidates_live_snapshot",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_manifest_must_describe_the_entire_tree_and_cannot_be_resealed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_workspace_and_sibling_unsealed_link_are_rejected",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_matching_metadata_never_claims_enforcement_or_runs_a_binary",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[lock]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[bwrap_helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[platform]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[missing]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[metadata_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[parent_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_project_runtime_and_path_override_are_not_trusted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_missing_runtime_is_reported_without_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_cli_required_reports_closed_gate_without_provider_or_target_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_doctor_distinguishes_unavailable_runtime_from_os_enforcement",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_workspace_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_never_overwrites_existing_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_download_before_extraction_if_checksum_differs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_tar_cannot_write_outside_staging_area",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_npm_failure_does_not_publish_partial_runtime",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_install_uses_lock_and_isolated_npm_config",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_inspection_never_executes_candidate_and_reuses_verified_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[binary]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[module]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[new_module]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[cache]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[manifest]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[worker]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[parent]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[workspace]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_ambient_stdlib_cache_is_unused_and_not_part_of_admission",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "earlier_trials": {
+    "macos_before_top_level_asset_checks": {
+      "raw_xml": "/private/tmp/native-runtime-integrity-macos.xml",
+      "raw_xml_sha256": "b4dd18846382129a333fa898f76c95dcf97948086d82f3f647cb52551f0a1b99",
+      "suite": {
+        "name": "pytest",
+        "errors": "1",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "86",
+        "time": "48.087",
+        "timestamp": "2026-09-23T15:12:34.624125+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "failed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "error"
+        }
+      ]
+    },
+    "macos_agent_independent_recheck": {
+      "raw_xml": "/private/tmp/native-runtime-integrity-macos-agent-recheck.xml",
+      "raw_xml_sha256": "eb23172db48b8ea546b3e60ab22e411f5162c8cf35c0c34a6a611a8c8e867486",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "1",
+        "time": "1.691",
+        "timestamp": "2026-09-23T15:14:14.074197+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "earlier_trial_note": "The first macOS suite had 84 passed, one Agent failure and teardown error after ten new unowned processes appeared. All ten were gone when independently checked, so no origin is asserted. No adoption, termination or resource deletion; the unknown state was retained. The isolated case passed before top-level checks were added, then the complete final 89-case suite passed. No strict cleanup relaxation.",
+  "wheel": {
+    "path": "/private/tmp/bot-runtime-integrity-wheel/kunpeng_cli_agent-0.1.0-py3-none-any.whl",
+    "sha256": "c7168098b0933f5872d8cb58197240abfd610ae862f3cec7d0cfe891d3e7dbef",
+    "all_123_python_files_match_source": true
+  },
+  "installations": {
+    "macos": {
+      "path": "/private/tmp/bot-sandbox-runtime-integrity-20260923",
+      "full_installer_run": true,
+      "worker_python": "3.12.11",
+      "installation_json_sha256": "5cdd52718998b7fbb62e437ac9acbed4ea84966e8e8770b4a3f752600267c7ad"
+    },
+    "linux": {
+      "runtime_files_sha256": "05f07a6c77099a64cfd2c04689430ee75c643f6a76d7549741e02d3ef29f7cc7",
+      "files": 5408,
+      "directories": 1119,
+      "links": 4,
+      "worker_python_sha256": "88628a8064cc1bb5f3bcff79026dcb46ed1f5233a7ce6437f7e478a537c21eba",
+      "capabilities": {
+        "backend": "srt",
+        "backend_version": "0.0.77",
+        "node_version": "24.14.0",
+        "os_version": "Linux 5.15.49-linuxkit-pr",
+        "architecture": "aarch64",
+        "file_read": "unverified",
+        "file_write": "unverified",
+        "network_filter": "unverified",
+        "process_isolation": "unverified",
+        "resource_limits": "unavailable",
+        "evidence": [
+          "metadata inspection only; isolation probes not run"
+        ]
+      },
+      "full_installer_run_as_uid": 65534
+    }
+  },
+  "metadata_microbenchmark": {
+    "scope": "read-only metadata inspection microbenchmark only; not P5 execution/task performance acceptance",
+    "first_inspection_seconds": 1.0786941670812666,
+    "samples_seconds": [
+      0.16143604181706905,
+      0.14911000011488795,
+      0.14855362521484494,
+      0.1493999168742448,
+      0.14926750003360212,
+      0.15199320809915662,
+      0.1476674589794129,
+      0.14712750003673136,
+      0.1471804161556065,
+      0.14872962492518127,
+      0.14700570912100375,
+      0.14878779090940952,
+      0.14742679195478559,
+      0.14680258417502046,
+      0.14683983311988413,
+      0.14875608286820352,
+      0.1506378329358995,
+      0.14892262499779463,
+      0.1472819170448929,
+      0.15604504104703665,
+      0.14822787512093782,
+      0.1482477500103414,
+      0.15002358402125537,
+      0.14876016601920128,
+      0.14835604187101126,
+      0.147966125048697,
+      0.14866225002333522,
+      0.1488585420884192,
+      0.1500772919971496,
+      0.14562687487341464
+    ],
+    "cached_p50_seconds": 0.14869593747425824,
+    "cached_p95_seconds": 0.15604504104703665,
+    "cached_total_cpu_seconds": 4.47008,
+    "runtime_tree_files": 5408,
+    "runtime_tree_directories": 1119,
+    "runtime_tree_links": 4,
+    "runtime_tree_sha256": "6de2e41e09553f3028c7e1e0f54f15a1a14d71e16c86e50be58d5891f045a153"
+  },
+  "environment": {
+    "macos": "arm64, Python 3.14.5 host; native tests outside enclosing Seatbelt",
+    "linux": "aarch64, Python 3.12.11 installed wheel, UID/GID 65534; full explicit installer followed by final wheel verification",
+    "linux_base_image": "sha256:d845e12395a887e245bdaced458ed5cbed48c616e2b0a7fdf80b3cf7757a1407",
+    "linux_outer_lab_flags": [
+      "--cap-add SYS_ADMIN",
+      "--security-opt seccomp=unconfined",
+      "--security-opt systempaths=unconfined",
+      "--sysctl net.ipv6.conf.all.disable_ipv6=0",
+      "--sysctl net.ipv6.conf.default.disable_ipv6=0"
+    ],
+    "no_host_mounts_credentials_or_docker_socket": true,
+    "test_container_removed": true
+  },
+  "verified": [
+    "explicit installation creates a bounded SHA-256 manifest for all Node and npm files, directories, modes and internal symlink targets after locked installation",
+    "initial inspection hashes content without executing candidate binaries; cached inspection validates full file identities/tree membership/modes",
+    "new/missing/modified files, preserved mtime, file replacement, link escape/retarget/cycle, hardlinks, FIFOs, writable files/ancestors and modified metadata fail closed",
+    "fixed launcher and metadata reads reject symlinks/hardlinks, unsafe ownership/write permissions, special files and concurrent replacement",
+    "real installed Node and npm dependency tampering after target construction prevents launch with executed=false and no target side effect on both OSes",
+    "normal native command, worker, Agent, readonly policy, process-control and installer regression pass using the new installation format",
+    "manifest digest contributes to native progress/recovery identity; older installations without it are unavailable, never automatically resealed",
+    "capabilities remain unverified; file integrity does not imply OS isolation"
+  ],
+  "not_proven": [
+    "automatic live isolation preflight and trusted launcher status protocol",
+    "complete system helper/dynamic-loader dependency attestation and future kernel/OS update handling",
+    "admission/launch concurrency and complete recovery lifecycle",
+    "full P3 compatibility, P4 tool/broker/worktree/CLI/Web/eval wiring",
+    "P5 complete security matrix, daily task comparison and execution performance acceptance"
+  ]
+}

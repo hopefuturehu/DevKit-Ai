@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bot.sandbox.models import SandboxCapabilities
+from bot.sandbox.runtime_integrity import RuntimeTree, inspect_tree, read_installed
 from bot.sandbox.worker_runtime import WorkerRuntime, inspect_worker
 
 MANIFEST_NAMES = ("package.json", "package-lock.json", "runtime-lock.json")
@@ -53,6 +54,7 @@ class RuntimeInspection:
     executables: tuple[tuple[str, Path], ...] = ()
     errors: tuple[str, ...] = ()
     worker: WorkerRuntime | None = None
+    tree: RuntimeTree | None = None
 
     @property
     def metadata_valid(self) -> bool:
@@ -60,7 +62,11 @@ class RuntimeInspection:
 
 
 def inspect_runtime(
-    workspace: Path, *, root: Path | None = None, worker_snapshot: WorkerRuntime | None = None
+    workspace: Path,
+    *,
+    root: Path | None = None,
+    worker_snapshot: WorkerRuntime | None = None,
+    tree_snapshot: RuntimeTree | None = None,
 ) -> RuntimeInspection:
     root = (root or Path("~/.bot/sandbox/runtime")).expanduser().resolve()
     workspace = workspace.resolve()
@@ -68,6 +74,7 @@ def inspect_runtime(
     executables: dict[str, Path] = {}
     node_version = srt_version = None
     worker = None
+    tree = None
     try:
         if platform.system() not in {"Darwin", "Linux"}:
             raise ValueError("原生沙箱首版只支持 macOS/Linux")
@@ -88,10 +95,7 @@ def inspect_runtime(
             raise ValueError(f"锁定运行时不支持当前平台: {target}")
 
         def installed(name: str) -> bytes:
-            path = root / name
-            if not path.resolve().is_relative_to(root):
-                raise ValueError(f"安装文件逃逸运行时目录: {name}")
-            return _read(path)
+            return read_installed(root, name, limit=2_000_000)
 
         record = json.loads(installed("installation.json"))
         if record["platform"] != target or record["node"] != "v" + lock["node_version"]:
@@ -119,6 +123,12 @@ def inspect_runtime(
         if platform.system() == "Linux" and not os.access(root / "bwrap-launcher.sh", os.X_OK):
             raise ValueError("bubblewrap 启动器不可执行")
         node_version, srt_version = lock["node_version"], lock["srt_version"]
+        tree = inspect_tree(
+            root,
+            workspace,
+            manifest_sha256=record["runtime_files_sha256"],
+            previous=tree_snapshot,
+        )
         worker = inspect_worker(
             root,
             workspace,
@@ -160,5 +170,5 @@ def inspect_runtime(
         evidence=("metadata inspection only; isolation probes not run",),
     )
     return RuntimeInspection(
-        root, capabilities, tuple(sorted(executables.items())), tuple(errors), worker
+        root, capabilities, tuple(sorted(executables.items())), tuple(errors), worker, tree
     )

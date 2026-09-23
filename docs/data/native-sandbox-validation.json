@@ -341,5 +341,14 @@
     "stage_complete": false,
     "required_execution_enabled": false,
     "allowlist_enabled": false
+  },
+  "runtime_integrity_validation": {
+    "artifact": "docs/data/native-sandbox-runtime-integrity.json",
+    "sha256": "b964b1b548167df3260144ca360d44e6de0062765b140b021e08c8b5edde6869",
+    "macos_passed": 89,
+    "linux_passed": 89,
+    "stage_complete": false,
+    "required_execution_enabled": false,
+    "automatic_isolation_attestation_delivered": false
   }
 }

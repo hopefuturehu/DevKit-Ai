@@ -25,14 +25,20 @@ from pathlib import Path
 SOURCE = Path(__file__).resolve().parents[1] / "runtime" / "sandbox"
 
 
-def install_worker(root: Path, workspace: Path, python: Path | None = None) -> str:
-    source = Path(__file__).resolve().parents[1] / "src/bot/sandbox/worker_runtime.py"
-    spec = importlib.util.spec_from_file_location("bot_worker_installer", source)
+def installer_module(name: str):
+    source = Path(__file__).resolve().parents[1] / f"src/bot/sandbox/{name}.py"
+    spec = importlib.util.spec_from_file_location(f"bot_installer_{name}", source)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module.install_worker(root, workspace=workspace, python=python)
+    return module
+
+
+def install_worker(root: Path, workspace: Path, python: Path | None = None) -> str:
+    return installer_module("worker_runtime").install_worker(
+        root, workspace=workspace, python=python
+    )
 
 
 def install(destination: Path, *, worker_python: Path | None = None) -> Path:
@@ -120,6 +126,7 @@ def install(destination: Path, *, worker_python: Path | None = None) -> Path:
         version = subprocess.check_output([str(node), "--version"], text=True, env=env).strip()
         if version != f"v{lock['node_version']}":
             raise ValueError("installed Node version does not match lock")
+        tree_digest = installer_module("runtime_integrity").seal_runtime(root, workspace=workspace)
         hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in assets}
         (root / "installation.json").write_text(
             json.dumps(
@@ -128,6 +135,7 @@ def install(destination: Path, *, worker_python: Path | None = None) -> Path:
                     "source_hashes": hashes,
                     "node": version,
                     "worker_python_sha256": worker_digest,
+                    "runtime_files_sha256": tree_digest,
                 },
                 indent=2,
             )

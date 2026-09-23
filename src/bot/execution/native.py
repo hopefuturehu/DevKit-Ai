@@ -92,6 +92,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             self.runtime.capabilities.model_dump(mode="json"),
             self._runtime_fingerprint,
             self.runtime.worker.manifest_sha256 if self.runtime.worker else None,
+            self.runtime.tree.manifest_sha256 if self.runtime.tree else None,
         )
 
     @property
@@ -259,7 +260,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         if any(spec.cwd.is_relative_to(path) for path in resolved.policy.deny_read):
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工作目录位于禁止读取区域")
         inspection = inspect_runtime(
-            self.workspace, root=self.runtime.root, worker_snapshot=self.runtime.worker
+            self.workspace,
+            root=self.runtime.root,
+            worker_snapshot=self.runtime.worker,
+            tree_snapshot=self.runtime.tree,
         )
         if not inspection.metadata_valid or inspection != self.runtime:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "运行时安装记录已改变或缺少依赖")
