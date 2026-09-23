@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "phase": "P2 managed native command prototype",
+  "required_execution_enabled": false,
+  "stage_complete": false,
+  "platform": "macos",
+  "node": "24.14.0",
+  "srt": "0.0.77",
+  "suite": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "205",
+    "time": "15.679",
+    "timestamp": "2026-09-23T13:41:42.582422+08:00",
+    "hostname": "MacBook-Air.local"
+  },
+  "raw_xml_sha256": "9e58d15976b99ad22f9ef6ad56bc7529aa6827304ba326f3a00b65142d30f13b",
+  "native_tests": [
+    {
+      "name": "test_native_compiled_policy_preserves_argv_and_workspace_io",
+      "seconds": 0.22,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_policy_denies_secrets_control_and_other_runs",
+      "seconds": 0.127,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_policy_denies_external_write_and_child_write",
+      "seconds": 0.136,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+      "seconds": 0.122,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_cannot_link_a_readable_readonly_file_into_workspace",
+      "seconds": 0.121,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+      "seconds": 0.121,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+      "seconds": 0.119,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_srt_implicit_shared_tmp_write_is_overridden",
+      "seconds": 0.121,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+      "seconds": 0.123,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_environment_excludes_host_keys_and_loaders",
+      "seconds": 0.12,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_launch_closes_inheritable_host_descriptors",
+      "seconds": 0.12,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_managed_argv_metadata_io_and_control_cleanup",
+      "seconds": 0.317,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+      "seconds": 0.04,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_interactive_input_streams_and_nonzero_exit",
+      "seconds": 0.298,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+      "seconds": 0.956,
+      "passed": true,
+      "properties": {
+        "cleanup_status": "observed_empty",
+        "process_status": "timed_out"
+      }
+    },
+    {
+      "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+      "seconds": 0.221,
+      "passed": true,
+      "properties": {
+        "cleanup_status": "observed_empty",
+        "process_status": "cancelled"
+      }
+    },
+    {
+      "name": "test_native_runs_have_separate_home_and_readonly_workspace",
+      "seconds": 0.568,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_command_tools_forward_trusted_scope[command]",
+      "seconds": 0.324,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_command_tools_forward_trusted_scope[shell]",
+      "seconds": 0.325,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_command_tools_forward_trusted_scope[adapter]",
+      "seconds": 0.323,
+      "passed": true,
+      "properties": {}
+    }
+  ],
+  "source_sha256": {
+    "src/bot/execution/base.py": "45fb123f89fc2298a707e7d264fe177ba701d4a2894c20dcf2a8d168807c4533",
+    "src/bot/execution/local.py": "676f5eee0f3779caf1287a17f2042fffacefd168ce27dc2b21593124c379c2c4",
+    "src/bot/execution/native.py": "61a4ae785d118bd1ba41cbe4584f6d1672bf304281cd7b467fdec1e64f1f5b2f",
+    "src/bot/sandbox/resources.py": "83139192094d7f206734f41e222b6b609c993f265b65f4c5a9ebbab397b1cf0d",
+    "src/bot/sandbox/runtime.py": "cdc8f252e3ea1948a42e9a1a69be47bfa7558986291b62f0be7ea28a38eb790d",
+    "src/bot/tools/base.py": "0769a41f3d9b9d6dd91cbb5792ff5dd3f888e895f1ac8792ba8e49ac5d7c615a",
+    "src/bot/tools/builtins.py": "e4335ff984ae94256c8a605114349c7d2e579644a10a423377f357295456c38d",
+    "src/bot/tools/subprocess_adapter.py": "f40747801e847e8a034dba18d0ec893307a0cb918e79f15ac569fd8a3576a0e2",
+    "runtime/sandbox/launcher.mjs": "9d54e0eab37132386c27686309f7b0bd51163c80e497d53fe8086a3a67d2bfaf",
+    "runtime/sandbox/bwrap-launcher.sh": "b32f34f2c39ac0f7e67e49824db1e24744f212ab66af1105923adbd7195a75d4",
+    "scripts/install_sandbox_runtime.py": "f0381fa746d1eaa34ced4b74e27db5c2c1c77daaf847836460e790901192ef71",
+    "pyproject.toml": "a6ce7decc065ba5d4689f13eab7c097ececb8c359bb1845c1a66f28c74b5e0b8",
+    "tests/unit/test_launch_resources.py": "e130364ff4c22acecd9905a9d1d2e1eee6311def26edc6b57bfd1ea067025c0e",
+    "tests/unit/test_sandbox_runtime.py": "1a89dbdffe245410976f081b557bffde7103b691d38220bf59ce08b05341f177",
+    "tests/unit/test_sandbox_runtime_install.py": "9cfb7afa9571170b2311fbeacf9e3e789100e8a83be54403590d2544c89ccbce",
+    "tests/integration/test_native_execution.py": "dfe865ee9c3c927af6c0fb59524d809254ee47d2d0e3d623d783c7ddd4b55b4c",
+    "tests/integration/test_native_sandbox.py": "40f3af10b42e0f086fa4d286558f188e8ae2e4af737326493dc2411ab4f5790e"
+  },
+  "not_proven": [
+    "trusted AgentRunner scope creation and binding",
+    "cross-scope poll/input/terminate/output authorization",
+    "run completion and crash recovery acceptance",
+    "trusted launcher status protocol",
+    "runtime integrity and live capability preflight",
+    "admission and concurrent launch coordination",
+    "large bwrap --args profile validation",
+    "worker/client and confined file/network tools",
+    "Git/worktree broker and tool classification",
+    "CLI/Web/eval full wiring",
+    "S01-S15 and compatibility/performance release gates"
+  ],
+  "environment": {
+    "os": "macOS 26.6.2",
+    "architecture": "arm64",
+    "python": "3.14.5",
+    "outside_enclosing_sandbox": true
+  },
+  "earlier_trials": {
+    "initial": {
+      "suite": {
+        "name": "pytest",
+        "errors": "1",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "11",
+        "time": "11.213",
+        "timestamp": "2026-09-23T13:25:28.816430+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "xml_sha256": "d02d6c162045e53c4a9ce6c9078ee7adc99ef7d9ba97913deec1e46be338e1cc",
+      "failures": [
+        {
+          "name": "test_native_timeout_and_cancel_recycle_owned_control_resources[False]",
+          "seconds": 4.899,
+          "passed": false,
+          "properties": {},
+          "failure": "AssertionError: assert <ProcessStatu...eanup_failed'> == <ProcessStatu...: 'timed_out'>\n  \n  - timed_out\n  + cleanup_failed"
+        },
+        {
+          "name": "test_native_timeout_and_cancel_recycle_owned_control_resources[False]",
+          "seconds": 4.054,
+          "passed": false,
+          "properties": {},
+          "error": "failed on teardown with \"RuntimeError: process_cleanup_incomplete: proc_6212d6c4a0664dca921f4f1e50e92186\""
+        }
+      ]
+    },
+    "regression_before_contract_assertions": {
+      "suite": {
+        "name": "pytest",
+        "errors": "2",
+        "failures": "2",
+        "skipped": "0",
+        "tests": "207",
+        "time": "32.088",
+        "timestamp": "2026-09-23T13:38:25.090410+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "xml_sha256": "12772a19b923de018f8c27bc8ee2b1074bddc30b9a06586f7e5fb64956beb1bc",
+      "failures": [
+        {
+          "name": "test_native_timeout_and_cancel_recycle_owned_control_resources[False]",
+          "seconds": 4.89,
+          "passed": false,
+          "properties": {},
+          "failure": "AssertionError: ProcessSnapshot(process_id='proc_26f3c27678bb4789b277711caeae0337', session_id='session', run_id='run', scope=Executio...scan', output_complete=True, remaining_processes=[], cleanup_elapsed_seconds=4.0480313340667635, cleanup_changed=False)\nassert <ProcessStatu...eanup_failed'> == <ProcessStatu...: 'timed_out'>\n  \n  - timed_out\n  + cleanup_failed"
+        },
+        {
+          "name": "test_native_timeout_and_cancel_recycle_owned_control_resources[False]",
+          "seconds": 4.072,
+          "passed": false,
+          "properties": {},
+          "error": "failed on teardown with \"RuntimeError: process_cleanup_incomplete: proc_26f3c27678bb4789b277711caeae0337\n[{'process_id': 'proc_26f3c27678bb4789b277711caeae0337', 'session_id': 'session', 'run_id': 'run', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/var/folders/kc/sgssz0nn58lbpcsv5nz1kg2r0000gn/T/pytest-of-huyang/pytest-381/test_native_timeout_and_cancel0/work', 'policy_id': 'c4cd168ea1f7a9a43c7e827c9372374794a454065f5d24698bbc7b208f16a210'}, 'execution_metadata': {'backend': 'srt', 'backend_version': '0.0.77', 'node_version': '24.14.0', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/var/folders/kc/sgssz0nn58lbpcsv5nz1kg2r0000gn/T/pytest-of-huyang/pytest-381/test_native_timeout_and_cancel0/work', 'policy_id': 'c4cd168ea1f7a9a43c7e827c9372374794a454065f5d24698bbc7b208f16a210'}, 'launcher_argv': ['/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0/node/bin/node', '/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0/launcher.mjs', '/private/tmp/bot-srt-xyh99kf6/policy.json', '--', '/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0/node/bin/node', '-e', \"console.log('ready');setI"
+        },
+        {
+          "name": "test_native_timeout_and_cancel_recycle_owned_control_resources[True]",
+          "seconds": 4.189,
+          "passed": false,
+          "properties": {},
+          "failure": "AssertionError: ProcessSnapshot(process_id='proc_29e0888a2f3c40518170c2a74e841020', session_id='session', run_id='run', scope=Executio...n_scan', output_complete=True, remaining_processes=[], cleanup_elapsed_seconds=4.057164041092619, cleanup_changed=True)\nassert <ProcessStatu...eanup_failed'> == <ProcessStatu...: 'cancelled'>\n  \n  - cancelled\n  + cleanup_failed"
+        },
+        {
+          "name": "test_native_timeout_and_cancel_recycle_owned_control_resources[True]",
+          "seconds": 4.073,
+          "passed": false,
+          "properties": {},
+          "error": "failed on teardown with \"RuntimeError: process_cleanup_incomplete: proc_29e0888a2f3c40518170c2a74e841020\n[{'process_id': 'proc_29e0888a2f3c40518170c2a74e841020', 'session_id': 'session', 'run_id': 'run', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/var/folders/kc/sgssz0nn58lbpcsv5nz1kg2r0000gn/T/pytest-of-huyang/pytest-381/test_native_timeout_and_cancel1/work', 'policy_id': '9e76a241eafe7683cf30a99edda4b249bad62d935939b1e6e8938d32a7ec0f61'}, 'execution_metadata': {'backend': 'srt', 'backend_version': '0.0.77', 'node_version': '24.14.0', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/var/folders/kc/sgssz0nn58lbpcsv5nz1kg2r0000gn/T/pytest-of-huyang/pytest-381/test_native_timeout_and_cancel1/work', 'policy_id': '9e76a241eafe7683cf30a99edda4b249bad62d935939b1e6e8938d32a7ec0f61'}, 'launcher_argv': ['/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0/node/bin/node', '/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0/launcher.mjs', '/private/tmp/bot-srt-y20s3di1/policy.json', '--', '/private/tmp/bot-sandbox-runtime-0.0.77-node24.14.0/node/bin/node', '-e', \"console.log('ready');setI"
+        }
+      ]
+    }
+  },
+  "orphan_identity_readback": [
+    {
+      "pid": 72253,
+      "birth": 1790141918.629141,
+      "name": "nfcd",
+      "uid": 260
+    },
+    {
+      "pid": 72254,
+      "birth": 1790141919.036064,
+      "name": "NFStorageServer",
+      "uid": 260
+    },
+    {
+      "pid": 72267,
+      "birth": 1790141921.710745,
+      "name": "mdworker_shared",
+      "uid": 501
+    },
+    {
+      "pid": 72310,
+      "state": "NoSuchProcess at readback"
+    },
+    {
+      "pid": 72335,
+      "birth": 1790141932.726405,
+      "name": "online-auth-agen",
+      "uid": 0
+    }
+  ],
+  "cleanup_interpretation": "Latest timeout/cancel both observed_empty. Earlier unknown and retained resources remain real evidence; test assertions now check both original S11 branches. Unknown is never counted as successful reclamation. Initial failure had insufficient attribution diagnostics.",
+  "wheel_sha256": "4f5847f0fb06c68c0fe42ca6a24a25dbdb0639b1fe9229d755d8543bb3c49ae7"
+}

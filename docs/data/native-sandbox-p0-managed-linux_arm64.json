@@ -1,0 +1,225 @@
+{
+  "phase": "P0",
+  "platform": "Linux-5.15.49-linuxkit-pr-aarch64-with-glibc2.35",
+  "machine": "aarch64",
+  "python": "3.12.11",
+  "node": "v24.14.0",
+  "srt": "0.0.77",
+  "policy": {
+    "filesystem": {
+      "denyRead": [
+        "/",
+        "/tmp/bot-native-p0-qxkchej4/work/.env",
+        "/tmp/bot-native-p0-qxkchej4/work/secret",
+        "/tmp/bot-native-p0-qxkchej4/work/hardlink-secret",
+        "/tmp/bot-native-p0-qxkchej4/work/hardlink-sentinel"
+      ],
+      "allowRead": [
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/dev",
+        "/lib",
+        "/lib64",
+        "/proc",
+        "/etc/ld.so.cache",
+        "/etc/ssl",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/etc/nsswitch.conf",
+        "/etc/passwd",
+        "/etc/group",
+        "/opt/bot-sandbox-runtime",
+        "/tmp/bot-native-p0-qxkchej4/work",
+        "/tmp/bot-native-p0-qxkchej4/home",
+        "/tmp/bot-native-p0-qxkchej4/tmp",
+        "/tmp/bot-native-p0-qxkchej4/cache"
+      ],
+      "allowWrite": [
+        "/tmp/bot-native-p0-qxkchej4/work",
+        "/tmp/bot-native-p0-qxkchej4/home",
+        "/tmp/bot-native-p0-qxkchej4/tmp",
+        "/tmp/bot-native-p0-qxkchej4/cache"
+      ],
+      "denyWrite": [
+        "/tmp/bot-native-p0-qxkchej4/work/.env",
+        "/tmp/bot-native-p0-qxkchej4/work/secret",
+        "/tmp/bot-native-p0-qxkchej4/work/hardlink-secret",
+        "/tmp/bot-native-p0-qxkchej4/work/hardlink-sentinel"
+      ]
+    },
+    "network": {
+      "allowedDomains": [],
+      "deniedDomains": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "deniedResolvedAddresses": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "fc00::/7"
+      ]
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false
+  },
+  "deny_hardlinks": true,
+  "launcher": "bot-library-helper",
+  "helper_sha256": "9d54e0eab37132386c27686309f7b0bd51163c80e497d53fe8086a3a67d2bfaf",
+  "probe_source_sha256": "7945b4b4f21e89a7156ec4e9fa6f6aba2005ca05c5957846b280607184ab0f2b",
+  "cases": [
+    {
+      "name": "filesystem_and_descendants",
+      "returncode": 0,
+      "duration_seconds": 0.1746,
+      "stdout": "{\"read:work/normal\":{\"ok\":true,\"value\":\"normal-fixture\"},\"read:work/.env\":{\"ok\":false,\"code\":\"EACCES\"},\"read:work/secret\":{\"ok\":false,\"code\":\"EACCES\"},\"read:outside/secret\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:control/state.db\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:control/policy.json\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:work/outside-link/secret\":{\"ok\":false,\"code\":\"ENOENT\"},\"read:work/hardlink-secret\":{\"ok\":false,\"code\":\"EACCES\"},\"write:work/created\":{\"ok\":true,\"value\":true},\"write:outside/sentinel\":{\"ok\":false,\"code\":\"ENOENT\"},\"write:work/.env\":{\"ok\":false,\"code\":\"EACCES\"},\"write:work/outside-link/sentinel\":{\"ok\":false,\"code\":\"ENOENT\"},\"write:work/hardlink-sentinel\":{\"ok\":false,\"code\":\"EACCES\"},\"link:outside\":{\"ok\":false,\"code\":\"ENOENT\"},\"link:denied-alias\":{\"ok\":false,\"code\":\"EXDEV\"},\"rename:denied-alias\":{\"ok\":false,\"code\":\"EBUSY\"},\"rename:secret\":{\"ok\":false,\"code\":\"EBUSY\"},\"grandchild\":{\"status\":0,\"stdout\":\"ENOENT\\n\",\"stderr\":\"\"}}\n",
+      "stderr": "",
+      "passed": true,
+      "failed_checks": []
+    },
+    {
+      "name": "argv_exact",
+      "returncode": 0,
+      "duration_seconds": 0.1299,
+      "stdout": "[\"\",\"a b\",\"'quoted'\",\"\\\"double\\\"\",\"中文🙂\",\"line1\\nline2\",\"\\\\\",\"--settings\",\"-c\",\"$(touch argv-pwned)\",\"`touch argv-pwned`\",\"; touch argv-pwned\",\"*\"]\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "stdin_utf8",
+      "returncode": 0,
+      "duration_seconds": 0.252,
+      "stdout": "输入🙂\n",
+      "stderr": "",
+      "passed": true
+    },
+    {
+      "name": "large_output",
+      "returncode": 0,
+      "duration_seconds": 0.2553,
+      "stderr": "diagnostic",
+      "passed": true,
+      "stdout_sha256": "896531f80a26e1a3a10ceebe2d2d8549e80979667e71493cbf93e8edff400c3a",
+      "stdout_bytes": 300000
+    },
+    {
+      "name": "direct_network_deny",
+      "returncode": 0,
+      "duration_seconds": 0.3052,
+      "stdout": "[{\"name\":\"tcp4\",\"outcome\":\"ECONNREFUSED\"},{\"name\":\"tcp6\",\"outcome\":\"ECONNREFUSED\"},{\"name\":\"udp4\",\"outcome\":\"sent\"},{\"name\":\"unix\",\"outcome\":\"EPERM\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "positive_control": [
+        "tcp4",
+        "tcp6",
+        "udp4",
+        "unix"
+      ],
+      "received": []
+    },
+    {
+      "name": "http_allowlist_redirect_loopback",
+      "returncode": 0,
+      "duration_seconds": 0.1691,
+      "stdout": "[{\"status\":200,\"body\":\"controlled-fixture\"},{\"status\":403,\"body\":\"Connection blocked by network allowlist\\n\"},{\"status\":403,\"body\":\"Connection to 127.0.0.1.nip.io blocked: resolved to a loopback address\\n\"},{\"status\":403,\"body\":\"Connection to 127.0.0.1.nip.io blocked: resolved to a loopback address\\n\"}]\n",
+      "stderr": "",
+      "passed": true,
+      "requests_seen": [
+        "34191:/allowed",
+        "34191:/redirect"
+      ],
+      "dns_positive_control": {
+        "127.0.0.1.nip.io": [
+          "127.0.0.1"
+        ]
+      },
+      "proxy_endpoint": "literal-loopback; no child DNS needed"
+    },
+    {
+      "name": "empty_config",
+      "returncode": 1,
+      "duration_seconds": 0.1032,
+      "stdout": "",
+      "stderr": "Sandbox launcher failed: invalid policy size\n",
+      "passed": true
+    },
+    {
+      "name": "invalid_config",
+      "returncode": 1,
+      "duration_seconds": 0.0566,
+      "stdout": "",
+      "stderr": "Sandbox launcher failed: Expected property name or '}' in JSON at position 1 (line 1 column 2)\n",
+      "passed": true
+    },
+    {
+      "name": "cli_sigterm_descendant_cleanup",
+      "passed": true,
+      "tree": [
+        {
+          "pid": 4272,
+          "started": 1790141852.82,
+          "name": "socat"
+        },
+        {
+          "pid": 4280,
+          "started": 1790141852.94,
+          "name": "sh"
+        },
+        {
+          "pid": 4281,
+          "started": 1790141852.94,
+          "name": "bwrap"
+        },
+        {
+          "pid": 4282,
+          "started": 1790141852.95,
+          "name": "bwrap"
+        },
+        {
+          "pid": 4283,
+          "started": 1790141852.96,
+          "name": "bash"
+        },
+        {
+          "pid": 4284,
+          "started": 1790141852.96,
+          "name": "socat"
+        },
+        {
+          "pid": 4285,
+          "started": 1790141852.96,
+          "name": "socat"
+        },
+        {
+          "pid": 4286,
+          "started": 1790141852.96,
+          "name": "apply-seccomp"
+        },
+        {
+          "pid": 4287,
+          "started": 1790141852.96,
+          "name": "apply-seccomp"
+        },
+        {
+          "pid": 4288,
+          "started": 1790141852.96,
+          "name": "MainThread"
+        },
+        {
+          "pid": 4301,
+          "started": 1790141853.0,
+          "name": "MainThread"
+        }
+      ],
+      "remaining_after_sigterm": [],
+      "stdout": "ready\n",
+      "stderr": "",
+      "returncode": 143,
+      "probe_forced_cleanup": false
+    }
+  ],
+  "passed": true,
+  "allowlist": "unverified",
+  "release_ready": false
+}

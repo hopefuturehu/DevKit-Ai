@@ -7,7 +7,8 @@ from typing import Any
 
 from bot.core.progress import ProgressKind, ProgressSignal
 from bot.execution import ProcessEventKind, ProcessSpec
-from bot.tools.base import Tool, ToolContext, ToolResult
+from bot.sandbox.models import SandboxError
+from bot.tools.base import Tool, ToolContext, ToolResult, sandbox_failure
 
 
 class SubprocessCliTool(Tool):
@@ -64,6 +65,9 @@ class SubprocessCliTool(Tool):
                 )
             spec = ProcessSpec(
                 argv=argv,
+                session_id=context.session_id,
+                run_id=context.run_id,
+                scope=context.execution_scope,
                 cwd=context.workspace,
                 timeout_seconds=float(
                     arguments.get("timeout_seconds", self.annotations.default_timeout)
@@ -106,5 +110,7 @@ class SubprocessCliTool(Tool):
                     ),
                 ),
             )
+        except SandboxError as exc:
+            return sandbox_failure(exc)
         except (KeyError, OSError, ValueError, TimeoutError) as exc:
             return ToolResult(success=False, error=str(exc))

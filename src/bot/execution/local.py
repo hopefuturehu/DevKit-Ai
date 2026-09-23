@@ -28,12 +28,30 @@ from bot.execution.process_transport import ProcessTransport
 
 
 @dataclass
+class PreparedLaunch:
+    """Host-only launch details; the managed spec always remains the logical command."""
+
+    argv: tuple[str, ...]
+    environment: dict[str, str]
+    metadata: dict = field(default_factory=dict)
+    release: Callable[[], None] | None = None
+    released: bool = False
+
+    def release_resources(self) -> None:
+        if not self.released:
+            if self.release is not None:
+                self.release()
+            self.released = True
+
+
+@dataclass
 class _ManagedProcess:
     process_id: str
     spec: ProcessSpec
     process: ProcessTransport
     scope: ProcessScope
     started_at: float
+    launch: PreparedLaunch | None = None
     finished_at: float | None = None
     status: ProcessStatus = ProcessStatus.RUNNING
     stdout_cursor: int = 0
@@ -84,6 +102,7 @@ class LocalExecutionTarget(ExecutionTarget):
                 status=ProcessStatus.CLEANUP_FAILED,
                 cleanup_status=record["cleanup_status"],
                 cleanup_generation=1,
+                launch=self._restore_launch(record),
             )
             managed.finished.set()
             self._managed_processes[managed.process_id] = managed
@@ -156,22 +175,23 @@ class LocalExecutionTarget(ExecutionTarget):
             cwd = Path(spec.cwd).resolve()
             if not cwd.is_dir():
                 raise ValueError(f"工作目录不存在: {cwd}")
-            spec = spec.model_copy(update={"cwd": cwd})
-            environment = self._safe_environment()
-            environment.update(spec.env)
+            # The caller must not be able to mutate argv/env after admission.
+            spec = ProcessSpec.model_validate(spec.model_dump()).model_copy(update={"cwd": cwd})
             baseline = None
             if self.strict_process_scope:
                 # This must be a fresh, successful observation before any target
                 # launch. A stuck collector is an unavailable execution boundary.
                 async with asyncio.timeout(self.cleanup.total_timeout_seconds):
                     baseline = await self._inventory.read()
+            launch = self._prepare_launch(spec)
             protocol = ProcessTransport(spec.output_limit_bytes)
             spawning = asyncio.create_task(
                 asyncio.get_running_loop().subprocess_exec(
                     lambda: protocol,
-                    *spec.argv,
+                    *launch.argv,
                     cwd=str(cwd),
-                    env=environment,
+                    env=launch.environment,
+                    close_fds=True,
                     stdin=asyncio.subprocess.PIPE
                     if spec.interactive
                     else asyncio.subprocess.DEVNULL,
@@ -182,16 +202,21 @@ class LocalExecutionTarget(ExecutionTarget):
             )
             cancelled = False
             try:
-                await asyncio.shield(spawning)
-            except asyncio.CancelledError:
-                # Spawn may complete at the cancellation boundary: register and clean it too.
-                cancelled = True
-                while not spawning.done():
-                    try:
-                        await asyncio.shield(spawning)
-                    except asyncio.CancelledError:
-                        continue
-                spawning.result()
+                try:
+                    await asyncio.shield(spawning)
+                except asyncio.CancelledError:
+                    # Spawn may complete at the cancellation boundary: register and clean it too.
+                    cancelled = True
+                    while not spawning.done():
+                        try:
+                            await asyncio.shield(spawning)
+                        except asyncio.CancelledError:
+                            continue
+                    spawning.result()
+            except BaseException:
+                # subprocess_exec failed before it returned a live transport.
+                launch.release_resources()
+                raise
             process_id = f"proc_{uuid4().hex}"
             managed = _ManagedProcess(
                 process_id,
@@ -203,6 +228,7 @@ class LocalExecutionTarget(ExecutionTarget):
                     baseline=baseline,
                 ),
                 monotonic(),
+                launch=launch,
             )
             self._managed_processes[process_id] = managed
             if self._monitor is None or self._monitor.done():
@@ -213,6 +239,14 @@ class LocalExecutionTarget(ExecutionTarget):
                 await self.terminate_process(process_id, reason="启动期间取消")
                 raise asyncio.CancelledError
             return process_id
+
+    def _prepare_launch(self, spec: ProcessSpec) -> PreparedLaunch:
+        environment = self._safe_environment()
+        environment.update(spec.env)
+        return PreparedLaunch(tuple(spec.argv), environment)
+
+    def _restore_launch(self, record: dict) -> PreparedLaunch | None:
+        return None
 
     async def _monitor_processes(self) -> None:
         while not self._closed:
@@ -250,6 +284,12 @@ class LocalExecutionTarget(ExecutionTarget):
                         and not managed.scope.live
                         and not managed.scope.unknown
                     ):
+                        try:
+                            if managed.launch is not None:
+                                managed.launch.release_resources()
+                        except Exception:
+                            self._begin_cleanup(managed, "调用资源回收失败", ProcessStatus.FAILED)
+                            continue
                         managed.status = (
                             ProcessStatus.COMPLETED
                             if process.returncode == 0 and not process.cut_off
@@ -336,7 +376,10 @@ class LocalExecutionTarget(ExecutionTarget):
                     and not managed.scope.unknown
                     and (not managed.process.cut_off or managed.cleanup_generation > 1)
                 )
+                if succeeded and managed.launch is not None:
+                    managed.launch.release_resources()
         except Exception as exc:
+            succeeded = False
             if not managed.scope.live:
                 managed.scope.unknown = True
             managed.termination_reason = (
@@ -370,6 +413,9 @@ class LocalExecutionTarget(ExecutionTarget):
                             "known_processes": [asdict(p) for p in managed.scope.known.values()],
                             "process_guard": managed.scope.guard_record(),
                             "spec": managed.spec.model_dump(mode="json"),
+                            "launch_metadata": managed.launch.metadata
+                            if managed.launch is not None
+                            else {},
                         },
                     )
             except Exception as exc:
@@ -497,6 +543,8 @@ class LocalExecutionTarget(ExecutionTarget):
         return ProcessSnapshot(
             session_id=managed.spec.session_id,
             run_id=managed.spec.run_id,
+            scope=managed.spec.scope,
+            execution_metadata=managed.launch.metadata if managed.launch is not None else {},
             process_id=managed.process_id,
             status=managed.status,
             argv=managed.spec.argv,

@@ -18,7 +18,7 @@ from pathlib import Path
 from bot.sandbox.models import SandboxCapabilities
 
 MANIFEST_NAMES = ("package.json", "package-lock.json", "runtime-lock.json")
-RUNTIME_ASSET_NAMES = (*MANIFEST_NAMES, "launcher.mjs")
+RUNTIME_ASSET_NAMES = (*MANIFEST_NAMES, "launcher.mjs", "bwrap-launcher.sh")
 
 
 def manifest_directory() -> Path:
@@ -104,6 +104,8 @@ def inspect_runtime(workspace: Path, *, root: Path | None = None) -> RuntimeInsp
             if name == "node" and not os.access(path, os.X_OK):
                 raise ValueError("Node 启动文件不可执行")
             executables[name] = path
+        if platform.system() == "Linux" and not os.access(root / "bwrap-launcher.sh", os.X_OK):
+            raise ValueError("bubblewrap 启动器不可执行")
         node_version, srt_version = lock["node_version"], lock["srt_version"]
         dependencies = (
             ("sandbox-exec",) if platform.system() == "Darwin" else ("bwrap", "socat", "rg")

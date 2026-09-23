@@ -6,7 +6,7 @@
   "stages": {
     "P0": "in_progress",
     "P1": "in_progress",
-    "P2": "not_delivered",
+    "P2": "in_progress",
     "P3": "not_delivered",
     "P4": "not_delivered",
     "P5": "not_delivered"
@@ -203,7 +203,8 @@
       "pyproject.toml": "b1467272eadd880929e3c272c8f84620b1d8c0730f7b92b740ccb52cb557acf9"
     },
     "required_execution_enabled": false,
-    "scope": "resolver + exact SRT wrapper helper + explicit launcher environment; not the managed Native target"
+    "scope": "resolver + exact SRT wrapper helper + explicit launcher environment; not the managed Native target",
+    "commit": "7cab7db"
   },
   "p0_source_commit": "6cde1e0",
   "helper_p0_revalidation": {
@@ -228,5 +229,86 @@
       "total": 4,
       "all_passed": true
     }
+  },
+  "helper_p0_source_commit": "7cab7db",
+  "managed_native_prototype": {
+    "required_execution_enabled": false,
+    "stage_complete": false,
+    "artifacts": {
+      "macos": {
+        "artifact": "docs/data/native-sandbox-p2-macos.json",
+        "sha256": "66582cdea4024c613c2b505c0bab0bea7159b5ca639b91b7d4768b43f7948a62",
+        "tests": 205,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "linux_arm64": {
+        "artifact": "docs/data/native-sandbox-p2-linux_arm64.json",
+        "sha256": "fe18483cafb4a6be96fa83cc21dd3c21725a9d08cfbc36311cf191c6e58f5df1",
+        "tests": 27,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "source_sha256": {
+      "src/bot/execution/base.py": "45fb123f89fc2298a707e7d264fe177ba701d4a2894c20dcf2a8d168807c4533",
+      "src/bot/execution/local.py": "676f5eee0f3779caf1287a17f2042fffacefd168ce27dc2b21593124c379c2c4",
+      "src/bot/execution/native.py": "61a4ae785d118bd1ba41cbe4584f6d1672bf304281cd7b467fdec1e64f1f5b2f",
+      "src/bot/sandbox/resources.py": "83139192094d7f206734f41e222b6b609c993f265b65f4c5a9ebbab397b1cf0d",
+      "src/bot/sandbox/runtime.py": "cdc8f252e3ea1948a42e9a1a69be47bfa7558986291b62f0be7ea28a38eb790d",
+      "src/bot/tools/base.py": "0769a41f3d9b9d6dd91cbb5792ff5dd3f888e895f1ac8792ba8e49ac5d7c615a",
+      "src/bot/tools/builtins.py": "e4335ff984ae94256c8a605114349c7d2e579644a10a423377f357295456c38d",
+      "src/bot/tools/subprocess_adapter.py": "f40747801e847e8a034dba18d0ec893307a0cb918e79f15ac569fd8a3576a0e2",
+      "runtime/sandbox/launcher.mjs": "9d54e0eab37132386c27686309f7b0bd51163c80e497d53fe8086a3a67d2bfaf",
+      "runtime/sandbox/bwrap-launcher.sh": "b32f34f2c39ac0f7e67e49824db1e24744f212ab66af1105923adbd7195a75d4",
+      "scripts/install_sandbox_runtime.py": "f0381fa746d1eaa34ced4b74e27db5c2c1c77daaf847836460e790901192ef71",
+      "pyproject.toml": "a6ce7decc065ba5d4689f13eab7c097ececb8c359bb1845c1a66f28c74b5e0b8",
+      "tests/unit/test_launch_resources.py": "e130364ff4c22acecd9905a9d1d2e1eee6311def26edc6b57bfd1ea067025c0e",
+      "tests/unit/test_sandbox_runtime.py": "1a89dbdffe245410976f081b557bffde7103b691d38220bf59ce08b05341f177",
+      "tests/unit/test_sandbox_runtime_install.py": "9cfb7afa9571170b2311fbeacf9e3e789100e8a83be54403590d2544c89ccbce",
+      "tests/integration/test_native_execution.py": "dfe865ee9c3c927af6c0fb59524d809254ee47d2d0e3d623d783c7ddd4b55b4c",
+      "tests/integration/test_native_sandbox.py": "40f3af10b42e0f086fa4d286558f188e8ae2e4af737326493dc2411ab4f5790e"
+    },
+    "helper_p0_revalidation": {
+      "macos": {
+        "artifact": "docs/data/native-sandbox-p0-managed-macos.json",
+        "sha256": "a62be941612f0287f641bed41d774d3d0c5afbf1bb8184b75ce7f044a466d39c",
+        "passed": 8,
+        "total": 9,
+        "all_passed": false
+      },
+      "linux_arm64": {
+        "artifact": "docs/data/native-sandbox-p0-managed-linux_arm64.json",
+        "sha256": "23e30ab9f4763e3e0218c7f2a3883a436a6e0c2a9ac9de2ec783b838379676b9",
+        "passed": 9,
+        "total": 9,
+        "all_passed": true
+      },
+      "macos_manager_strict": {
+        "artifact": "docs/data/native-sandbox-p0-managed-macos_manager_strict.json",
+        "sha256": "079c3557cc23fa33a6930b5fa0b67a87ba85291515701b575a7a581eb367d54b",
+        "passed": 4,
+        "total": 4,
+        "all_passed": true
+      }
+    },
+    "not_proven": [
+      "trusted AgentRunner scope creation and binding",
+      "cross-scope poll/input/terminate/output authorization",
+      "run completion and crash recovery acceptance",
+      "trusted launcher status protocol",
+      "runtime integrity and live capability preflight",
+      "admission and concurrent launch coordination",
+      "large bwrap --args profile validation",
+      "worker/client and confined file/network tools",
+      "Git/worktree broker and tool classification",
+      "CLI/Web/eval full wiring",
+      "S01-S15 and compatibility/performance release gates"
+    ],
+    "lint": "modified Python lint passed",
+    "format": "12 changed Python files passed; builtins.py has the same pre-existing formatter differences at HEAD, kept to avoid unrelated changes",
+    "syntax": "Node --check and bash -n passed"
   }
 }

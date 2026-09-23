@@ -9,6 +9,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from bot.sandbox.models import ExecutionScope
+
 
 class ProcessSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -16,6 +18,7 @@ class ProcessSpec(BaseModel):
     argv: list[str] = Field(min_length=1)
     session_id: str | None = None
     run_id: str | None = None
+    scope: ExecutionScope | None = None
     cwd: Path
     env: dict[str, str] = Field(default_factory=dict)
     timeout_seconds: float | None = Field(default=None, gt=0)
@@ -54,6 +57,8 @@ class ProcessSnapshot(BaseModel):
     process_id: str
     session_id: str | None = None
     run_id: str | None = None
+    scope: ExecutionScope | None = None
+    execution_metadata: dict = Field(default_factory=dict)
     status: ProcessStatus
     argv: list[str]
     cwd: Path

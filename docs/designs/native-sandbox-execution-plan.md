@@ -1,6 +1,6 @@
 # 原生沙箱接入执行方案
 
-> 状态：P0 实测及 P1 策略基础进行中，尚未通过完整阶段门槛。配置可识别 required，但工厂明确拒绝执行；bot 尚未开放操作系统沙箱。
+> 状态：P0/P1 及 P2 受管命令原型进行中，尚未通过完整阶段门槛。配置可识别 required，但工厂明确拒绝执行；bot 尚未发布操作系统沙箱模式。
 > 实测记录：[native-sandbox-validation.md](../evaluations/native-sandbox-validation.md)。
 > 日期：2026-09-22。基线：`84c5996`，并核对当前工作区源码。
 > 目标平台：macOS、Linux。首版选择 SRT，保留现有 Tool 层授权，在工具实际访问文件、执行命令和联网时增加系统约束。
@@ -317,3 +317,9 @@ Linux 的共享临时目录补充读取检查证明，单靠 CLI 配置无法排
 切换为固定 Node helper，调用锁定 SRT 的底层包装器并保留其代理，传入精确读写范围。原 P0
 已重跑：Linux 9/9，macOS 8/9（裸信号后代清理仍失败）；helper 下的 macOS 受管保守检查 4/4。
 这不是新增自研 OS 后端；使用内部 wrapper 接口的兼容性成本由锁定版本和升级复验承担。
+
+同日推进 P2 内部 Native target：逻辑 argv 与实际启动规格分开，后端拥有 Run 私有目录及调用
+控制资源，三个命令工具传递内部 scope。Linux 发现 tmpfs 影子写入后，增加固定 bubblewrap
+伴随脚本对掩蔽挂载收紧写权限；宿主哨兵在修复前后均未改变。macOS 清理的 observed_empty
+与 unknown 分别保留真实记录。普通 AgentRunner、跨作用域进程控制、完整恢复及 P3–P5 仍未交付，
+生产 required 与 Native allowlist 门槛保持关闭，六阶段目标不变。

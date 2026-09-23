@@ -94,6 +94,7 @@ try {
     allowPty: false, allowGitConfig: false, allowAppleEvents: false,
     enableWeakerNestedSandbox: false, enableWeakerNetworkIsolation: false,
     binShell: '/bin/bash',
+    bwrapPath: fileURLToPath(new URL('./bwrap-launcher.sh', import.meta.url)),
   };
   let wrapped;
   if (process.platform === 'linux') wrapped = await wrapCommandWithSandboxLinux(params);

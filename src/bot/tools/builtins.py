@@ -14,6 +14,7 @@ import httpx
 from bot.core.progress import ProgressKind, ProgressSignal
 from bot.core.termination.identity import process_evidence
 from bot.execution import ProcessEventKind, ProcessSnapshot, ProcessSpec, ProcessStatus
+from bot.sandbox.models import SandboxError
 from bot.tools.base import (
     Tool,
     ToolAnnotations,
@@ -22,6 +23,7 @@ from bot.tools.base import (
     ToolResultStatus,
     path_is_denied,
     resolve_path,
+    sandbox_failure,
 )
 from bot.tools.plan import UpdatePlanTool
 
@@ -270,6 +272,15 @@ def _process_metadata(snapshot: ProcessSnapshot) -> dict[str, Any]:
         "output_complete": snapshot.output_complete,
         "remaining_processes": snapshot.remaining_processes,
         "cleanup_elapsed_seconds": snapshot.cleanup_elapsed_seconds,
+        **(
+            {
+                "execution_scope": snapshot.scope.model_dump(mode="json"),
+                "backend": snapshot.execution_metadata.get("backend"),
+                "backend_version": snapshot.execution_metadata.get("backend_version"),
+            }
+            if snapshot.scope is not None
+            else {}
+        ),
     }
 
 
@@ -444,6 +455,7 @@ class RunCommandTool(Tool):
                 argv=argv,
                 session_id=context.session_id,
                 run_id=context.run_id,
+                scope=context.execution_scope,
                 cwd=cwd,
                 timeout_seconds=(
                     float(configured_timeout) if configured_timeout is not None else None
@@ -496,6 +508,8 @@ class RunCommandTool(Tool):
                     evidence_complete=not truncated,
                 ),
             )
+        except SandboxError as exc:
+            return sandbox_failure(exc)
         except (
             KeyError,
             NotImplementedError,

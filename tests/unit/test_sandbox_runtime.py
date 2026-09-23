@@ -61,7 +61,8 @@ def test_matching_metadata_never_claims_enforcement_or_runs_a_binary(installatio
 
 
 @pytest.mark.parametrize(
-    "change", ["version", "lock", "helper", "platform", "missing", "symlink", "mode"]
+    "change",
+    ["version", "lock", "helper", "bwrap_helper", "platform", "missing", "symlink", "mode"],
 )
 def test_changed_or_untrusted_installation_is_unavailable(installation, tmp_path, change):
     workspace, root, _ = installation
@@ -74,6 +75,8 @@ def test_changed_or_untrusted_installation_is_unavailable(installation, tmp_path
             stream.write(" ")
     elif change == "helper":
         (root / "launcher.mjs").write_text("modified launcher")
+    elif change == "bwrap_helper":
+        (root / "bwrap-launcher.sh").write_text("modified bwrap launcher")
     elif change == "platform":
         record = json.loads((root / "installation.json").read_text())
         record["platform"] = "linux-arm64"

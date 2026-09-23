@@ -23,7 +23,7 @@ SPEC.loader.exec_module(installer)
 def source(tmp_path, monkeypatch):
     root = tmp_path / "checkout/runtime/sandbox"
     root.mkdir(parents=True)
-    for name in ("package.json", "package-lock.json", "launcher.mjs"):
+    for name in ("package.json", "package-lock.json", "launcher.mjs", "bwrap-launcher.sh"):
         (root / name).write_text("{}")
     monkeypatch.setattr(installer, "SOURCE", root)
     monkeypatch.setattr(installer.platform, "system", lambda: "Linux")
@@ -118,6 +118,11 @@ def test_install_uses_lock_and_isolated_npm_config(source, tmp_path, monkeypatch
     destination = installer.install(tmp_path / "installed")
     record = json.loads((destination / "installation.json").read_text())
     assert record["platform"] == "linux-arm64"
+    assert (destination / "bwrap-launcher.sh").stat().st_mode & 0o111
+    assert (
+        record["source_hashes"]["bwrap-launcher.sh"]
+        == hashlib.sha256((source / "bwrap-launcher.sh").read_bytes()).hexdigest()
+    )
     assert (
         record["source_hashes"]["launcher.mjs"]
         == hashlib.sha256((source / "launcher.mjs").read_bytes()).hexdigest()

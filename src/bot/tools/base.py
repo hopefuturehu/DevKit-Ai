@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from bot.core.models import ToolDefinition
 from bot.core.progress import ProgressSignal
 from bot.execution import ExecutionTarget
+from bot.sandbox.models import ExecutionScope, SandboxError
 
 
 class ToolAnnotations(BaseModel):
@@ -31,6 +32,7 @@ class ToolContext(BaseModel):
     workspace: Path
     session_id: str | None = None
     run_id: str | None = None
+    execution_scope: ExecutionScope | None = None
     execution_target: ExecutionTarget
     workspace_only: bool = True
     max_output_bytes: int = Field(default=1_000_000, gt=0)
@@ -84,6 +86,14 @@ class ToolResult(BaseModel):
         if self.output:
             message += f"\n\n{self.output}"
         return message
+
+
+def sandbox_failure(exc: SandboxError) -> ToolResult:
+    return ToolResult(
+        success=False,
+        error=str(exc),
+        metadata={"reason_code": exc.code.value, "stage": exc.stage, "executed": exc.executed},
+    )
 
 
 class Tool(ABC):

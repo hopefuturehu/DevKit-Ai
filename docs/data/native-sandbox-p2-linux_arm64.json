@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "phase": "P2 managed native command prototype",
+  "required_execution_enabled": false,
+  "stage_complete": false,
+  "platform": "linux_arm64",
+  "node": "24.14.0",
+  "srt": "0.0.77",
+  "suite": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "27",
+    "time": "7.049",
+    "timestamp": "2026-09-23T05:45:10.643085+00:00",
+    "hostname": "9b22eb5c490e"
+  },
+  "raw_xml_sha256": "0dca6fb3c143eea2fa4c73e761ed1a3510e7cbe00f9a34b132e6b14411032dfa",
+  "native_tests": [
+    {
+      "name": "test_native_managed_argv_metadata_io_and_control_cleanup",
+      "seconds": 0.536,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+      "seconds": 0.022,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_interactive_input_streams_and_nonzero_exit",
+      "seconds": 0.531,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+      "seconds": 0.897,
+      "passed": true,
+      "properties": {
+        "cleanup_status": "observed_empty",
+        "process_status": "timed_out"
+      }
+    },
+    {
+      "name": "test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+      "seconds": 0.374,
+      "passed": true,
+      "properties": {
+        "cleanup_status": "observed_empty",
+        "process_status": "cancelled"
+      }
+    },
+    {
+      "name": "test_native_runs_have_separate_home_and_readonly_workspace",
+      "seconds": 0.535,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_command_tools_forward_trusted_scope[command]",
+      "seconds": 0.273,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_command_tools_forward_trusted_scope[shell]",
+      "seconds": 0.277,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_command_tools_forward_trusted_scope[adapter]",
+      "seconds": 0.278,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_policy_preserves_argv_and_workspace_io",
+      "seconds": 0.282,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_policy_denies_secrets_control_and_other_runs",
+      "seconds": 0.281,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_policy_denies_external_write_and_child_write",
+      "seconds": 0.291,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+      "seconds": 0.153,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_cannot_link_a_readable_readonly_file_into_workspace",
+      "seconds": 0.278,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+      "seconds": 0.273,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+      "seconds": 0.272,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_srt_implicit_shared_tmp_write_is_overridden",
+      "seconds": 0.15,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+      "seconds": 0.273,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_environment_excludes_host_keys_and_loaders",
+      "seconds": 0.15,
+      "passed": true,
+      "properties": {}
+    },
+    {
+      "name": "test_native_launch_closes_inheritable_host_descriptors",
+      "seconds": 0.15,
+      "passed": true,
+      "properties": {}
+    }
+  ],
+  "source_sha256": {
+    "src/bot/execution/base.py": "45fb123f89fc2298a707e7d264fe177ba701d4a2894c20dcf2a8d168807c4533",
+    "src/bot/execution/local.py": "676f5eee0f3779caf1287a17f2042fffacefd168ce27dc2b21593124c379c2c4",
+    "src/bot/execution/native.py": "61a4ae785d118bd1ba41cbe4584f6d1672bf304281cd7b467fdec1e64f1f5b2f",
+    "src/bot/sandbox/resources.py": "83139192094d7f206734f41e222b6b609c993f265b65f4c5a9ebbab397b1cf0d",
+    "src/bot/sandbox/runtime.py": "cdc8f252e3ea1948a42e9a1a69be47bfa7558986291b62f0be7ea28a38eb790d",
+    "src/bot/tools/base.py": "0769a41f3d9b9d6dd91cbb5792ff5dd3f888e895f1ac8792ba8e49ac5d7c615a",
+    "src/bot/tools/builtins.py": "e4335ff984ae94256c8a605114349c7d2e579644a10a423377f357295456c38d",
+    "src/bot/tools/subprocess_adapter.py": "f40747801e847e8a034dba18d0ec893307a0cb918e79f15ac569fd8a3576a0e2",
+    "runtime/sandbox/launcher.mjs": "9d54e0eab37132386c27686309f7b0bd51163c80e497d53fe8086a3a67d2bfaf",
+    "runtime/sandbox/bwrap-launcher.sh": "b32f34f2c39ac0f7e67e49824db1e24744f212ab66af1105923adbd7195a75d4",
+    "scripts/install_sandbox_runtime.py": "f0381fa746d1eaa34ced4b74e27db5c2c1c77daaf847836460e790901192ef71",
+    "pyproject.toml": "a6ce7decc065ba5d4689f13eab7c097ececb8c359bb1845c1a66f28c74b5e0b8",
+    "tests/unit/test_launch_resources.py": "e130364ff4c22acecd9905a9d1d2e1eee6311def26edc6b57bfd1ea067025c0e",
+    "tests/unit/test_sandbox_runtime.py": "1a89dbdffe245410976f081b557bffde7103b691d38220bf59ce08b05341f177",
+    "tests/unit/test_sandbox_runtime_install.py": "9cfb7afa9571170b2311fbeacf9e3e789100e8a83be54403590d2544c89ccbce",
+    "tests/integration/test_native_execution.py": "dfe865ee9c3c927af6c0fb59524d809254ee47d2d0e3d623d783c7ddd4b55b4c",
+    "tests/integration/test_native_sandbox.py": "40f3af10b42e0f086fa4d286558f188e8ae2e4af737326493dc2411ab4f5790e"
+  },
+  "not_proven": [
+    "trusted AgentRunner scope creation and binding",
+    "cross-scope poll/input/terminate/output authorization",
+    "run completion and crash recovery acceptance",
+    "trusted launcher status protocol",
+    "runtime integrity and live capability preflight",
+    "admission and concurrent launch coordination",
+    "large bwrap --args profile validation",
+    "worker/client and confined file/network tools",
+    "Git/worktree broker and tool classification",
+    "CLI/Web/eval full wiring",
+    "S01-S15 and compatibility/performance release gates"
+  ],
+  "environment": {
+    "os": "Linux 5.15.49-linuxkit-pr",
+    "architecture": "aarch64",
+    "python": "3.12.11",
+    "test_uid": 65534,
+    "image": "sha256:1d7a76edc178c951df6654eee55d5715d17dad84089ab365cf0e91475ab4a818",
+    "base_image": "sha256:cfd85214fca860da6bc1325c980d41df485d5f770918bdffe5ad098963785d24",
+    "outer_lab_flags": [
+      "SYS_ADMIN",
+      "seccomp=unconfined",
+      "systempaths=unconfined",
+      "IPv6 enabled",
+      "--init"
+    ],
+    "host_mounts": false,
+    "post_test_processes": [
+      "docker-init",
+      "sleep infinity"
+    ],
+    "dependencies": {
+      "pytest": "9.1.1",
+      "pytest-asyncio": "1.4.0",
+      "psutil": "7.2.2",
+      "httpx": "0.28.1"
+    }
+  },
+  "earlier_trial": {
+    "suite": {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "1",
+      "skipped": "0",
+      "tests": "24",
+      "time": "7.327",
+      "timestamp": "2026-09-23T05:30:19.837197+00:00",
+      "hostname": "a54c58f43799"
+    },
+    "failures": [
+      {
+        "name": "test_native_managed_argv_metadata_io_and_control_cleanup",
+        "seconds": 0.541,
+        "passed": false,
+        "properties": {},
+        "failure": "assert {'denied': Fa... '中文', \"a'b\"]} == {'denied': Tr... '中文', \"a'b\"]}\n  \n  Omitting 1 identical items, use -vv to show\n  Differing items:\n  {'denied': False} != {'denied': True}\n  Use -v to get more diff"
+      }
+    ],
+    "host_sentinel_readback": "preserve",
+    "finding": "write succeeded only in tmpfs shadow, not host file",
+    "first_attempt": "remount-ro / alone did not close child tmpfs writes",
+    "fix": "fixed bwrap companion remounts surviving tmpfs masks read-only non-recursively; explicit child binds remain writable"
+  },
+  "wheel_sha256": "4f5847f0fb06c68c0fe42ca6a24a25dbdb0639b1fe9229d755d8543bb3c49ae7"
+}

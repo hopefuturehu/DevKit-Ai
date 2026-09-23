@@ -1,6 +1,6 @@
 # 原生沙箱验证记录
 
-日期：2026-09-23。当前为 **P0 实测及 P1 策略基础，未通过完整阶段门槛，未发布 required 模式**。
+日期：2026-09-23。当前为 **P0/P1 及 P2 受管命令原型，未通过完整阶段门槛，未发布 required 模式**。
 off 的实际执行路径仍为 Local；required 由工厂明确拒绝，没有宿主兜底。本报告中的探针独立于业务运行时。进程管理增加了供原生
 后端启用的可选保守检查，默认 off 路径未启用该检查。
 
@@ -144,7 +144,7 @@ macOS 当前严格读取规则下，SRT 生成的 `HTTP_PROXY=...localhost:port`
 - [机器可读阶段状态与源码摘要](../data/native-sandbox-validation.json)
 
 P0 尚需：收敛硬链接准入/并发方案和 macOS 生命周期保守阻塞、补全 allowlist 出口证据与能力清单。
-P1 正在交付基础；P2–P5 尚未交付。不能以独立探针替代业务工具接线、子 Agent、worker 协议及发布验收。
+P1 正在交付基础；P2 命令原型见下文，P3–P5 尚未交付。不能以独立探针替代业务工具接线、子 Agent、worker 协议及发布验收。
 
 ## P1 策略与配置基础
 
@@ -242,3 +242,66 @@ stdout/stderr、文件/子进程、断网、受控 HTTP 和损坏配置检查均
 [Linux helper P0](../data/native-sandbox-p0-helper-linux_arm64.json)、
 [macOS helper 保守清理](../data/native-sandbox-p0-helper-macos_manager_strict.json)。
 旧 P0 与 P1 基础的源码摘要按其原提交保留，不将历史测试冒充最新 helper 的证据。
+
+## P2 受管命令原型
+
+增加内部 `NativeSandboxExecutionTarget`，复用原有流式输出、交互输入、超时、取消和严格进程观察。
+`ProcessSpec` 始终保存逻辑 argv，实际 helper argv 和资源身份另存；启动环境完整替换，关闭继承 FD。
+每次调用须由可信侧绑定 session/run/tool/policy，缺失、身份不符、重复使用和准入后路径变化均在
+启动前拒绝。Run 的 HOME/tmp/cache 由后端创建，调用级策略和代理临时目录使用独立 0700 目录。
+清理校验 device/inode/owner，并使用基于目录描述符的删除，不跟随任务放入的符号链接。
+
+`RunCommandTool`、`RunShellTool` 和 `SubprocessCliTool` 已传递内部 scope；CLI adapter 同时补齐
+session/run。测试直接提供可信作用域并执行真实后端，普通 AgentRunner 尚未完成作用域创建与绑定。
+结构化预启动失败保留错误码、阶段及 executed=false；helper 启动后尚无可信状态协议，executed
+保持未知，不按 stderr 文本猜测目标是否执行或是否为沙箱拒绝。
+
+`required` 的生产工厂仍明确拒绝，Native 内部后端的有效 allowlist 也显式拒绝。安装元数据及
+单组探针不替代启动完整性与能力验收。此原型不构成 P2 完成，更不是完整工具沙箱发布。
+
+### Linux 临时文件系统中的写入语义
+
+首次受管测试向工作区父目录下的假 sentinel 写入时，目标报告成功；可信侧核对宿主 sentinel
+仍为 `preserve`。这是 SRT 将 denyRead('/') 展开为根目录子项的 tmpfs 掩蔽后，进程在临时挂载中
+创建了同名文件，**没有修改宿主哨兵**。单独 remount '/' 不能约束这些独立子挂载，第二次试验仍失败。
+
+固定 `bwrap-launcher.sh` 现按 SRT 0.0.77 的实际参数语法记录挂载，最后将仍为 tmpfs 的掩蔽挂载
+非递归 remount 为只读，保留显式可写子 bind。未知参数或无法读取参数文件时拒绝启动，不猜测或
+降级。SRT vendor 文件未改动；伴随脚本随 helper 安装、打包、摘要核验，并由安装器设置可执行位。
+最终同一测试观察到拒绝，正常工作区及私有 tmp/home 写入仍成功。大型 --args profile 分支仍需
+专项实测，不能从普通参数规模的结果推断已覆盖。
+
+### macOS 清理观察的两种结果
+
+早期原型回归曾为 201 passed；最终代码的一轮复测出现 203 passed、2 failed、2 teardown errors。
+两个失败均为目标已退出、输出已关闭，但观察到新孤儿，返回 cleanup_failed/unknown 并保留资源。
+只读核对其中的 PID+birth 后，确认包含 nfcd/NFStorageServer（UID 260）、mdworker_shared
+（UID 501）和 online-auth-agen（UID 0）；还有进程在核对前已退出。没有按进程名或时间接近
+认领、杀死这些进程，也没有自动删除未确认回收的目录。最初一次未保存完整归属诊断的失败原因
+仍保持未确认，不用后来的诊断替代它。
+
+按照原方案 S11，测试分别校验 observed_empty 与 unknown：前者释放控制目录，后者须同时满足
+根进程退出、输出完整、已知活进程为空、存在未归属进程、资源及配额保留、同会话下一次启动被拒绝。
+仅在这些断言通过时，测试清理阶段才允许保留 unknown 资源，并将实际分支写入 JUnit 属性。
+这验证的是保守失败契约，**不把 unknown 计作回收成功，也未解决 macOS 的误阻塞成本**。
+
+最终 macOS 受影响回归 **205 passed**，包含 20 项真实原生测试；该轮超时和取消实际均为
+observed_empty。Linux 最终 **27 passed**，包含同样的 20 项原生测试及 7 项资源/启动检查；
+该轮超时和取消也均为 observed_empty。两平台均无 skip。未跑全仓回归、完整恢复、并发作用域或性能验收。
+
+仍待完成：普通 AgentRunner 与父子作用域接线、跨作用域 poll/input/terminate/output 边界、
+Run 结束时释放与崩溃恢复验收、可信启动状态通道、运行时完整性和实时能力检查、准入并发协调、
+worker/client、Git broker、工具分类、CLI/Web/eval 全覆盖以及 P5 安全/业务/性能门槛。
+
+当前原始证据：[macOS P2 与先前失败](../data/native-sandbox-p2-macos.json)、
+[Linux P2 与影子写入发现](../data/native-sandbox-p2-linux_arm64.json)。最终 Linux 复测镜像为
+`bot-native-p2-env:20260923`，摘要 `1d7a76edc178c951df6654eee55d5715d17dad84089ab365cf0e91475ab4a818`；
+wheel、启动器和测试文件已与宿主源码核对。测试结束后容器仅剩 init/sleep，镜像保存后容器已移除。
+
+更新启动器后的 P0 复验：[macOS 8/9](../data/native-sandbox-p0-managed-macos.json)、
+[Linux 9/9](../data/native-sandbox-p0-managed-linux_arm64.json)、
+[macOS 保守管理 4/4](../data/native-sandbox-p0-managed-macos_manager_strict.json)。macOS 仍保留裸 helper
+无法确认 detached-child 回收的失败；保守管理用例没有 false completion。
+
+修改的 Python 文件通过 Ruff lint；12 个文件通过格式检查。`tools/builtins.py` 的既有格式差异
+在 HEAD 与当前文件中相同，已执行检查并保留，未混入无关格式修改。Node/Bash 语法检查通过。

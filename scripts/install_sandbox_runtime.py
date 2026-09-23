@@ -54,8 +54,16 @@ def install(destination: Path) -> Path:
         root = stage / "runtime"
         root.mkdir(mode=0o700)
         (stage / artifact).rename(root / "node")
-        for name in ("package.json", "package-lock.json", "runtime-lock.json", "launcher.mjs"):
+        assets = (
+            "package.json",
+            "package-lock.json",
+            "runtime-lock.json",
+            "launcher.mjs",
+            "bwrap-launcher.sh",
+        )
+        for name in assets:
             shutil.copyfile(SOURCE / name, root / name)
+        (root / "bwrap-launcher.sh").chmod(0o755)
         node = root / "node" / "bin" / "node"
         npm = root / "node" / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js"
         env = {
@@ -98,10 +106,7 @@ def install(destination: Path) -> Path:
         version = subprocess.check_output([str(node), "--version"], text=True, env=env).strip()
         if version != f"v{lock['node_version']}":
             raise ValueError("installed Node version does not match lock")
-        hashes = {
-            name: hashlib.sha256((root / name).read_bytes()).hexdigest()
-            for name in ("package.json", "package-lock.json", "runtime-lock.json", "launcher.mjs")
-        }
+        hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in assets}
         (root / "installation.json").write_text(
             json.dumps({"platform": target, "source_hashes": hashes, "node": version}, indent=2)
             + "\n"
