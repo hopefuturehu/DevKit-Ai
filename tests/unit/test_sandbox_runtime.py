@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bot.cli.app import app
-from bot.sandbox.runtime import RUNTIME_ASSET_NAMES, inspect_runtime, manifest_directory
+from bot.sandbox.runtime import RUNTIME_ASSET_NAMES, inspect_runtime, runtime_asset
 
 
 @pytest.fixture
@@ -18,9 +18,8 @@ def installation(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     root.mkdir(mode=0o700)
     workspace.mkdir()
-    source = manifest_directory()
     for name in RUNTIME_ASSET_NAMES:
-        shutil.copyfile(source / name, root / name)
+        shutil.copyfile(runtime_asset(name), root / name)
     lock = json.loads((root / "runtime-lock.json").read_text())
     record = {
         "platform": "darwin-arm64",
@@ -30,6 +29,26 @@ def installation(tmp_path, monkeypatch):
             for name in RUNTIME_ASSET_NAMES
         },
     }
+    executable = root / "python"
+    executable.touch(mode=0o700)
+    stdlib = root / "stdlib"
+    stdlib.mkdir()
+    (root / "python-cache").mkdir()
+    worker_record = json.dumps(
+        {
+            "system": "Darwin",
+            "machine": "arm64",
+            "version": "3.12.11",
+            "cache_mode": "empty-prefix",
+            "executable": str(executable),
+            "stdlib": str(stdlib),
+            "libraries": [],
+            "worker_sha256": hashlib.sha256((root / "worker.py").read_bytes()).hexdigest(),
+            "files": {str(executable): hashlib.sha256(b"").hexdigest()},
+        }
+    ).encode()
+    (root / "worker-python.json").write_bytes(worker_record)
+    record["worker_python_sha256"] = hashlib.sha256(worker_record).hexdigest()
     (root / "installation.json").write_text(json.dumps(record))
     package = root / "node_modules/@anthropic-ai/sandbox-runtime"
     (package / "dist").mkdir(parents=True)

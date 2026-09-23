@@ -1,18 +1,18 @@
-"""Trusted-side worker protocol validation; replies never grant host authority.
+"""Managed one-shot worker IPC and strict replies that never grant host authority.
 
-Process launch/transport wiring is deliberately separate from this codec. The
-native adapter must provide a trusted installed worker and verified interpreter,
-close stdin after one request, and verify process exit and complete output before
-accepting a reply. Arbitrary command stdout must never enter this decoder.
+The native adapter supplies the installed worker and verified interpreter.
+Arbitrary command stdout must never enter this decoder.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 from pathlib import Path
 
 from pydantic import ValidationError
 
+from bot.execution.base import ExecutionTarget, ProcessSpec, ProcessStatus
 from bot.sandbox.models import SandboxError, SandboxErrorCode
 from bot.sandbox.worker import (
     MAX_OUTPUT_BYTES,
@@ -33,6 +33,96 @@ _METADATA = {
     "fetch": {"url": str, "status_code": int, "content_type": (str, type(None))},
     "file_version": {"path": str, "sha256": str},
 }
+
+
+async def execute_worker(target: ExecutionTarget, spec: ProcessSpec, request: dict) -> ToolResult:
+    """One trusted worker process, with bounded stdin/stdout and managed cleanup."""
+    data = encode_request(request)
+    process_id = await target.start_process(spec)
+    try:
+        async with asyncio.timeout(spec.timeout_seconds):
+            await target.send_process_input(process_id, data.decode("ascii"), eof=True)
+            while True:
+                snapshot = await target.poll_process(
+                    process_id, wait_seconds=1, consume_output=False
+                )
+                if snapshot.truncated or not snapshot.stdout.isascii():
+                    raise SandboxError(
+                        SandboxErrorCode.PROTOCOL_ERROR,
+                        "worker 输出过大或含非协议字节",
+                        stage="worker_response",
+                        executed=None,
+                    )
+                if snapshot.status not in {ProcessStatus.RUNNING, ProcessStatus.TERMINATING}:
+                    break
+        if snapshot.status == ProcessStatus.CLEANUP_FAILED:
+            raise SandboxError(
+                SandboxErrorCode.CLEANUP_FAILED,
+                "worker 清理未完成",
+                stage="worker_cleanup",
+                executed=None,
+            )
+        if snapshot.status == ProcessStatus.TIMED_OUT:
+            raise TimeoutError("worker 进程超时")
+        if snapshot.status != ProcessStatus.COMPLETED or snapshot.returncode != 0:
+            raise SandboxError(
+                SandboxErrorCode.COMMAND_FAILED,
+                f"worker 进程失败: {snapshot.status.value}; {snapshot.stderr[:2000]}",
+                stage="worker_exit",
+                executed=None,
+            )
+        if snapshot.truncated or not snapshot.output_complete:
+            raise SandboxError(
+                SandboxErrorCode.PROTOCOL_ERROR,
+                "worker 输出被截断或未收齐",
+                stage="worker_response",
+                executed=None,
+            )
+        result = decode_response(
+            snapshot.stdout.encode("utf-8"),
+            request_id=request["id"],
+            operation=request["op"],
+            output_limit=request["context"]["max_output_bytes"],
+        )
+        result.metadata.update(
+            {
+                "execution_scope": snapshot.scope.model_dump(mode="json"),
+                "backend": snapshot.execution_metadata.get("backend"),
+                "backend_version": snapshot.execution_metadata.get("backend_version"),
+                "cleanup_status": snapshot.cleanup_status,
+            }
+        )
+        return result
+    except BaseException as exc:
+        cleanup = asyncio.create_task(
+            target.terminate_process(process_id, reason="worker 调用结束或协议失败")
+        )
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError:
+                continue
+        cleaned = cleanup.result()
+        # Cancellation remains cancellation, but a failed cleanup must not be
+        # hidden behind an ordinary timeout/protocol/pipe error. The manager
+        # retains ownership and capacity for unresolved processes.
+        if cleaned.status == ProcessStatus.CLEANUP_FAILED and not isinstance(
+            exc, asyncio.CancelledError
+        ):
+            raise SandboxError(
+                SandboxErrorCode.CLEANUP_FAILED,
+                "worker 清理未完成",
+                stage="worker_cleanup",
+                executed=None,
+            ) from exc
+        if isinstance(exc, (OSError, ValueError)) and not isinstance(exc, TimeoutError):
+            raise SandboxError(
+                SandboxErrorCode.PROTOCOL_ERROR,
+                f"worker IPC 失败: {type(exc).__name__}",
+                stage="worker_transport",
+                executed=None,
+            ) from exc
+        raise
 
 
 def encode_request(request: dict) -> bytes:

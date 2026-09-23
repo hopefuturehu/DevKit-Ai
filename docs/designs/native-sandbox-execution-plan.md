@@ -1,6 +1,6 @@
 # 原生沙箱接入执行方案
 
-> 状态：P0/P1、P2 受管命令及 P3 worker 协议原型进行中，尚未通过完整阶段门槛。配置可识别 required，但工厂明确拒绝执行；bot 尚未发布操作系统沙箱模式。
+> 状态：P0/P1、P2 受管命令及 P3 受限 worker 工具接线进行中，尚未通过完整阶段门槛。配置可识别 required，但工厂明确拒绝执行；bot 尚未发布操作系统沙箱模式。
 > 实测记录：[native-sandbox-validation.md](../evaluations/native-sandbox-validation.md)。
 > 日期：2026-09-22。基线：`84c5996`，并核对当前工作区源码。
 > 目标平台：macOS、Linux。首版选择 SRT，保留现有 Tool 层授权，在工具实际访问文件、执行命令和联网时增加系统约束。

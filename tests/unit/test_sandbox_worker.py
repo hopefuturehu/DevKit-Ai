@@ -250,6 +250,7 @@ def test_request_shape_rejected_before_execution(worker_request, change):
         b"[1]\n",
         b"{" + b" " * worker.MAX_RESPONSE_BYTES + b"}\n",
     ],
+    ids=["empty", "incomplete", "multiple", "duplicate-key", "nan", "utf8", "array", "oversized"],
 )
 def test_malformed_response_never_becomes_success(raw):
     with pytest.raises(SandboxError) as exc:

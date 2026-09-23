@@ -14,6 +14,7 @@ import platform
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 from bot.config.models import AppConfig
 from bot.execution.base import EnvironmentCapabilities, ExecutionTarget, ProcessSpec
@@ -70,6 +71,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         self._state_identity = DirectoryIdentity.capture(self.state_root)
         self._runs: dict[tuple[str, str], _Run] = {}
         self._bindings: dict[ExecutionScope, ResolvedSandbox] = {}
+        self._worker_calls: set[ExecutionScope] = set()
         self._used_calls: set[tuple[str, str, str]] = set()
         self._recovery_error = False
         super().__init__(
@@ -89,6 +91,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             str(self.state_root),
             self.runtime.capabilities.model_dump(mode="json"),
             self._runtime_fingerprint,
+            self.runtime.worker.manifest_sha256 if self.runtime.worker else None,
         )
 
     @property
@@ -124,15 +127,21 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
 
     def authorize_process(self, process_id: str, *, session_id: str, run_id: str) -> None:
         managed = self._managed_processes.get(process_id)
-        if managed is None or (managed.spec.session_id, managed.spec.run_id) != (
-            session_id,
-            run_id,
+        if (
+            managed is None
+            or (managed.launch is not None and managed.launch.metadata.get("purpose") == "worker")
+            or (managed.spec.session_id, managed.spec.run_id)
+            != (
+                session_id,
+                run_id,
+            )
         ):
             raise SandboxError(
                 SandboxErrorCode.POLICY_DENIED, "进程不属于当前 session/run", stage="ownership"
             )
 
     def discard_scope(self, scope: ExecutionScope) -> None:
+        self._worker_calls.discard(scope)
         if self._bindings.pop(scope, None) is not None:
             self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
 
@@ -176,9 +185,13 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             self.config,
             workspace=self.workspace,
             directories=RunDirectories(run.directory.path),
-            runtime_read_roots=(self.runtime.root, *system_read_paths()),
+            runtime_read_roots=(
+                self.runtime.root,
+                *system_read_paths(),
+                *self.runtime.worker.read_roots,
+            ),
             read_only=read_only,
-            protected_paths=run.denied_paths,
+            protected_paths=(*run.denied_paths, *self.runtime.worker.denied_roots),
         )
         scope = ExecutionScope(
             session_id=session_id,
@@ -189,6 +202,50 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         )
         self._bindings[scope] = resolved
         return scope
+
+    def prepare_worker(
+        self,
+        scope: ExecutionScope,
+        operation: str,
+        arguments: dict,
+        *,
+        workspace_only: bool,
+        output_limit: int,
+    ) -> tuple[list[str], dict]:
+        from bot.sandbox.client import encode_request
+
+        resolved = self._bindings.get(scope)
+        if resolved is None or self.runtime.worker is None:
+            raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "worker 缺少未使用的可信作用域")
+        policy = resolved.policy
+        request = {
+            "v": 1,
+            "id": uuid4().hex,
+            "op": operation,
+            "args": arguments,
+            "context": {
+                "workspace": str(policy.workspace),
+                "workspace_only": workspace_only,
+                "read_only": not any(
+                    policy.workspace.is_relative_to(p) for p in policy.write_roots
+                ),
+                "denied_paths": list(map(str, policy.deny_read)),
+                "max_output_bytes": output_limit,
+                "network_mode": policy.network_mode,
+                "allowed_domains": list(policy.allowed_domains),
+            },
+        }
+        encode_request(request)
+        self._worker_calls.add(scope)
+        return [
+            str(self.runtime.worker.executable),
+            "-I",
+            "-S",
+            "-B",
+            "-X",
+            f"pycache_prefix={self.runtime.root / 'python-cache'}",
+            str(self.runtime.root / "worker.py"),
+        ], request
 
     def _prepare_launch(self, spec: ProcessSpec) -> PreparedLaunch:
         scope = spec.scope
@@ -201,7 +258,9 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         resolved = self._bindings[scope]
         if any(spec.cwd.is_relative_to(path) for path in resolved.policy.deny_read):
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工作目录位于禁止读取区域")
-        inspection = inspect_runtime(self.workspace, root=self.runtime.root)
+        inspection = inspect_runtime(
+            self.workspace, root=self.runtime.root, worker_snapshot=self.runtime.worker
+        )
         if not inspection.metadata_valid or inspection != self.runtime:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "运行时安装记录已改变或缺少依赖")
         self._state_identity.verify()
@@ -250,6 +309,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 "read_only": run.read_only,
                 "denied_paths": list(map(str, run.denied_paths)),
                 "executed": None,
+                "purpose": "worker" if scope in self._worker_calls else "command",
             },
             release=control.remove,
         )
@@ -331,3 +391,4 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             run.directory.remove()
         self._runs.clear()
         self._bindings.clear()
+        self._worker_calls.clear()

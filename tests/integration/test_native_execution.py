@@ -383,7 +383,10 @@ console.log(JSON.stringify({readDenied,writeDenied}));"""
 
 
 @pytest.mark.asyncio
-async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_target, monkeypatch):
+@pytest.mark.parametrize("repeat_guard", [False, True])
+async def test_agent_binds_native_identity_and_rejects_unconfined_tools(
+    native_target, monkeypatch, repeat_guard
+):
     from bot.core import AgentRunner, RunRequest
     from bot.core.approval import AllowApprovalHandler
     from bot.core.context import ContextAssembler
@@ -397,11 +400,17 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_t
     from bot.tools.builtins import ReadFileTool
 
     target, work, node = native_target
+    (work / "secret").write_text("from-native-worker")
     calls = [
         ("command-call", "run_command", {"argv": [str(node), "-e", "console.log('agent-native')"]}),
         ("read-call", "read_file", {"path": "secret"}),
         ("custom-call", "custom_command", {"argv": [str(node), "-e", "0"]}),
     ]
+    if repeat_guard:
+        calls[2:2] = [
+            (call, "read_file", {"path": "secret"})
+            for call in ("read-2", "read-3", "read-after-edit")
+        ]
 
     class ScriptedProvider(ModelProvider):
         def capabilities(self, model):
@@ -410,6 +419,8 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_t
         async def stream(self, request):
             if calls:
                 call, name, args = calls.pop(0)
+                if call == "read-after-edit":
+                    (work / "secret").write_text("after-external-edit")
                 yield ModelEvent(
                     kind=ModelEventKind.TOOL_CALL_DELTA,
                     tool_index=0,
@@ -428,11 +439,16 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_t
         async def execute(self, context, arguments):
             pytest.fail("unreviewed subclass must not be invoked")
 
-    async def forbidden_read(*args, **kwargs):
-        pytest.fail("host file implementation must not be invoked")
+    original_read = Path.read_bytes
 
-    monkeypatch.setattr(ReadFileTool, "execute", forbidden_read)
+    def no_host_content(path):
+        if path == work / "secret":
+            pytest.fail("worker file content must not be read by the host")
+        return original_read(path)
+
+    monkeypatch.setattr(Path, "read_bytes", no_host_content)
     config = target.config.model_copy(deep=True)
+    config.agent.progress.repeat_guard_mode = "enforce"
     config.storage.state_path = str(work.parent / "state.db")
     registry = ToolRegistry()
     for tool in (RunCommandTool(), ReadFileTool(), CustomCommand()):
@@ -457,7 +473,10 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_t
         result = await runner.run(RunRequest(prompt="exercise command and denied entrypoints"))
         assert result.status == "completed", result
         snapshots = await target.list_processes()
-        assert len(snapshots) == 1
+        if repeat_guard:
+            assert any(p.scope.tool_call_id.startswith("file-version-") for p in snapshots)
+        else:
+            assert len(snapshots) == 2
         process = snapshots[0]
         assert process.status == ProcessStatus.COMPLETED
         assert process.session_id == result.session_id
@@ -467,18 +486,25 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_t
             for e in store.list_events(result.session_id)
             if e["type"] == EventType.TOOL_COMPLETED.value
         ]
-        assert len(events) == 3
+        assert len(events) == (6 if repeat_guard else 3)
         assert all(event["run_id"] == process.run_id for event in events)
-        assert events[0]["payload"]["success"] is True
-        for event in events[1:]:
-            assert event["payload"]["success"] is False
+        assert all(event["payload"]["success"] for event in events[:-1])
+        assert events[-1]["payload"]["success"] is False
         with sqlite3.connect(config.storage.state_path) as database:
             rows = database.execute(
                 "SELECT tool_call_id, result_json FROM tool_runs WHERE session_id = ?",
                 (result.session_id,),
             ).fetchall()
         records = {call: json.loads(raw) for call, raw in rows}
-        for call in ("read-call", "custom-call"):
+        if repeat_guard:
+            assert records["read-after-edit"]["output"] == "after-external-edit"
+            assert not any(
+                e["type"] == EventType.TOOL_REPEAT_BLOCKED.value
+                for e in store.list_events(result.session_id)
+            )
+        assert records["read-call"]["output"] == "from-native-worker"
+        assert records["read-call"]["metadata"]["execution_scope"]["tool_call_id"] == "read-call"
+        for call in ("custom-call",):
             assert records[call]["metadata"]["stage"] == "tool_boundary"
             assert records[call]["metadata"]["executed"] is False
         assert records["command-call"]["metadata"]["execution_scope"] == process.scope.model_dump(
@@ -487,3 +513,85 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(native_t
         assert not target._bindings
     finally:
         store.close()
+
+
+@pytest.mark.asyncio
+async def test_native_file_tools_share_os_boundary_and_hide_worker_controls(native_target):
+    from bot.tools.builtins import ApplyPatchTool, FetchUrlTool, ReadFileTool, SearchTextTool
+
+    target, work, _ = native_target
+    outside = work.parent / "outside-secret"
+    outside.write_text("external-sentinel")
+    (work / "sample.txt").write_text("original line\n")
+    (work / ".env").write_text("secret-sentinel")
+    (work / "json.py").write_text("raise RuntimeError('project module injected')")
+    (work / "outside-link").symlink_to(outside)
+    cases = [
+        (ReadFileTool(), {"path": "sample.txt"}, True, "original line"),
+        (SearchTextTool(), {"query": "original", "glob": "*.txt"}, True, "sample.txt:1"),
+        (
+            ApplyPatchTool(),
+            {"path": "sample.txt", "old_text": "original", "new_text": "changed"},
+            True,
+            "已更新",
+        ),
+        (ReadFileTool(), {"path": "sample.txt"}, True, "changed line"),
+        (ReadFileTool(), {"path": str(outside)}, False, ""),
+        (ReadFileTool(), {"path": "outside-link"}, False, ""),
+        (ReadFileTool(), {"path": ".env"}, False, ""),
+        (
+            ApplyPatchTool(),
+            {"path": str(outside), "old_text": "external", "new_text": "bad"},
+            False,
+            "",
+        ),
+        (FetchUrlTool(), {"url": "https://example.com"}, False, ""),
+    ]
+    for index, (tool, arguments, success, text) in enumerate(cases):
+        view = invocation(target, work, call=f"worker-{index}")
+        try:
+            result = await tool.execute(
+                ToolContext(
+                    workspace=work,
+                    execution_target=view,
+                    session_id="session",
+                    run_id="run",
+                    # A permissive tool-layer path option cannot widen the OS policy.
+                    workspace_only=False,
+                ),
+                arguments,
+            )
+            assert result.success is success, result
+            assert text in result.output and "external-sentinel" not in result.output
+            assert "secret-sentinel" not in result.output
+            assert result.metadata["backend"] == "srt"
+            assert result.metadata["execution_scope"]["tool_call_id"] == f"worker-{index}"
+            assert await view.list_processes() == []
+            latest = (await target.list_processes())[-1]
+            assert latest.execution_metadata["purpose"] == "worker"
+            with pytest.raises(SandboxError, match="不属于"):
+                await view.poll_process(latest.process_id)
+            assert not Path(latest.execution_metadata["control_directory"]["path"]).exists()
+        finally:
+            view.release_invocation()
+    version = invocation(target, work, call="version")
+    try:
+        result = await version.worker_operation("file_version", {"path": "sample.txt"})
+        assert result.success and result.metadata["sha256"]
+    finally:
+        version.release_invocation()
+    readonly = invocation(target, work, call="readonly", run="readonly", read_only=True)
+    try:
+        result = await readonly.worker_operation(
+            "apply_patch",
+            {
+                "path": "sample.txt",
+                "old_text": "changed",
+                "new_text": "bad",
+            },
+        )
+        assert not result.success
+    finally:
+        readonly.release_invocation()
+    assert (work / "sample.txt").read_text() == "changed line\n"
+    assert outside.read_text() == "external-sentinel"

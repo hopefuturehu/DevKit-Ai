@@ -28,6 +28,31 @@ from bot.tools.base import (
 from bot.tools.plan import UpdatePlanTool
 
 
+async def _confined_file(context: ToolContext, operation: str, arguments: dict) -> ToolResult:
+    from bot.sandbox.worker import MAX_OUTPUT_BYTES
+
+    timeout = context.process_hard_timeout_seconds or 300
+    if operation == "fetch":
+        timeout = min(timeout, float(arguments.get("timeout_seconds", 30)) + 5)
+    try:
+        return await context.execution_target.worker_operation(
+            operation,
+            arguments,
+            workspace_only=context.workspace_only,
+            output_limit=min(context.max_output_bytes, MAX_OUTPUT_BYTES),
+            timeout_seconds=timeout,
+        )
+    except SandboxError as exc:
+        return sandbox_failure(exc)
+    except TimeoutError:
+        return ToolResult(
+            success=False,
+            status=ToolResultStatus.TIMED_OUT,
+            error="文件 worker 超时",
+            metadata={"executed": None, "stage": "worker_exit"},
+        )
+
+
 class ReadFileTool(Tool):
     name = "read_file"
     description = "读取工作区内文本文件的全部或指定行范围。"
@@ -44,6 +69,8 @@ class ReadFileTool(Tool):
     annotations = ToolAnnotations(read_only=True, idempotent=True)
 
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        if context.execution_target.requires_confinement:
+            return await _confined_file(context, "read", arguments)
         try:
             path = resolve_path(context, str(arguments["path"]), must_exist=True)
             if not path.is_file():
@@ -99,6 +126,8 @@ class SearchTextTool(Tool):
     annotations = ToolAnnotations(read_only=True, idempotent=True)
 
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        if context.execution_target.requires_confinement:
+            return await _confined_file(context, "search", arguments)
         try:
             root = resolve_path(context, str(arguments.get("path", ".")), must_exist=True)
             query = str(arguments["query"])
@@ -185,6 +214,8 @@ class ApplyPatchTool(Tool):
     annotations = ToolAnnotations(read_only=False, destructive=False, idempotent=False)
 
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        if context.execution_target.requires_confinement:
+            return await _confined_file(context, "apply_patch", arguments)
         try:
             path = resolve_path(context, str(arguments["path"]), must_exist=False)
             old_text = str(arguments["old_text"])
@@ -780,6 +811,8 @@ class FetchUrlTool(Tool):
     annotations = ToolAnnotations(read_only=True, network_access=True, idempotent=True)
 
     async def execute(self, context: ToolContext, arguments: dict[str, Any]) -> ToolResult:
+        if context.execution_target.requires_confinement:
+            return await _confined_file(context, "fetch", arguments)
         url = str(arguments.get("url", ""))
         if not url.startswith(("https://", "http://")):
             return ToolResult(success=False, error="只支持 http:// 或 https:// URL")

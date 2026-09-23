@@ -1,0 +1,2077 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-23",
+  "phase": "P3 installed native worker and tool integration",
+  "base_commit": "8768fce5479e7e29e7932ca1ebccddc804a9ecb5",
+  "stage_complete": false,
+  "required_execution_enabled": false,
+  "allowlist_enabled": false,
+  "reports": {
+    "macos_affected_regression": {
+      "raw_xml": "/private/tmp/native-worker-regression-macos.xml",
+      "raw_xml_sha256": "006db31b5f77587548e87a0dc4b93caf80b5ad30e2f9f04ff30c91fba0a778cc",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "154",
+        "time": "34.169",
+        "timestamp": "2026-09-23T14:53:17.350070+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed",
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "timed_out"
+          }
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed",
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "cancelled"
+          }
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_update_plan_persists_and_rehydrates_after_compaction",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_managed_process_runtime_reminder_is_cache_stable",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_externalizes_single_oversized_user_message",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_context_reference_delivery_is_visible_once_without_nested_blob",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_on_demand_memory_does_not_append_automatic_memory_to_plain_prompt",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_required_memory_search_is_forced_and_delivered_once",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_historical_attribution_forces_search_then_original_evidence",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_required_memory_tool_gate_discards_unsupported_final_text",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_required_memory_gate_rejects_wrong_tool_without_named_tool_choice",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_searches_context_reference_without_loading_whole_blob",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_retries_provider_context_error_once",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_sheds_and_reactivates_tool_schemas",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_sorts_tool_schemas_when_all_fit_budget",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_activates_skill_calls_tool_and_finishes",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_applies_steering_at_model_boundary",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_defers_steering_until_all_tool_results_are_persisted",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_repairs_legacy_interleaved_tool_history_before_request",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_provider_error_preserves_step_and_usage_for_finalization",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_unexpected_failure_preserves_usage_before_finalizer[RuntimeError]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_unexpected_failure_preserves_usage_before_finalizer[TimeoutError]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_retries_transient_provider_error_and_discards_partial_turn",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_stops_after_transient_provider_retry_limit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_reserves_cost_before_first_provider_request",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_reuses_wire_prefix_after_partial_stream_failure[RuntimeError]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_reuses_wire_prefix_after_partial_stream_failure[ProviderError]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_repacking_keeps_schemas_when_appended_tail_exceeds_budget",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_respects_one_shot_retrieval_lifetime[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_respects_one_shot_retrieval_lifetime[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_never_executes_an_unexpected_tool_call",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_synthesizes_unexecuted_tool_result_after_batch_limit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_stops_repeated_idempotent_results",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[stable-False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[stable-True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[empty-False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[empty-True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[failure-False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[failure-True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_closes_batch_and_allows_a_new_operation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_allows_reading_changed_file[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_allows_reading_changed_file[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_survives_run_and_execution_target_recreation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_preserves_limits_but_restores_read_after_real_compaction",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_blocks_before_repeated_permission_prompts",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_trusted_repeat_allowance_completes_silent_mutations",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_policy_denied_shell_alias_cannot_clear_an_existing_repeat_limit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_zero_wait_launches_cannot_hide_completed_repetition",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_context_reference_repeat_guard_preserves_session_authorization",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_has_no_default_thirty_step_limit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_progress_state_is_restored_across_runs",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_preserves_explicit_step_limit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_allows_same_idempotent_result_for_different_arguments",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_treats_length_finish_as_limit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_deepseek_empty_reasoning_does_not_disable_tools_or_resumed_session[None]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_deepseek_empty_reasoning_does_not_disable_tools_or_resumed_session[enabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_persists_reasoning_and_round_trips_it_for_tool_calls",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_retries_reasoning_only_response_without_persisting_empty_message",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_fails_two_empty_responses_without_poisoning_history",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_drops_legacy_empty_assistant_before_provider_request",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_enforces_cost_before_requested_tool_runs",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_enforces_cumulative_tool_output_limit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_applies_once_and_session_approval_scope[once-2]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_applies_once_and_session_approval_scope[session-1]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_persists_always_approval_across_sessions",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_command_family_approval_reuses_different_pytest_arguments[once-2]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_command_family_approval_reuses_different_pytest_arguments[session-1]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_command_family_always_approval_reuses_across_sessions",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_automatically_activates_multiple_complementary_skills",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_compaction_trigger_uses_model_input_budget",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_rechecks_final_request_budget_before_provider_call",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[None-enabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[None-disabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[None-None]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[inherit-enabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[inherit-disabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[inherit-None]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-stop-enabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-stop-disabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-stop-None]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-length-enabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-length-disabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-length-None]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-stop-enabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-stop-disabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-stop-None]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-length-enabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-length-disabled]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-length-None]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_process_spec_has_no_default_hard_timeout",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_execution_uses_argv_and_captures_streams",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_execution_timeout_terminates_process",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_timeout_kills_background_child_after_shell_exits",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_closing_execution_stream_terminates_its_process_group",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_cancelled_spawn_cleans_process_created_at_cancellation_boundary",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_run_command_forwards_streaming_tool_output",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_run_command_yields_and_polls_managed_process",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_fresh_process_ids_do_not_change_completed_evidence",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_terminal_evidence_includes_output_consumed_by_earlier_polls",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_and_streamed_command_evidence_match",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_completed_managed_process_duration_stops_increasing",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_runtime_cleanup_kills_background_child_after_leader_exits",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_hard_timeout_is_reported",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_interactive_process_accepts_input",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_can_be_listed_and_terminated",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_limit_is_a_recoverable_tool_error",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_processes_are_cleaned_up_when_target_closes",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_file_tools_enforce_workspace_and_exact_patch",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_search_skips_symlinked_files_outside_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_file_tools_deny_internal_state_paths",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_requires_approval_for_unknown_command_and_denies_escape",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_accepts_long_regex_without_stat_crash[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_accepts_long_regex_without_stat_crash[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_denies_unresolvable_explicit_path_without_crashing",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_auto_approves_all_ask_decisions_but_keeps_deny",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_separately_evaluates_shell_segments",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_reuses_only_profiled_command_families",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_reuses_read_only_sqlite_queries_but_not_mutations",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_prevents_read_only_commands_from_escaping_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_ksys_and_tuner_build_structured_argv",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_tuner_returns_arm_manual_command_when_target_is_x86",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_runtime_cleans_processes_when_subagent_shutdown_fails",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_sigterm_cancels_work_and_waits_for_runtime_cleanup",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed",
+          "properties": {}
+        }
+      ]
+    },
+    "macos_worker_units": {
+      "raw_xml": "/private/tmp/native-worker-unit-macos.xml",
+      "raw_xml_sha256": "3cb503eaededf6785faa1261901eb03e66d384a57c00cfc6155404acfeeba7fa",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "77",
+        "time": "4.554",
+        "timestamp": "2026-09-23T14:56:47.994743+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "cases": [
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_inspection_never_executes_candidate_and_reuses_verified_identity",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[binary]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[module]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[new_module]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[symlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[cache]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[manifest]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[worker]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[permissions]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[parent]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[workspace]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_ambient_stdlib_cache_is_unused_and_not_part_of_admission",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_read_range_version_and_utf8_truncation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_unique_atomic_mode_and_noop_progress",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_failure_or_concurrent_change_preserves_destination",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[outside]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[symlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[hardlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[protected]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[fifo]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[oversized]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_readonly_patch_and_search_bounds",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[operation]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[version]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[bool]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[extra]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[context]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[timeout]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[surrogate]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[empty]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[incomplete]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[multiple]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[duplicate-key]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[nan]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[utf8]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[array]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[oversized]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[id]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[version]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[status]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[success]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[authority]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[progress]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[result_type]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[budget]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_standalone_worker_ignores_project_modules_and_rejects_second_request",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_fetch_requires_proxy_checks_redirects_and_bounds_response",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_matching_metadata_never_claims_enforcement_or_runs_a_binary",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[version]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[lock]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[helper]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[bwrap_helper]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[platform]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[missing]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[symlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[mode]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_project_runtime_and_path_override_are_not_trusted",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_missing_runtime_is_reported_without_installation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_cli_required_reports_closed_gate_without_provider_or_target_execution",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_doctor_distinguishes_unavailable_runtime_from_os_enforcement",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_workspace_installation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_never_overwrites_existing_installation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_download_before_extraction_if_checksum_differs",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_tar_cannot_write_outside_staging_area",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_npm_failure_does_not_publish_partial_runtime",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_install_uses_lock_and_isolated_npm_config",
+          "status": "passed",
+          "properties": {}
+        }
+      ]
+    },
+    "linux_installed_wheel": {
+      "raw_xml": "/private/tmp/native-worker-integration-linux.xml",
+      "raw_xml_sha256": "4e0907e36ea07e258d6e7fd1142ff17a75a07b8b4401529235f0cc66609bce59",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "110",
+        "time": "27.186",
+        "timestamp": "2026-09-23T06:56:10.962828+00:00",
+        "hostname": "a339af78dc8f"
+      },
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed",
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "timed_out"
+          }
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed",
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "cancelled"
+          }
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_inspection_never_executes_candidate_and_reuses_verified_identity",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[binary]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[module]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[new_module]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[symlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[cache]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[manifest]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[worker]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[permissions]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[parent]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_changed_or_project_worker_runtime_fails_closed[workspace]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_worker_runtime.test_ambient_stdlib_cache_is_unused_and_not_part_of_admission",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_read_range_version_and_utf8_truncation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_unique_atomic_mode_and_noop_progress",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_failure_or_concurrent_change_preserves_destination",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[outside]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[symlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[hardlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[protected]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[fifo]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[oversized]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_readonly_patch_and_search_bounds",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[operation]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[version]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[bool]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[extra]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[context]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[timeout]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[surrogate]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[empty]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[incomplete]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[multiple]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[duplicate-key]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[nan]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[utf8]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[array]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[oversized]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[id]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[version]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[status]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[success]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[authority]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[progress]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[result_type]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[budget]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_standalone_worker_ignores_project_modules_and_rejects_second_request",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_fetch_requires_proxy_checks_redirects_and_bounds_response",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_matching_metadata_never_claims_enforcement_or_runs_a_binary",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[version]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[lock]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[helper]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[bwrap_helper]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[platform]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[missing]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[symlink]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[mode]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_project_runtime_and_path_override_are_not_trusted",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_missing_runtime_is_reported_without_installation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_cli_required_reports_closed_gate_without_provider_or_target_execution",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_doctor_distinguishes_unavailable_runtime_from_os_enforcement",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_workspace_installation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_never_overwrites_existing_installation",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_rejects_download_before_extraction_if_checksum_differs",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_tar_cannot_write_outside_staging_area",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_npm_failure_does_not_publish_partial_runtime",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime_install.test_install_uses_lock_and_isolated_npm_config",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed",
+          "properties": {}
+        }
+      ]
+    },
+    "linux_fresh_install": {
+      "raw_xml": "/private/tmp/native-worker-fresh-install-linux.xml",
+      "raw_xml_sha256": "7a595ddd9e86298d39772a060d18496558669e0a0955bf8b2ee3e7e16b29bbeb",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "26",
+        "time": "23.683",
+        "timestamp": "2026-09-23T06:58:56.267086+00:00",
+        "hostname": "a339af78dc8f"
+      },
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed",
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "timed_out"
+          }
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed",
+          "properties": {
+            "cleanup_status": "observed_empty",
+            "process_status": "cancelled"
+          }
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed",
+          "properties": {}
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed",
+          "properties": {}
+        }
+      ]
+    }
+  },
+  "earlier_trials": {
+    "macos_amfid_cleanup_unknown": {
+      "raw_xml": "/private/tmp/native-worker-first-macos.xml",
+      "raw_xml_sha256": "e609fbb36c7920fa360804658fa8c297d33de83f6bbb8485bd7909e67122dd88",
+      "suite": {
+        "name": "pytest",
+        "errors": "1",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "3",
+        "time": "9.900",
+        "timestamp": "2026-09-23T14:39:06.084064+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "failed_cases": [
+        "test_agent_binds_native_identity_and_rejects_unconfined_tools",
+        "test_agent_binds_native_identity_and_rejects_unconfined_tools"
+      ]
+    },
+    "macos_incorrect_natural_exit_assertions": {
+      "raw_xml": "/private/tmp/native-worker-integration-macos.xml",
+      "raw_xml_sha256": "c4a1f7f7aace7b05fe76d32a38886c4f87d7ebdb8c7ba1ef9711d49d0ed36b8f",
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "6",
+        "skipped": "0",
+        "tests": "89",
+        "time": "14.335",
+        "timestamp": "2026-09-23T14:43:47.022812+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "failed_cases": [
+        "test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+        "test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+        "test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+        "test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+        "test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+        "test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]"
+      ]
+    },
+    "macos_ambiguous_orphans": {
+      "raw_xml": "/private/tmp/native-worker-integration-macos-v2.xml",
+      "raw_xml_sha256": "4bd0ffceff1a8bfcd3a712b2d9c0595a195eac06cdb6a18b8491c5dfbd9fd3e8",
+      "suite": {
+        "name": "pytest",
+        "errors": "1",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "93",
+        "time": "23.696",
+        "timestamp": "2026-09-23T14:52:17.920903+08:00",
+        "hostname": "MacBook-Air.local"
+      },
+      "failed_cases": [
+        "test_invocation_freezes_run_permissions_and_protected_paths",
+        "test_invocation_freezes_run_permissions_and_protected_paths"
+      ]
+    }
+  },
+  "earlier_trial_notes": [
+    "First Agent trial retained unknown cleanup resources; independent PID+birth observation identified root-owned amfid (95730). No adoption or termination of that process.",
+    "Six IPC failures were assertions expecting observed_empty on naturally completed processes. Corrected tests require no live/remaining process and complete output; forced cleanup still requires observed_empty.",
+    "Later native invocation trial retained unknown cleanup resources for five new orphans. Four were gone on observation; PID 1213 matched birth 1790146349.353836 and was uid 501 mdworker_shared. No adoption or termination. A later independent regression passed, without relaxing strict scope handling."
+  ],
+  "source_sha256": {
+    "scripts/install_sandbox_runtime.py": "f96c553801a27d7db139d83946efeedfb70acaac620a18eefc2d340b0aa53513",
+    "src/bot/core/agent.py": "23991627b28d040f90914ce185be172baed373c3d42a4771ee77545db97e4b1e",
+    "src/bot/execution/base.py": "30d0d770a8f7cf9e2ef301d9449cb591cd0ddc21c7db1fa1ebabc1c9d456d221",
+    "src/bot/execution/native.py": "f92bc4e8d32bfa4bf53a541ed9f49a6b849cc77999ac39def43404b6cb766045",
+    "src/bot/execution/scoped.py": "53e47ec643a7e4cfd90adb509ae2768bcbb6acb1e4b5b113c6670da3b84b27d9",
+    "src/bot/sandbox/client.py": "054e0e2af577b6c197c6a8d4bb5131099076a96ccd5a8828f295d471a1c761d3",
+    "src/bot/sandbox/runtime.py": "0e3aaef8b7b0895796264f520a2abde0d713255c532dadf9bdca9ac3ac54df3c",
+    "src/bot/sandbox/worker.py": "33dbac3489b703d77981f5674360cd1eb4e232dd44de6775752a45dda43e8066",
+    "src/bot/sandbox/worker_runtime.py": "0dec0d25e9f3867384a3d03d8d95592f52815ccb1abea0cbb9317d5a297850c4",
+    "src/bot/tools/builtins.py": "2bb80b8ae58dd4360b8c1f8322839ce82e2e7e5b321e34f053e962d69c3f9ff5",
+    "src/bot/tools/native_boundary.py": "01fe77bb6c7a9cd2fa18370d2b8c05bb08e92e64123c2ec50ae38bdb5b9dd0ed",
+    "tests/integration/test_native_execution.py": "1796ff54fed990318013c402e2055c56b3505ee6d166e1bcdc0ec55161863960",
+    "tests/unit/test_sandbox_runtime.py": "e8197587758d354ecb264c0c2c4591b1742c28a3e51ea1b18194ebaff3c3b485",
+    "tests/unit/test_sandbox_runtime_install.py": "ca7f0f0fb471bb8beda4cea9115bda87119e46ea6a0446387582422b3aff23fe",
+    "tests/unit/test_sandbox_worker.py": "dd4974c74f12598f4ceeee99c932de1b2cb52dfeacb574c53c1f7c8377a2fb2d",
+    "tests/unit/test_worker_runtime.py": "ebae947e378c6a72e9a089ee7329c311fdd2bcda2a67246d65679dee021ab363",
+    "tests/unit/test_worker_transport.py": "3d152abb8c2fbd1b56ec06deaadcbff34ec8eef28c9e4086521318fd8f0bc95a"
+  },
+  "wheel": {
+    "path": "/private/tmp/bot-sandbox-worker-integration-wheel/kunpeng_cli_agent-0.1.0-py3-none-any.whl",
+    "sha256": "05ee65e5b9494d39f19df8604a16bd36f3e4bb754c15cf6924e15cb20418bb07",
+    "all_122_python_files_match_source": true,
+    "all_5_packaged_runtime_assets_match_source": true
+  },
+  "runtime": {
+    "node": "24.14.0",
+    "srt": "0.0.77",
+    "worker_python": "3.12.11",
+    "worker_flags": [
+      "-I",
+      "-S",
+      "-B",
+      "-X",
+      "pycache_prefix=<runtime>/python-cache"
+    ],
+    "macos": {
+      "root": "/private/tmp/bot-sandbox-runtime-worker-20260923",
+      "python_manifest_sha256": "8691e54fa05f550cc1e075e50ef06f79dd56e67cc0b53eb9b507ab2c209c145e",
+      "file_count": 752
+    },
+    "linux": {
+      "root": "/opt/bot-sandbox-runtime",
+      "fresh_root": "/tmp/bot-runtime-installed",
+      "python_manifest_sha256": "88628a8064cc1bb5f3bcff79026dcb46ed1f5233a7ce6437f7e478a537c21eba",
+      "file_count": 755,
+      "full_installer_run_as_uid": 65534
+    }
+  },
+  "environment": {
+    "macos": "arm64; test runner Python 3.14.5, worker Python 3.12.11; native tests outside enclosing Seatbelt",
+    "linux": "aarch64; installed wheel; Python 3.12.11; UID/GID 65534; independent Docker lab, no host mounts/credentials/socket",
+    "linux_base_image": "sha256:72fe333e653fb26957706b49014b3b48ddc73b49381bb0fa575630bddef9494c",
+    "linux_outer_lab_flags": [
+      "--cap-add SYS_ADMIN",
+      "--security-opt seccomp=unconfined",
+      "--security-opt systempaths=unconfined",
+      "--sysctl net.ipv6.conf.all.disable_ipv6=0",
+      "--sysctl net.ipv6.conf.default.disable_ipv6=0"
+    ],
+    "linux_saved_image": {
+      "tag": "bot-native-worker-env:20260923",
+      "id": "sha256:d845e12395a887e245bdaced458ed5cbed48c616e2b0a7fdf80b3cf7757a1407"
+    }
+  },
+  "verified": [
+    "explicit installation and read-only Python/stdlib/loaded-library integrity inspection, no launch-time binary probe or download",
+    "fixed trusted installed worker and isolated interpreter/cache; project module shadowing cannot load in real native worker",
+    "managed JSONL IPC validates identity/output/exit and waits cleanup on cancellation, timeout or malformed output",
+    "pipe failure mapping; cleanup failure precedence tested using a fault-injected manager result after real test process reclamation",
+    "read/search/patch/version operations inside both native OS policies; external/symlink/protected-file/readonly-write refusal with sentinels unchanged",
+    "fetch deny and no host direct-network fallback; allowlist not enabled",
+    "worker processes unavailable to model-facing process controls and lists",
+    "AgentRunner read results persisted with trusted scope; repeated read detects external edits using confined file_version without host content reads",
+    "Linux complete explicit installer run as non-root followed by 26 real native checks against its published runtime"
+  ],
+  "not_proven": [
+    "complete P3 compatibility, concurrent patch/launch safety and all file aliases",
+    "allowlist DNS/private/link-local/metadata/CONNECT/SOCKS acceptance and compressed-response compatibility",
+    "complete Node/vendor runtime integrity, trusted startup status and live capability attestation",
+    "complete recovery/run-end cleanup/admission concurrency and large bwrap --args profiles",
+    "P4 child/worktree/Git brokers, complete tool classification and CLI/Web/eval wiring",
+    "P5 full S01-S15, ten daily tasks, warmed performance measurements and full release regression"
+  ]
+}

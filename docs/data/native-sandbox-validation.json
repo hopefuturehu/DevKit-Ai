@@ -324,11 +324,22 @@
   },
   "worker_protocol_validation": {
     "artifact": "docs/data/native-sandbox-p3-worker-protocol.json",
-    "sha256": "9b02ae3f2416e39ea5381ffc406ed9ed4eb28a0738681f25421a8eee4a18a326",
+    "sha256": "1515f51f0a0c72d87c166da7414f834341806c5bbd8a9c29165d2769d1f7c8e2",
     "macos_passed": 35,
     "linux_passed": 35,
     "stage_complete": false,
     "os_isolation_proven": false,
     "required_execution_enabled": false
+  },
+  "worker_integration_validation": {
+    "artifact": "docs/data/native-sandbox-p3-worker-integration.json",
+    "sha256": "46300b8252ea55835c395f428ecf7ea6062fc60a9d415671e8b2ec08b4302c89",
+    "macos_regression_passed": 154,
+    "macos_worker_units_passed": 77,
+    "linux_passed": 110,
+    "linux_fresh_install_passed": 26,
+    "stage_complete": false,
+    "required_execution_enabled": false,
+    "allowlist_enabled": false
   }
 }

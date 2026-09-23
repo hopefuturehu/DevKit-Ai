@@ -4897,21 +4897,41 @@ class AgentRunner:
             return None
         if tool_call.name == "read_file" and inspect_resource and record.limited:
             if self.execution_target.requires_confinement:
-                # P3 routes this through file_version in the confined worker.
-                # Never inspect model-selected file contents on the host.
-                return None
-            context = ToolContext(
-                workspace=self.workspace,
-                execution_target=self.execution_target,
-                workspace_only=self.config.permissions.workspace_only,
-                denied_paths=self.denied_tool_paths,
-            )
-            try:
-                path = resolve_path(context, tool_call.arguments["path"], must_exist=True)
-                # Check external edits as well as changes made through apply_patch.
-                version = hashlib.sha256(path.read_bytes()).hexdigest()
-            except (OSError, ValueError):
-                return None
+                invocation = self.execution_target.for_invocation(
+                    workspace=self.workspace,
+                    session_id=session_id,
+                    run_id=run_id,
+                    tool_call_id=f"file-version-{uuid4().hex}",
+                    read_only=self.config.permissions.mode == "read-only",
+                    denied_paths=self.denied_tool_paths,
+                )
+                try:
+                    result = await invocation.worker_operation(
+                        "file_version",
+                        {"path": tool_call.arguments["path"]},
+                        workspace_only=self.config.permissions.workspace_only,
+                        timeout_seconds=self.config.agent.process_hard_timeout_seconds or 300,
+                    )
+                    if not result.success:
+                        return None
+                    path = Path(result.metadata["path"])
+                    version = result.metadata["sha256"]
+                except (SandboxError, OSError, ValueError, TimeoutError):
+                    return None
+                finally:
+                    invocation.release_invocation()
+            else:
+                context = ToolContext(
+                    workspace=self.workspace,
+                    execution_target=self.execution_target,
+                    workspace_only=self.config.permissions.workspace_only,
+                    denied_paths=self.denied_tool_paths,
+                )
+                try:
+                    path = resolve_path(context, tool_call.arguments["path"], must_exist=True)
+                    version = hashlib.sha256(path.read_bytes()).hexdigest()
+                except (OSError, ValueError):
+                    return None
             controller.repeat_guard.invalidate_subject(f"file:{path}", version)
         check = controller.repeat_guard.check(
             call_key,

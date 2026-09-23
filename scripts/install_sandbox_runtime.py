@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import platform
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import urllib.request
@@ -23,7 +25,17 @@ from pathlib import Path
 SOURCE = Path(__file__).resolve().parents[1] / "runtime" / "sandbox"
 
 
-def install(destination: Path) -> Path:
+def install_worker(root: Path, workspace: Path, python: Path | None = None) -> str:
+    source = Path(__file__).resolve().parents[1] / "src/bot/sandbox/worker_runtime.py"
+    spec = importlib.util.spec_from_file_location("bot_worker_installer", source)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module.install_worker(root, workspace=workspace, python=python)
+
+
+def install(destination: Path, *, worker_python: Path | None = None) -> Path:
     destination = destination.expanduser().resolve()
     workspace = SOURCE.parents[1]
     if destination.is_relative_to(workspace):
@@ -64,6 +76,8 @@ def install(destination: Path) -> Path:
         for name in assets:
             shutil.copyfile(SOURCE / name, root / name)
         (root / "bwrap-launcher.sh").chmod(0o755)
+        worker_digest = install_worker(root, workspace, worker_python)
+        assets = (*assets, "worker.py")
         node = root / "node" / "bin" / "node"
         npm = root / "node" / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js"
         env = {
@@ -108,7 +122,15 @@ def install(destination: Path) -> Path:
             raise ValueError("installed Node version does not match lock")
         hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in assets}
         (root / "installation.json").write_text(
-            json.dumps({"platform": target, "source_hashes": hashes, "node": version}, indent=2)
+            json.dumps(
+                {
+                    "platform": target,
+                    "source_hashes": hashes,
+                    "node": version,
+                    "worker_python_sha256": worker_digest,
+                },
+                indent=2,
+            )
             + "\n"
         )
         root.rename(destination)
@@ -118,8 +140,11 @@ def install(destination: Path) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destination", required=True, type=Path)
+    parser.add_argument(
+        "--worker-python", type=Path, help="absolute trusted CPython >= 3.12 outside the workspace"
+    )
     args = parser.parse_args()
-    print(install(args.destination))
+    print(install(args.destination, worker_python=args.worker_python))
 
 
 if __name__ == "__main__":

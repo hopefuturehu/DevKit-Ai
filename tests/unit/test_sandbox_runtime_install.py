@@ -28,6 +28,12 @@ def source(tmp_path, monkeypatch):
     monkeypatch.setattr(installer, "SOURCE", root)
     monkeypatch.setattr(installer.platform, "system", lambda: "Linux")
     monkeypatch.setattr(installer.platform, "machine", lambda: "aarch64")
+
+    def fake_worker(root, workspace, python=None):
+        (root / "worker.py").write_text("# synthetic worker")
+        return "synthetic-worker-record"
+
+    monkeypatch.setattr(installer, "install_worker", fake_worker)
     return root
 
 

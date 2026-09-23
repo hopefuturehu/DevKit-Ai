@@ -4,12 +4,15 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Awaitable, Callable
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from bot.sandbox.models import ExecutionScope
+
+if TYPE_CHECKING:
+    from bot.tools.base import ToolResult
 
 
 class ProcessSpec(BaseModel):
@@ -93,6 +96,19 @@ class EnvironmentCapabilities(BaseModel):
 
 
 class ExecutionTarget(ABC):
+    async def worker_operation(
+        self,
+        operation: str,
+        arguments: dict,
+        *,
+        workspace_only: bool = True,
+        output_limit: int = 1_000_000,
+        timeout_seconds: float = 300,
+    ) -> ToolResult:
+        from bot.sandbox.models import SandboxError, SandboxErrorCode
+
+        raise SandboxError(SandboxErrorCode.UNAVAILABLE, "当前目标没有受限文件 worker")
+
     @property
     def requires_confinement(self) -> bool:
         return False

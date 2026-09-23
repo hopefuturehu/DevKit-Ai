@@ -16,9 +16,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bot.sandbox.models import SandboxCapabilities
+from bot.sandbox.worker_runtime import WorkerRuntime, inspect_worker
 
 MANIFEST_NAMES = ("package.json", "package-lock.json", "runtime-lock.json")
-RUNTIME_ASSET_NAMES = (*MANIFEST_NAMES, "launcher.mjs", "bwrap-launcher.sh")
+RUNTIME_ASSET_NAMES = (*MANIFEST_NAMES, "launcher.mjs", "bwrap-launcher.sh", "worker.py")
+
+
+def runtime_asset(name: str) -> Path:
+    return (
+        Path(__file__).with_name("worker.py")
+        if name == "worker.py"
+        else manifest_directory() / name
+    )
 
 
 def manifest_directory() -> Path:
@@ -43,18 +52,22 @@ class RuntimeInspection:
     capabilities: SandboxCapabilities
     executables: tuple[tuple[str, Path], ...] = ()
     errors: tuple[str, ...] = ()
+    worker: WorkerRuntime | None = None
 
     @property
     def metadata_valid(self) -> bool:
         return not self.errors
 
 
-def inspect_runtime(workspace: Path, *, root: Path | None = None) -> RuntimeInspection:
+def inspect_runtime(
+    workspace: Path, *, root: Path | None = None, worker_snapshot: WorkerRuntime | None = None
+) -> RuntimeInspection:
     root = (root or Path("~/.bot/sandbox/runtime")).expanduser().resolve()
     workspace = workspace.resolve()
     errors: list[str] = []
     executables: dict[str, Path] = {}
     node_version = srt_version = None
+    worker = None
     try:
         if platform.system() not in {"Darwin", "Linux"}:
             raise ValueError("原生沙箱首版只支持 macOS/Linux")
@@ -65,8 +78,7 @@ def inspect_runtime(workspace: Path, *, root: Path | None = None) -> RuntimeInsp
             raise ValueError("运行时目录不能由组或其他用户写入")
         if info.st_uid not in {0, os.getuid()}:
             raise ValueError("运行时目录所有者无效")
-        source = manifest_directory()
-        pinned = {name: _read(source / name) for name in RUNTIME_ASSET_NAMES}
+        pinned = {name: _read(runtime_asset(name)) for name in RUNTIME_ASSET_NAMES}
         lock = json.loads(pinned["runtime-lock.json"])
         architecture = {"arm64": "arm64", "aarch64": "arm64", "x86_64": "x64"}.get(
             platform.machine().lower(), "unsupported"
@@ -107,6 +119,12 @@ def inspect_runtime(workspace: Path, *, root: Path | None = None) -> RuntimeInsp
         if platform.system() == "Linux" and not os.access(root / "bwrap-launcher.sh", os.X_OK):
             raise ValueError("bubblewrap 启动器不可执行")
         node_version, srt_version = lock["node_version"], lock["srt_version"]
+        worker = inspect_worker(
+            root,
+            workspace,
+            manifest_sha256=record["worker_python_sha256"],
+            previous=worker_snapshot,
+        )
         dependencies = (
             ("sandbox-exec",) if platform.system() == "Darwin" else ("bwrap", "socat", "rg")
         )
@@ -141,4 +159,6 @@ def inspect_runtime(workspace: Path, *, root: Path | None = None) -> RuntimeInsp
         process_isolation=status,
         evidence=("metadata inspection only; isolation probes not run",),
     )
-    return RuntimeInspection(root, capabilities, tuple(sorted(executables.items())), tuple(errors))
+    return RuntimeInspection(
+        root, capabilities, tuple(sorted(executables.items())), tuple(errors), worker
+    )

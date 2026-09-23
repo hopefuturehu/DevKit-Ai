@@ -62,6 +62,19 @@ class NativeInvocationTarget(ExecutionTarget):
             or spec.scope is not None
         ):
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工具不能替换调用身份或策略引用")
+        self._bind()
+        return spec.model_copy(
+            deep=True,
+            update={
+                "session_id": identity.session_id,
+                "run_id": identity.run_id,
+                "scope": self._scope,
+            },
+        )
+
+    def _bind(self) -> None:
+        self._check_open()
+        identity = self._identity
         if self._scope is None:
             self._scope = self._target.bind_scope(
                 session_id=identity.session_id,
@@ -70,13 +83,39 @@ class NativeInvocationTarget(ExecutionTarget):
                 read_only=identity.read_only,
                 denied_paths=identity.denied_paths,
             )
-        return spec.model_copy(
-            deep=True,
-            update={
-                "session_id": identity.session_id,
-                "run_id": identity.run_id,
-                "scope": self._scope,
-            },
+
+    async def worker_operation(
+        self,
+        operation: str,
+        arguments: dict,
+        *,
+        workspace_only: bool = True,
+        output_limit: int = 1_000_000,
+        timeout_seconds: float = 300,
+    ):
+        from bot.sandbox.client import execute_worker
+
+        self._bind()
+        assert self._scope is not None
+        argv, request = self._target.prepare_worker(
+            self._scope,
+            operation,
+            arguments,
+            workspace_only=workspace_only,
+            output_limit=output_limit,
+        )
+        return await execute_worker(
+            self._target,
+            self._prepare_spec(
+                ProcessSpec(
+                    argv=argv,
+                    cwd=self._identity.workspace,
+                    timeout_seconds=timeout_seconds,
+                    interactive=True,
+                    output_limit_bytes=8_010_000,
+                )
+            ),
+            request,
         )
 
     def _authorize(self, process_id: str) -> None:
@@ -122,6 +161,7 @@ class NativeInvocationTarget(ExecutionTarget):
             for snapshot in await self._target.list_processes()
             if (snapshot.session_id, snapshot.run_id)
             == (self._identity.session_id, self._identity.run_id)
+            and snapshot.execution_metadata.get("purpose") != "worker"
         ]
 
     async def read_process_output(

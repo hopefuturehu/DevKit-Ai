@@ -8,10 +8,14 @@ The worker and broker phases extend this inventory with their actual adapters.
 from bot.sandbox.models import SandboxError, SandboxErrorCode
 from bot.tools.base import Tool
 from bot.tools.builtins import (
+    ApplyPatchTool,
+    FetchUrlTool,
     ListProcessesTool,
     PollProcessTool,
+    ReadFileTool,
     RunCommandTool,
     RunShellTool,
+    SearchTextTool,
     SendProcessInputTool,
     TerminateProcessTool,
 )
@@ -25,6 +29,10 @@ def assert_native_tool_supported(tool: Tool) -> None:
         SendProcessInputTool,
         TerminateProcessTool,
         ListProcessesTool,
+        ReadFileTool,
+        SearchTextTool,
+        ApplyPatchTool,
+        FetchUrlTool,
     }:
         raise SandboxError(
             SandboxErrorCode.UNAVAILABLE,
