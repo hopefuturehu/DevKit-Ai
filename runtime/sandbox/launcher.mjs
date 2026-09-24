@@ -2,6 +2,7 @@
 // Low-level wrappers are intentional: SandboxManager.wrapWithSandbox always
 // adds shared /tmp/claude write roots, which also re-expose reads on Linux.
 import fs from 'node:fs';
+import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { SandboxManager, SandboxRuntimeConfigSchema } from './node_modules/@anthropic-ai/sandbox-runtime/dist/index.js';
@@ -76,6 +77,15 @@ try {
   await SandboxManager.initialize(config, undefined, false);
   if (!(await SandboxManager.waitForNetworkInitialization())) throw new Error('proxy initialization failed');
   if (requestedSignal) throw new Error('launch cancelled before target start');
+  const httpSocketPath = SandboxManager.getLinuxHttpSocketPath();
+  const socksSocketPath = SandboxManager.getLinuxSocksSocketPath();
+  const proxySockets = process.platform === 'linux' ? [...new Set([httpSocketPath, socksSocketPath])] : [];
+  for (const socketPath of proxySockets) {
+    if (typeof socketPath !== 'string' || path.dirname(socketPath) !== process.env.TMPDIR ||
+        !fs.lstatSync(socketPath).isSocket()) {
+      throw new Error('proxy socket is not a direct socket in the owned control directory');
+    }
+  }
   const command = quote([process.execPath, '--input-type=module', '--eval', INNER, '--', ...argv]);
   const params = {
     command,
@@ -83,9 +93,15 @@ try {
     httpProxyPort: SandboxManager.getProxyPort(),
     socksProxyPort: SandboxManager.getSocksProxyPort(),
     proxyAuthToken: SandboxManager.getProxyAuthToken(),
-    httpSocketPath: SandboxManager.getLinuxHttpSocketPath(),
-    socksSocketPath: SandboxManager.getLinuxSocksSocketPath(),
-    readConfig: { denyOnly: config.filesystem.denyRead, allowWithinDeny: config.filesystem.allowRead },
+    httpSocketPath,
+    socksSocketPath,
+    // SRT mounts proxy sockets BEFORE filesystem masks. Rebind only these
+    // endpoints after denyRead('/') masks /tmp; never expose their parent or
+    // policy files. The target's AF_UNIX seccomp restriction stays in place.
+    readConfig: {
+      denyOnly: config.filesystem.denyRead,
+      allowWithinDeny: [...config.filesystem.allowRead, ...proxySockets],
+    },
     writeConfig: {
       allowOnly: [...config.filesystem.allowWrite, '/dev/null', '/dev/stdout', '/dev/stderr'],
       denyWithinAllow: config.filesystem.denyWrite,

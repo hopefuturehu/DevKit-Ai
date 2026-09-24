@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "date": "2026-09-23",
+  "date": "2026-09-24",
   "goal_complete": false,
   "release_ready": false,
   "stages": {
@@ -350,5 +350,38 @@
     "stage_complete": false,
     "required_execution_enabled": false,
     "automatic_isolation_attestation_delivered": false
+  },
+  "live_preflight_validation": {
+    "artifact": "docs/data/native-sandbox-preflight.json",
+    "sha256": "be7559ddc8c37933f7ebfd4d2bf58ebfe2beb688355c32fe74509d32d1fa566c",
+    "stage_complete": false,
+    "required_execution_enabled": false,
+    "allowlist_enabled": false,
+    "live_fixed_preflight_delivered": true,
+    "macos_final": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "136",
+        "time": "80.485",
+        "timestamp": "2026-09-24T09:42:54.296177+08:00",
+        "hostname": "MacBook-Air.local"
+      }
+    ],
+    "linux_final": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "136",
+        "time": "108.039",
+        "timestamp": "2026-09-24T01:40:07.852756+00:00",
+        "hostname": "a114ccc8b18b"
+      }
+    ],
+    "initial_failures_preserved": true
   }
 }

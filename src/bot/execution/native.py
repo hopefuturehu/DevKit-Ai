@@ -79,13 +79,66 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             cleanup=config.agent.process_cleanup,
             strict_process_scope=True,
         )
+        from bot.sandbox.preflight import NativePreflight, StartupGate
+
+        self._preflight_gate = StartupGate(
+            lambda: NativePreflight(
+                self.runtime, self.state_root, self.config.agent.process_cleanup
+            )
+        )
+
+    @property
+    def has_live_processes(self) -> bool:
+        return super().has_live_processes or self._preflight_gate.live
+
+    @property
+    def sandbox_capabilities(self):
+        task = self._preflight_gate.task
+        if task is None or not task.done():
+            return self.runtime.capabilities
+        if task.cancelled() or task.exception() is not None:
+            return self.runtime.capabilities.model_copy(
+                update={
+                    "file_read": "unavailable",
+                    "file_write": "unavailable",
+                    "network_filter": "unavailable",
+                    "evidence": ("live preflight failed or cancelled",),
+                }
+            )
+        return task.result().capabilities
+
+    def _inspect_current_runtime(self):
+        inspection = inspect_runtime(
+            self.workspace,
+            root=self.runtime.root,
+            worker_snapshot=self.runtime.worker,
+            tree_snapshot=self.runtime.tree,
+        )
+        if not inspection.metadata_valid or inspection != self.runtime:
+            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "运行时安装记录已改变或缺少依赖")
+        return inspection
+
+    async def ensure_ready(self):
+        if self._closed or self._recovery_error:
+            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "原生执行环境不可用")
+        self._state_identity.verify()
+        self._inspect_current_runtime()
+        return await self._preflight_gate.ensure()
+
+    async def start_process(self, spec: ProcessSpec) -> str:
+        spec = ProcessSpec.model_validate(spec.model_dump()).model_copy(
+            update={"cwd": spec.cwd.resolve()}
+        )
+        self._bound_policy(spec).admission.verify()
+        await self.ensure_ready()
+        return await super().start_process(spec)
 
     @property
     def progress_scope(self) -> str:
         from bot.core.termination.identity import fingerprint
 
         return fingerprint(
-            "native-srt-managed-v2",
+            "native-srt-managed-v3-preflight1",
             str(self.workspace),
             str(self.runtime.root),
             str(self.state_root),
@@ -248,7 +301,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             str(self.runtime.root / "worker.py"),
         ], request
 
-    def _prepare_launch(self, spec: ProcessSpec) -> PreparedLaunch:
+    def _bound_policy(self, spec: ProcessSpec) -> ResolvedSandbox:
         scope = spec.scope
         if self._recovery_error or scope is None or scope not in self._bindings:
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "缺少可信且未使用的调用作用域")
@@ -259,14 +312,12 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         resolved = self._bindings[scope]
         if any(spec.cwd.is_relative_to(path) for path in resolved.policy.deny_read):
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工作目录位于禁止读取区域")
-        inspection = inspect_runtime(
-            self.workspace,
-            root=self.runtime.root,
-            worker_snapshot=self.runtime.worker,
-            tree_snapshot=self.runtime.tree,
-        )
-        if not inspection.metadata_valid or inspection != self.runtime:
-            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "运行时安装记录已改变或缺少依赖")
+        return resolved
+
+    def _prepare_launch(self, spec: ProcessSpec) -> PreparedLaunch:
+        resolved = self._bound_policy(spec)
+        scope = spec.scope
+        inspection = self._inspect_current_runtime()
         self._state_identity.verify()
         run = self._runs[(scope.session_id, scope.run_id)]
         run.directory.identity.verify()
@@ -314,6 +365,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 "denied_paths": list(map(str, run.denied_paths)),
                 "executed": None,
                 "purpose": "worker" if scope in self._worker_calls else "command",
+                "capabilities": self.sandbox_capabilities.model_dump(mode="json"),
             },
             release=control.remove,
         )
@@ -388,6 +440,8 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         )
 
     async def aclose(self) -> None:
+        self._closed = True
+        await self._preflight_gate.aclose()
         await super().aclose()
         if self._recovery_error:
             raise RuntimeError("process_cleanup_incomplete: 沙箱恢复身份未确认，保留资源")

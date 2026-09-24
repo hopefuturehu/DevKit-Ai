@@ -1,0 +1,1521 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-24",
+  "phase": "P0/P1 automatic live preflight; P2 launch admission",
+  "base_commit": "05a2fc7",
+  "stage_complete": false,
+  "required_execution_enabled": false,
+  "allowlist_enabled": false,
+  "live_fixed_preflight_delivered": true,
+  "trusted_per_command_startup_status_delivered": false,
+  "source_sha256": {
+    "src/bot/sandbox/preflight.py": "1a3b2ab4dc8493dd17a5dca4c6c9a334eef01d2be7caf02868d47f28c95c83cc",
+    "src/bot/execution/native.py": "2f2363225f8bd2c8f9a941879c4587342aab93e30da1c2744d9a474058567043",
+    "runtime/sandbox/launcher.mjs": "b0dc835ffd48b9fa29e238736ff24d7547ff0dfb74a620d029eb3320f0817a71",
+    "tests/unit/test_preflight_gate.py": "b59860f9ad4061c22c88ed1f37bca5bc761e91b232f590a00cfec3701b1ec2b4",
+    "tests/integration/test_native_execution.py": "fd38aaf3f99f510f36cf566e323063d03aba92226131cf2ec9a13b658f74d103",
+    "tests/integration/test_native_sandbox.py": "30f893db290112678f9bcccb412b0cc22d26c9e3569734afeb057b13c43cdb35"
+  },
+  "reports": {
+    "macos_final": {
+      "raw_xml": "/private/tmp/native-preflight-macos-final.xml",
+      "raw_xml_sha256": "ee371b3ecc191f479a6f8f5d2892a07e5667edd74d1b5c67f99579250b2139d7",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "136",
+          "time": "80.485",
+          "timestamp": "2026-09-24T09:42:54.296177+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node/bin/node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node_modules/zod/package.json]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[unconfined]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[readonly_protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[leftover]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_cancellation_reclaims_probe_and_never_runs_business",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_proxy_works_without_exposing_control_files_or_other_sockets",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_callers_share_one_probe_and_cached_result",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_repeated_cancellation_waits_for_cleanup_and_does_not_replay",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_shutdown_cancels_pending_probe_before_returning",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_cancellations_and_close_do_not_interrupt_shared_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_cleanup_failure_takes_precedence_over_caller_cancellation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[endpoints]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[processes]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[directory]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_process_spec_has_no_default_hard_timeout",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_execution_uses_argv_and_captures_streams",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_execution_timeout_terminates_process",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_timeout_kills_background_child_after_shell_exits",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_closing_execution_stream_terminates_its_process_group",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_cancelled_spawn_cleans_process_created_at_cancellation_boundary",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_run_command_forwards_streaming_tool_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_run_command_yields_and_polls_managed_process",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_fresh_process_ids_do_not_change_completed_evidence",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_terminal_evidence_includes_output_consumed_by_earlier_polls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_and_streamed_command_evidence_match",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_completed_managed_process_duration_stops_increasing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_runtime_cleanup_kills_background_child_after_leader_exits",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_hard_timeout_is_reported",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_interactive_process_accepts_input",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_can_be_listed_and_terminated",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_limit_is_a_recoverable_tool_error",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_processes_are_cleaned_up_when_target_closes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_file_tools_enforce_workspace_and_exact_patch",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_search_skips_symlinked_files_outside_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_file_tools_deny_internal_state_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_requires_approval_for_unknown_command_and_denies_escape",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_accepts_long_regex_without_stat_crash[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_accepts_long_regex_without_stat_crash[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_denies_unresolvable_explicit_path_without_crashing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_auto_approves_all_ask_decisions_but_keeps_deny",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_separately_evaluates_shell_segments",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_reuses_only_profiled_command_families",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_reuses_read_only_sqlite_queries_but_not_mutations",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_prevents_read_only_commands_from_escaping_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_ksys_and_tuner_build_structured_argv",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_tuner_returns_arm_manual_command_when_target_is_x86",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_finds_child_that_changes_group[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_finds_child_that_changes_group[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_failed_cleanup_retains_quota_and_can_be_retried",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_process_scope_rejects_reused_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_transport_decodes_split_utf8_and_caps_retention",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_unavailable_inventory_returns_unknown_without_spawning_collectors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_never_targets_another_run",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_reused_session_leader_is_not_adopted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_signal_rechecks_creation_time_before_killing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_transport_pipe_errors_do_not_count_as_complete_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_signal_deadline_is_checked_before_each_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_runtime_cleans_processes_when_subagent_shutdown_fails",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_sigterm_cancels_work_and_waits_for_runtime_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_policy_protects_control_paths_secrets_runtime_git_and_sibling_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_control_symlink_name_and_target_are_both_protected",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_existing_hardlink_alias_is_in_both_os_deny_sets",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_readonly_has_only_own_private_write_roots[read-only-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_readonly_has_only_own_private_write_roots[safe-True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_child_policy_retains_parent_read_denies_and_cannot_gain_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_child_cannot_enter_sibling_or_managed_worktree",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_child_cannot_add_runtime_read_root",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_parent_network_ceiling_and_permissions_intersect",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_policies_and_scopes_are_immutable_and_concurrent_runs_do_not_share_state",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_workspace_runtime_and_private_areas_must_be_disjoint[workspace]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_workspace_runtime_and_private_areas_must_be_disjoint[private]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_workspace_runtime_and_private_areas_must_be_disjoint[runtime]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_private_home_cannot_be_a_symlink_to_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_private_home_cannot_reopen_another_private_control_directory",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_read_root_cannot_reopen_protected_secret",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_configured_write_root_cannot_reach_private_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_git_indirection_is_not_read_by_trusted_resolver",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_host_issued_git_metadata_is_readonly",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_matching_metadata_never_claims_enforcement_or_runs_a_binary",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[lock]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[bwrap_helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[platform]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[missing]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[metadata_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[parent_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_project_runtime_and_path_override_are_not_trusted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_missing_runtime_is_reported_without_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_cli_required_reports_closed_gate_without_provider_or_target_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_doctor_distinguishes_unavailable_runtime_from_os_enforcement",
+          "status": "passed"
+        }
+      ]
+    },
+    "linux_final": {
+      "raw_xml": "/private/tmp/native-preflight-linux-final.xml",
+      "raw_xml_sha256": "f8c918f6fd4afe98c0f3ed793ccdf26a92dbcf6f0fd1018acc7aa820b5016f55",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "136",
+          "time": "108.039",
+          "timestamp": "2026-09-24T01:40:07.852756+00:00",
+          "hostname": "a114ccc8b18b"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node/bin/node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node_modules/zod/package.json]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[unconfined]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[readonly_protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[leftover]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_cancellation_reclaims_probe_and_never_runs_business",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_proxy_works_without_exposing_control_files_or_other_sockets",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_callers_share_one_probe_and_cached_result",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_repeated_cancellation_waits_for_cleanup_and_does_not_replay",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_shutdown_cancels_pending_probe_before_returning",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_cancellations_and_close_do_not_interrupt_shared_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_cleanup_failure_takes_precedence_over_caller_cancellation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[endpoints]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[processes]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[directory]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_process_spec_has_no_default_hard_timeout",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_execution_uses_argv_and_captures_streams",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_execution_timeout_terminates_process",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_local_timeout_kills_background_child_after_shell_exits",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_closing_execution_stream_terminates_its_process_group",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_cancelled_spawn_cleans_process_created_at_cancellation_boundary",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_run_command_forwards_streaming_tool_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_run_command_yields_and_polls_managed_process",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_fresh_process_ids_do_not_change_completed_evidence",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_terminal_evidence_includes_output_consumed_by_earlier_polls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_and_streamed_command_evidence_match",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_completed_managed_process_duration_stops_increasing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_runtime_cleanup_kills_background_child_after_leader_exits",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_hard_timeout_is_reported",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_interactive_process_accepts_input",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_can_be_listed_and_terminated",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_process_limit_is_a_recoverable_tool_error",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_managed_processes_are_cleaned_up_when_target_closes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_file_tools_enforce_workspace_and_exact_patch",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_search_skips_symlinked_files_outside_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_file_tools_deny_internal_state_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_requires_approval_for_unknown_command_and_denies_escape",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_accepts_long_regex_without_stat_crash[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_accepts_long_regex_without_stat_crash[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_denies_unresolvable_explicit_path_without_crashing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_auto_approves_all_ask_decisions_but_keeps_deny",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_separately_evaluates_shell_segments",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_reuses_only_profiled_command_families",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_reuses_read_only_sqlite_queries_but_not_mutations",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_policy_prevents_read_only_commands_from_escaping_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_ksys_and_tuner_build_structured_argv",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_tools_policy.test_tuner_returns_arm_manual_command_when_target_is_x86",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_finds_child_that_changes_group[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_finds_child_that_changes_group[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_failed_cleanup_retains_quota_and_can_be_retried",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_process_scope_rejects_reused_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_transport_decodes_split_utf8_and_caps_retention",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_unavailable_inventory_returns_unknown_without_spawning_collectors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_never_targets_another_run",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_reused_session_leader_is_not_adopted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_signal_rechecks_creation_time_before_killing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_transport_pipe_errors_do_not_count_as_complete_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_signal_deadline_is_checked_before_each_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_runtime_cleans_processes_when_subagent_shutdown_fails",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_sigterm_cancels_work_and_waits_for_runtime_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_policy_protects_control_paths_secrets_runtime_git_and_sibling_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_control_symlink_name_and_target_are_both_protected",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_existing_hardlink_alias_is_in_both_os_deny_sets",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_readonly_has_only_own_private_write_roots[read-only-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_readonly_has_only_own_private_write_roots[safe-True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_child_policy_retains_parent_read_denies_and_cannot_gain_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_child_cannot_enter_sibling_or_managed_worktree",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_child_cannot_add_runtime_read_root",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_parent_network_ceiling_and_permissions_intersect",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_policies_and_scopes_are_immutable_and_concurrent_runs_do_not_share_state",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_workspace_runtime_and_private_areas_must_be_disjoint[workspace]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_workspace_runtime_and_private_areas_must_be_disjoint[private]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_workspace_runtime_and_private_areas_must_be_disjoint[runtime]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_private_home_cannot_be_a_symlink_to_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_private_home_cannot_reopen_another_private_control_directory",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_read_root_cannot_reopen_protected_secret",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_configured_write_root_cannot_reach_private_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_git_indirection_is_not_read_by_trusted_resolver",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_policy.test_host_issued_git_metadata_is_readonly",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_matching_metadata_never_claims_enforcement_or_runs_a_binary",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[lock]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[bwrap_helper]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[platform]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[missing]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[metadata_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[asset_hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_changed_or_untrusted_installation_is_unavailable[parent_permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_project_runtime_and_path_override_are_not_trusted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_missing_runtime_is_reported_without_installation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_cli_required_reports_closed_gate_without_provider_or_target_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_runtime.test_doctor_distinguishes_unavailable_runtime_from_os_enforcement",
+          "status": "passed"
+        }
+      ]
+    },
+    "macos_initial": {
+      "raw_xml": "/private/tmp/native-preflight-macos.xml",
+      "raw_xml_sha256": "0bc3c7c0704a03aae41e49d5bfc2cada84d29a6e09eff47758ad17e2979a69ae",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "1",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "136",
+          "time": "89.729",
+          "timestamp": "2026-09-23T15:47:52.510371+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: CLEANUP_FAILED: 沙箱自检失败，业务目标未启动: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"bot.sandbox.models.SandboxError: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源\n[]\n{}\""
+            }
+          ]
+        }
+      ]
+    },
+    "macos_initial_failure_isolated": {
+      "raw_xml": "/private/tmp/native-preflight-macos-isolated.xml",
+      "raw_xml_sha256": "45f083fdda2a1d64549541da80ceb136a88bad66648fb4f296c439ba6d50f90a",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "1",
+          "time": "3.774",
+          "timestamp": "2026-09-23T15:51:01.845712+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed"
+        }
+      ]
+    },
+    "linux_initial": {
+      "raw_xml": "/private/tmp/native-preflight-linux-initial.xml",
+      "raw_xml_sha256": "96883bb0cc15a79e1460b41170aa707e60cfa97dc52cefbcb1ce3fec4c9e620e",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "13",
+          "skipped": "0",
+          "tests": "135",
+          "time": "74.137",
+          "timestamp": "2026-09-24T01:27:41.004567+00:00",
+          "hostname": "a114ccc8b18b"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 文件/网络/子进程/argv 隔离自检失败"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 文件/网络/子进程/argv 隔离自检失败"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 文件/网络/子进程/argv 隔离自检失败"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 文件/网络/子进程/argv 隔离自检失败"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 文件/网络/子进程/argv 隔离自检失败"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert (False)\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert (False)\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert (False)\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 文件/网络/子进程/argv 隔离自检失败"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 文件/网络/子进程/argv 隔离自检失败"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "assert 0 == 2\n +  where 0 = len([])"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "assert False\n +  where False = any(<generator object test_agent_binds_native_identity_and_rejects_unconfined_tools.<locals>.<genexpr> at 0xffff7edb17d0>)"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert False is True\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        }
+      ]
+    },
+    "linux_bridge_fix": {
+      "raw_xml": "/private/tmp/native-preflight-linux-bridge-fixed.xml",
+      "raw_xml_sha256": "b60dc20c09eaa850c2369be6432d14abdc76ce840fae86773868a55caa986960",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "2",
+          "time": "5.462",
+          "timestamp": "2026-09-24T01:38:32.292927+00:00",
+          "hostname": "a114ccc8b18b"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_proxy_works_without_exposing_control_files_or_other_sockets",
+          "status": "passed"
+        }
+      ]
+    },
+    "gate_units": {
+      "raw_xml": "/private/tmp/native-preflight-gate-unit-final.xml",
+      "raw_xml_sha256": "87d8d3d8f2f998ea53860b17e73a0110b39516e0b595e6ffe7c1d291f356e443",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "10",
+          "time": "0.097",
+          "timestamp": "2026-09-24T09:35:28.832976+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_callers_share_one_probe_and_cached_result",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_repeated_cancellation_waits_for_cleanup_and_does_not_replay",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_shutdown_cancels_pending_probe_before_returning",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_cancellations_and_close_do_not_interrupt_shared_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_cleanup_failure_takes_precedence_over_caller_cancellation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[endpoints]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[processes]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[directory]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[True]",
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "initial_failures": {
+    "macos": {
+      "finding": "Preflight cleanup could not be confirmed; business process was not started. The original failure lacked inner probe process identities; bounded diagnostics were added.",
+      "isolated_recheck": "passed; this does not reclassify the initial failure",
+      "fixture_root": "/private/var/folders/kc/sgssz0nn58lbpcsv5nz1kg2r0000gn/T/pytest-of-huyang/pytest-405/test_invocation_freezes_run_pe0/runs/preflight-fj4ih2gk",
+      "later_root_observation": "absent; original fixture used pytest-rotated tmp_path, so original process ownership cannot be reconstructed from retained state",
+      "fixture_fix": "Native fixture now owns a separate /tmp/bot-native-test-* directory, removed only after verified teardown; failures record its path in JUnit"
+    },
+    "linux": {
+      "finding": "13 failed, 122 passed. All fixed checks except HTTP proxy passed. The proxy request got ECONNRESET; diagnostic relay stderr confirmed socket connect ENOENT.",
+      "cause": "Pinned SRT binds proxy sockets before filesystem masks; denyRead(/) later masks /tmp.",
+      "fix": "The fixed helper validates the exact socket paths under its owned TMPDIR and includes only those endpoints in read carve-outs. Policy files and unrelated sockets stay hidden; AF_UNIX seccomp restriction stays enabled."
+    }
+  },
+  "wheel": {
+    "path": "/private/tmp/bot-preflight-fixed-wheel/kunpeng_cli_agent-0.1.0-py3-none-any.whl",
+    "sha256": "5380bfb99c352c3286510ff08c6ce8bdbbaa05bb3eea47186b8c2a5f32444067",
+    "python_files": 124,
+    "runtime_assets": 5
+  },
+  "installed_wheel": {
+    "wheel_sha256": "5380bfb99c352c3286510ff08c6ce8bdbbaa05bb3eea47186b8c2a5f32444067",
+    "verified_entries": 129,
+    "site_packages": "/opt/venv/lib/python3.12/site-packages",
+    "uid": 65534
+  },
+  "installations": {
+    "macos": {
+      "platform": "darwin-arm64",
+      "source_hashes": {
+        "package.json": "cfa59d4eb97eaf25910bcf1410dccfbd14d70ea27f93e3bb2ceab8122876c10b",
+        "package-lock.json": "f3d198810827d30f8a2ae178bb8653e49d74caa6ce5260ef2ee1d15cfbc53223",
+        "runtime-lock.json": "2f4272ed7be6ceaca2b63352d13b3fb189a1948eb8d7bdcd92672ea2facfcf87",
+        "launcher.mjs": "b0dc835ffd48b9fa29e238736ff24d7547ff0dfb74a620d029eb3320f0817a71",
+        "bwrap-launcher.sh": "b32f34f2c39ac0f7e67e49824db1e24744f212ab66af1105923adbd7195a75d4",
+        "worker.py": "33dbac3489b703d77981f5674360cd1eb4e232dd44de6775752a45dda43e8066"
+      },
+      "node": "v24.14.0",
+      "worker_python_sha256": "8691e54fa05f550cc1e075e50ef06f79dd56e67cc0b53eb9b507ab2c209c145e",
+      "runtime_files_sha256": "6de2e41e09553f3028c7e1e0f54f15a1a14d71e16c86e50be58d5891f045a153"
+    },
+    "linux": {
+      "platform": "linux-arm64",
+      "source_hashes": {
+        "package.json": "cfa59d4eb97eaf25910bcf1410dccfbd14d70ea27f93e3bb2ceab8122876c10b",
+        "package-lock.json": "f3d198810827d30f8a2ae178bb8653e49d74caa6ce5260ef2ee1d15cfbc53223",
+        "runtime-lock.json": "2f4272ed7be6ceaca2b63352d13b3fb189a1948eb8d7bdcd92672ea2facfcf87",
+        "launcher.mjs": "b0dc835ffd48b9fa29e238736ff24d7547ff0dfb74a620d029eb3320f0817a71",
+        "bwrap-launcher.sh": "b32f34f2c39ac0f7e67e49824db1e24744f212ab66af1105923adbd7195a75d4",
+        "worker.py": "33dbac3489b703d77981f5674360cd1eb4e232dd44de6775752a45dda43e8066"
+      },
+      "node": "v24.14.0",
+      "worker_python_sha256": "88628a8064cc1bb5f3bcff79026dcb46ed1f5233a7ce6437f7e478a537c21eba",
+      "runtime_files_sha256": "05f07a6c77099a64cfd2c04689430ee75c643f6a76d7549741e02d3ef29f7cc7"
+    }
+  },
+  "linux_lab": {
+    "image": "sha256:d845e12395a887e245bdaced458ed5cbed48c616e2b0a7fdf80b3cf7757a1407",
+    "test_uid": 65534,
+    "test_gid": 65534,
+    "outer_container": "SYS_ADMIN, seccomp=unconfined, systempaths=unconfined; IPv6 enabled; --init",
+    "no_host_mounts_credentials_or_docker_socket": true,
+    "scope": "ARM64, real inner bubblewrap; not a production container isolation assessment"
+  },
+  "checks": [
+    "Disposable host-owned files; allowed workspace read/write and private HOME/tmp",
+    "Outside and .env reads denied; outside and child writes denied; readonly workspace",
+    "Exact empty/Unicode/quote/newline argv preservation",
+    "Live TCP4/TCP6/UDP4/UDP6/Unix positive controls before and after denial checks",
+    "HTTP proxy must return 403; transport failure is not an acceptable policy denial",
+    "Managed cancellation requires observed_empty; cleanup completes before business launch",
+    "Shared once-per-instance probe; failed or cancelled probe is never silently replayed",
+    "Unconfined/invalid protocol/retained resource controls block business side effects",
+    "Control files and other sockets remain inaccessible after proxy endpoint carve-out"
+  ],
+  "limits": [
+    "Only deny networking is proven; allowlist remains disabled",
+    "macOS process ownership is observational; unknown cleanup remains fail closed",
+    "A retained preflight directory blocks startup; authenticated crash recovery is still missing",
+    "System-helper/dynamic-loader attestation and trusted per-command launch status remain incomplete",
+    "Concurrent admission, full child/worktree/Git/broker/CLI/Web/eval coverage remain incomplete",
+    "Full S01-S15, ten daily tasks, performance and complete repository regression are not delivered",
+    "No x64 evidence, hard resource containment or untrusted multi-tenant isolation claim"
+  ]
+}

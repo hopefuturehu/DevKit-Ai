@@ -441,3 +441,42 @@ Linux 实验环境保留为 `bot-native-worker-env:20260923`，镜像摘要见�
 156 ms，总 CPU 时间约 4.47 秒。这里只测校验，不包含工具执行、模型或任务比较，不是 P5 性能验收。
 本轮未额外保存含多份篡改夹具的容器镜像；Linux 报告与安装摘要已导出，实验容器已回收。
 源码、wheel 和报告摘要见 [完整性验证证据](../data/native-sandbox-runtime-integrity.json)。
+
+## P0/P1 自动隔离探测与 P2 启动门禁（2026-09-24）
+
+内部 Native target 现在在首次业务调用之前运行固定探针，经相同策略编译器、固定 launcher 和
+受管进程路径验证真实隔离。探针使用宿主创建的独立临时工作区、假秘密及 TCP4/TCP6、UDP4/UDP6、
+Unix 本机端点；宿主在受限访问前后验证端点可用。检查包括正常读写、项目外和 .env 读取拒绝、
+自身及子进程越界写入拒绝、argv 保真、私有 HOME/tmp、直接网络拒绝及代理明确返回 403。
+另一个只读探针必须先报告就绪，再经主动取消达到 observed_empty。所有探针资源确认清理后，
+才允许业务进程启动；仅检查安装元数据仍不能报告 enforced。
+
+成功结果只在当前 target 内复用，并发启动共享同一个探测任务。取消或失败不会自动重放探针，
+也不会回退宿主执行。重复取消不能打断共享清理；清理失败优先报告 CLEANUP_FAILED，并保留未回收
+资源。已有 preflight-* 目录会阻止新实例启动，但此目录只是一项阻断证据，不是进程仍存活或可以
+接管 PID 的证明，完整崩溃恢复仍待交付。能力记录仅把本轮验证的 file_read/file_write/network_filter
+标为 enforced；process_isolation 保持 unverified，resource_limits 保持 unavailable。
+
+Linux 首轮 **122 passed、13 failed**，失败集中在代理探测。固定探针其他检查均通过，HTTP 请求
+得到 ECONNRESET；临时诊断仅打开桥接错误输出，确认内侧 socat 连接代理 Unix socket 时得到 ENOENT。
+锁定 SRT 先挂载代理 socket，再生成文件系统限制，denyRead('/') 对 /tmp 的掩蔽覆盖了先前挂载。
+固定 launcher 现在核对 SRT 返回的端点确为私有 TMPDIR 的直接 socket，并仅将这些端点加入后续读取
+恢复列表，没有开放其父目录或策略文件。AF_UNIX seccomp 限制保持启用。新增真实回归同时验证代理
+返回 403、同目录策略文件和假秘密不可读、同目录其他 Unix socket 不可连接。
+
+macOS 首轮 **134 passed、1 failed、1 teardown error**：探针进程清理未确认，业务命令未启动。
+该次错误未保存内层进程身份，无法确认具体归属；单独复核相关用例通过，不能据此改记原失败。
+随后检查发现原 pytest 临时目录已不存在。原夹具使用会被后续测试轮换的 tmp_path，存在丢失保留
+现场的风险；现已改为独立 /tmp/bot-native-test-* 目录，仅在确认清理成功后删除，失败时把路径写入
+JUnit。生产探针清理错误也增加有界的进程身份诊断，不记录业务 argv、环境或输出。
+
+两平台均重新执行显式安装，固定 Node 24.14.0/SRT 0.0.77，不修改旧安装。最终 macOS ARM64 与
+Linux ARM64 各 **136 passed，无 skip**；Linux 使用非 root UID/GID 65534 和当前已安装 wheel。
+wheel 的 124 个 Python 文件及 5 个运行时资产与源码一致，Linux 对应安装内容也逐字节一致。
+Linux 验证容器退出前只剩 init、测试环境保持进程和核对命令，报告导出后已回收该容器。
+原失败、修复定向验证、最终结果与摘要分别保存在 [自动探测证据](../data/native-sandbox-preflight.json)。
+
+这不是六阶段完成或生产发布：可信的逐命令启动状态通道、系统辅助程序/动态加载依赖证明、
+并发准入、恢复、完整子任务/worktree/Git/broker 及 CLI/Web/eval 接线仍待完成。doctor 尚未提供
+实时探测入口，allowlist 和生产 required 工厂仍关闭；完整 S01–S15、十项日常任务、性能及全仓
+回归仍按原验收范围推进。此次启动探针也不构成多租户或完整进程隔离证明。

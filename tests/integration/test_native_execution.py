@@ -15,6 +15,7 @@ from bot.config.models import AppConfig
 from bot.execution.base import ProcessSpec, ProcessStatus
 from bot.execution.native import NativeSandboxExecutionTarget
 from bot.sandbox.models import SandboxError
+from bot.sandbox.resources import OwnedDirectory
 from bot.tools.base import ToolAnnotations, ToolContext
 from bot.tools.builtins import RunCommandTool, RunShellTool
 from bot.tools.subprocess_adapter import SubprocessCliTool
@@ -23,25 +24,35 @@ EXPECTED_UNRESOLVED = pytest.StashKey[set[str]]()
 
 
 @pytest_asyncio.fixture
-async def native_target(tmp_path, request, record_property):
+async def native_target(request, record_property):
     request.node.stash[EXPECTED_UNRESOLVED] = set()
     runtime = os.environ.get("BOT_TEST_SANDBOX_RUNTIME")
     if not runtime:
         if os.environ.get("BOT_REQUIRE_NATIVE_SANDBOX") == "1":
             pytest.fail("release validation requires BOT_TEST_SANDBOX_RUNTIME")
         pytest.skip("native runtime not selected")
+    # pytest may delete old tmp_path roots on later runs. Unresolved native
+    # resources must survive that rotation, so only verified teardown owns
+    # removal of this separate test root.
+    owned = OwnedDirectory.create(Path("/tmp").resolve(), prefix="bot-native-test-")
+    tmp_path = owned.path
     work = tmp_path / "work"
     work.mkdir()
     config = AppConfig.model_validate({"sandbox": {"mode": "required"}})
-    target = NativeSandboxExecutionTarget(
-        config, workspace=work, runtime_root=Path(runtime), state_root=tmp_path / "runs"
-    )
+    try:
+        target = NativeSandboxExecutionTarget(
+            config, workspace=work, runtime_root=Path(runtime), state_root=tmp_path / "runs"
+        )
+    except BaseException:
+        owned.remove()  # Construction never starts a target or probe process.
+        raise
     try:
         yield target, work, Path(runtime).resolve() / "node/bin/node"
     finally:
         try:
             await target.aclose()
         except RuntimeError as exc:
+            record_property("retained_test_root", str(owned.path))
             snapshots = await target.list_processes()
             exc.add_note(str([p.model_dump(mode="json") for p in snapshots]))
             exc.add_note(
@@ -58,6 +69,7 @@ async def native_target(tmp_path, request, record_property):
             assert list((tmp_path / "runs").iterdir())
         else:
             assert not list((tmp_path / "runs").iterdir())
+            owned.remove()
 
 
 def scoped_spec(target, work, argv, *, call="call", run="run", readonly=False, **kwargs):
@@ -93,9 +105,15 @@ console.log(JSON.stringify({denied,args:process.argv.slice(2)}));""",
     assert json.loads(result.stdout) == {"denied": True, "args": ["", "中文", "a'b"]}
     assert (work / "ok").read_text() == "done" and outside.read_text() == "preserve"
     assert result.execution_metadata["backend"] == "srt"
+    assert result.execution_metadata["capabilities"]["file_read"] == "enforced"
+    assert result.execution_metadata["capabilities"]["network_filter"] == "enforced"
+    assert result.execution_metadata["capabilities"]["process_isolation"] == "unverified"
+    assert target.runtime.capabilities.file_read == "unverified"
+    assert target.sandbox_capabilities.file_read == "enforced"
     control = Path(result.execution_metadata["control_directory"]["path"])
     assert not control.exists()
     assert Path(result.execution_metadata["run_directory"]["path"]).exists()
+    assert not list(target.state_root.glob("preflight-*"))
     with pytest.raises(SandboxError, match="作用域"):
         await target.start_process(spec)
 
@@ -634,3 +652,100 @@ async def test_installed_runtime_tamper_refuses_launch_before_target_runs(
             view.release_invocation()
     finally:
         await target.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["unconfined", "protocol", "readonly_protocol", "leftover"])
+async def test_preflight_failure_never_runs_business_command_or_retries(
+    native_target, monkeypatch, failure
+):
+    from bot.execution.local import LocalExecutionTarget
+    from bot.sandbox import preflight
+
+    target, work, node = native_target
+    leftover = None
+    if failure == "unconfined":
+        # Negative control: a functioning process with no OS isolation must
+        # fail the real fixed checks, not produce enforced capabilities.
+        monkeypatch.setattr(
+            preflight._ProbeTarget, "_prepare_launch", LocalExecutionTarget._prepare_launch
+        )
+    elif failure == "protocol":
+        monkeypatch.setattr(preflight, "_CHECK_JS", "console.log('{}')")
+    elif failure == "readonly_protocol":
+        monkeypatch.setattr(
+            preflight,
+            "_CANCEL_JS",
+            "const c=JSON.parse(process.argv[1]);"
+            "console.log(JSON.stringify({v:true,nonce:c.nonce,readonly:1}));"
+            "setInterval(()=>{},1000)",
+        )
+    else:
+        leftover = target.state_root / "preflight-synthetic-leftover"
+        leftover.mkdir(mode=0o700)
+    try:
+        probe_task = None
+        for index in range(2):
+            with pytest.raises(SandboxError) as error:
+                await target.start_process(
+                    scoped_spec(
+                        target,
+                        work,
+                        [node, "-e", "require('fs').writeFileSync('business-started','bad')"],
+                        call=f"preflight-failure-{index}",
+                    )
+                )
+            assert error.value.executed is False
+            assert error.value.stage == "isolation_preflight"
+            assert not (work / "business-started").exists()
+            assert await target.list_processes() == []
+            assert target.sandbox_capabilities.file_read == "unavailable"
+            if probe_task is None:
+                probe_task = target._preflight_gate.task
+            assert target._preflight_gate.task is probe_task
+        assert not target.has_live_processes
+        if leftover is not None:
+            assert leftover.is_dir()
+            assert target._preflight_gate.instance.manager is None
+    finally:
+        if leftover is not None:
+            # This test alone created the empty marker without starting any
+            # process; production never clears arbitrary retained markers.
+            leftover.rmdir()
+
+
+@pytest.mark.asyncio
+async def test_preflight_cancellation_reclaims_probe_and_never_runs_business(
+    native_target, monkeypatch
+):
+    from bot.sandbox import preflight
+
+    target, work, node = native_target
+    launched = asyncio.Event()
+    start = preflight._ProbeTarget.start_process
+
+    async def observe(self, spec):
+        pid = await start(self, spec)
+        launched.set()
+        return pid
+
+    monkeypatch.setattr(preflight._ProbeTarget, "start_process", observe)
+    monkeypatch.setattr(preflight, "_CHECK_JS", "setInterval(()=>{},1000)")
+    task = asyncio.create_task(
+        target.start_process(
+            scoped_spec(
+                target,
+                work,
+                [node, "-e", "require('fs').writeFileSync('business-started','bad')"],
+            )
+        )
+    )
+    async with asyncio.timeout(10):
+        await launched.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not target.has_live_processes
+    assert not (work / "business-started").exists()
+    assert not list(target.state_root.glob("preflight-*"))
+    assert await target.list_processes() == []

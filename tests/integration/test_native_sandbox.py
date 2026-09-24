@@ -272,6 +272,51 @@ s.once('error',e=>console.log(JSON.stringify(e.code)));s.setTimeout(2000,()=>s.d
         assert result in {"EPERM", "EACCES", "ENETUNREACH", "ECONNREFUSED"}
 
 
+def test_native_proxy_works_without_exposing_control_files_or_other_sockets(native):
+    run, _, _, _, _, control, _ = native
+    secret = control / "fake-secret"
+    secret.write_text("synthetic-control-secret")
+    path = control / "unrelated.sock"
+    with socket.socket(socket.AF_UNIX) as listener:
+        listener.bind(str(path))
+        listener.listen(3)
+        with socket.socket(socket.AF_UNIX) as positive:
+            positive.connect(str(path))
+            connection, _ = listener.accept()
+            connection.close()
+        result = run(
+            r"""const fs=require('fs'),net=require('net'),http=require('http');
+const reads=process.argv.slice(1,3).map(p=>{
+  try{return {data:fs.readFileSync(p,'utf8')}}catch(e){return {error:e.code}}
+});
+const unix=new Promise(resolve=>{
+  const s=net.createConnection({path:process.argv[3]});
+  s.on('connect',()=>{s.destroy();resolve('connected')});
+  s.on('error',e=>resolve(e.code));s.setTimeout(1000,()=>{s.destroy();resolve('timeout')});
+});
+const proxy=new Promise(resolve=>{
+  const p=new URL(process.env.HTTP_PROXY),headers={Host:'127.0.0.1:9'};
+  if(p.username)headers['Proxy-Authorization']='Basic '+Buffer.from(
+    decodeURIComponent(p.username)+':'+decodeURIComponent(p.password)).toString('base64');
+  const r=http.get({host:p.hostname,port:p.port,path:'http://127.0.0.1:9/',headers},res=>{
+    res.resume();resolve(res.statusCode);
+  });
+  r.on('error',e=>resolve(e.code));r.setTimeout(2000,()=>{r.destroy();resolve('timeout')});
+});
+Promise.all([unix,proxy]).then(([unix,proxy])=>console.log(JSON.stringify({reads,unix,proxy})));""",
+            secret,
+            control / "policy.json",
+            path,
+        )
+        assert result["proxy"] == 403, result
+        assert result["unix"] in {"EPERM", "EACCES", "ENOENT"}, result
+        assert all(item.get("error") in {"EPERM", "EACCES", "ENOENT"} for item in result["reads"])
+        listener.settimeout(0.05)
+        with pytest.raises(TimeoutError):
+            listener.accept()
+    assert secret.read_text() == "synthetic-control-secret"
+
+
 def test_native_environment_excludes_host_keys_and_loaders(native, monkeypatch):
     run, _, _, _, directories, *_ = native
     monkeypatch.setenv("NODE_OPTIONS", "--require=/untrusted-hook")
