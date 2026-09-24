@@ -2065,7 +2065,7 @@ class AgentRunner:
                     in {"read_file", "search_text", "poll_process", "run_command", "run_shell"}
                     and raw_model_content
                     and evidence_key not in seen
-                    and result.metadata.get("executed", True)
+                    and result.metadata.get("executed", True) is not False
                     and not result.truncated
                 ):
                     seen.append(evidence_key)

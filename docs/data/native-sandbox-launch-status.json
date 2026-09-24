@@ -1,0 +1,3564 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-24",
+  "phase": "P2 trusted launcher status and admitted-spawn shutdown",
+  "base_commit": "0245a97",
+  "stage_complete": false,
+  "required_execution_enabled": false,
+  "allowlist_enabled": false,
+  "trusted_per_command_startup_status_delivered": true,
+  "target_exec_attested": false,
+  "source_sha256": {
+    "runtime/sandbox/launcher.mjs": "ddf44097c8912c500ae319de9aa7f377c4b81b681e24873f8449b4ce60fce0e9",
+    "src/bot/sandbox/launch_status.py": "ae285ef72b615aea72a0098c79c8145598d9ae75eee35b57084be3d47837d03d",
+    "src/bot/execution/local.py": "b2966359891edee5e7cdc1c7a5c7d55c8d8ac67bb7768d2d9151998c1dbbe55e",
+    "src/bot/execution/native.py": "179260a477fd50f1cd23f9bdcc7bba860ab01ade951880a3ee605731d680e15f",
+    "src/bot/core/agent.py": "f2876251848e659a82ac7181d2d846b661964b93385d1122467e2bb4e81230e2",
+    "src/bot/sandbox/client.py": "6bab25ca669cdfef2e1eae032877d978e3c49e4b68f69f88c9b0c8c39ba811d4",
+    "src/bot/tools/builtins.py": "5dbaf21b75762f330cf3f95c882c199847c9c1e9d488a820249881f2aa61651f",
+    "scripts/probe_native_sandbox.py": "4e1eba56f40f2e3cb056efe9a2a6dd4a58477af5a09c59cbb0c171b8a5cdeafa",
+    "scripts/probe_srt_process_management.py": "48a7bed78e21262eab187e8b3820e988d53c47b869df4c8e44f10c1f13cdc1c2",
+    "tests/unit/test_launch_status.py": "575ab4835f36861b66ed88f5967ab7c2ae074384f457936bcd36b66611c2da02",
+    "tests/unit/test_execution_shutdown.py": "9ab439fb124892318d48653fdc7ce1350ec96f66ca7a465631d01be5bfe41b15",
+    "tests/integration/test_native_execution.py": "87f90cee674be8cf09a411953911e768dc7c63781e479ceef866c6fec9c1dc90",
+    "tests/integration/test_native_sandbox.py": "534dc1b095287e3f475182386f55a8931c63e81cb0e9076628f2ffb8d436c4d3",
+    "tests/integration/test_response_recovery.py": "1a1c3a001293e8c69e8587216b9722e413c7b682d1a46307bab128441d9a5173"
+  },
+  "reports": {
+    "macos_final_full": {
+      "raw_xml": "/private/tmp/native-launch-status-macos-fixed-final.xml",
+      "raw_xml_sha256": "e4df685170ad3ab1b8d46afc84546ca0b69b8a82f3e945801b34b5bd0b2d5877",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "2",
+          "failures": "3",
+          "skipped": "0",
+          "tests": "146",
+          "time": "105.220",
+          "timestamp": "2026-09-24T10:37:30.453755+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed",
+          "properties": [
+            {
+              "name": "cleanup_status",
+              "value": "observed_empty"
+            },
+            {
+              "name": "process_status",
+              "value": "timed_out"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed",
+          "properties": [
+            {
+              "name": "cleanup_status",
+              "value": "observed_empty"
+            },
+            {
+              "name": "process_status",
+              "value": "cancelled"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='CLEANUP_FAILED: 沙箱自检失败，业务目标未启动...a={'reason_code': 'CLEANUP_FAILED', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert False is True\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='CLEANUP_FAILED: 沙箱自检失败，业务目标未启动...a={'reason_code': 'CLEANUP_FAILED', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"bot.sandbox.models.SandboxError: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源\n{\"probe_id\": \"cd8d2a79996643c1bbac74cfed34ab60\", \"directory\": \"/private/tmp/bot-native-test-rppe2jch/runs/preflight-d9cv104x\", \"processes\": [{\"process_id\": \"proc_36386a1279e043f1a1a74de5f3b9bb6b\", \"root_pid\": 16031, \"status\": \"cleanup_failed\", \"cleanup_status\": \"unknown\", \"unknown\": true, \"remaining\": [], \"unattributed\": [{\"pid\": 16037, \"start_time\": 1790217490.211961, \"ppid\": 1, \"sid\": 1}], \"unattributed_count\": 1}]}\n[]\n{}\""
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "cd8d2a79996643c1bbac74cfed34ab60",
+              "directory": "/private/tmp/bot-native-test-rppe2jch/runs/preflight-d9cv104x",
+              "processes": [
+                {
+                  "process_id": "proc_36386a1279e043f1a1a74de5f3b9bb6b",
+                  "root_pid": 16031,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 16037,
+                      "start_time": 1790217490.211961,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 1
+                }
+              ]
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-rppe2jch"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node/bin/node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node_modules/zod/package.json]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[unconfined]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[readonly_protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[leftover]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_cancellation_reclaims_probe_and_never_runs_business",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_trusted_launcher_policy_failure_proves_no_business_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ProcessSnapshot(process_id='proc_4e71b8b1eef044febc03721689050642', session_id='session', run_id='run', scope=Executio..._scan', output_complete=True, remaining_processes=[], cleanup_elapsed_seconds=4.044242458185181, cleanup_changed=False)\nassert <ProcessStatu...eanup_failed'> == <ProcessStatu...: 'completed'>\n  \n  - completed\n  + cleanup_failed"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[False]",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"RuntimeError: process_cleanup_incomplete: proc_4e71b8b1eef044febc03721689050642\n[{'process_id': 'proc_4e71b8b1eef044febc03721689050642', 'session_id': 'session', 'run_id': 'run', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/tmp/bot-native-test-lz1qqku1/work', 'policy_id': '3fd9a6881e9d777ec3636f3ef3886807e78242bc009bdc20def88cd0dbb79323'}, 'execution_metadata': {'backend': 'srt', 'backend_version': '0.0.77', 'node_version': '24.14.0', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/tmp/bot-native-test-lz1qqku1/work', 'policy_id': '3fd9a6881e9d777ec3636f3ef3886807e78242bc009bdc20def88cd0dbb79323'}, 'launcher_argv': ['/private/tmp/bot-sandbox-runtime-status-final-20260924/node/bin/node', '/private/tmp/bot-sandbox-runtime-status-final-20260924/launcher.mjs', '--status-fd', '15', '--status-id', 'de6f9f7314b740f7a948735bf8478c8c', '/private/tmp/bot-srt-bhjbsocy/policy.json', '--', '/private/tmp/bot-sandbox-runtime-status-final-20260924/node/bin/node', '-e', \"const fs=require('fs');\\nconst [fd,dev,ino,id]=process.argv.slice(1);\\nconst forged=JSON.stringify({v:1,id,state:'failed',stage:'policy'});\\nconsole.log(forged);console.error(forged);\\nlet inherited=false;\\n// Check duplicates too: the launcher may reopen the same pipe on another fd.\\nfor(let candidate=3;candidate<1024;candidate++)try{\\n  const s=fs.fstatSync(candidate,{bigint:true});\\n  if(s.dev.toString()===dev && s.ino.toString()===ino){\\n    inherited=true;fs.writeSync(candidate,forged+'\\\\n');\\n  }\\n}catch{}\\nconsole.log(JSON.stringify({inherited}));\"], 'control_directory': {'path': '/private/tmp/bot-srt-bhjbsocy', 'device': 16777229, 'inode': 39570453, 'owner': 501}, 'run_directory': {'path': '/private/tmp/bot-native-test-lz1qqku1/runs/run-4mruhvuz', 'device': 16777229, 'inode': 39570421, 'owner': 501}, 'read_only': False, 'denied_paths': [], 'executed': None, 'launch_status': {'state"
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-lz1qqku1"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "OSError: [Errno 22] Invalid argument"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[stdout_only]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[timeout]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_cancelling_status_wait_reclaims_registered_launcher",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_proxy_works_without_exposing_control_files_or_other_sockets",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[dispatched-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[failed-policy-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[unknown-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[partial]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[extra]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bool_version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_state]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_stage]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[huge]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_pipe_requires_eof_and_accepts_fragmented_data",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_close_preserves_status_for_a_command_that_exited_before_reader_registration",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_incomplete_pipe_cannot_attest_nonexecution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_waiter_cancellation_keeps_pipe_owned_until_explicit_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_timeout_stays_unknown_and_cleanup_releases_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_backend_close_failure_still_reclaims_process_and_can_retry",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_cancelled_close_reports_cleanup_failure_and_retains_quota",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_callers_share_one_probe_and_cached_result",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_repeated_cancellation_waits_for_cleanup_and_does_not_replay",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_shutdown_cancels_pending_probe_before_returning",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_cancellations_and_close_do_not_interrupt_shared_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_cleanup_failure_takes_precedence_over_caller_cancellation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[endpoints]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[processes]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[directory]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_read_range_version_and_utf8_truncation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_unique_atomic_mode_and_noop_progress",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_failure_or_concurrent_change_preserves_destination",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[outside]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[protected]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_readonly_patch_and_search_bounds",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[operation]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[bool]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[extra]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[context]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[timeout]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[surrogate]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[incomplete]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[multiple]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[duplicate-key]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[nan]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[array]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[status]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[success]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[authority]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[progress]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[result_type]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[budget]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_standalone_worker_ignores_project_modules_and_rejects_second_request",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_fetch_requires_proxy_checks_redirects_and_bounds_response",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_discovery_hashes_once_then_checks_identities_without_executing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[vendor]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[restored_mtime]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[added]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[removed]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[link]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[escape]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[loop]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[parent]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest_fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_file_replacement_with_same_bytes_invalidates_live_snapshot",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_manifest_must_describe_the_entire_tree_and_cannot_be_resealed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_workspace_and_sibling_unsealed_link_are_rejected",
+          "status": "passed"
+        }
+      ]
+    },
+    "macos_final_affected_recheck": {
+      "raw_xml": "/private/tmp/native-launch-status-macos-fixed-isolated.xml",
+      "raw_xml_sha256": "94ad1f01f0c567014d4476c4e48bf10c09e12d17edd8e81e3e77800ea5d7487f",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "3",
+          "failures": "3",
+          "skipped": "0",
+          "tests": "6",
+          "time": "39.037",
+          "timestamp": "2026-09-24T10:40:51.997832+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='CLEANUP_FAILED: worker 清理未完成', metadata={'reason_code': 'CLEANUP_FAILED', 'stage': 'worker_cleanup', 'executed': None}, progress=None, truncated=False)\nassert False is True\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='CLEANUP_FAILED: worker 清理未完成', metadata={'reason_code': 'CLEANUP_FAILED', 'stage': 'worker_cleanup', 'executed': None}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"RuntimeError: process_cleanup_incomplete: proc_3717321a05ea4232b546b9cc45f9663a\n[{'process_id': 'proc_3717321a05ea4232b546b9cc45f9663a', 'session_id': 'session', 'run_id': 'run', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'worker-3', 'workspace': '/private/tmp/bot-native-test-pn7g_hli/work', 'policy_id': '06bdb97519bd46632ec4bc8dcecbd7f74eb72570b70d0cf98455d96eeb1e61ed'}, 'execution_metadata': {'backend': 'srt', 'backend_version': '0.0.77', 'node_version': '24.14.0', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'worker-3', 'workspace': '/private/tmp/bot-native-test-pn7g_hli/work', 'policy_id': '06bdb97519bd46632ec4bc8dcecbd7f74eb72570b70d0cf98455d96eeb1e61ed'}, 'launcher_argv': ['/private/tmp/bot-sandbox-runtime-status-final-20260924/node/bin/node', '/private/tmp/bot-sandbox-runtime-status-final-20260924/launcher.mjs', '--status-fd', '15', '--status-id', '1ed3c244c37e4b24af272b11ff1f20a3', '/private/tmp/bot-srt-fm8uuoid/policy.json', '--', '/private/tmp/bot-worker-python-3.12.11/cpython-3.12.11-macos-aarch64-none/bin/python3.12', '-I', '-S', '-B', '-X', 'pycache_prefix=/private/tmp/bot-sandbox-runtime-status-final-20260924/python-cache', '/private/tmp/bot-sandbox-runtime-status-final-20260924/worker.py'], 'control_directory': {'path': '/private/tmp/bot-srt-fm8uuoid', 'device': 16777229, 'inode': 39571558, 'owner': 501}, 'run_directory': {'path': '/private/tmp/bot-native-test-pn7g_hli/runs/run-wpr6b_dx', 'device': 16777229, 'inode': 39571506, 'owner': 501}, 'read_only': False, 'denied_paths': [], 'executed': None, 'launch_status': {'state': 'dispatched', 'stage': 'spawn'}, 'purpose': 'worker', 'capabilities': {'backend': 'srt', 'backend_version': '0.0.77', 'node_version': '24.14.0', 'os_version': 'Darwin 25.6.0', 'architecture': 'arm64', 'file_read': 'enforced', 'file_write': 'enforced', 'network_filter': 'enforced', 'process_isolation': 'unverified', 'resource_limits': 'unavailable', 'evidence'"
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-pn7g_hli"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ProcessSnapshot(process_id='proc_2d57b75dde6d44f1b4ea3927cfc9905c', session_id='session', run_id='run', scope=Executio..._scan', output_complete=True, remaining_processes=[], cleanup_elapsed_seconds=4.052492541028187, cleanup_changed=False)\nassert <ProcessStatu...eanup_failed'> == <ProcessStatu...: 'completed'>\n  \n  - completed\n  + cleanup_failed"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[False]",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"RuntimeError: process_cleanup_incomplete: proc_2d57b75dde6d44f1b4ea3927cfc9905c\n[{'process_id': 'proc_2d57b75dde6d44f1b4ea3927cfc9905c', 'session_id': 'session', 'run_id': 'run', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/tmp/bot-native-test-1z516swv/work', 'policy_id': '4c45617ec83117a7aa9b3ca0e6341aa0f658d57a1289aeb9d19d8879ed4d5f12'}, 'execution_metadata': {'backend': 'srt', 'backend_version': '0.0.77', 'node_version': '24.14.0', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/tmp/bot-native-test-1z516swv/work', 'policy_id': '4c45617ec83117a7aa9b3ca0e6341aa0f658d57a1289aeb9d19d8879ed4d5f12'}, 'launcher_argv': ['/private/tmp/bot-sandbox-runtime-status-final-20260924/node/bin/node', '/private/tmp/bot-sandbox-runtime-status-final-20260924/launcher.mjs', '--status-fd', '15', '--status-id', 'dc61520b03a94c4a86d53790b8eaf4b3', '/private/tmp/bot-srt-rd834iju/policy.json', '--', '/private/tmp/bot-sandbox-runtime-status-final-20260924/node/bin/node', '-e', \"const fs=require('fs');\\nconst [fd,dev,ino,id]=process.argv.slice(1);\\nconst forged=JSON.stringify({v:1,id,state:'failed',stage:'policy'});\\nconsole.log(forged);console.error(forged);\\nlet inherited=false;\\n// Check duplicates too: the launcher may reopen the same pipe on another fd.\\nfor(let candidate=3;candidate<1024;candidate++)try{\\n  const s=fs.fstatSync(candidate,{bigint:true});\\n  if(s.dev.toString()===dev && s.ino.toString()===ino){\\n    inherited=true;fs.writeSync(candidate,forged+'\\\\n');\\n  }\\n}catch{}\\nconsole.log(JSON.stringify({inherited}));\"], 'control_directory': {'path': '/private/tmp/bot-srt-rd834iju', 'device': 16777229, 'inode': 39571678, 'owner': 501}, 'run_directory': {'path': '/private/tmp/bot-native-test-1z516swv/runs/run-w9fcup4d', 'device': 16777229, 'inode': 39571644, 'owner': 501}, 'read_only': False, 'denied_paths': [], 'executed': None, 'launch_status': {'state"
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-1z516swv"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ProcessSnapshot(process_id='proc_7fb641ac13f14dc0826e18ff8f028323', session_id='session', run_id='run', scope=Executio..._scan', output_complete=True, remaining_processes=[], cleanup_elapsed_seconds=4.054570874897763, cleanup_changed=False)\nassert <ProcessStatu...eanup_failed'> == <ProcessStatu...: 'completed'>\n  \n  - completed\n  + cleanup_failed"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[True]",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"RuntimeError: process_cleanup_incomplete: proc_7fb641ac13f14dc0826e18ff8f028323\n[{'process_id': 'proc_7fb641ac13f14dc0826e18ff8f028323', 'session_id': 'session', 'run_id': 'run', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/tmp/bot-native-test-6_03sjj1/work', 'policy_id': 'e573a509a07f7575f7621d1a518bb11c1f37cd584d14bda16210a28bb3039584'}, 'execution_metadata': {'backend': 'srt', 'backend_version': '0.0.77', 'node_version': '24.14.0', 'scope': {'session_id': 'session', 'run_id': 'run', 'tool_call_id': 'call', 'workspace': '/private/tmp/bot-native-test-6_03sjj1/work', 'policy_id': 'e573a509a07f7575f7621d1a518bb11c1f37cd584d14bda16210a28bb3039584'}, 'launcher_argv': ['/private/tmp/bot-sandbox-runtime-status-final-20260924/node/bin/node', '/private/tmp/bot-sandbox-runtime-status-final-20260924/launcher.mjs', '--status-fd', '15', '--status-id', 'ab74b64948ac4034b409a7443a303e23', '/private/tmp/bot-srt-twmgjx85/policy.json', '--', '/private/tmp/bot-sandbox-runtime-status-final-20260924/node/bin/node', '-e', \"const fs=require('fs');\\nconst [fd,dev,ino,id]=process.argv.slice(1);\\nconst forged=JSON.stringify({v:1,id,state:'failed',stage:'policy'});\\nconsole.log(forged);console.error(forged);\\nlet inherited=false;\\n// Check duplicates too: the launcher may reopen the same pipe on another fd.\\nfor(let candidate=3;candidate<1024;candidate++)try{\\n  const s=fs.fstatSync(candidate,{bigint:true});\\n  if(s.dev.toString()===dev && s.ino.toString()===ino){\\n    inherited=true;fs.writeSync(candidate,forged+'\\\\n');\\n  }\\n}catch{}\\nconsole.log(JSON.stringify({inherited}));\"], 'control_directory': {'path': '/private/tmp/bot-srt-twmgjx85', 'device': 16777229, 'inode': 39571735, 'owner': 501}, 'run_directory': {'path': '/private/tmp/bot-native-test-6_03sjj1/runs/run-8kemwayq', 'device': 16777229, 'inode': 39571703, 'owner': 501}, 'read_only': False, 'denied_paths': [], 'executed': None, 'launch_status': {'state"
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-6_03sjj1"
+            }
+          ]
+        }
+      ]
+    },
+    "linux_final": {
+      "raw_xml": "/private/tmp/native-launch-status-linux-final.xml",
+      "raw_xml_sha256": "319bd7cc50a5806c6c15755c0829e277e71f7a2f0b1cda3a55e17e0cf16138ac",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "144",
+          "time": "131.996",
+          "timestamp": "2026-09-24T02:34:04.810278+00:00",
+          "hostname": "ea2ad4646a0f"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_rejects_missing_mismatched_or_stale_scope_before_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "passed",
+          "properties": [
+            {
+              "name": "cleanup_status",
+              "value": "observed_empty"
+            },
+            {
+              "name": "process_status",
+              "value": "timed_out"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "passed",
+          "properties": [
+            {
+              "name": "cleanup_status",
+              "value": "observed_empty"
+            },
+            {
+              "name": "process_status",
+              "value": "cancelled"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_identity_spoof_and_discards_unstarted_scope",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node/bin/node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_installed_runtime_tamper_refuses_launch_before_target_runs[node_modules/zod/package.json]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[unconfined]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[readonly_protocol]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_failure_never_runs_business_command_or_retries[leftover]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_preflight_cancellation_reclaims_probe_and_never_runs_business",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_trusted_launcher_policy_failure_proves_no_business_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[stdout_only]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[timeout]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_cancelling_status_wait_reclaims_registered_launcher",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_preserves_argv_and_workspace_io",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_secrets_control_and_other_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_external_write_and_child_write",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_policy_denies_existing_and_new_cross_boundary_hardlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_cannot_link_a_readable_readonly_file_into_workspace",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_protected_configuration_alias_cannot_be_unlinked_or_renamed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_readonly_allows_private_tmp_but_denies_workspace_writes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_srt_implicit_shared_tmp_write_is_overridden",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_compiled_network_deny_blocks_live_loopback_endpoint",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_proxy_works_without_exposing_control_files_or_other_sockets",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_environment_excludes_host_keys_and_loaders",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_sandbox.test_native_launch_closes_inheritable_host_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[dispatched-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[failed-policy-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[unknown-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[partial]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[extra]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bool_version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_state]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_stage]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[huge]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_pipe_requires_eof_and_accepts_fragmented_data",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_close_preserves_status_for_a_command_that_exited_before_reader_registration",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_incomplete_pipe_cannot_attest_nonexecution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_waiter_cancellation_keeps_pipe_owned_until_explicit_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_timeout_stays_unknown_and_cleanup_releases_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_backend_close_failure_still_reclaims_process_and_can_retry",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_cancelled_close_reports_cleanup_failure_and_retains_quota",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_callers_share_one_probe_and_cached_result",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_repeated_cancellation_waits_for_cleanup_and_does_not_replay",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_shutdown_cancels_pending_probe_before_returning",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_cancellations_and_close_do_not_interrupt_shared_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_cleanup_failure_takes_precedence_over_caller_cancellation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[endpoints]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[processes]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[directory]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_read_range_version_and_utf8_truncation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_unique_atomic_mode_and_noop_progress",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_patch_failure_or_concurrent_change_preserves_destination",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[outside]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[symlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[protected]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_rejects_unsafe_or_unbounded_reads[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_readonly_patch_and_search_bounds",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[operation]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[bool]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[extra]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[context]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[timeout]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_request_shape_rejected_before_execution[surrogate]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[incomplete]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[multiple]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[duplicate-key]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[nan]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[array]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_malformed_response_never_becomes_success[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[status]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[success]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[authority]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[progress]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[result_type]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_worker_reply_cannot_forge_host_control[budget]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_standalone_worker_ignores_project_modules_and_rejects_second_request",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_sandbox_worker.test_fetch_requires_proxy_checks_redirects_and_bounds_response",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_discovery_hashes_once_then_checks_identities_without_executing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[node]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[vendor]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[restored_mtime]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[added]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[removed]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[link]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[escape]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[loop]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[hardlink]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[permissions]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[mode]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[parent]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_changes_fail_before_candidate_execution[manifest_fifo]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_file_replacement_with_same_bytes_invalidates_live_snapshot",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_manifest_must_describe_the_entire_tree_and_cannot_be_resealed",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_integrity.test_workspace_and_sibling_unsealed_link_are_rejected",
+          "status": "passed"
+        }
+      ]
+    },
+    "agent_and_lifecycle": {
+      "raw_xml": "/private/tmp/native-launch-status-agent.xml",
+      "raw_xml_sha256": "8643147af9d14e829a895087707d5701bf0b44b596db4b83b690ed613bd2f329",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "110",
+          "time": "13.707",
+          "timestamp": "2026-09-24T10:16:27.092250+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_response_recovery.test_successful_tool_evidence_distinguishes_unknown_from_unexecuted[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_successful_tool_evidence_distinguishes_unknown_from_unexecuted[None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_successful_tool_evidence_distinguishes_unknown_from_unexecuted[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_all_length_tool_buffers_quarantined_before_parsing[False-{\"path\":]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_all_length_tool_buffers_quarantined_before_parsing[False-{}]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_all_length_tool_buffers_quarantined_before_parsing[True-{\"path\":]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_all_length_tool_buffers_quarantined_before_parsing[True-{}]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_repetition_closes_stream_then_recovers_and_stops_second_loop",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_new_evidence_allows_second_episode_but_not_third",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_recovery_deadline_covers_tools_and_prevents_finalizer",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_missing_usage_keeps_fee_reservation_across_resume",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_observe_mode_records_without_interrupting",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_finalizer_repetition_falls_back_without_recovery",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_failed_process_cleanup_blocks_remaining_batch",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_response_recovery.test_split_raw_usage_is_settled_once",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_update_plan_persists_and_rehydrates_after_compaction",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_managed_process_runtime_reminder_is_cache_stable",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_externalizes_single_oversized_user_message",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_context_reference_delivery_is_visible_once_without_nested_blob",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_on_demand_memory_does_not_append_automatic_memory_to_plain_prompt",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_required_memory_search_is_forced_and_delivered_once",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_historical_attribution_forces_search_then_original_evidence",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_required_memory_tool_gate_discards_unsupported_final_text",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_required_memory_gate_rejects_wrong_tool_without_named_tool_choice",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_searches_context_reference_without_loading_whole_blob",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_retries_provider_context_error_once",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_sheds_and_reactivates_tool_schemas",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_sorts_tool_schemas_when_all_fit_budget",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_activates_skill_calls_tool_and_finishes",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_applies_steering_at_model_boundary",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_defers_steering_until_all_tool_results_are_persisted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_repairs_legacy_interleaved_tool_history_before_request",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_provider_error_preserves_step_and_usage_for_finalization",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_unexpected_failure_preserves_usage_before_finalizer[RuntimeError]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_unexpected_failure_preserves_usage_before_finalizer[TimeoutError]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_retries_transient_provider_error_and_discards_partial_turn",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_stops_after_transient_provider_retry_limit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_reserves_cost_before_first_provider_request",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_reuses_wire_prefix_after_partial_stream_failure[RuntimeError]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_reuses_wire_prefix_after_partial_stream_failure[ProviderError]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_repacking_keeps_schemas_when_appended_tail_exceeds_budget",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_respects_one_shot_retrieval_lifetime[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_respects_one_shot_retrieval_lifetime[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_never_executes_an_unexpected_tool_call",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_finalizer_synthesizes_unexecuted_tool_result_after_batch_limit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_stops_repeated_idempotent_results",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[stable-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[stable-True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[empty-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[empty-True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[failure-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_prevents_actual_process_launches[failure-True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_closes_batch_and_allows_a_new_operation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_allows_reading_changed_file[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_allows_reading_changed_file[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_survives_run_and_execution_target_recreation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_preserves_limits_but_restores_read_after_real_compaction",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_repeat_guard_blocks_before_repeated_permission_prompts",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_trusted_repeat_allowance_completes_silent_mutations",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_policy_denied_shell_alias_cannot_clear_an_existing_repeat_limit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_zero_wait_launches_cannot_hide_completed_repetition",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_context_reference_repeat_guard_preserves_session_authorization",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_has_no_default_thirty_step_limit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_progress_state_is_restored_across_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_preserves_explicit_step_limit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_allows_same_idempotent_result_for_different_arguments",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_treats_length_finish_as_limit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_deepseek_empty_reasoning_does_not_disable_tools_or_resumed_session[None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_deepseek_empty_reasoning_does_not_disable_tools_or_resumed_session[enabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_persists_reasoning_and_round_trips_it_for_tool_calls",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_retries_reasoning_only_response_without_persisting_empty_message",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_fails_two_empty_responses_without_poisoning_history",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_drops_legacy_empty_assistant_before_provider_request",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_enforces_cost_before_requested_tool_runs",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_enforces_cumulative_tool_output_limit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_applies_once_and_session_approval_scope[once-2]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_applies_once_and_session_approval_scope[session-1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_persists_always_approval_across_sessions",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_command_family_approval_reuses_different_pytest_arguments[once-2]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_command_family_approval_reuses_different_pytest_arguments[session-1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_command_family_always_approval_reuses_across_sessions",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_automatically_activates_multiple_complementary_skills",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_compaction_trigger_uses_model_input_budget",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_agent_rechecks_final_request_budget_before_provider_call",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[None-enabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[None-disabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[None-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[inherit-enabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[inherit-disabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_prefix_fallback_runs_in_agent_loop_with_real_sent_prefix[inherit-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-stop-enabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-stop-disabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-stop-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-length-enabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-length-disabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[None-length-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-stop-enabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-stop-disabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-stop-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-length-enabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-length-disabled]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_agent_loop.test_idle_compact_uses_isolated_policy_and_current_main_model[inherit-length-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_recovery.test_recovery_commit_is_atomic_and_survives_restart",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_recovery.test_provider_close_has_a_deadline",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_runtime_cleans_processes_when_subagent_shutdown_fails",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_sigterm_cancels_work_and_waits_for_runtime_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_backend_close_failure_still_reclaims_process_and_can_retry",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_cancelled_close_reports_cleanup_failure_and_retains_quota",
+          "status": "passed"
+        }
+      ]
+    },
+    "lifecycle_units": {
+      "raw_xml": "/private/tmp/native-launch-status-lifecycle.xml",
+      "raw_xml_sha256": "60fcb1f20d05b04ca639998f761d5c606ae156d675910f0ca742acb3eb037d88",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "61",
+          "time": "8.024",
+          "timestamp": "2026-09-24T10:11:35.894710+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_close_waits_for_admitted_spawn_despite_repeated_cancellation[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_backend_close_failure_still_reclaims_process_and_can_retry",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_execution_shutdown.test_cancelled_close_reports_cleanup_failure_and_retains_quota",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[dispatched-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[failed-policy-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[unknown-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[partial]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[extra]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bool_version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_state]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_stage]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[huge]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_pipe_requires_eof_and_accepts_fragmented_data",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_close_preserves_status_for_a_command_that_exited_before_reader_registration",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_incomplete_pipe_cannot_attest_nonexecution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_waiter_cancellation_keeps_pipe_owned_until_explicit_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_timeout_stays_unknown_and_cleanup_releases_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_callers_share_one_probe_and_cached_result",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_repeated_cancellation_waits_for_cleanup_and_does_not_replay",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_shutdown_cancels_pending_probe_before_returning",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_cancellations_and_close_do_not_interrupt_shared_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_cleanup_failure_takes_precedence_over_caller_cancellation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[endpoints]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[processes]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[directory]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_finds_child_that_changes_group[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_finds_child_that_changes_group[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_failed_cleanup_retains_quota_and_can_be_retried",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_process_scope_rejects_reused_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_transport_decodes_split_utf8_and_caps_retention",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_unavailable_inventory_returns_unknown_without_spawning_collectors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_cleanup_never_targets_another_run",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_reused_session_leader_is_not_adopted",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_signal_rechecks_creation_time_before_killing",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_transport_pipe_errors_do_not_count_as_complete_output",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_process_cleanup.test_signal_deadline_is_checked_before_each_identity",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_runtime_cleans_processes_when_subagent_shutdown_fails",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_runtime_cleanup.test_sigterm_cancels_work_and_waits_for_runtime_cleanup",
+          "status": "passed"
+        }
+      ]
+    },
+    "macos_initial_smoke": {
+      "raw_xml": "/private/tmp/native-launch-status-first-macos.xml",
+      "raw_xml_sha256": "694a12c77f02e7c409e8e054ba5d01e55aed787856930cbe2b32424eac6c40f8",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "1",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "2",
+          "time": "14.943",
+          "timestamp": "2026-09-24T10:03:05.153319+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: CLEANUP_FAILED: 沙箱自检失败，业务目标未启动: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源"
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "845613253d3746b8970f4fad12da2057",
+              "directory": "/private/tmp/bot-native-test-auz80dko/runs/preflight-c6_959nx",
+              "processes": [
+                {
+                  "process_id": "proc_e52ebf108e6f48628889312945172fd1",
+                  "root_pid": 977,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 976,
+                      "start_time": 1790215387.629282,
+                      "ppid": 1,
+                      "sid": 1
+                    },
+                    {
+                      "pid": 1008,
+                      "start_time": 1790215390.614824,
+                      "ppid": 1,
+                      "sid": 1
+                    },
+                    {
+                      "pid": 1035,
+                      "start_time": 1790215395.462739,
+                      "ppid": 1,
+                      "sid": 1
+                    },
+                    {
+                      "pid": 1036,
+                      "start_time": 1790215395.46422,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"bot.sandbox.models.SandboxError: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源\n{\"probe_id\": \"845613253d3746b8970f4fad12da2057\", \"directory\": \"/private/tmp/bot-native-test-auz80dko/runs/preflight-c6_959nx\", \"processes\": [{\"process_id\": \"proc_e52ebf108e6f48628889312945172fd1\", \"root_pid\": 977, \"status\": \"cleanup_failed\", \"cleanup_status\": \"unknown\", \"unknown\": true, \"remaining\": [], \"unattributed\": [{\"pid\": 976, \"start_time\": 1790215387.629282, \"ppid\": 1, \"sid\": 1}, {\"pid\": 1008, \"start_time\": 1790215390.614824, \"ppid\": 1, \"sid\": 1}, {\"pid\": 1035, \"start_time\": 1790215395.462739, \"ppid\": 1, \"sid\": 1}, {\"pid\": 1036, \"start_time\": 1790215395.46422, \"ppid\": 1, \"sid\": 1}], \"unattributed_count\": 4}]}\n[]\n{}\""
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "845613253d3746b8970f4fad12da2057",
+              "directory": "/private/tmp/bot-native-test-auz80dko/runs/preflight-c6_959nx",
+              "processes": [
+                {
+                  "process_id": "proc_e52ebf108e6f48628889312945172fd1",
+                  "root_pid": 977,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 976,
+                      "start_time": 1790215387.629282,
+                      "ppid": 1,
+                      "sid": 1
+                    },
+                    {
+                      "pid": 1008,
+                      "start_time": 1790215390.614824,
+                      "ppid": 1,
+                      "sid": 1
+                    },
+                    {
+                      "pid": 1035,
+                      "start_time": 1790215395.462739,
+                      "ppid": 1,
+                      "sid": 1
+                    },
+                    {
+                      "pid": 1036,
+                      "start_time": 1790215395.46422,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 4
+                }
+              ]
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-auz80dko"
+            }
+          ]
+        }
+      ]
+    },
+    "macos_smoke_recheck": {
+      "raw_xml": "/private/tmp/native-launch-status-first-macos-recheck.xml",
+      "raw_xml_sha256": "30d2762900d05914f763a983aeb4e23f2708b596765d0b1b6f7754339c1ac743",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "3",
+          "time": "7.821",
+          "timestamp": "2026-09-24T10:09:38.547707+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_trusted_launcher_policy_failure_proves_no_business_execution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe",
+          "status": "passed"
+        }
+      ]
+    },
+    "macos_initial_full": {
+      "raw_xml": "/private/tmp/native-launch-status-macos.xml",
+      "raw_xml_sha256": "5e60453e0fb6a96e04b892dff7d11bd1c0b3c0ed2f5246a0b60c78826080a53c",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "2",
+          "failures": "3",
+          "skipped": "0",
+          "tests": "145",
+          "time": "120.420",
+          "timestamp": "2026-09-24T10:13:12.681237+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: CLEANUP_FAILED: 沙箱自检失败，业务目标未启动: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源"
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "b916c131b8db47e18ebd2bbe23dc897e",
+              "directory": "/private/tmp/bot-native-test-7xryxige/runs/preflight-goy1xn0h",
+              "processes": [
+                {
+                  "process_id": "proc_a4fcb1573efb4403a6414ec6f50c9fc9",
+                  "root_pid": 4933,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 4932,
+                      "start_time": 1790215994.688985,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"bot.sandbox.models.SandboxError: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源\n{\"probe_id\": \"b916c131b8db47e18ebd2bbe23dc897e\", \"directory\": \"/private/tmp/bot-native-test-7xryxige/runs/preflight-goy1xn0h\", \"processes\": [{\"process_id\": \"proc_a4fcb1573efb4403a6414ec6f50c9fc9\", \"root_pid\": 4933, \"status\": \"cleanup_failed\", \"cleanup_status\": \"unknown\", \"unknown\": true, \"remaining\": [], \"unattributed\": [{\"pid\": 4932, \"start_time\": 1790215994.688985, \"ppid\": 1, \"sid\": 1}], \"unattributed_count\": 1}]}\n[]\n{}\""
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "b916c131b8db47e18ebd2bbe23dc897e",
+              "directory": "/private/tmp/bot-native-test-7xryxige/runs/preflight-goy1xn0h",
+              "processes": [
+                {
+                  "process_id": "proc_a4fcb1573efb4403a6414ec6f50c9fc9",
+                  "root_pid": 4933,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 4932,
+                      "start_time": 1790215994.688985,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 1
+                }
+              ]
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-7xryxige"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: CLEANUP_FAILED: 沙箱自检失败，业务目标未启动: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源"
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "2011dc1fc78d43269ebe8c3f4213dc2c",
+              "directory": "/private/tmp/bot-native-test-fxgl2o8_/runs/preflight-9qz59s8g",
+              "processes": [
+                {
+                  "process_id": "proc_6e764f2dded743a1abc138f54054d285",
+                  "root_pid": 5114,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 5126,
+                      "start_time": 1790216017.221367,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"bot.sandbox.models.SandboxError: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源\n{\"probe_id\": \"2011dc1fc78d43269ebe8c3f4213dc2c\", \"directory\": \"/private/tmp/bot-native-test-fxgl2o8_/runs/preflight-9qz59s8g\", \"processes\": [{\"process_id\": \"proc_6e764f2dded743a1abc138f54054d285\", \"root_pid\": 5114, \"status\": \"cleanup_failed\", \"cleanup_status\": \"unknown\", \"unknown\": true, \"remaining\": [], \"unattributed\": [{\"pid\": 5126, \"start_time\": 1790216017.221367, \"ppid\": 1, \"sid\": 1}], \"unattributed_count\": 1}]}\n[]\n{}\""
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "2011dc1fc78d43269ebe8c3f4213dc2c",
+              "directory": "/private/tmp/bot-native-test-fxgl2o8_/runs/preflight-9qz59s8g",
+              "processes": [
+                {
+                  "process_id": "proc_6e764f2dded743a1abc138f54054d285",
+                  "root_pid": 5114,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 5126,
+                      "start_time": 1790216017.221367,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 1
+                }
+              ]
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-fxgl2o8_"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_cancelling_status_wait_reclaims_registered_launcher",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "TimeoutError"
+            }
+          ]
+        }
+      ]
+    },
+    "macos_before_cloexec_full": {
+      "raw_xml": "/private/tmp/native-launch-status-macos-final.xml",
+      "raw_xml_sha256": "0c4a16f282bbbd0d09111f88bbbf7a18229678e474738cfa5b801730dde03dfd",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "1",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "144",
+          "time": "99.493",
+          "timestamp": "2026-09-24T10:17:10.475770+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[wrong_id]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: CLEANUP_FAILED: 沙箱自检失败，业务目标未启动: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源"
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "87ec9d39638348d79949ce25dd59a61e",
+              "directory": "/private/tmp/bot-native-test-hclynhc0/runs/preflight-wulrp9ii",
+              "processes": [
+                {
+                  "process_id": "proc_3e4aa5cc4fca481abbc504a3ed6fb448",
+                  "root_pid": 7543,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 7542,
+                      "start_time": 1790216299.119752,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[wrong_id]",
+          "status": "error",
+          "problems": [
+            {
+              "kind": "error",
+              "message": "failed on teardown with \"bot.sandbox.models.SandboxError: CLEANUP_FAILED: 自检进程或资源清理未完成，保留未回收资源\n{\"probe_id\": \"87ec9d39638348d79949ce25dd59a61e\", \"directory\": \"/private/tmp/bot-native-test-hclynhc0/runs/preflight-wulrp9ii\", \"processes\": [{\"process_id\": \"proc_3e4aa5cc4fca481abbc504a3ed6fb448\", \"root_pid\": 7543, \"status\": \"cleanup_failed\", \"cleanup_status\": \"unknown\", \"unknown\": true, \"remaining\": [], \"unattributed\": [{\"pid\": 7542, \"start_time\": 1790216299.119752, \"ppid\": 1, \"sid\": 1}], \"unattributed_count\": 1}]}\n[]\n{}\""
+            }
+          ],
+          "probe_diagnostics": [
+            {
+              "probe_id": "87ec9d39638348d79949ce25dd59a61e",
+              "directory": "/private/tmp/bot-native-test-hclynhc0/runs/preflight-wulrp9ii",
+              "processes": [
+                {
+                  "process_id": "proc_3e4aa5cc4fca481abbc504a3ed6fb448",
+                  "root_pid": 7543,
+                  "status": "cleanup_failed",
+                  "cleanup_status": "unknown",
+                  "unknown": true,
+                  "remaining": [],
+                  "unattributed": [
+                    {
+                      "pid": 7542,
+                      "start_time": 1790216299.119752,
+                      "ppid": 1,
+                      "sid": 1
+                    }
+                  ],
+                  "unattributed_count": 1
+                }
+              ]
+            }
+          ],
+          "properties": [
+            {
+              "name": "retained_test_root",
+              "value": "/private/tmp/bot-native-test-hclynhc0"
+            }
+          ]
+        }
+      ]
+    },
+    "macos_before_cloexec_isolated": {
+      "raw_xml": "/private/tmp/native-launch-status-macos-isolated.xml",
+      "raw_xml_sha256": "2078891bec9d55241d75dc2d301ea79e00a14f094e9329e79f3311720623e5f7",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "1",
+          "time": "2.495",
+          "timestamp": "2026-09-24T10:19:09.280053+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution[wrong_id]",
+          "status": "passed"
+        }
+      ]
+    },
+    "linux_interrupted_before_fix": {
+      "raw_xml": "/private/tmp/native-launch-status-linux-initial.xml",
+      "raw_xml_sha256": "d78996ce56fdf61397f20ae890b26a8a438610a620ab4c55633be08202bae16a",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "13",
+          "skipped": "0",
+          "tests": "19",
+          "time": "189.014",
+          "timestamp": "2026-09-24T02:21:29.995900+00:00",
+          "hostname": "ea2ad4646a0f"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_interactive_input_streams_and_nonzero_exit",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_timeout_and_cancel_preserve_cleanup_contract[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_runs_have_separate_home_and_readonly_workspace",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[command]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert (False)\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[shell]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert (False)\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_command_tools_forward_trusted_scope[adapter]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert (False)\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_rejects_foreign_process_controls_without_consuming_output",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_invocation_freezes_run_permissions_and_protected_paths",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "assert 0 == 2\n +  where 0 = len([])"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_agent_binds_native_identity_and_rejects_unconfined_tools[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "assert False\n +  where False = any(<generator object test_agent_binds_native_identity_and_rejects_unconfined_tools.<locals>.<genexpr> at 0xffff9dd6cba0>)"
+            }
+          ]
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_native_file_tools_share_os_boundary_and_hide_worker_controls",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "AssertionError: ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False)\nassert False is True\n +  where False = ToolResult(success=False, status=<ToolResultStatus.FAILED: 'failed'>, output='', error='SANDBOX_UNAVAILABLE: 沙箱自检失败，业务...eason_code': 'SANDBOX_UNAVAILABLE', 'stage': 'isolation_preflight', 'executed': False}, progress=None, truncated=False).success"
+            }
+          ]
+        }
+      ]
+    },
+    "linux_initial_isolated": {
+      "raw_xml": "/private/tmp/native-status-linux-isolated-initial.xml",
+      "raw_xml_sha256": "88a7a203f8c430f430908a5bb391e4de7d7265f0cc1323cf46be2abe34dacce4",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "1",
+          "time": "13.618",
+          "timestamp": "2026-09-24T02:27:19.392679+00:00",
+          "hostname": "ea2ad4646a0f"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        }
+      ]
+    },
+    "linux_diagnostic": {
+      "raw_xml": "/private/tmp/native-status-linux-diagnostic.xml",
+      "raw_xml_sha256": "4e6a3d79b89a58336b302bcb332844d8b53c1f49a543e228b62965936a65abe0",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "1",
+          "time": "13.508",
+          "timestamp": "2026-09-24T02:28:26.757771+00:00",
+          "hostname": "ea2ad4646a0f"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "bot.sandbox.models.SandboxError: SANDBOX_UNAVAILABLE: 沙箱自检失败，业务目标未启动: 取消探针未就绪"
+            }
+          ]
+        }
+      ]
+    },
+    "linux_fix_smoke": {
+      "raw_xml": "/private/tmp/native-launch-status-linux-fixed-smoke.xml",
+      "raw_xml_sha256": "862f4b27b516ad106d81984aaff19389d354f37105d134b4c25b1f3be4ebff9f",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "3",
+          "time": "12.688",
+          "timestamp": "2026-09-24T02:33:14.428035+00:00",
+          "hostname": "ea2ad4646a0f"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.integration.test_native_execution.test_native_managed_argv_metadata_io_and_control_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.integration.test_native_execution.test_business_output_cannot_forge_status_or_inherit_status_pipe[True]",
+          "status": "passed"
+        }
+      ]
+    },
+    "restricted_outer_sandbox_trial": {
+      "raw_xml": "/private/tmp/native-launch-status-units-initial.xml",
+      "raw_xml_sha256": "3fa82408137c407fec5e64249ee15090f0949e07b3ef0589304ad4fb3a55ea3d",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "11",
+          "skipped": "0",
+          "tests": "37",
+          "time": "27.738",
+          "timestamp": "2026-09-24T09:58:24.975450+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_2a477c2b685e44dfa29c089d6ebbdbd3"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_44c8551c254b4b6f9657a97599f546b4"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_ebf57646810b49b2b7dba06a20626b4e"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_a26d55f92e814d5b89830d4872d78b15"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_19067919c818483b835760d4249b61c7"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_24c8a09207a44629a1b2da354da4fb8e"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_79951e4d34974529af35fc857f43db9a"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_b49125d9e87c45f78292bef9ae576c31"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_260ffad5a3fc494eb70010ffed6ff68a"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_209843bc3f264603b0abd14f782fda95"
+            }
+          ]
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "failure",
+          "problems": [
+            {
+              "kind": "failure",
+              "message": "RuntimeError: process_cleanup_incomplete: proc_da8fadc8ebe74811a5ae299859df0e9c"
+            }
+          ]
+        }
+      ]
+    },
+    "unrestricted_unit_recheck": {
+      "raw_xml": "/private/tmp/native-launch-status-units.xml",
+      "raw_xml_sha256": "97dbcf9295764d04c20e4851624172bd7b75d3b67f016d66408820e71356ffd6",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "44",
+          "time": "4.451",
+          "timestamp": "2026-09-24T10:00:15.479541+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "cases": [
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[dispatched-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[failed-policy-False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_keeps_dispatch_distinct_from_target_exec[unknown-spawn-None]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[partial]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[extra]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bool_version]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_state]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[bad_stage]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_rejects_ambiguous_or_forged_frames[huge]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_pipe_requires_eof_and_accepts_fragmented_data",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_close_preserves_status_for_a_command_that_exited_before_reader_registration",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_incomplete_pipe_cannot_attest_nonexecution",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_waiter_cancellation_keeps_pipe_owned_until_explicit_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_status.test_status_timeout_stays_unknown_and_cleanup_releases_descriptors",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_callers_share_one_probe_and_cached_result",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_repeated_cancellation_waits_for_cleanup_and_does_not_replay",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_shutdown_cancels_pending_probe_before_returning",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_concurrent_cancellations_and_close_do_not_interrupt_shared_cleanup",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_cleanup_failure_takes_precedence_over_caller_cancellation",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[endpoints]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[processes]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_cleanup_retains_resources_and_still_attempts_process_cleanup[directory]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_preflight_gate.test_failed_probe_is_not_retried_and_preserves_cleanup_failure[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[empty]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[truncated]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[second]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[oversized]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[nonzero]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[invalid_utf8]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_bad_worker_transport_never_returns_success_and_reclaims[wrong_id]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_pipe_error_is_structured_and_cleanup_failure_takes_precedence[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[False]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_worker_transport.test_worker_timeout_and_cancellation_wait_for_cleanup[True]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_native_allowlist_gate_is_closed_before_runtime_or_resource_access",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options0]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_bwrap_adapter_rejects_unknown_options_before_start[options1]",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_owned_cleanup_rejects_replacement_and_does_not_follow_task_symlinks",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_launch_spec_preserves_logical_command_and_releases_after_exit",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_spawn_failure_releases_unstarted_launch_resources",
+          "status": "passed"
+        },
+        {
+          "name": "tests.unit.test_launch_resources.test_resource_cleanup_failure_retains_quota_and_is_recoverable",
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "findings": {
+    "linux": {
+      "initial_suite_interrupted": true,
+      "cause": "High-numbered inherited status descriptors leaked through Node/Linux stdio inherit into socat and wrapper/target processes. Both frames arrived but EOF did not; long-lived cancellation probe reached its hard timeout.",
+      "diagnostic_stdout_in_junit": false,
+      "diagnostic_tool_output_observation": "Captured diagnostic tool output showed both valid frames buffered with eof=false. Pipe inode 5067327 was held by Python PID 2526 fd 19 (read flags 02004000), socat PID 2550 fd 20, sh PID 2558 fd 20, bash PID 2561 fd 20 and inner helpers (write flags 01). This is a summary of tool output; the default JUnit report did not retain captured stdout.",
+      "low_fd_negative_control": [
+        {
+          "reopen_with_node_fs": false,
+          "returncode": 0,
+          "stdout": "{\"inherited\":false}\n",
+          "stderr": ""
+        },
+        {
+          "reopen_with_node_fs": true,
+          "returncode": 0,
+          "stdout": "{\"inherited\":false}\n",
+          "stderr": ""
+        }
+      ],
+      "high_fd_reproduction_and_fix": [
+        {
+          "passed_fd": 256,
+          "reopen_with_node_fs": false,
+          "returncode": 0,
+          "stdout": "{\"inherited\":true}\n",
+          "stderr": ""
+        },
+        {
+          "passed_fd": 256,
+          "reopen_with_node_fs": true,
+          "returncode": 0,
+          "stdout": "{\"inherited\":false}\n",
+          "stderr": ""
+        }
+      ],
+      "fix": "Before SRT helper/proxy spawning, reopen the inherited pipe via Node/libuv fs with CLOEXEC, then close the inherited descriptor. High-FD regression scans descriptors 3-1023 for pipe dev/inode aliases."
+    },
+    "macos": {
+      "finding": "Earlier full runs encountered unknown process ownership in live preflight. Preserve failures and owned roots; later PID absence is not retrospective cleanup proof.",
+      "read_only_identity_rechecks": [
+        {
+          "pid": 4932,
+          "gone": true
+        },
+        {
+          "pid": 5126,
+          "gone": true
+        },
+        {
+          "pid": 7542,
+          "gone": true
+        },
+        {
+          "pid": 16037,
+          "gone": true
+        },
+        {
+          "pid": 16265,
+          "gone": true
+        },
+        {
+          "pid": 16266,
+          "gone": true
+        },
+        {
+          "pid": 16267,
+          "gone": true
+        },
+        {
+          "pid": 17296,
+          "recorded_start": 1790217656.79572,
+          "gone": true
+        },
+        {
+          "pid": 17396,
+          "recorded_start": 1790217671.910011,
+          "observed_start": 1790217671.910011,
+          "matches_recorded_identity": true,
+          "name": "cloudd",
+          "ppid": 1,
+          "uid": 501
+        },
+        {
+          "pid": 17411,
+          "recorded_start": 1790217672.192338,
+          "observed_start": 1790217672.192338,
+          "matches_recorded_identity": true,
+          "name": "CloudTelemetryService",
+          "ppid": 1,
+          "uid": 501
+        },
+        {
+          "pid": 17414,
+          "recorded_start": 1790217672.328664,
+          "observed_start": 1790217672.328664,
+          "matches_recorded_identity": true,
+          "name": "cdpd",
+          "ppid": 1,
+          "uid": 501
+        },
+        {
+          "pid": 17415,
+          "recorded_start": 1790217672.390671,
+          "observed_start": 1790217672.390671,
+          "matches_recorded_identity": true,
+          "name": "TrustedPeersHelper",
+          "ppid": 1,
+          "uid": 501
+        },
+        {
+          "pid": 17428,
+          "recorded_start": 1790217674.43199,
+          "observed_start": 1790217674.43199,
+          "matches_recorded_identity": true,
+          "name": "AssetCacheLocatorService",
+          "ppid": 1,
+          "uid": 501
+        },
+        {
+          "pid": 17429,
+          "recorded_start": 1790217674.511089,
+          "observed_start": 1790217674.511089,
+          "matches_recorded_identity": true,
+          "name": "AssetCache",
+          "ppid": 1,
+          "uid": 235
+        },
+        {
+          "pid": 17430,
+          "recorded_start": 1790217674.591482,
+          "observed_start": 1790217674.591482,
+          "matches_recorded_identity": true,
+          "name": "AssetCacheTether",
+          "ppid": 1,
+          "uid": 0
+        },
+        {
+          "pid": 17476,
+          "recorded_start": 1790217682.41504,
+          "observed_start": 1790217682.41504,
+          "matches_recorded_identity": true,
+          "name": "mdworker_shared",
+          "ppid": 1,
+          "uid": 501
+        },
+        {
+          "pid": 17493,
+          "recorded_start": 1790217683.624295,
+          "observed_start": 1790217683.624295,
+          "matches_recorded_identity": true,
+          "name": "mdworker_shared",
+          "ppid": 1,
+          "uid": 501
+        },
+        {
+          "pid": 17569,
+          "recorded_start": 1790217690.261981,
+          "observed_start": 1790217690.261981,
+          "matches_recorded_identity": true,
+          "name": "mdworker_shared",
+          "ppid": 1,
+          "uid": 501
+        }
+      ],
+      "test_bug_fixed": "The new cancellation test originally waited for stdout in output-free list_processes snapshots. It now reads output explicitly and settles its task in finally.",
+      "high_fd_fixture_fix": "macOS soft RLIMIT_NOFILE=256 rejects F_DUPFD_CLOEXEC minimum 256. Use 128 on Darwin and retain 256 on Linux; failed fixture preparation releases its launch resources.",
+      "full_suite_passed": false
+    },
+    "outer_restricted_units": "11 worker transport cases failed when enclosing sandbox prohibited sysctl process inventory; 26 passed. The equivalent unrestricted unit recheck passed 44 cases.",
+    "format_baseline": "builtins.py already fails ruff format --check at HEAD; only two metadata fields changed and existing formatting was not rewritten. Other modified Python files pass format checks; targeted lint and node --check pass."
+  },
+  "probe_script_smoke_before_cloexec": [
+    {
+      "name": "status_smoke",
+      "returncode": 0,
+      "duration_seconds": 0.2894,
+      "stdout": "probe-ok\n",
+      "stderr": "",
+      "passed": true,
+      "status_protocol_valid": true,
+      "launcher_status": {
+        "state": "dispatched",
+        "stage": "spawn"
+      },
+      "status_error": null,
+      "executed": null
+    },
+    {
+      "name": "invalid_policy_status",
+      "returncode": 1,
+      "duration_seconds": 0.0526,
+      "stdout": "",
+      "stderr": "Sandbox launcher failed: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"object\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"network\"\n    ],\n    \"message\": \"Required\"\n  },\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"object\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"filesystem\"\n    ],\n    \"message\": \"Required\"\n  }\n]\n",
+      "passed": true,
+      "status_protocol_valid": true,
+      "launcher_status": {
+        "state": "failed",
+        "stage": "policy"
+      },
+      "status_error": null,
+      "executed": false
+    }
+  ],
+  "wheel": {
+    "path": "/private/tmp/bot-launch-status-fixed-wheel/kunpeng_cli_agent-0.1.0-py3-none-any.whl",
+    "sha256": "36e027040633be1e6207f1fd6ffb47e30205bc74de8d746ff9c791aba3b75583",
+    "verified_count": 130,
+    "verified_entries": [
+      "bot/__init__.py",
+      "bot/__main__.py",
+      "bot/cli/__init__.py",
+      "bot/cli/app.py",
+      "bot/cli/commands.py",
+      "bot/cli/interrupts.py",
+      "bot/cli/presentation.py",
+      "bot/cli/render.py",
+      "bot/cli/runtime.py",
+      "bot/cli/terminal.py",
+      "bot/compaction/__init__.py",
+      "bot/compaction/handoff.py",
+      "bot/compaction/models.py",
+      "bot/compaction/service.py",
+      "bot/compaction/strategies.py",
+      "bot/config/__init__.py",
+      "bot/config/loader.py",
+      "bot/config/models.py",
+      "bot/config/writer.py",
+      "bot/core/__init__.py",
+      "bot/core/agent.py",
+      "bot/core/approval.py",
+      "bot/core/context.py",
+      "bot/core/events.py",
+      "bot/core/models.py",
+      "bot/core/plan.py",
+      "bot/core/progress.py",
+      "bot/core/termination/__init__.py",
+      "bot/core/termination/controller.py",
+      "bot/core/termination/identity.py",
+      "bot/core/termination/recovery.py",
+      "bot/core/termination/repetition.py",
+      "bot/core/termination/stream_guard.py",
+      "bot/evals/__init__.py",
+      "bot/evals/compaction_effectiveness.py",
+      "bot/evals/connect_proxy.py",
+      "bot/evals/context_blob_scale.py",
+      "bot/evals/context_cache.py",
+      "bot/evals/context_efficiency.py",
+      "bot/evals/context_full_stack_soak.py",
+      "bot/evals/context_handoff.py",
+      "bot/evals/context_retrieval_behavior.py",
+      "bot/evals/context_strategy_audit.py",
+      "bot/evals/handoff_fixtures.py",
+      "bot/evals/handoff_recording.py",
+      "bot/evals/harbor_agent.py",
+      "bot/evals/isolation.py",
+      "bot/evals/memory_routing_behavior.py",
+      "bot/evals/models.py",
+      "bot/evals/runner.py",
+      "bot/evals/swebench.py",
+      "bot/evals/swebench_worker.py",
+      "bot/evals/terminalbench.py",
+      "bot/evals/terminalbench_archive.py",
+      "bot/evals/terminalbench_worker.py",
+      "bot/evals/verification.py",
+      "bot/execution/__init__.py",
+      "bot/execution/base.py",
+      "bot/execution/factory.py",
+      "bot/execution/local.py",
+      "bot/execution/native.py",
+      "bot/execution/process_scope.py",
+      "bot/execution/process_transport.py",
+      "bot/execution/scoped.py",
+      "bot/memory/__init__.py",
+      "bot/memory/models.py",
+      "bot/memory/routing.py",
+      "bot/memory/service.py",
+      "bot/memory/store.py",
+      "bot/observability/__init__.py",
+      "bot/observability/redaction.py",
+      "bot/observability/trace.py",
+      "bot/policy/__init__.py",
+      "bot/policy/engine.py",
+      "bot/providers/__init__.py",
+      "bot/providers/_vendor/__init__.py",
+      "bot/providers/_vendor/encoding_dsv4.py",
+      "bot/providers/base.py",
+      "bot/providers/install_tokenizer.py",
+      "bot/providers/openai_compatible.py",
+      "bot/providers/token_counting.py",
+      "bot/sandbox/__init__.py",
+      "bot/sandbox/admission.py",
+      "bot/sandbox/client.py",
+      "bot/sandbox/config.py",
+      "bot/sandbox/launch_status.py",
+      "bot/sandbox/models.py",
+      "bot/sandbox/policy.py",
+      "bot/sandbox/preflight.py",
+      "bot/sandbox/resources.py",
+      "bot/sandbox/runtime.py",
+      "bot/sandbox/runtime_integrity.py",
+      "bot/sandbox/srt.py",
+      "bot/sandbox/worker.py",
+      "bot/sandbox/worker_runtime.py",
+      "bot/sessions/__init__.py",
+      "bot/sessions/store.py",
+      "bot/skills/__init__.py",
+      "bot/skills/catalog.py",
+      "bot/skills/models.py",
+      "bot/skills/runtime.py",
+      "bot/subagents/__init__.py",
+      "bot/subagents/base.py",
+      "bot/subagents/catalog.py",
+      "bot/subagents/models.py",
+      "bot/subagents/pool.py",
+      "bot/tools/__init__.py",
+      "bot/tools/base.py",
+      "bot/tools/builtins.py",
+      "bot/tools/kunpeng/__init__.py",
+      "bot/tools/kunpeng/ksys.py",
+      "bot/tools/kunpeng/tuner.py",
+      "bot/tools/native_boundary.py",
+      "bot/tools/plan.py",
+      "bot/tools/registry.py",
+      "bot/tools/subprocess_adapter.py",
+      "bot/web/__init__.py",
+      "bot/web/analysis.py",
+      "bot/web/artifacts.py",
+      "bot/web/queries.py",
+      "bot/web/server.py",
+      "bot/web/sink.py",
+      "bot/web/sorting.py",
+      "bot/web/sources.py",
+      "bot/web/workbench.py",
+      "bot/assets/sandbox/package.json",
+      "bot/assets/sandbox/package-lock.json",
+      "bot/assets/sandbox/runtime-lock.json",
+      "bot/assets/sandbox/launcher.mjs",
+      "bot/assets/sandbox/bwrap-launcher.sh"
+    ]
+  },
+  "installed_wheel": {
+    "wheel_sha256": "36e027040633be1e6207f1fd6ffb47e30205bc74de8d746ff9c791aba3b75583",
+    "package_root": "/opt/venv/lib/python3.12/site-packages/bot",
+    "verified_count": 130,
+    "launcher_matches_wheel": true
+  },
+  "linux_native_test_source_before_macos_fixture_fix": {
+    "tests/integration/test_native_execution.py": "99849465c4bc23fe8c1458a84734b0f4cf7064887180a5836e0fa28fccbdc990"
+  },
+  "installations": {
+    "macos": {
+      "platform": "darwin-arm64",
+      "source_hashes": {
+        "package.json": "cfa59d4eb97eaf25910bcf1410dccfbd14d70ea27f93e3bb2ceab8122876c10b",
+        "package-lock.json": "f3d198810827d30f8a2ae178bb8653e49d74caa6ce5260ef2ee1d15cfbc53223",
+        "runtime-lock.json": "2f4272ed7be6ceaca2b63352d13b3fb189a1948eb8d7bdcd92672ea2facfcf87",
+        "launcher.mjs": "ddf44097c8912c500ae319de9aa7f377c4b81b681e24873f8449b4ce60fce0e9",
+        "bwrap-launcher.sh": "b32f34f2c39ac0f7e67e49824db1e24744f212ab66af1105923adbd7195a75d4",
+        "worker.py": "33dbac3489b703d77981f5674360cd1eb4e232dd44de6775752a45dda43e8066"
+      },
+      "node": "v24.14.0",
+      "worker_python_sha256": "8691e54fa05f550cc1e075e50ef06f79dd56e67cc0b53eb9b507ab2c209c145e",
+      "runtime_files_sha256": "6de2e41e09553f3028c7e1e0f54f15a1a14d71e16c86e50be58d5891f045a153"
+    },
+    "linux": {
+      "platform": "linux-arm64",
+      "source_hashes": {
+        "package.json": "cfa59d4eb97eaf25910bcf1410dccfbd14d70ea27f93e3bb2ceab8122876c10b",
+        "package-lock.json": "f3d198810827d30f8a2ae178bb8653e49d74caa6ce5260ef2ee1d15cfbc53223",
+        "runtime-lock.json": "2f4272ed7be6ceaca2b63352d13b3fb189a1948eb8d7bdcd92672ea2facfcf87",
+        "launcher.mjs": "ddf44097c8912c500ae319de9aa7f377c4b81b681e24873f8449b4ce60fce0e9",
+        "bwrap-launcher.sh": "b32f34f2c39ac0f7e67e49824db1e24744f212ab66af1105923adbd7195a75d4",
+        "worker.py": "33dbac3489b703d77981f5674360cd1eb4e232dd44de6775752a45dda43e8066"
+      },
+      "node": "v24.14.0",
+      "worker_python_sha256": "88628a8064cc1bb5f3bcff79026dcb46ed1f5233a7ce6437f7e478a537c21eba",
+      "runtime_files_sha256": "05f07a6c77099a64cfd2c04689430ee75c643f6a76d7549741e02d3ef29f7cc7"
+    }
+  },
+  "linux_lab": {
+    "image": "sha256:d845e12395a887e245bdaced458ed5cbed48c616e2b0a7fdf80b3cf7757a1407",
+    "test_uid": 65534,
+    "test_gid": 65534,
+    "outer_container": "SYS_ADMIN, seccomp=unconfined, systempaths=unconfined; IPv6 enabled; --init",
+    "no_host_mounts_credentials_or_docker_socket": true,
+    "scope": "ARM64, real inner bubblewrap; not a production container isolation assessment"
+  },
+  "semantics": [
+    "Separate anonymous pipe; version/nonce/state checks, exactly two JSONL frames and EOF, <=4096 bytes, 10s startup deadline",
+    "Only trusted pre-dispatch failed status can attest executed=false; dispatched and missing/bad/timed-out status retain executed=null",
+    "Command stdout/stderr cannot attest startup, grant permissions or establish POLICY_DENIED",
+    "Handshake follows managed registration; cancellation/error must settle cleanup; unresolved cleanup retains resources/quota",
+    "Closing waits for admitted subprocess transport; concurrent close shares cleanup; repeated cancellation does not interrupt it",
+    "Backend pre-close errors still trigger managed cleanup; backend resources released only after confirmed cleanup; failed close can be retried"
+  ],
+  "limits": [
+    "macOS process containment remains observational, with unknown ownership blocking business launch or cleanup",
+    "No positive target exec attestation; no automatic replay after unknown status",
+    "Only deny networking supported internally; allowlist and production required factory stay closed",
+    "System helper/dynamic-loader attestation, concurrent filesystem admission and authenticated crash recovery remain incomplete",
+    "Complete child/worktree/Git/broker/CLI/Web/eval coverage, S01-S15, ten daily tasks, performance and full repository regression remain unfinished",
+    "No x64, hard resource containment or untrusted multi-tenant isolation claim"
+  ]
+}

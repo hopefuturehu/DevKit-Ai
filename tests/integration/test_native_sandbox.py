@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from bot.config.models import AppConfig
+from bot.sandbox.launch_status import LaunchStatusPipe
 from bot.sandbox.policy import RunDirectories, resolve_policy
 from bot.sandbox.runtime import inspect_runtime
 from bot.sandbox.srt import compile_srt_config, launcher_environment, system_read_paths
@@ -82,9 +83,11 @@ def native(tmp_path, monkeypatch, request):
         settings.write_text(json.dumps(compile_srt_config(resolved.policy)))
         env = launcher_environment(resolved.policy, runtime_root=runtime, control_temp=control)
         resolved.admission.verify()
+        startup = LaunchStatusPipe()
         argv = [
             str(node),
             str(launcher),
+            *startup.arguments,
             str(settings),
             "--",
             str(node),
@@ -93,22 +96,28 @@ def native(tmp_path, monkeypatch, request):
             "--",
             *map(str, args),
         ]
-        process = subprocess.Popen(
-            argv,
-            cwd=work,
-            env=env,
-            close_fds=True,
-            start_new_session=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
         try:
-            stdout, stderr = process.communicate(timeout=20)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.communicate(timeout=5)
-            pytest.fail("SRT target timed out; bounded fixture process group was killed")
+            process = subprocess.Popen(
+                argv,
+                cwd=work,
+                env=env,
+                close_fds=True,
+                pass_fds=(startup.writer,),
+                start_new_session=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            startup.after_spawn()
+            try:
+                stdout, stderr = process.communicate(timeout=20)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.communicate(timeout=5)
+                pytest.fail("SRT target timed out; bounded fixture process group was killed")
+        finally:
+            startup.close()
+        assert startup.result is not None and startup.result.state == "dispatched", startup.error
         assert process.returncode == 0, (process.returncode, stdout, stderr)
         return json.loads(stdout)
 

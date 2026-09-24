@@ -308,6 +308,8 @@ def _process_metadata(snapshot: ProcessSnapshot) -> dict[str, Any]:
                 "execution_scope": snapshot.scope.model_dump(mode="json"),
                 "backend": snapshot.execution_metadata.get("backend"),
                 "backend_version": snapshot.execution_metadata.get("backend_version"),
+                "executed": snapshot.execution_metadata.get("executed"),
+                "launch_status": snapshot.execution_metadata.get("launch_status"),
             }
             if snapshot.scope is not None
             else {}

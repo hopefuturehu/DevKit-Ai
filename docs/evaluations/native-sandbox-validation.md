@@ -480,3 +480,57 @@ Linux 验证容器退出前只剩 init、测试环境保持进程和核对命令
 并发准入、恢复、完整子任务/worktree/Git/broker 及 CLI/Web/eval 接线仍待完成。doctor 尚未提供
 实时探测入口，allowlist 和生产 required 工厂仍关闭；完整 S01–S15、十项日常任务、性能及全仓
 回归仍按原验收范围推进。此次启动探针也不构成多租户或完整进程隔离证明。
+
+## P2 可信启动状态与关闭竞态（2026-09-24）
+
+每次 Native 调用新增主进程与已校验外层 Node launcher 之间的独立匿名管道。主进程仅向该
+launcher 传递写端；包装器及业务子进程只继承标准输入输出。协议限制为 4 KiB、两个 JSONL 帧，
+校验版本、调用标识、状态转换和 EOF，等待上限为 10 秒。业务 stdout/stderr 保持普通输出，
+即使包含完全相同的状态 JSON，也不具备改变启动状态、能力或执行结论的权限。
+
+`failed` 仅在可信启动器确认尚未派发目标时产生，可给出 `executed=false`。`dispatched` 表示
+包装器已经创建，不证明业务目标已完成 exec，故 `executed` 仍为 null/unknown。缺失、截断、
+错误身份、超长或超时的通道返回 LAUNCH_FAILED，并保留 unknown；先登记进程再等待通道，
+失败或取消都经过受管回收。回收不明优先报告 CLEANUP_FAILED，保留资源和占用。已有受管硬超时
+即使发生在启动握手期间，也继续保留 TIMED_OUT 语义，不根据目标输出推断 POLICY_DENIED。
+
+同时修复 Local/Native 共同生命周期中的关闭竞态：close 等待已获准但尚未完成登记的 spawn；
+并发 close 共享清理任务，调用者重复取消不会打断清理。后端前置关闭失败时仍回收已登记进程，
+仅在所有清理确认后释放 Run 资源；失败后允许显式重试清理。新增真实子进程测试延迟 transport
+交付，覆盖启动和关闭同时取消、并发关闭、清理失败优先级以及占用保留。
+
+Tool 与 worker 结果透传可信启动状态。Agent 对明确的 `executed=false` 排除恢复进展；对已有
+成功结果、新内容和有效 progress 的调用，unknown 不额外抹除其证据。这不把 unknown 改记为 true。
+
+Linux 首轮连续出现取消探针未就绪，13 failed、6 passed 后中止以诊断，未作为完整回归。记录
+证明两帧已收到，但 EOF 未到达；同一管道写端仍存在于 socat、包装器及内侧进程。单独使用低编号
+FD 的实验未复现，而固定 FD 256 可稳定复现：Linux 下仅设置 Node `stdio: inherit` 不能保证任意
+继承 FD 被关闭。修复在 SRT 启动辅助进程之前，经 Node/libuv 重新打开管道获得 CLOEXEC，再关闭
+继承的原描述符。新增高编号 FD 测试扫描描述符 3–1023，按设备/inode 查找管道副本并尝试伪造帧，
+不只检查原描述符号码。实际目标不得持有该管道，长驻探针须及时得到 EOF。独立高 FD 实验和
+Linux 正常调用、普通/高 FD 伪造的 3 项定向测试均证明修复有效；未采用额外固定等待来隐藏竞态。
+
+macOS 早期验证还记录了自检遇到未归属进程后的保守阻断，保留根目录与 PID/启动时间诊断，
+没有误杀或用后续 PID 消失补判原清理成功。新增取消测试曾误从不含输出的进程列表等待就绪；
+已改为显式读取输出，并在 finally 中等待测试任务结束。修复前完整回归的 140 passed/3 failed/
+2 teardown errors，以及后续 142 passed/1 failed/1 teardown error 均单独保存；后者失败用例
+单独通过，仍不把该整轮计为通过。macOS 的观察式进程归属在当前宿主上会保守阻断，是尚需接受
+与处理的可用性限制，不能因此削弱 unknown 的失败语义。
+
+修复后的 Linux ARM64 最终 **144 passed，无 skip**，使用 UID/GID 65534 和实际安装的 wheel。
+macOS 最终整轮为 **141 passed、3 failed、2 teardown errors**；其中一项是高 FD 夹具申请 256
+超过该宿主默认 RLIMIT_NOFILE=256，现按 Darwin 使用 128，Linux 保留 256。三项定向复验均能
+继续到真实执行，但又出现 **3 failed、3 teardown errors**，全部因进程归属 unknown，不能报告
+macOS 验收通过。只读身份核对记录到 cloudd、CloudTelemetryService、TrustedPeersHelper、
+mdworker_shared 等仍存活的进程；名称不构成排除或接管依据，没有据此放宽规则或杀进程。
+
+Agent 与生命周期回归 **110 passed**，关闭/状态/回收相关单元组合 **61 passed**。修复版 wheel
+的 125 个 Python 文件和 5 个运行时资产与源码一致；Linux 实际导入的安装文件逐字节一致。
+Linux 报告导出并确认仅剩容器 init/保持进程后，已回收本次验证容器。实际变更文件的 Ruff lint
+和 Node 语法检查通过；builtins.py 的整文件格式问题已在 HEAD 复现，未混入无关格式重写。
+
+原始失败、FD 诊断、安装摘要、文件摘要和最终结果见
+[启动状态验证证据](../data/native-sandbox-launch-status.json)。Linux 测试文件摘要单列保存：
+macOS 高 FD 夹具兼容修正发生在该 Linux 整轮之后，Linux 分支仍使用 256，生产源码与 wheel
+没有改变。本增量不代表 P2 或六阶段完成；macOS 归属问题、系统辅助程序/动态加载依赖证明、
+并发准入、恢复及完整 P4/P5 仍需推进，required 工厂和 allowlist 保持关闭。

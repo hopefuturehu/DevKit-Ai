@@ -14,7 +14,7 @@ import pytest_asyncio
 from bot.config.models import AppConfig
 from bot.execution.base import ProcessSpec, ProcessStatus
 from bot.execution.native import NativeSandboxExecutionTarget
-from bot.sandbox.models import SandboxError
+from bot.sandbox.models import SandboxError, SandboxErrorCode
 from bot.sandbox.resources import OwnedDirectory
 from bot.tools.base import ToolAnnotations, ToolContext
 from bot.tools.builtins import RunCommandTool, RunShellTool
@@ -105,6 +105,8 @@ console.log(JSON.stringify({denied,args:process.argv.slice(2)}));""",
     assert json.loads(result.stdout) == {"denied": True, "args": ["", "中文", "a'b"]}
     assert (work / "ok").read_text() == "done" and outside.read_text() == "preserve"
     assert result.execution_metadata["backend"] == "srt"
+    assert result.execution_metadata["launch_status"] == {"state": "dispatched", "stage": "spawn"}
+    assert result.execution_metadata["executed"] is None
     assert result.execution_metadata["capabilities"]["file_read"] == "enforced"
     assert result.execution_metadata["capabilities"]["network_filter"] == "enforced"
     assert result.execution_metadata["capabilities"]["process_isolation"] == "unverified"
@@ -670,6 +672,9 @@ async def test_preflight_failure_never_runs_business_command_or_retries(
         monkeypatch.setattr(
             preflight._ProbeTarget, "_prepare_launch", LocalExecutionTarget._prepare_launch
         )
+        monkeypatch.setattr(
+            preflight._ProbeTarget, "_after_start", LocalExecutionTarget._after_start
+        )
     elif failure == "protocol":
         monkeypatch.setattr(preflight, "_CHECK_JS", "console.log('{}')")
     elif failure == "readonly_protocol":
@@ -749,3 +754,182 @@ async def test_preflight_cancellation_reclaims_probe_and_never_runs_business(
     assert not (work / "business-started").exists()
     assert not list(target.state_root.glob("preflight-*"))
     assert await target.list_processes() == []
+
+
+@pytest.mark.asyncio
+async def test_trusted_launcher_policy_failure_proves_no_business_execution(
+    native_target, monkeypatch
+):
+    target, work, node = native_target
+    prepare = target._prepare_launch
+
+    def corrupt_policy(spec):
+        launch = prepare(spec)
+        Path(launch.argv[6]).write_text("{invalid-policy")
+        return launch
+
+    monkeypatch.setattr(target, "_prepare_launch", corrupt_policy)
+    with pytest.raises(SandboxError) as failure:
+        await target.start_process(
+            scoped_spec(
+                target, work, [node, "-e", "require('fs').writeFileSync('business-started','bad')"]
+            )
+        )
+    assert failure.value.code == SandboxErrorCode.LAUNCH_FAILED
+    assert failure.value.stage == "launcher_policy" and failure.value.executed is False
+    assert not target.has_live_processes and not (work / "business-started").exists()
+    snapshot = (await target.list_processes())[0]
+    assert snapshot.execution_metadata["launch_status"] == {"state": "failed", "stage": "policy"}
+    assert snapshot.execution_metadata["executed"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("high_descriptor", [False, True])
+async def test_business_output_cannot_forge_status_or_inherit_status_pipe(
+    native_target, monkeypatch, high_descriptor
+):
+    target, work, node = native_target
+    prepare = target._prepare_launch
+
+    def identify_pipe(spec):
+        launch = prepare(spec)
+        if high_descriptor:
+            import fcntl
+
+            startup = target._startups[spec.scope]
+            # macOS commonly has RLIMIT_NOFILE=256, so fd 256 is invalid.
+            minimum = 128 if platform.system() == "Darwin" else 256
+            try:
+                replacement = fcntl.fcntl(startup.writer, fcntl.F_DUPFD_CLOEXEC, minimum)
+            except BaseException:
+                launch.release_resources()
+                raise
+            os.close(startup.writer)
+            startup.writer = replacement
+            launch.pass_fds = (replacement,)
+            launch.argv = (*launch.argv[:3], str(replacement), *launch.argv[4:])
+        descriptor = launch.pass_fds[0]
+        assert descriptor < 1024
+        info = os.fstat(descriptor)
+        launch.argv = (
+            *launch.argv,
+            str(descriptor),
+            str(info.st_dev),
+            str(info.st_ino),
+            launch.argv[5],
+        )
+        return launch
+
+    monkeypatch.setattr(target, "_prepare_launch", identify_pipe)
+    script = r"""const fs=require('fs');
+const [fd,dev,ino,id]=process.argv.slice(1);
+const forged=JSON.stringify({v:1,id,state:'failed',stage:'policy'});
+console.log(forged);console.error(forged);
+let inherited=false;
+// Check duplicates too: the launcher may reopen the same pipe on another fd.
+for(let candidate=3;candidate<1024;candidate++)try{
+  const s=fs.fstatSync(candidate,{bigint:true});
+  if(s.dev.toString()===dev && s.ino.toString()===ino){
+    inherited=true;fs.writeSync(candidate,forged+'\n');
+  }
+}catch{}
+console.log(JSON.stringify({inherited}));"""
+    pid = await target.start_process(scoped_spec(target, work, [node, "-e", script]))
+    result = await target.poll_process(pid, wait_seconds=10)
+    assert result.status == ProcessStatus.COMPLETED, result
+    assert json.loads(result.stdout.splitlines()[-1]) == {"inherited": False}
+    assert '"state":"failed"' in result.stdout and '"state":"failed"' in result.stderr
+    assert result.execution_metadata["launch_status"] == {"state": "dispatched", "stage": "spawn"}
+    assert result.execution_metadata["executed"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["stdout_only", "truncated", "wrong_id", "timeout"])
+async def test_broken_launcher_channel_never_uses_stdout_or_assumes_nonexecution(
+    native_target, monkeypatch, case
+):
+    from bot.sandbox import launch_status
+
+    target, work, node = native_target
+    await target.ensure_ready()
+    monkeypatch.setattr(launch_status, "STARTUP_TIMEOUT", 0.3)
+    prepare = target._prepare_launch
+    channels = []
+
+    def broken_launcher(spec):
+        launch = prepare(spec)
+        channel = target._startups[spec.scope]
+        channels.append(channel)
+        identifier = "wrong" if case == "wrong_id" else channel.invocation
+        first = (
+            json.dumps({"v": 1, "id": identifier, "state": "initializing", "stage": "initialize"})
+            + "\n"
+        )
+        final = (
+            json.dumps({"v": 1, "id": identifier, "state": "dispatched", "stage": "spawn"}) + "\n"
+        )
+        # Substitute only this trusted test launcher with fixed code. It never
+        # executes the business argv, and stdout remains an untrusted channel.
+        script = "const fs=require('fs');console.log(" + json.dumps(first + final) + ");"
+        if case != "stdout_only":
+            payload = first + final if case == "wrong_id" else first
+            script += f"fs.writeSync({channel.writer}, {json.dumps(payload)});"
+        if case == "timeout":
+            script += "setInterval(()=>{},1000);"
+        launch.argv = (str(node), "-e", script)
+        return launch
+
+    monkeypatch.setattr(target, "_prepare_launch", broken_launcher)
+    with pytest.raises(SandboxError) as failure:
+        await target.start_process(
+            scoped_spec(
+                target, work, [node, "-e", "require('fs').writeFileSync('business-started','bad')"]
+            )
+        )
+    assert failure.value.code == SandboxErrorCode.LAUNCH_FAILED
+    assert failure.value.stage == "launcher_status" and failure.value.executed is None
+    assert not target.has_live_processes and not (work / "business-started").exists()
+    assert all(pipe.reader is None and pipe.writer is None for pipe in channels)
+
+
+@pytest.mark.asyncio
+async def test_cancelling_status_wait_reclaims_registered_launcher(native_target, monkeypatch):
+    target, work, node = native_target
+    await target.ensure_ready()
+    prepare = target._prepare_launch
+
+    def waiting_launcher(spec):
+        launch = prepare(spec)
+        first = (
+            json.dumps(
+                {"v": 1, "id": launch.argv[5], "state": "initializing", "stage": "initialize"}
+            )
+            + "\n"
+        )
+        launch.argv = (
+            str(node),
+            "-e",
+            f"require('fs').writeSync({launch.pass_fds[0]}, {json.dumps(first)});"
+            "console.log('waiting');setInterval(()=>{},1000)",
+        )
+        return launch
+
+    monkeypatch.setattr(target, "_prepare_launch", waiting_launcher)
+    job = asyncio.create_task(target.start_process(scoped_spec(target, work, [node, "-e", "0"])))
+    try:
+        async with asyncio.timeout(5):
+            while True:
+                snapshots = await target.list_processes()
+                if snapshots:
+                    output = await target.read_process_output(snapshots[0].process_id)
+                    if "waiting" in output["stdout"]:
+                        break
+                await asyncio.sleep(0.01)
+        job.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await job
+        assert not target.has_live_processes and not target._startups
+    finally:
+        if not job.done():
+            job.cancel()
+        await asyncio.gather(job, return_exceptions=True)

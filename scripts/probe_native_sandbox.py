@@ -87,11 +87,11 @@ class Probe:
         self.deny_hardlinks = deny_hardlinks
         self.helper = helper
 
-    def argv(self, code: str, *args: str) -> list[str]:
+    def argv(self, code: str, *args: str, status_arguments=()) -> list[str]:
         return [
             str(self.node),
             *(
-                [str(self.runtime / "launcher.mjs")]
+                [str(self.runtime / "launcher.mjs"), *status_arguments]
                 if self.helper
                 else [str(self.cli), "--settings"]
             ),
@@ -104,10 +104,29 @@ class Probe:
             *args,
         ]
 
+    def spawn(self, code, *args, **kwargs):
+        from bot.sandbox.launch_status import LaunchStatusPipe
+
+        startup = LaunchStatusPipe() if self.helper else None
+        try:
+            process = subprocess.Popen(
+                self.argv(code, *args, status_arguments=startup.arguments if startup else ()),
+                pass_fds=(startup.writer,) if startup else (),
+                **kwargs,
+            )
+            if startup:
+                startup.after_spawn()
+            return process, startup
+        except BaseException:
+            if startup:
+                startup.close()
+            raise
+
     def run(self, name: str, code: str, *args: str, input_text: str | None = None) -> dict:
         started = time.monotonic()
-        process = subprocess.Popen(
-            self.argv(code, *args),
+        process, startup = self.spawn(
+            code,
+            *args,
             cwd=self.fixture / "work",
             env=self.env,
             stdin=subprocess.PIPE,
@@ -122,6 +141,9 @@ class Probe:
         except subprocess.TimeoutExpired:
             os.killpg(process.pid, signal.SIGKILL)
             stdout, stderr = process.communicate(timeout=5)
+        finally:
+            if startup:
+                startup.close()
         result = {
             "name": name,
             "returncode": process.returncode,
@@ -129,9 +151,24 @@ class Probe:
             "stdout": stdout,
             "stderr": stderr,
             "passed": False,
+            **self.status_record(startup),
         }
         self.cases.append(result)
         return result
+
+    @staticmethod
+    def status_record(startup) -> dict:
+        if startup is None:
+            return {}
+        result = startup.result
+        return {
+            "status_protocol_valid": result is not None and startup.error is None,
+            "launcher_status": {"state": result.state, "stage": result.stage}
+            if result is not None
+            else None,
+            "status_error": startup.error,
+            "executed": result.executed if result is not None else None,
+        }
 
     def filesystem(self) -> None:
         fixture = self.fixture
@@ -470,8 +507,8 @@ Promise.all(urls.map(url=>get(url))).then(results=>console.log(JSON.stringify(re
             + json.dumps(["--eval", child_code, "--", str(heartbeat)])
             + ",{stdio:'ignore',detached:true});console.log('ready');setInterval(()=>{},1000)"
         )
-        process = subprocess.Popen(
-            self.argv(code),
+        process, startup = self.spawn(
+            code,
             cwd=self.fixture / "work",
             env=self.env,
             stdout=subprocess.PIPE,
@@ -513,6 +550,8 @@ Promise.all(urls.map(url=>get(url))).then(results=>console.log(JSON.stringify(re
         if process.poll() is None:
             process.kill()
         stdout, stderr = process.communicate(timeout=5)
+        if startup:
+            startup.close()
         psutil.wait_procs([item[0] for item in identities.values()], timeout=3)
         self.cases.append(
             {
@@ -524,6 +563,7 @@ Promise.all(urls.map(url=>get(url))).then(results=>console.log(JSON.stringify(re
                 "stderr": stderr,
                 "returncode": process.returncode,
                 "probe_forced_cleanup": bool(remaining),
+                **self.status_record(startup),
             }
         )
 
@@ -566,6 +606,10 @@ def main() -> None:
         probe.allowlist()
         probe.invalid_config()
         probe.cancellation()
+        # A functional outcome cannot compensate for an invalid helper channel.
+        for case in probe.cases:
+            if args.helper and not case.get("status_protocol_valid", False):
+                case["passed"] = False
         evidence = {
             "phase": "P0",
             "platform": platform.platform(),

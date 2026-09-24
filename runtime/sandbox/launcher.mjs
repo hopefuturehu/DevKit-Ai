@@ -42,6 +42,22 @@ process.execve(executable, argv, env);
 let child;
 let timer;
 let requestedSignal;
+let statusFd;
+let statusId;
+let statusValid = false;
+let statusSent = false;
+let phase = 'initialize';
+let possibleExecution = false;
+
+function status(state) {
+  const data = Buffer.from(JSON.stringify({v:1,id:statusId,state,stage:phase})+'\n');
+  if (fs.writeSync(statusFd, data) !== data.length) throw new Error('incomplete status write');
+  if (state !== 'initializing') {
+    statusSent = true;
+    fs.closeSync(statusFd);
+    statusFd = undefined;
+  }
+}
 for (const name of ['SIGTERM', 'SIGINT']) {
   process.on(name, () => {
     requestedSignal = name;
@@ -51,15 +67,33 @@ for (const name of ['SIGTERM', 'SIGINT']) {
 }
 
 try {
+  const [fdFlag, fdText, idFlag, invocation, settingsPath, separator, ...argv] = process.argv.slice(2);
+  if (fdFlag !== '--status-fd' || !/^[0-9]+$/.test(fdText ?? '') || Number(fdText) < 3 ||
+      idFlag !== '--status-id' || !/^[0-9a-f]{32}$/.test(invocation ?? '') ||
+      !settingsPath || separator !== '--' || argv.length === 0) {
+    throw new Error('expected status fd/id, explicit policy path, --, and target argv');
+  }
+  statusFd = Number(fdText);
+  statusId = invocation;
+  if (!Number.isSafeInteger(statusFd) || !fs.fstatSync(statusFd).isFIFO()) {
+    throw new Error('status descriptor must be a pipe');
+  }
+  // pass_fds clears CLOEXEC. On Linux, Node/libuv does not consistently close
+  // arbitrary inherited high-numbered descriptors when spawning children.
+  // Reopen through Node's fs (libuv opens with CLOEXEC), then retire the
+  // inherited copy BEFORE SRT can spawn proxies or sandbox helpers.
+  const inheritedStatusFd = statusFd;
+  statusFd = fs.openSync(`/dev/fd/${inheritedStatusFd}`, fs.constants.O_WRONLY);
+  fs.closeSync(inheritedStatusFd);
+  statusValid = true;
+  // A broken or read-only descriptor fails before any sandbox/target dispatch.
+  status('initializing');
   if (process.versions.node !== '24.14.0') throw new Error('pinned Node 24.14.0 required');
   const packageFile = fileURLToPath(new URL('./node_modules/@anthropic-ai/sandbox-runtime/package.json', import.meta.url));
   if (JSON.parse(fs.readFileSync(packageFile, 'utf8')).version !== '0.0.77') {
     throw new Error('pinned SRT 0.0.77 required');
   }
-  const [settingsPath, separator, ...argv] = process.argv.slice(2);
-  if (!settingsPath || separator !== '--' || argv.length === 0) {
-    throw new Error('expected explicit policy path, --, and target argv');
-  }
+  phase = 'policy';
   const fd = fs.openSync(settingsPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
   let raw;
   try {
@@ -74,6 +108,7 @@ try {
       config.network.allowAllUnixSockets || config.network.allowLocalBinding) {
     throw new Error('required filesystem and network restrictions missing');
   }
+  phase = 'initialize';
   await SandboxManager.initialize(config, undefined, false);
   if (!(await SandboxManager.waitForNetworkInitialization())) throw new Error('proxy initialization failed');
   if (requestedSignal) throw new Error('launch cancelled before target start');
@@ -112,22 +147,43 @@ try {
     binShell: '/bin/bash',
     bwrapPath: fileURLToPath(new URL('./bwrap-launcher.sh', import.meta.url)),
   };
+  phase = 'wrap';
   let wrapped;
   if (process.platform === 'linux') wrapped = await wrapCommandWithSandboxLinux(params);
   else if (process.platform === 'darwin') wrapped = await wrapCommandWithSandboxMacOS(params);
   else throw new Error('only macOS/Linux supported');
   if (requestedSignal) throw new Error('launch cancelled before target start');
+  phase = 'spawn';
+  possibleExecution = true;
+  // Standard streams are inherited; the status pipe's CLOEXEC prevents it
+  // from being inherited by the sandbox or target.
   child = spawn('/bin/sh', ['-c', wrapped], { stdio: 'inherit', env: process.env });
-  const result = await new Promise((resolve, reject) => {
-    child.once('error', reject);
+  const completion = new Promise(resolve => {
+    child.once('error', error => resolve({ error }));
     child.once('close', (code, signal) => resolve({ code, signal }));
   });
+  const spawned = await new Promise(resolve => {
+    child.once('spawn', () => resolve(true));
+    child.once('error', () => resolve(false));
+  });
+  if (!spawned) {
+    possibleExecution = false;
+    throw new Error('sandbox wrapper spawn failed');
+  }
+  status('dispatched');
+  const result = await completion;
+  if (result.error) throw result.error;
   process.exitCode = result.code ?? (result.signal === 'SIGINT' ? 130 : 143);
 } catch (error) {
+  if (!statusSent && statusValid && statusFd !== undefined) {
+    try { status(possibleExecution ? 'unknown' : 'failed'); } catch {}
+  }
+  if (possibleExecution && !statusSent) child?.kill('SIGTERM');
   console.error('Sandbox launcher failed: ' + String(error.message).slice(0, 2000));
   process.exitCode = requestedSignal === 'SIGINT' ? 130 : 1;
 } finally {
   clearTimeout(timer);
+  if (statusFd !== undefined) { try { fs.closeSync(statusFd); } catch {} }
   SandboxManager.cleanupAfterCommand();
   await SandboxManager.reset();
 }

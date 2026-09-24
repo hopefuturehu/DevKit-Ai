@@ -36,6 +36,35 @@ def answer():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("executed", [True, None, False])
+async def test_successful_tool_evidence_distinguishes_unknown_from_unexecuted(tmp_path, executed):
+    class ReportedRead(ReadFileTool):
+        async def execute(self, context, arguments):
+            result = await super().execute(context, arguments)
+            result.metadata["executed"] = executed
+            return result
+
+    (tmp_path / "evidence.txt").write_text("new evidence for recovery")
+    provider = ScriptedProvider(
+        [repetition(), tool_turn("evidence", "read_file", '{"path":"evidence.txt"}'), answer()]
+    )
+    runner, store = make_test_runner(tmp_path, provider, tools=[ReportedRead()], agent_config=CFG)
+    try:
+        result = await runner.run(RunRequest(prompt="investigate evidence.txt"))
+        assert result.status == "completed", result.error
+        tool_recovery = [
+            event
+            for event in store.list_events(result.session_id)
+            if event["type"] == "run.recovery_finished"
+            and event["payload"].get("outcome") == "new_tool_evidence"
+        ]
+        assert bool(tool_recovery) is (executed is not False)
+    finally:
+        await runner.execution_target.aclose()
+        store.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("arguments", ['{"path":', "{}"])
 @pytest.mark.parametrize("mixed", [False, True])
 async def test_all_length_tool_buffers_quarantined_before_parsing(tmp_path, arguments, mixed):

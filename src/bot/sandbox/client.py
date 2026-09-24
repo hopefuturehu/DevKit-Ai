@@ -89,6 +89,8 @@ async def execute_worker(target: ExecutionTarget, spec: ProcessSpec, request: di
                 "execution_scope": snapshot.scope.model_dump(mode="json"),
                 "backend": snapshot.execution_metadata.get("backend"),
                 "backend_version": snapshot.execution_metadata.get("backend_version"),
+                "executed": snapshot.execution_metadata.get("executed"),
+                "launch_status": snapshot.execution_metadata.get("launch_status"),
                 "cleanup_status": snapshot.cleanup_status,
             }
         )

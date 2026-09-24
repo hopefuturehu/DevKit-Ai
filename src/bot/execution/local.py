@@ -38,6 +38,8 @@ class PreparedLaunch:
     metadata: dict = field(default_factory=dict)
     release: Callable[[], None] | None = None
     released: bool = False
+    pass_fds: tuple[int, ...] = ()
+    after_spawn: Callable[[], None] | None = None
 
     def release_resources(self) -> None:
         if not self.released:
@@ -131,6 +133,7 @@ class LocalExecutionTarget(ManagedExecutionTarget):
         self._monitor: asyncio.Task[None] | None = None
         self._start_lock = asyncio.Lock()
         self._closed = False
+        self._close_task: asyncio.Task[None] | None = None
 
     async def probe(self, executables: list[str] | None = None) -> EnvironmentCapabilities:
         return EnvironmentCapabilities(
@@ -191,6 +194,7 @@ class LocalExecutionTarget(ManagedExecutionTarget):
                     cwd=str(cwd),
                     env=launch.environment,
                     close_fds=True,
+                    **({"pass_fds": launch.pass_fds} if launch.pass_fds else {}),
                     stdin=asyncio.subprocess.PIPE
                     if spec.interactive
                     else asyncio.subprocess.DEVNULL,
@@ -216,6 +220,9 @@ class LocalExecutionTarget(ManagedExecutionTarget):
                 # subprocess_exec failed before it returned a live transport.
                 launch.release_resources()
                 raise
+            finally:
+                if launch.after_spawn is not None:
+                    launch.after_spawn()
             process_id = f"proc_{uuid4().hex}"
             managed = _ManagedProcess(
                 process_id,
@@ -235,9 +242,23 @@ class LocalExecutionTarget(ManagedExecutionTarget):
             if spec.timeout_seconds is not None:
                 managed.timeout_task = asyncio.create_task(self._enforce_managed_timeout(managed))
             if cancelled:
-                await self.terminate_process(process_id, reason="启动期间取消")
+                cleanup = asyncio.create_task(
+                    self.terminate_process(process_id, reason="启动期间取消")
+                )
+                while not cleanup.done():
+                    try:
+                        await asyncio.shield(cleanup)
+                    except asyncio.CancelledError:
+                        continue
+                if cleanup.result().status == ProcessStatus.CLEANUP_FAILED:
+                    raise RuntimeError("process_cleanup_incomplete: 启动取消后的清理未完成")
                 raise asyncio.CancelledError
+            await self._after_start(process_id)
             return process_id
+
+    async def _after_start(self, process_id: str) -> None:
+        """Backend-specific trusted startup handshake, after cleanup registration."""
+        return None
 
     def _prepare_launch(self, spec: ProcessSpec) -> PreparedLaunch:
         environment = self._safe_environment()
@@ -497,6 +518,51 @@ class LocalExecutionTarget(ManagedExecutionTarget):
 
     async def aclose(self) -> None:
         self._closed = True
+        # A close cannot overtake a subprocess spawn that has been admitted but
+        # has not yet returned its transport. Concurrent callers share cleanup;
+        # cancelling any caller must not stop ownership tracking or cleanup.
+        if self._close_task is None or (
+            self._close_task.done()
+            and (self._close_task.cancelled() or self._close_task.exception() is not None)
+        ):
+            self._close_task = asyncio.create_task(self._close_when_admitted())
+        closing = self._close_task
+        cancelled = False
+        while not closing.done():
+            try:
+                await asyncio.shield(closing)
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                break
+        closing.result()  # A cleanup failure takes precedence over cancellation.
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _before_close(self) -> None:
+        """Stop backend startup work before retiring registered processes."""
+
+    async def _after_close(self) -> None:
+        """Release backend resources only after all cleanup is confirmed."""
+
+    async def _close_when_admitted(self) -> None:
+        failures = []
+        try:
+            await self._before_close()
+        except Exception as exc:
+            failures.append(exc)
+        try:
+            async with self._start_lock:
+                await self._close_managed()
+        except Exception as exc:
+            failures.append(exc)
+        if len(failures) == 1:
+            raise failures[0]
+        if failures:
+            raise ExceptionGroup("execution target cleanup failures", failures)
+        await self._after_close()
+
+    async def _close_managed(self) -> None:
         active = [p for p in self._managed_processes.values() if self._managed_process_alive(p)]
         for managed in active:
             self._begin_cleanup(managed, "Runtime 关闭时清理", ProcessStatus.CANCELLED)

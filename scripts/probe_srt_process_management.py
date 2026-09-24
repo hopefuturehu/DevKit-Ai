@@ -22,9 +22,27 @@ from probe_native_sandbox import Probe, settings
 
 from bot.execution.base import ProcessSpec
 from bot.execution.local import LocalExecutionTarget
+from bot.sandbox.launch_status import LaunchStatusPipe
 
 
 class ProbeTarget(LocalExecutionTarget):
+    helper = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.status_pipes = []
+
+    def _prepare_launch(self, spec):
+        launch = super()._prepare_launch(spec)
+        if self.helper:
+            startup = LaunchStatusPipe()
+            self.status_pipes.append(startup)
+            launch.argv = (*launch.argv[:2], *startup.arguments, *launch.argv[2:])
+            launch.pass_fds = (startup.writer,)
+            launch.after_spawn = startup.after_spawn
+            launch.release = startup.close
+        return launch
+
     @staticmethod
     def _safe_environment() -> dict[str, str]:
         # Test only the manager, not Local's ordinary host environment policy.
@@ -54,6 +72,7 @@ async def check_case(
             + ("" if immediate_exit else "setInterval(()=>{},1000)")
         )
         target = ProbeTarget(strict_process_scope=strict)
+        target.helper = helper
         child = None
         born = None
         started = time.time()
@@ -153,6 +172,16 @@ async def check_case(
                 result["unattributed_count"] = sum(
                     len(item.scope.unattributed) for item in target._managed_processes.values()
                 )
+            finally:
+                for startup in target.status_pipes:
+                    startup.close()
+                if helper:
+                    result["launcher_statuses"] = [
+                        Probe.status_record(startup) for startup in target.status_pipes
+                    ]
+                    result["passed"] = result.get("passed", False) and all(
+                        item["status_protocol_valid"] for item in result["launcher_statuses"]
+                    )
 
 
 async def main() -> None:

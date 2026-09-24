@@ -7,6 +7,7 @@ remain release gates; metadata inspection alone is not an enforcement claim.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -17,8 +18,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from bot.config.models import AppConfig
-from bot.execution.base import EnvironmentCapabilities, ExecutionTarget, ProcessSpec
+from bot.execution.base import EnvironmentCapabilities, ExecutionTarget, ProcessSpec, ProcessStatus
 from bot.execution.local import LocalExecutionTarget, PreparedLaunch
+from bot.sandbox.launch_status import LaunchStatusPipe
 from bot.sandbox.models import ExecutionScope, SandboxError, SandboxErrorCode
 from bot.sandbox.policy import (
     ResolvedSandbox,
@@ -73,6 +75,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         self._bindings: dict[ExecutionScope, ResolvedSandbox] = {}
         self._worker_calls: set[ExecutionScope] = set()
         self._used_calls: set[tuple[str, str, str]] = set()
+        self._startups: dict[ExecutionScope, LaunchStatusPipe] = {}
         self._recovery_error = False
         super().__init__(
             max_managed_processes=config.agent.max_managed_processes,
@@ -138,7 +141,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         from bot.core.termination.identity import fingerprint
 
         return fingerprint(
-            "native-srt-managed-v3-preflight1",
+            "native-srt-managed-v4-launch-status1",
             str(self.workspace),
             str(self.runtime.root),
             str(self.state_root),
@@ -323,6 +326,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         run.directory.identity.verify()
         config = compile_srt_config(resolved.policy)
         control = OwnedDirectory.create(Path("/tmp").resolve(), prefix="bot-srt-")
+        startup = None
         try:
             environment = launcher_environment(
                 resolved.policy,
@@ -337,19 +341,30 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             # Keep policy compilation and the last admission check in the same
             # synchronous launch preparation, under the manager's start lock.
             resolved.admission.verify()
+            startup = LaunchStatusPipe()
         except BaseException:
+            if startup is not None:
+                startup.close()
             control.remove()
             raise
         executables = dict(inspection.executables)
         argv = (
             str(executables["node"]),
             str(executables["launcher"]),
+            *startup.arguments,
             str(settings),
             "--",
             *spec.argv,
         )
         del self._bindings[scope]
         self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
+        self._startups[scope] = startup
+
+        def release():
+            startup.close()
+            control.remove()
+            self._startups.pop(scope, None)
+
         return PreparedLaunch(
             argv,
             environment,
@@ -364,11 +379,78 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 "read_only": run.read_only,
                 "denied_paths": list(map(str, run.denied_paths)),
                 "executed": None,
+                "launch_status": {"state": "waiting", "stage": "launcher_status"},
                 "purpose": "worker" if scope in self._worker_calls else "command",
                 "capabilities": self.sandbox_capabilities.model_dump(mode="json"),
             },
-            release=control.remove,
+            release=release,
+            pass_fds=(startup.writer,),
+            after_spawn=startup.after_spawn,
         )
+
+    async def _after_start(self, process_id: str) -> None:
+        managed = self._managed_process(process_id)
+        startup = self._startups.get(managed.spec.scope)
+        metadata = managed.launch.metadata
+        try:
+            if startup is None:
+                raise SandboxError(
+                    SandboxErrorCode.LAUNCH_FAILED,
+                    "缺少可信启动状态通道",
+                    stage="launcher_status",
+                    executed=None,
+                )
+            acknowledgement = await startup.wait()
+            metadata["launch_status"] = {
+                "state": acknowledgement.state,
+                "stage": acknowledgement.stage,
+            }
+            metadata["executed"] = acknowledgement.executed
+            if acknowledgement.state != "dispatched":
+                raise SandboxError(
+                    SandboxErrorCode.LAUNCH_FAILED,
+                    "可信启动器未能派发目标",
+                    stage=f"launcher_{acknowledgement.stage}",
+                    executed=acknowledgement.executed,
+                )
+        except BaseException as exc:
+            if isinstance(exc, SandboxError):
+                metadata["launch_error"] = {
+                    "reason_code": exc.code.value,
+                    "stage": exc.stage,
+                    "executed": exc.executed,
+                }
+            cleanup = asyncio.create_task(
+                self.terminate_process(process_id, reason="可信启动状态失败或启动期间取消")
+            )
+            while not cleanup.done():
+                try:
+                    await asyncio.shield(cleanup)
+                except asyncio.CancelledError:
+                    continue
+                except Exception:
+                    break
+            try:
+                cleaned = cleanup.result()
+                if cleaned.status == ProcessStatus.CLEANUP_FAILED:
+                    raise RuntimeError("startup cleanup incomplete")
+            except Exception as failure:
+                raise SandboxError(
+                    SandboxErrorCode.CLEANUP_FAILED,
+                    "启动失败后的清理未确认，保留资源与占用",
+                    stage="launcher_cleanup",
+                    executed=metadata["executed"],
+                ) from failure
+            # Preserve the managed hard-timeout API even if it expires while
+            # the launcher is preparing the sandbox, before its acknowledgement.
+            if cleaned.status == ProcessStatus.TIMED_OUT and not isinstance(
+                exc, asyncio.CancelledError
+            ):
+                return
+            raise
+        finally:
+            if startup is not None:
+                startup.close()
 
     def restore_cleanups(self, records: list[dict]) -> None:
         # Recovery may preserve cleanup authority, never a permission to launch
@@ -439,10 +521,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             executables={name: shutil.which(name, path=path) for name in executables or []},
         )
 
-    async def aclose(self) -> None:
-        self._closed = True
+    async def _before_close(self) -> None:
         await self._preflight_gate.aclose()
-        await super().aclose()
+
+    async def _after_close(self) -> None:
         if self._recovery_error:
             raise RuntimeError("process_cleanup_incomplete: 沙箱恢复身份未确认，保留资源")
         for run in self._runs.values():
