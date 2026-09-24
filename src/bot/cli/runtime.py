@@ -114,7 +114,11 @@ def build_runtime(
         timeout_seconds=config.model.timeout_seconds,
     )
     redactor = Redactor([api_key])
-    catalog = SkillCatalog(config.skill_path(workspace))
+    catalog = (
+        SkillCatalog.for_native(config, workspace, protected_paths=target.broker_read_denials)
+        if target.requires_confinement
+        else SkillCatalog(config.skill_path(workspace))
+    )
     catalog.scan()
     skills = SkillManager(catalog, max_auto_activated=config.skills.max_auto_activated)
     tools = ToolRegistry(requires_confinement=target.requires_confinement)

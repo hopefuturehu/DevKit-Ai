@@ -105,6 +105,7 @@ class SandboxTrust:
     require_sandbox: bool = False
     trusted_overrides: tuple[str, ...] = ()
     source_paths: tuple[Path, ...] = ()
+    skill_path: str | None = None
 
 
 def assert_at_most(candidate: SandboxConfig, ceiling: SandboxConfig) -> None:

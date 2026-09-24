@@ -260,6 +260,15 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
     def requires_confinement(self) -> bool:
         return True
 
+    @property
+    def broker_read_denials(self) -> tuple[Path, ...]:
+        return (
+            self.state_root,
+            self.runtime.root,
+            self.coordinator.root,
+            *self.runtime.worker.denied_roots,
+        )
+
     def for_invocation(
         self,
         *,

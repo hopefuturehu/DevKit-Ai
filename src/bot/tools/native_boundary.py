@@ -93,14 +93,11 @@ INTERNAL_TOOLS = MappingProxyType(
                     "load_context_reference",
                     "search_session_history",
                     "load_compaction_source",
+                    "activate_skill",
+                    "load_skill_resource",
                 ),
                 True,
                 "",
-            ),
-            (
-                ("activate_skill", "load_skill_resource"),
-                False,
-                "Skill 资源 broker 尚未通过原生审计",
             ),
             (("search_memory", "load_memory_evidence"), False, "记忆资源 broker 尚未通过原生审计"),
             (

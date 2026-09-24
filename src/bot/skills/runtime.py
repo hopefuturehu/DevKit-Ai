@@ -187,7 +187,7 @@ class RunSkillState(SkillManager):
         )
 
     def load_resource(self, skill_name: str, relative_path: str, *, max_chars: int = 100_000):
-        if self.status == "closed":
+        if self.status != "open":
             return None, "Skill Run 已关闭"
         return super().load_resource(skill_name, relative_path, max_chars=max_chars)
 

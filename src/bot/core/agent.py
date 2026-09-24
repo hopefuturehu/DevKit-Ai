@@ -4866,6 +4866,9 @@ class AgentRunner:
         skill_state: RunSkillState,
         conversation: list[PositionedMessage],
     ) -> ToolResult:
+        failure = self._native_skill_preflight(tool_call, session_id, run_id, skill_state)
+        if failure is not None:
+            return failure
         name = tool_call.arguments.get("name")
         reason = tool_call.arguments.get("reason")
         if not isinstance(name, str) or not isinstance(reason, str):
@@ -4880,6 +4883,11 @@ class AgentRunner:
                 payload={"name": name, "reason": reason, "message": str(exc)},
             )
             return ToolResult(success=False, error=str(exc))
+        if self.execution_target.requires_confinement and len(prepared.body.encode()) > min(
+            self.config.agent.max_tool_output_bytes, 64_000
+        ):
+            # A partial body must never acquire a full-body delivery binding.
+            return ToolResult(success=False, error="Skill 完整正文超过当前工具输出预算")
         skill_state.prepared[tool_call.id] = prepared
         content = prepared.body
         if skill_state.mode == "history" and prepared.reused is not None:
@@ -4904,6 +4912,9 @@ class AgentRunner:
         run_id: str,
         skill_state: RunSkillState,
     ) -> ToolResult:
+        failure = self._native_skill_preflight(tool_call, session_id, run_id, skill_state)
+        if failure is not None:
+            return failure
         skill_name = tool_call.arguments.get("skill")
         relative_path = tool_call.arguments.get("path")
         if not isinstance(skill_name, str) or not isinstance(relative_path, str):
@@ -4913,7 +4924,11 @@ class AgentRunner:
             )
         content, message = skill_state.load_resource(skill_name, relative_path)
         if content is None:
-            return ToolResult(success=False, error=message)
+            return ToolResult(
+                success=False,
+                error=message,
+                metadata={"executed": False} if self.execution_target.requires_confinement else {},
+            )
         await self.event_bus.emit(
             EventType.SKILL_RESOURCE_LOADED,
             session_id=session_id,
@@ -5127,16 +5142,47 @@ class AgentRunner:
         if not self.execution_target.requires_confinement:
             return
         self.tool_registry.require_confinement()
+        if self.skills.catalog.skills or self.skills.catalog._broker is not None:
+            self.skills.catalog.assert_native(
+                self.config, self.workspace, self.execution_target.broker_read_denials
+            )
         # Pending brokers must not do auxiliary work before tool dispatch.
         # Keep the production gate closed until these actual paths are delivered.
         pending = (
-            (bool(self.skills.catalog.skills), "activate_skill"),
             (self.memory_store is not None or self.memory_extractor is not None, "search_memory"),
             (self.subagent_controller is not None, "spawn_agent"),
         )
         for enabled, name in pending:
             if enabled:
                 assert_native_internal_supported(name)
+
+    def _native_skill_preflight(self, tool_call, session_id, run_id, skill_state):
+        if not self.execution_target.requires_confinement:
+            return None
+        failure = self._native_tool_preflight(tool_call, session_id, run_id)
+        if failure is not None:
+            return failure
+        try:
+            if (
+                type(skill_state) is not RunSkillState
+                or skill_state.session_id != session_id
+                or skill_state.run_id != run_id
+                or skill_state.store is not self.store
+                or skill_state.status != "open"
+                or self._run_skill_states.get(session_id) is not skill_state
+            ):
+                raise SandboxError(
+                    SandboxErrorCode.POLICY_DENIED,
+                    "Skill 动作不属于当前活动 Run",
+                    stage="skill_broker",
+                    executed=False,
+                )
+            skill_state.catalog.assert_native(
+                self.config, self.workspace, self.execution_target.broker_read_denials
+            )
+        except SandboxError as exc:
+            return sandbox_failure(exc)
+        return None
 
     def _native_session_scope(self, session_id: str, run_id: str) -> None:
         if not self.store.active_run_matches(session_id, run_id, self.workspace):
@@ -5161,6 +5207,8 @@ class AgentRunner:
                     "load_context_reference": self._load_reference_definition,
                     "search_session_history": self._search_session_history_definition,
                     "load_compaction_source": self._load_compaction_source_definition,
+                    "activate_skill": SkillCatalog.activation_tool_definition,
+                    "load_skill_resource": SkillCatalog.resource_tool_definition,
                 }
                 # No parameter selects a handler, file path, session or SQL statement.
                 definition = definitions[tool_call.name]()

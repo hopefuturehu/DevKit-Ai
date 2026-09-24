@@ -96,6 +96,11 @@ class EnvironmentCapabilities(BaseModel):
 
 
 class ExecutionTarget(ABC):
+    @property
+    def broker_read_denials(self) -> tuple[Path, ...]:
+        """Host-owned implementation state that resource brokers must not expose."""
+        return ()
+
     async def prepare_run(self) -> None:
         """Finish backend startup/recovery before model or auxiliary work."""
         return None

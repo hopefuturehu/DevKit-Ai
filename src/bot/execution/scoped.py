@@ -43,6 +43,10 @@ class NativeInvocationTarget(ExecutionTarget):
         return True
 
     @property
+    def broker_read_denials(self) -> tuple[Path, ...]:
+        return (*self._target.broker_read_denials, *self._identity.denied_paths)
+
+    @property
     def progress_scope(self) -> str:
         return self._target.progress_scope
 

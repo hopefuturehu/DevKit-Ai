@@ -93,6 +93,36 @@ def _configured_path(value: str, workspace: Path) -> Path:
     return path if path.is_absolute() else workspace / path
 
 
+def host_read_denials(config: AppConfig, workspace: Path) -> tuple[Path, ...]:
+    """Shared control/secret exclusions for confined execution and host brokers."""
+    state = config.state_path(workspace)
+    controls = [
+        state,
+        *(Path(str(state) + suffix) for suffix in ("-wal", "-shm", "-journal")),
+        _configured_path(config.storage.state_path, workspace),
+        workspace / ".bot/config.toml",
+        config.memory_path(workspace),
+        _configured_path(config.memory.path, workspace),
+        config.project_agent_path(workspace),
+        workspace / config.agents.project_path,
+        config.user_agent_path(),
+    ]
+    trust = config._sandbox_trust
+    if trust:
+        controls.extend(
+            [
+                trust.trusted_config,
+                *trust.source_paths,
+                *([trust.project_config] if trust.project_config else []),
+            ]
+        )
+    secrets = [
+        workspace / ".env",
+        *(Path.home() / name for name in (".ssh", ".aws", ".azure", ".kube", ".config/gcloud")),
+    ]
+    return _denials([*controls, *secrets])
+
+
 def resolve_policy(
     config: AppConfig,
     *,
@@ -145,7 +175,6 @@ def resolve_policy(
         for root in (*sandbox.read_roots, *sandbox.write_roots):
             if not root.is_dir():
                 raise ValueError(f"额外目录不存在: {root}")
-        state = config.state_path(workspace)
         worktrees_path = workspace / config.subagents.worktree_dir
         worktrees = worktrees_path.resolve()
         if not worktrees.is_relative_to(workspace):
@@ -160,32 +189,7 @@ def resolve_policy(
         if any(not root.is_dir() for root in metadata):
             raise ValueError("Git 元数据目录不存在")
         git_roots = [git, *metadata]
-        trust = config._sandbox_trust
-        controls = [
-            state,
-            *(Path(str(state) + suffix) for suffix in ("-wal", "-shm", "-journal")),
-            _configured_path(config.storage.state_path, workspace),
-            workspace / ".bot/config.toml",
-            config.memory_path(workspace),
-            _configured_path(config.memory.path, workspace),
-            config.project_agent_path(workspace),
-            workspace / config.agents.project_path,
-            config.user_agent_path(),
-            *protected_paths,
-        ]
-        if trust:
-            controls.extend(
-                [
-                    trust.trusted_config,
-                    *trust.source_paths,
-                    *([trust.project_config] if trust.project_config else []),
-                ]
-            )
-        secrets = [
-            workspace / ".env",
-            *(Path.home() / name for name in (".ssh", ".aws", ".azure", ".kube", ".config/gcloud")),
-        ]
-        protected = _denials([*controls, *secrets])
+        protected = _denials([*host_read_denials(config, workspace), *protected_paths])
         denied_read = _denials([*protected, worktrees_path, private.parent])
         loader_controls = _denials(loader_control_paths)
         denied_write = _denials(

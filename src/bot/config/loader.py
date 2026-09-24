@@ -107,6 +107,7 @@ def load_config(
             trusted_config=trusted_path,
             project_config=project_path,
             require_sandbox=config.sandbox.mode == "required",
+            skill_path=ceiling_data.get("skills", {}).get("path"),
             source_paths=tuple(
                 sorted(
                     {
