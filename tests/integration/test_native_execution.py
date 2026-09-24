@@ -131,6 +131,106 @@ def scoped_spec(target, work, argv, *, call="call", run="run", readonly=False, *
     )
 
 
+async def doctor_process(target, work, *, probe=False, missing=False, signal_helper=False):
+    config = work.parent / "doctor.toml"
+    config.write_text('[sandbox]\nmode = "off"\n')
+    command = [sys.executable, "-m", "bot"]
+    if signal_helper:
+        command = [
+            sys.executable,
+            str(Path(__file__).parents[1] / "helpers/native_doctor_signal_host.py"),
+        ]
+    return await asyncio.create_subprocess_exec(
+        *command,
+        "-C",
+        str(work),
+        "--config",
+        str(config),
+        "doctor",
+        "--sandbox-probe" if probe else "--sandbox",
+        "--json",
+        "--sandbox-runtime",
+        str(work.parent / "missing" if missing else target.runtime.root),
+        "--sandbox-state",
+        str(target.state_root),
+        env={key: value for key, value in os.environ.items() if not key.startswith("BOT_")},
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+
+async def doctor_output(process, input_data=None):
+    try:
+        return await asyncio.wait_for(process.communicate(input_data), 60)
+    finally:
+        if process.returncode is None:
+            # Own only this exact test-created CLI host. The fixture separately
+            # authenticates its durable resources; never kill descendants by name.
+            process.kill()
+            await asyncio.wait_for(process.wait(), 10)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["readonly", "probe", "missing"])
+async def test_native_doctor_cli_reports_actual_probe_and_cleanup(
+    native_target, mode, record_property
+):
+    target, work, _ = native_target
+    if mode == "readonly":
+        # The fixture has already created the registry directory. Initialize
+        # its mutex before checking this healthy read-only case; a missing
+        # mutex intentionally remains unknown and must never be created by doctor.
+        target.coordinator.snapshots()
+    process = await doctor_process(
+        target, work, probe=mode != "readonly", missing=mode == "missing"
+    )
+    stdout, stderr = await doctor_output(process)
+    report = json.loads(stdout)
+    record_property("doctor_report", json.dumps(report))
+    assert not stderr, stderr.decode()
+    assert process.returncode == (1 if mode == "missing" else 0), report
+    assert report["configured_mode"] == "off"
+    assert not report["business_execution_enabled"] and not report["business_execution_attempted"]
+    assert not report["recovery_after"]["cleanup_authority"]
+    assert report["recovery_after"]["status"] == "empty"
+    assert report["probe"]["status"] == ("passed" if mode == "probe" else "not_run")
+    assert report["cleanup"]["status"] == ("complete" if mode == "probe" else "not_run")
+    if mode != "missing":
+        assert report["capabilities"]["file_read"] == (
+            "enforced" if mode == "probe" else "unverified"
+        )
+    assert not list(work.iterdir())
+
+
+@pytest.mark.asyncio
+async def test_native_doctor_cli_repeated_signal_waits_for_real_cleanup(
+    native_target, record_property
+):
+    import signal
+
+    target, work, _ = native_target
+    process = await doctor_process(target, work, probe=True, signal_helper=True)
+    try:
+        assert await asyncio.wait_for(process.stderr.readline(), 45) == b"probe-ready\n"
+        process.send_signal(signal.SIGTERM)
+        assert await asyncio.wait_for(process.stderr.readline(), 30) == b"cleanup-ready\n"
+        process.send_signal(signal.SIGTERM)
+        stdout, stderr = await doctor_output(process, b"close\n")
+        report = json.loads(stdout)
+        record_property("doctor_report", json.dumps(report))
+        assert not stderr, stderr.decode()
+        assert process.returncode == 143 and report["exit_code"] == 143, report
+        assert report["interrupted"] and not report["ok"]
+        assert report["probe"]["status"] == "cancelled"
+        assert report["cleanup"]["status"] == "complete"
+        assert report["recovery_after"]["status"] == "empty"
+    finally:
+        if process.returncode is None:
+            process.kill()
+            await asyncio.wait_for(process.wait(), 10)
+
+
 @pytest.mark.asyncio
 async def test_native_managed_argv_metadata_io_and_control_cleanup(native_target):
     target, work, node = native_target
@@ -732,10 +832,11 @@ async def test_native_host_crash_recovers_only_protected_identity(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "phase", ["resources", "registered", "after_processes", "after_socket", "recoverer"]
+    "phase",
+    ["resources", "registered", "after_processes", "after_socket", "recoverer", "doctor_resources"],
 )
 async def test_native_recovers_nested_preflight_resources_without_replaying_probe(
-    native_target, phase
+    native_target, phase, record_property
 ):
     import psutil
 
@@ -770,7 +871,8 @@ async def test_native_recovers_nested_preflight_resources_without_replaying_prob
             sys.executable, "-S", "-c", "import time; time.sleep(120)"
         )
         identity = psutil.Process(victim.pid).create_time()
-        packet = await crash_at("registered" if phase == "recoverer" else phase)
+        boundary = {"recoverer": "registered", "doctor_resources": "resources"}.get(phase, phase)
+        packet = await crash_at(boundary)
         if phase == "recoverer":
             recovered = await crash_at("recoverer")
             assert recovered["process_id"] == packet["process_id"]
@@ -783,6 +885,18 @@ async def test_native_recovers_nested_preflight_resources_without_replaying_prob
             assert not sockets.exists()
         else:
             assert sockets.exists()
+        if phase == "doctor_resources":
+            process = await doctor_process(target, work, probe=True)
+            stdout, stderr = await doctor_output(process)
+            report = json.loads(stdout)
+            record_property("doctor_report", json.dumps(report))
+            assert not stderr and process.returncode == 0, report
+            assert report["recovery_before"]["status"] == "pending"
+            assert report["recovery_after"]["status"] == "empty"
+            assert report["probe"]["status"] == "passed"
+            assert not owned.exists() and not sockets.exists()
+            assert psutil.Process(victim.pid).create_time() == identity
+            return
         # Recovery alone must never rerun a fixed probe or confer capabilities.
         await target._recovery_gate.ensure()
         restored = target._recovered_preflights[owned]

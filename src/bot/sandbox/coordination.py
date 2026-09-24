@@ -176,7 +176,7 @@ class AdmissionCoordinator:
         self.identity = DirectoryIdentity.capture(self.root)
 
     @contextmanager
-    def _locked(self):
+    def _locked(self, *, read_only=False):
         self.identity.verify()
         directory = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         mutex = None
@@ -184,12 +184,11 @@ class AdmissionCoordinator:
             opened = os.fstat(directory)
             if (opened.st_dev, opened.st_ino) != (self.identity.device, self.identity.inode):
                 raise _error("准入注册表目录已被替换")
-            mutex = os.open(
-                "mutex", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=directory
-            )
+            flags = os.O_RDONLY if read_only else os.O_RDWR | os.O_CREAT
+            mutex = os.open("mutex", flags | os.O_NOFOLLOW, 0o600, dir_fd=directory)
             before = _file(os.fstat(mutex))
             try:
-                fcntl.flock(mutex, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(mutex, (fcntl.LOCK_SH if read_only else fcntl.LOCK_EX) | fcntl.LOCK_NB)
             except BlockingIOError as exc:
                 raise _error("准入注册表正被其他调用更新", "admission_busy") from exc
             if _file(os.stat("mutex", dir_fd=directory, follow_symlinks=False)) != before:
@@ -288,6 +287,18 @@ class AdmissionCoordinator:
         """Trusted host inventory, never a tool-accessible record interface."""
         with self._locked() as directory:
             return [self._read(directory, lease_id) for lease_id in self._ids(directory)]
+
+    @classmethod
+    def read_snapshots(cls, root: Path | None = None) -> list[dict]:
+        """Diagnostic inventory: never creates a registry, mutex or owner claim."""
+        selected = root if root is not None else default_root()
+        if not selected.exists() and not selected.is_symlink():
+            return []
+        instance = cls.__new__(cls)
+        instance.root = selected
+        instance.identity = DirectoryIdentity.capture(selected)
+        with instance._locked(read_only=True) as directory:
+            return [instance._read(directory, lease_id) for lease_id in instance._ids(directory)]
 
     def reference(self, binding: dict) -> dict:
         return {

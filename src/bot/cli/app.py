@@ -821,16 +821,76 @@ def resume_command(
 
 
 @app.command("doctor")
-def doctor_command(ctx: typer.Context) -> None:
+def doctor_command(
+    ctx: typer.Context,
+    sandbox: Annotated[bool, typer.Option("--sandbox", help="只读查看沙箱安装与遗留资源")] = False,
+    sandbox_probe: Annotated[
+        bool, typer.Option("--sandbox-probe", help="恢复所选状态目录的可信残留，再运行固定隔离自检")
+    ] = False,
+    sandbox_runtime: Annotated[
+        Path | None, typer.Option("--sandbox-runtime", help="宿主显式指定的锁定运行时安装目录")
+    ] = None,
+    sandbox_state: Annotated[
+        Path | None,
+        typer.Option("--sandbox-state", help="检查或恢复的私有状态目录，默认仅诊断专用目录"),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="输出沙箱专项诊断 JSON（需 --sandbox 或 --sandbox-probe）"),
+    ] = False,
+) -> None:
     workspace = ctx.obj["workspace"].resolve()
     config_path = ctx.obj["config_path"]
+    sandbox_diagnostic = sandbox or sandbox_probe
+    if not sandbox_diagnostic and (sandbox_runtime or sandbox_state or json_output):
+        raise typer.BadParameter("沙箱诊断选项需要 --sandbox 或 --sandbox-probe")
     errors = 0
     try:
         config = load_config(workspace, config_path=config_path)
-        console.print("[green]✓[/green] 配置 Schema 有效")
     except ConfigError as exc:
-        console.print(f"[red]✗[/red] {exc}")
+        if sandbox_diagnostic and json_output:
+            print(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "ok": False,
+                        "exit_code": 2,
+                        "errors": [{"code": "SANDBOX_CONFIG_INVALID", "message": str(exc)}],
+                    },
+                    ensure_ascii=False,
+                )
+            )
+        else:
+            console.print(f"[red]✗[/red] {exc}")
         raise typer.Exit(2) from exc
+    if sandbox_diagnostic:
+        from bot.sandbox.diagnostics import SandboxDiagnostic, render_diagnostic
+
+        diagnostic = SandboxDiagnostic(
+            config,
+            workspace,
+            probe=sandbox_probe,
+            runtime_root=sandbox_runtime,
+            state_root=sandbox_state,
+        )
+        signal_exit = None
+        try:
+            _run(_with_runtime_shutdown(diagnostic, diagnostic.run()))
+        except typer.Exit as exc:
+            signal_exit = exc.exit_code
+        report = diagnostic.report
+        report["interrupted"] = signal_exit is not None or diagnostic.cancelled
+        report["ok"] = report["ok"] and not report["interrupted"]
+        report["exit_code"] = diagnostic.exit_code(signal_exit)
+        if json_output:
+            print(json.dumps(report, ensure_ascii=False))
+        else:
+            for line in render_diagnostic(report):
+                console.print(line, markup=False)
+        if report["exit_code"]:
+            raise typer.Exit(report["exit_code"])
+        return
+    console.print("[green]✓[/green] 配置 Schema 有效")
     if config.sandbox.mode == "off":
         console.print("[yellow]![/yellow] Sandbox: off（宿主执行，未启用 OS 隔离）")
     else:

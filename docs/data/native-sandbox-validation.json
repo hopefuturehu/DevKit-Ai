@@ -1115,5 +1115,88 @@
         }
       ]
     }
+  },
+  "doctor_validation": {
+    "artifact": "docs/data/native-sandbox-doctor.json",
+    "sha256": "80822ef8721f1c9c5b732dc878c4e0bfa7ee9133d680b09a5b62ddfaf553013e",
+    "stage_complete": false,
+    "required_execution_enabled": false,
+    "allowlist_enabled": false,
+    "read_only_inventory_delivered": true,
+    "explicit_live_probe_delivered": true,
+    "reports": {
+      "linux-focused": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "1",
+          "time": "2.228",
+          "timestamp": "2026-09-24T07:15:41.161266+00:00",
+          "hostname": "cc3bd5906da4"
+        }
+      ],
+      "linux-full": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "354",
+          "time": "315.252",
+          "timestamp": "2026-09-24T07:09:06.103337+00:00",
+          "hostname": "cc3bd5906da4"
+        }
+      ],
+      "macos-final": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "5",
+          "time": "20.188",
+          "timestamp": "2026-09-24T15:16:17.541579+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "macos-initial": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "5",
+          "time": "20.122",
+          "timestamp": "2026-09-24T15:03:24.020424+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "units-initial": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "72",
+          "time": "0.570",
+          "timestamp": "2026-09-24T14:57:53.956468+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "units": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "97",
+          "time": "0.579",
+          "timestamp": "2026-09-24T15:05:38.565685+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ]
+    }
   }
 }
