@@ -1147,13 +1147,14 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(
     from bot.skills import SkillCatalog, SkillManager
     from bot.tools import ToolRegistry
     from bot.tools.builtins import ReadFileTool
+    from bot.tools.plan import UpdatePlanTool
 
     target, work, node = native_target
     (work / "secret").write_text("from-native-worker")
     calls = [
         ("command-call", "run_command", {"argv": [str(node), "-e", "console.log('agent-native')"]}),
         ("read-call", "read_file", {"path": "secret"}),
-        ("custom-call", "custom_command", {"argv": [str(node), "-e", "0"]}),
+        ("plan-call", "update_plan", {"items": [{"content": "验证隔离", "status": "completed"}]}),
     ]
     if repeat_guard:
         calls[2:2] = [
@@ -1199,13 +1200,36 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(
     config = target.config.model_copy(deep=True)
     config.agent.progress.repeat_guard_mode = "enforce"
     config.storage.state_path = str(work.parent / "state.db")
-    registry = ToolRegistry()
-    for tool in (RunCommandTool(), ReadFileTool(), CustomCommand()):
+    registry = ToolRegistry(requires_confinement=True)
+    with pytest.raises(SandboxError) as rejected:
+        registry.register(CustomCommand())
+    assert rejected.value.stage == "tool_registration" and rejected.value.executed is False
+    for tool in (RunCommandTool(), ReadFileTool(), UpdatePlanTool()):
         registry.register(tool)
     catalog = SkillCatalog(work.parent / "skills")
     catalog.scan()
     store = SQLiteSessionStore(Path(config.storage.state_path))
     try:
+        owner = store.create_session(work)
+        foreign = store.create_session(work)
+        own_ref = store.put_context_blob(
+            session_id=owner, run_id="old", content="owned-broker-data"
+        )
+        foreign_ref = store.put_context_blob(
+            session_id=foreign, run_id="old", content="foreign-broker-secret"
+        )
+        calls.extend(
+            [
+                ("unsupported-device", "ksys", {}),
+                ("own-reference", "load_context_reference", {"reference": own_ref}),
+                ("foreign-reference", "load_context_reference", {"reference": foreign_ref}),
+                (
+                    "forged-scope",
+                    "search_session_history",
+                    {"query": "secret", "session_id": foreign},
+                ),
+            ]
+        )
         runner = AgentRunner(
             config=config,
             workspace=work,
@@ -1219,7 +1243,9 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(
             event_bus=EventBus([store]),
             approval_handler=AllowApprovalHandler(),
         )
-        result = await runner.run(RunRequest(prompt="exercise command and denied entrypoints"))
+        result = await runner.run(
+            RunRequest(session_id=owner, prompt="exercise command and denied entrypoints")
+        )
         assert result.status == "completed", result
         snapshots = await target.list_processes()
         if repeat_guard:
@@ -1237,8 +1263,25 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(
         ]
         assert len(events) == (6 if repeat_guard else 3)
         assert all(event["run_id"] == process.run_id for event in events)
-        assert all(event["payload"]["success"] for event in events[:-1])
-        assert events[-1]["payload"]["success"] is False
+        assert all(event["payload"]["success"] for event in events)
+        assert events[-1]["payload"]["execution_class"] == "brokered"
+        assert store.load_plan(result.session_id)["items"] == [
+            {"content": "验证隔离", "status": "completed"}
+        ]
+        assert store.load_plan(foreign) is None
+        broker_events = {
+            e["payload"]["tool_call_id"]: e["payload"]
+            for e in store.list_events(owner)
+            if e["type"] == EventType.TOOL_RESULT.value
+        }
+        assert broker_events["own-reference"]["success"]
+        assert not broker_events["unsupported-device"]["executed"]
+        assert broker_events["unsupported-device"]["reason_code"] == "SANDBOX_UNAVAILABLE"
+        assert broker_events["own-reference"]["execution_class"] == "brokered"
+        assert "owned-broker-data" in broker_events["own-reference"]["output_excerpt"]
+        assert not broker_events["foreign-reference"]["success"]
+        assert not broker_events["forged-scope"]["executed"]
+        assert "foreign-broker-secret" not in json.dumps(broker_events)
         with sqlite3.connect(config.storage.state_path) as database:
             rows = database.execute(
                 "SELECT tool_call_id, result_json FROM tool_runs WHERE session_id = ?",
@@ -1253,9 +1296,7 @@ async def test_agent_binds_native_identity_and_rejects_unconfined_tools(
             )
         assert records["read-call"]["output"] == "from-native-worker"
         assert records["read-call"]["metadata"]["execution_scope"]["tool_call_id"] == "read-call"
-        for call in ("custom-call",):
-            assert records[call]["metadata"]["stage"] == "tool_boundary"
-            assert records[call]["metadata"]["executed"] is False
+        assert records["plan-call"]["metadata"]["execution_class"] == "brokered"
         assert records["command-call"]["metadata"]["execution_scope"] == process.scope.model_dump(
             mode="json"
         )

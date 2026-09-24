@@ -59,7 +59,7 @@ from bot.observability import Redactor
 from bot.policy import DefaultPolicyEngine, PolicyDecisionKind, ToolAction
 from bot.providers import ModelProvider, ProviderError, ProviderErrorKind
 from bot.providers.base import ProviderStream, estimate_input_tokens
-from bot.sandbox.models import SandboxError
+from bot.sandbox.models import SandboxError, SandboxErrorCode
 from bot.sessions import SQLiteSessionStore
 from bot.skills import SkillManager
 from bot.skills.runtime import RunSkillState, SkillContextError
@@ -72,6 +72,12 @@ from bot.tools.builtins import (
     RunShellTool,
     SearchTextTool,
     _process_progress,
+)
+from bot.tools.native_boundary import (
+    INTERNAL_TOOLS,
+    assert_native_internal_supported,
+    assert_native_tool_supported,
+    describe_native_tool,
 )
 
 
@@ -224,6 +230,8 @@ class AgentRunner:
         self.tool_registry = tool_registry
         self.policy = policy
         self.execution_target = execution_target
+        if execution_target.requires_confinement:
+            self.tool_registry.require_confinement()
         self.skills = skills
         self.context = context
         self.store = store
@@ -295,6 +303,17 @@ class AgentRunner:
             raise RuntimeError(f"会话 {session_id} 仍有运行中的任务，不能执行显式压缩")
         if self.context_compactor is None:
             raise RuntimeError("可恢复上下文压缩未启用")
+        if self.execution_target.requires_confinement:
+            self._validate_native_services()
+            session = self.store.get_session(session_id)
+            if session is None or session["workspace"] != str(self.workspace):
+                raise SandboxError(
+                    SandboxErrorCode.POLICY_DENIED,
+                    "压缩会话不属于当前工作区",
+                    stage="broker_scope",
+                    executed=False,
+                )
+            await self.execution_target.prepare_run()
         previous_cursor = int(self.context_compactor.projection(session_id)["cursor_position"])
         conversation = self.store.load_positioned_messages(
             session_id,
@@ -421,6 +440,7 @@ class AgentRunner:
         spent_cost_usd: float | None,
     ) -> ContextCompactionResult:
         """Use the dual-path publisher for /compact, without inventing a warm prefix."""
+        self._validate_native_services()
         assert self.context_compactor is not None
         run_id = f"compact:{uuid4().hex}"
         strategy = StrategyCompactor(self.context_compactor, self.provider, session_id, run_id)
@@ -653,6 +673,7 @@ class AgentRunner:
                 self._run_timeouts[run_id] = timeout
                 if remaining is not None and remaining <= 0:
                     raise TimeoutError("任务期限已到")
+                self._validate_native_services()
                 await self.execution_target.prepare_run()
                 execution_ready = True
                 if self.subagent_controller is not None:
@@ -1050,7 +1071,9 @@ class AgentRunner:
                     session_id=session_id,
                     run_id=run_id,
                 )
-            await self._refresh_managed_process_note(runtime_notes)
+            await self._refresh_managed_process_note(
+                runtime_notes, session_id=session_id, run_id=run_id
+            )
             self._refresh_plan_note(runtime_notes, session_id)
             request_tools = self.tool_registry.definitions()
             if self.config.skills.auto_activate and skill_state.catalog.skills:
@@ -1822,12 +1845,15 @@ class AgentRunner:
                         "arguments": tool_call.arguments,
                     },
                 )
+                boundary_failure = self._native_tool_preflight(tool_call, session_id, run_id)
                 if cleanup_incomplete:
                     result = ToolResult(
                         success=False,
                         error="同批进程清理失败，未执行后续调用",
                         metadata={"executed": False, "reason_code": "process_cleanup_incomplete"},
                     )
+                elif boundary_failure is not None:
+                    result = boundary_failure
                 elif tool_call.name == "activate_skill":
                     result = await self._activate_skill(
                         tool_call, session_id, run_id, skill_state, conversation
@@ -1871,6 +1897,12 @@ class AgentRunner:
                         compaction_cursor=int(compaction_projection["cursor_position"]),
                     )
 
+                if self.execution_target.requires_confinement:
+                    declaration = describe_native_tool(tool_call.name)
+                    if declaration is not None:
+                        result.metadata["execution_class"] = declaration.execution_class.value
+                        if tool_call.name in INTERNAL_TOOLS or tool_call.name == "update_plan":
+                            result = self._bound_native_broker_result(result)
                 # Uniform execution evidence for built-in, internal and delegated Tools.
                 # A successful launch with status=running is not task completion.
                 result_reference = self.store.put_context_blob(
@@ -1898,6 +1930,12 @@ class AgentRunner:
                         "truncated": result.truncated,
                         "executed": result.metadata.get("executed", True),
                         "reason_code": result.metadata.get("reason_code"),
+                        **(
+                            {"execution_class": result.metadata["execution_class"]}
+                            if self.execution_target.requires_confinement
+                            and "execution_class" in result.metadata
+                            else {}
+                        ),
                         "context_ref": result_reference,
                         "output_excerpt": self._inline_reference(
                             result.output or result.model_content(), result_reference
@@ -2561,7 +2599,9 @@ class AgentRunner:
             }
             conversation = [pending.get(entry.position, entry) for entry in conversation]
         conversation = skill_state.prepare_history(conversation, cursor=cursor)
-        runtime_notes = await self._termination_notes(session_id, reason=reason, status=status)
+        runtime_notes = await self._termination_notes(
+            session_id, reason=reason, status=status, run_id=run_id
+        )
         return self._build_context_items(
             base_items=base_items,
             memory_items=self._memory_context_items(),
@@ -2572,10 +2612,12 @@ class AgentRunner:
         )
 
     async def _termination_notes(
-        self, session_id: str, *, reason: str, status: str
+        self, session_id: str, *, reason: str, status: str, run_id: str | None = None
     ) -> list[ContextItem]:
         runtime_notes: list[ContextItem] = []
-        await self._refresh_managed_process_note(runtime_notes)
+        await self._refresh_managed_process_note(
+            runtime_notes, session_id=session_id, run_id=run_id
+        )
         self._refresh_plan_note(runtime_notes, session_id)
         self._replace_runtime_note(
             runtime_notes,
@@ -2621,11 +2663,22 @@ class AgentRunner:
     async def _refresh_managed_process_note(
         self,
         runtime_notes: list[ContextItem],
+        *,
+        session_id: str | None = None,
+        run_id: str | None = None,
     ) -> None:
         runtime_notes[:] = [item for item in runtime_notes if item.id != "managed-process-status"]
         if not self.execution_target.supports_managed_processes:
             return
         snapshots = await self.execution_target.list_processes()
+        if self.execution_target.requires_confinement:
+            snapshots = [
+                item
+                for item in snapshots
+                if session_id is not None
+                and run_id is not None
+                and (item.session_id, item.run_id) == (session_id, run_id)
+            ]
         if not any(
             snapshot.status
             in {
@@ -4127,6 +4180,28 @@ class AgentRunner:
             [*definitions, *internal],
             key=lambda definition: definition.name,
         )
+        if self.execution_target.requires_confinement:
+            self.tool_registry.require_confinement()
+            if len({item.name for item in all_definitions}) != len(all_definitions):
+                raise SandboxError(
+                    SandboxErrorCode.CONFIG_INVALID,
+                    "原生工具目录存在重名入口",
+                    stage="tool_registration",
+                    executed=False,
+                )
+            for item in all_definitions:
+                if item.name in INTERNAL_TOOLS:
+                    assert_native_internal_supported(item.name)
+                else:
+                    tool = self.tool_registry.get(item.name)
+                    if tool is None:
+                        raise SandboxError(
+                            SandboxErrorCode.UNAVAILABLE,
+                            "模型目录包含未登记的工具",
+                            stage="tool_registration",
+                            executed=False,
+                        )
+                    assert_native_tool_supported(tool, stage="tool_registration")
         total = sum(self._token_estimator.tool(item) for item in all_definitions)
         if total <= self.config.context.tool_schema_tokens:
             return all_definitions, None
@@ -4182,8 +4257,9 @@ class AgentRunner:
                 "properties": {
                     "names": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {"type": "string", "minLength": 1, "maxLength": 128},
                         "minItems": 1,
+                        "maxItems": 64,
                     }
                 },
                 "required": ["names"],
@@ -4324,7 +4400,9 @@ class AgentRunner:
             or not all(isinstance(name, str) for name in names)
         ):
             return ToolResult(success=False, error="activate_tools 需要字符串数组 names")
-        available = set(self.tool_registry.names()) | {"activate_skill", "load_skill_resource"}
+        available = set(self.tool_registry.names())
+        if not self.execution_target.requires_confinement:
+            available.update({"activate_skill", "load_skill_resource"})
         unknown = sorted(set(names) - available)
         if unknown:
             return ToolResult(success=False, error=f"未知 Tool: {', '.join(unknown)}")
@@ -4504,12 +4582,20 @@ class AgentRunner:
         ):
             return ToolResult(success=False, error="load_compaction_source 参数无效")
         try:
-            source = self.context_compactor.read_source(
-                session_id=session_id,
-                compaction_id=compaction_id,
-                start_position=start_position,
-                end_position=end_position,
-            )
+            if self.execution_target.requires_confinement:
+                source = self.store.read_context_compaction_source(
+                    requesting_session_id=session_id,
+                    compaction_id=compaction_id,
+                    start_position=start_position,
+                    end_position=end_position,
+                )
+            else:
+                source = self.context_compactor.read_source(
+                    session_id=session_id,
+                    compaction_id=compaction_id,
+                    start_position=start_position,
+                    end_position=end_position,
+                )
         except ValueError as exc:
             return ToolResult(success=False, error=str(exc))
         if source is None:
@@ -4886,6 +4972,11 @@ class AgentRunner:
             # completed launches before allowing another one, without consuming
             # their output or manufacturing extra tool-call/result messages.
             for snapshot in await self.execution_target.list_processes():
+                if self.execution_target.requires_confinement and (
+                    snapshot.session_id,
+                    snapshot.run_id,
+                ) != (session_id, run_id):
+                    continue
                 if controller.has_pending_process(snapshot.process_id):
                     signal = _process_progress(snapshot)
                     if signal.kind != ProgressKind.WAITING and not signal.evidence_complete:
@@ -5032,6 +5123,89 @@ class AgentRunner:
             result.progress.evidence_complete = not result.truncated
         return result
 
+    def _validate_native_services(self) -> None:
+        if not self.execution_target.requires_confinement:
+            return
+        self.tool_registry.require_confinement()
+        # Pending brokers must not do auxiliary work before tool dispatch.
+        # Keep the production gate closed until these actual paths are delivered.
+        pending = (
+            (bool(self.skills.catalog.skills), "activate_skill"),
+            (self.memory_store is not None or self.memory_extractor is not None, "search_memory"),
+            (self.subagent_controller is not None, "spawn_agent"),
+        )
+        for enabled, name in pending:
+            if enabled:
+                assert_native_internal_supported(name)
+
+    def _native_session_scope(self, session_id: str, run_id: str) -> None:
+        if not self.store.active_run_matches(session_id, run_id, self.workspace):
+            raise SandboxError(
+                SandboxErrorCode.POLICY_DENIED,
+                "宿主工具动作不属于当前工作区的活动会话/Run",
+                stage="broker_scope",
+                executed=False,
+            )
+
+    def _native_tool_preflight(
+        self, tool_call: ToolCall, session_id: str, run_id: str
+    ) -> ToolResult | None:
+        if not self.execution_target.requires_confinement:
+            return None
+        try:
+            self._native_session_scope(session_id, run_id)
+            if tool_call.name in INTERNAL_TOOLS:
+                assert_native_internal_supported(tool_call.name)
+                definitions = {
+                    "activate_tools": self._activate_tools_definition,
+                    "load_context_reference": self._load_reference_definition,
+                    "search_session_history": self._search_session_history_definition,
+                    "load_compaction_source": self._load_compaction_source_definition,
+                }
+                # No parameter selects a handler, file path, session or SQL statement.
+                definition = definitions[tool_call.name]()
+                jsonschema.validate(tool_call.arguments, definition.input_schema)
+            else:
+                tool = self.tool_registry.get(tool_call.name)
+                if tool is not None:
+                    assert_native_tool_supported(tool)
+                else:
+                    declaration = describe_native_tool(tool_call.name)
+                    if declaration is not None and not declaration.supported:
+                        raise SandboxError(
+                            SandboxErrorCode.UNAVAILABLE,
+                            f"工具 {declaration.name}: {declaration.reason}",
+                            stage="tool_boundary",
+                            executed=False,
+                        )
+        except SandboxError as exc:
+            return sandbox_failure(exc)
+        except jsonschema.ValidationError as exc:
+            return ToolResult(
+                success=False,
+                error=f"Tool 参数校验失败: {exc.message}",
+                metadata={"executed": False, "reason_code": "invalid_arguments"},
+            )
+        return None
+
+    def _bound_native_broker_result(self, result: ToolResult) -> ToolResult:
+        limit = min(self.config.agent.max_tool_output_bytes, 64_000)
+        limited = False
+        for field in ("output", "error"):
+            value = getattr(result, field)
+            if value is None:
+                continue
+            raw = value.encode("utf-8")
+            if len(raw) > limit:
+                setattr(result, field, raw[:limit].decode("utf-8", errors="ignore"))
+                limited = True
+        if limited:
+            result.truncated = True
+            result.metadata["broker_output_limited"] = True
+            if result.progress is not None:
+                result.progress.evidence_complete = False
+        return result
+
     async def _execute_tool(
         self,
         tool_call: ToolCall,
@@ -5041,6 +5215,9 @@ class AgentRunner:
         progress_controller: ProgressController | None = None,
         compaction_cursor: int = 0,
     ) -> ToolResult:
+        boundary_failure = self._native_tool_preflight(tool_call, session_id, run_id)
+        if boundary_failure is not None:
+            return boundary_failure
         tool = self.tool_registry.get(tool_call.name)
         if tool is None:
             return ToolResult(
@@ -5228,11 +5405,11 @@ class AgentRunner:
             )
 
         invocation = None
+        audit = None
         try:
             if self.execution_target.requires_confinement:
-                from bot.tools.native_boundary import assert_native_tool_supported
-
-                assert_native_tool_supported(tool)
+                audit = assert_native_tool_supported(tool)
+                self._native_session_scope(session_id, run_id)
             invocation = self.execution_target.for_invocation(
                 workspace=self.workspace,
                 session_id=session_id,
@@ -5266,12 +5443,21 @@ class AgentRunner:
             if plan_update is None:
                 result = ToolResult(success=False, error="update_plan 未返回有效计划快照")
             else:
-                await self.event_bus.emit(
-                    EventType.PLAN_UPDATED,
-                    session_id=session_id,
-                    run_id=run_id,
-                    payload=plan_update,
-                )
+                try:
+                    if self.execution_target.requires_confinement:
+                        self._native_session_scope(session_id, run_id)
+                    await self.event_bus.emit(
+                        EventType.PLAN_UPDATED,
+                        session_id=session_id,
+                        run_id=run_id,
+                        payload=plan_update,
+                    )
+                except SandboxError as exc:
+                    result = sandbox_failure(exc)
+        if audit is not None:
+            result.metadata["execution_class"] = audit.execution_class.value
+            if audit.name == "update_plan":
+                result = self._bound_native_broker_result(result)
         result = self.redactor.redact_tool_result(result)
         audit_reference = self.store.put_context_blob(
             session_id=session_id,
@@ -5294,6 +5480,7 @@ class AgentRunner:
                 "error": result.error,
                 "truncated": result.truncated,
                 "context_ref": audit_reference,
+                **({"execution_class": audit.execution_class.value} if audit is not None else {}),
             },
         )
         self.store.record_tool_run(

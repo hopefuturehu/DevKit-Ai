@@ -117,9 +117,10 @@ def build_runtime(
     catalog = SkillCatalog(config.skill_path(workspace))
     catalog.scan()
     skills = SkillManager(catalog, max_auto_activated=config.skills.max_auto_activated)
-    tools = ToolRegistry()
+    tools = ToolRegistry(requires_confinement=target.requires_confinement)
     register_builtin_tools(tools)
-    register_kunpeng_tools(tools)
+    if not target.requires_confinement:
+        register_kunpeng_tools(tools)
     store = SQLiteSessionStore(config.state_path(workspace), sanitizer=redactor.redact)
     event_bus = EventBus(
         [store, *(event_sinks or [])],

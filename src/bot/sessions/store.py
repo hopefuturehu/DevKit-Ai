@@ -754,6 +754,17 @@ class SQLiteSessionStore(EventSink):
             return None
         return validate_plan_payload(payload)
 
+    def active_run_matches(self, session_id: str, run_id: str, workspace: Path) -> bool:
+        """Check host-selected broker ownership; tool arguments cannot supply this scope."""
+        with self._lock:
+            row = self._connection.execute(
+                """SELECT 1 FROM runs r JOIN sessions s ON s.id = r.session_id
+                   WHERE r.id = ? AND r.session_id = ? AND r.status = 'running'
+                     AND s.workspace = ?""",
+                (run_id, session_id, str(workspace)),
+            ).fetchone()
+        return row is not None
+
     def start_run(self, session_id: str, run_id: str) -> None:
         now = datetime.now(UTC).isoformat()
         with self._lock, self._connection:
