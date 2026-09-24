@@ -186,6 +186,10 @@ class _ProbeTarget(NativeSandboxExecutionTarget):
     async def start_process(self, spec):
         return await LocalExecutionTarget.start_process(self, spec)
 
+    def _discover_preflights(self):
+        if any(self.state_root.glob("preflight-*")):
+            raise ValueError("固定探针不能拥有递归自检资源")
+
 
 class _Datagrams(asyncio.DatagramProtocol):
     def __init__(self):
@@ -212,10 +216,12 @@ class PreflightReport:
 
 
 class NativePreflight:
-    def __init__(self, runtime: RuntimeInspection, state_root: Path, cleanup):
+    def __init__(self, runtime: RuntimeInspection, state_root: Path, cleanup, *, parent=None):
         self.runtime = runtime
         self.state_root = state_root
         self.cleanup = cleanup
+        self.parent = parent
+        self.resources = None
         self.manager = None
         self.owned = None
         self.socket_directory = None
@@ -341,16 +347,10 @@ class NativePreflight:
                 state_root=self.owned.path / "runs",
             )
             await self._listeners()
-            (self.owned.path / "resources.json").write_text(
-                json.dumps(
-                    {
-                        "schema": 1,
-                        "directory": self.owned.identity.record(),
-                        "socket_directory": self.socket_directory.identity.record(),
-                        "runtime_root": str(self.runtime.root),
-                        "runtime_tree_sha256": self.runtime.tree.manifest_sha256,
-                    }
-                )
+            from bot.sandbox.preflight_recovery import ProbeResources
+
+            self.resources = ProbeResources.create(
+                self.parent, self.owned, self.socket_directory, self.manager
             )
             await self._positive_controls()
             args = {**self.endpoints, "nonce": self.nonce, "outside": str(outside)}
@@ -472,10 +472,13 @@ class NativePreflight:
                 failures.append(exc)
         if not failures:
             try:
-                if self.socket_directory is not None:
-                    self.socket_directory.remove()
-                if self.owned is not None:
-                    self.owned.remove()
+                if self.resources is not None:
+                    self.resources.remove()
+                else:
+                    if self.socket_directory is not None:
+                        self.socket_directory.remove()
+                    if self.owned is not None:
+                        self.owned.remove()
             except Exception as exc:
                 failures.append(exc)
         if failures:

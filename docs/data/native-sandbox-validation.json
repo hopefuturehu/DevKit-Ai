@@ -983,5 +983,137 @@
         }
       ]
     }
+  },
+  "preflight_recovery_validation": {
+    "artifact": "docs/data/native-sandbox-preflight-recovery.json",
+    "sha256": "28d8d66fe7c787039b9808115c793b8a86a50b1cae9abf06753820dd46ddfb38",
+    "stage_complete": false,
+    "full_s15_recovery_complete": false,
+    "required_execution_enabled": false,
+    "allowlist_enabled": false,
+    "nested_preflight_recovery_delivered": true,
+    "initial_failures_preserved": true,
+    "reports": {
+      "base": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "47",
+          "time": "0.236",
+          "timestamp": "2026-09-24T14:17:08.152280+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "units-initial": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "12",
+          "time": "0.090",
+          "timestamp": "2026-09-24T14:18:11.151454+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "units": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "59",
+          "time": "0.265",
+          "timestamp": "2026-09-24T14:18:59.814997+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "units-final": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "70",
+          "time": "0.522",
+          "timestamp": "2026-09-24T14:23:53.566798+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "units-expanded": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "72",
+          "time": "0.592",
+          "timestamp": "2026-09-24T14:26:55.304105+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "adjacent": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "83",
+          "time": "1.677",
+          "timestamp": "2026-09-24T14:26:02.169884+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "macos-smoke": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "1",
+          "time": "4.997",
+          "timestamp": "2026-09-24T14:19:20.087641+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "macos-initial": [
+        {
+          "name": "pytest",
+          "errors": "3",
+          "failures": "3",
+          "skipped": "0",
+          "tests": "8",
+          "time": "92.235",
+          "timestamp": "2026-09-24T14:21:27.253491+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "linux-full": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "296",
+          "time": "303.639",
+          "timestamp": "2026-09-24T06:27:52.299566+00:00",
+          "hostname": "b60c8bab9bf0"
+        }
+      ],
+      "macos-full": [
+        {
+          "name": "pytest",
+          "errors": "2",
+          "failures": "2",
+          "skipped": "0",
+          "tests": "298",
+          "time": "390.543",
+          "timestamp": "2026-09-24T14:34:03.608857+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ]
+    }
   }
 }

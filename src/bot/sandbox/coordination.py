@@ -63,6 +63,21 @@ def owner_alive(owner: dict) -> bool:
         raise _error("无法确认原准入所有者身份") from exc
 
 
+def validate_owner(owner: dict) -> None:
+    if (
+        not isinstance(owner, dict)
+        or owner.keys() != {"pid", "started", "claim"}
+        or type(owner["pid"]) is not int
+        or owner["pid"] <= 0
+        or type(owner["started"]) not in (int, float)
+        or not math.isfinite(owner["started"])
+        or owner["started"] <= 0
+        or not isinstance(owner["claim"], str)
+        or re.fullmatch(r"[0-9a-f]{32}", owner["claim"]) is None
+    ):
+        raise ValueError("owner identity")
+
+
 def _file(info: os.stat_result) -> tuple:
     if (
         not stat.S_ISREG(info.st_mode)
@@ -146,17 +161,7 @@ def _validate(record: dict, lease_id: str) -> None:
                     or os.path.normpath(value) != value
                 ):
                     raise ValueError("invalid path")
-        if (
-            owner.keys() != {"pid", "started", "claim"}
-            or type(owner["pid"]) is not int
-            or owner["pid"] <= 0
-            or type(owner["started"]) not in (int, float)
-            or not math.isfinite(owner["started"])
-            or owner["started"] <= 0
-            or not isinstance(owner["claim"], str)
-            or re.fullmatch(r"[0-9a-f]{32}", owner["claim"]) is None
-        ):
-            raise ValueError("owner identity")
+        validate_owner(owner)
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
         raise _error("准入记录损坏；拒绝忽略未解决的占用") from exc
 

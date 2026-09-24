@@ -731,6 +731,83 @@ async def test_native_host_crash_recovers_only_protected_identity(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "phase", ["resources", "registered", "after_processes", "after_socket", "recoverer"]
+)
+async def test_native_recovers_nested_preflight_resources_without_replaying_probe(
+    native_target, phase
+):
+    import psutil
+
+    target, work, _ = native_target
+    helper = Path(__file__).resolve().parents[1] / "helpers/native_preflight_crash_host.py"
+    host = victim = None
+
+    async def crash_at(boundary):
+        nonlocal host
+        host = await asyncio.create_subprocess_exec(
+            sys.executable,
+            str(helper),
+            str(target.runtime.root),
+            str(work),
+            str(target.state_root),
+            boundary,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        line = await asyncio.wait_for(host.stdout.readline(), 30)
+        assert line, (await host.stderr.read()).decode()[:5000]
+        packet = json.loads(line)
+        assert packet["phase"] == boundary
+        assert packet["resources"]["owner"]["pid"] == host.pid
+        host.kill()
+        await asyncio.wait_for(host.wait(), 10)
+        return packet
+
+    try:
+        victim = await asyncio.create_subprocess_exec(
+            sys.executable, "-S", "-c", "import time; time.sleep(120)"
+        )
+        identity = psutil.Process(victim.pid).create_time()
+        packet = await crash_at("registered" if phase == "recoverer" else phase)
+        if phase == "recoverer":
+            recovered = await crash_at("recoverer")
+            assert recovered["process_id"] == packet["process_id"]
+            assert recovered["resources"]["directory"] == packet["resources"]["directory"]
+            assert recovered["resources"]["owner"] != packet["resources"]["owner"]
+        owned = Path(packet["resources"]["directory"]["path"])
+        sockets = Path(packet["resources"]["socket_directory"]["path"])
+        assert owned.exists()
+        if phase == "after_socket":
+            assert not sockets.exists()
+        else:
+            assert sockets.exists()
+        # Recovery alone must never rerun a fixed probe or confer capabilities.
+        await target._recovery_gate.ensure()
+        restored = target._recovered_preflights[owned]
+        assert restored.manager._preflight_gate.task is None
+        assert target._preflight_gate.task is None
+        assert not restored.pending and not target.has_live_processes
+        assert not owned.exists() and not sockets.exists()
+        assert psutil.Process(victim.pid).create_time() == identity
+        assert not any(
+            Path(path).is_relative_to(owned)
+            for entry in target.coordinator.snapshots()
+            for path in entry["binding"]["rules"]["write_roots"]
+        )
+        # A separate fresh live probe is still required for a new Run.
+        await target.prepare_run()
+        assert target.sandbox_capabilities.file_read == "enforced"
+        assert not list(target.state_root.glob("preflight-*"))
+    finally:
+        for process in (host, victim):
+            if process is not None and process.returncode is None:
+                process.kill()
+                await asyncio.wait_for(process.wait(), 10)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("failure", ["registry", "durability"])
 async def test_post_spawn_journal_failure_never_claims_nonexecution(
     native_target, monkeypatch, failure
@@ -1211,6 +1288,7 @@ async def test_preflight_failure_never_runs_business_command_or_retries(
 
     target, work, node = native_target
     leftover = None
+    first_spec = None
     if failure == "unconfined":
         # Negative control: a functioning process with no OS isolation must
         # fail the real fixed checks, not produce enforced capabilities.
@@ -1234,6 +1312,14 @@ async def test_preflight_failure_never_runs_business_command_or_retries(
             "setInterval(()=>{},1000)",
         )
     else:
+        # This tests a leftover appearing after startup recovery has already
+        # checked its state area. Earlier leftovers are rejected by recovery.
+        first_spec = scoped_spec(
+            target,
+            work,
+            [node, "-e", "require('fs').writeFileSync('business-started','bad')"],
+            call="preflight-failure-0",
+        )
         leftover = target.state_root / "preflight-synthetic-leftover"
         leftover.mkdir(mode=0o700)
     try:
@@ -1241,7 +1327,9 @@ async def test_preflight_failure_never_runs_business_command_or_retries(
         for index in range(2):
             with pytest.raises(SandboxError) as error:
                 await target.start_process(
-                    scoped_spec(
+                    first_spec
+                    if index == 0 and first_spec is not None
+                    else scoped_spec(
                         target,
                         work,
                         [node, "-e", "require('fs').writeFileSync('business-started','bad')"],

@@ -89,6 +89,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         self._recovery_error = False
         self._recovery_checked = False
         self._recovered_processes: set[str] = set()
+        self._recovered_preflights = {}
         self._retired_runs: set[tuple[str, str]] = set()
         super().__init__(
             max_managed_processes=config.agent.max_managed_processes,
@@ -101,7 +102,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         self._recovery_gate = RecoveryGate(self._recover_startup)
         self._preflight_gate = StartupGate(
             lambda: NativePreflight(
-                self.runtime, self.state_root, self.config.agent.process_cleanup
+                self.runtime, self.state_root, self.config.agent.process_cleanup, parent=self
             )
         )
 
@@ -113,6 +114,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             or super().has_live_processes
             or self._recovery_gate.live
             or self._preflight_gate.live
+            or any(probe.pending for probe in self._recovered_preflights.values())
         )
 
     def _check_recovery(self) -> None:
@@ -121,6 +123,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         if (
             self._recovery_gate.live
             or self._recovery_gate.failed
+            or any(probe.pending for probe in self._recovered_preflights.values())
             or any(
                 pid in self._managed_processes
                 and self._managed_process_alive(self._managed_processes[pid])
@@ -136,6 +139,15 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
 
     @property
     def sandbox_capabilities(self):
+        if self._recovery_error or self._recovery_gate.failed:
+            return self.runtime.capabilities.model_copy(
+                update={
+                    "file_read": "unavailable",
+                    "file_write": "unavailable",
+                    "network_filter": "unavailable",
+                    "evidence": ("startup recovery unresolved",),
+                }
+            )
         task = self._preflight_gate.task
         if task is None or not task.done():
             return self.runtime.capabilities
@@ -194,6 +206,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 for result in results
             ):
                 raise ValueError("崩溃残留清理未确认，保留资源和占用")
+            await self._close_recovered_preflights()
             # Never reuse a crashed Run's private HOME/tmp/cache for new work.
             # Every recovered call has released its lease before removing these.
             for key in sorted(self._retired_runs):
@@ -596,6 +609,73 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             if startup is not None:
                 startup.close()
 
+    def _discover_preflights(self) -> None:
+        from bot.sandbox.preflight import _ProbeTarget
+        from bot.sandbox.preflight_recovery import ProbeResources, RecoveredPreflight
+
+        self._state_identity.verify()
+        for path in sorted(self.state_root.glob("preflight-*")):
+            if path in self._recovered_preflights:
+                continue
+            resources = ProbeResources.recover(self, path)
+            config = AppConfig.model_validate({"sandbox": {"mode": "required"}})
+            config.agent.process_cleanup = self.config.agent.process_cleanup.model_copy(deep=True)
+            manager = _ProbeTarget(
+                config,
+                workspace=path / "work",
+                runtime_root=self.runtime.root,
+                state_root=path / "runs",
+            )
+            if (
+                manager.cleanup_scope != resources.record["child_scope"]
+                or manager._state_identity.record() != resources.record["state_directory"]
+            ):
+                raise ValueError("恢复的自检子运行时身份不一致")
+            manager.cleanup_observer = self.cleanup_observer
+            self._recovered_preflights[path] = RecoveredPreflight(resources, manager)
+
+    async def _close_recovered_preflights(self) -> None:
+        results = await asyncio.gather(
+            *(probe.aclose() for probe in self._recovered_preflights.values() if probe.pending),
+            return_exceptions=True,
+        )
+        failures = [result for result in results if isinstance(result, BaseException)]
+        if failures:
+            from dataclasses import asdict
+
+            error = SandboxError(
+                SandboxErrorCode.CLEANUP_FAILED,
+                "崩溃自检进程或资源未能确认清理，保留恢复记录",
+                stage="preflight_recovery",
+                executed=False,
+            )
+            error.add_note(
+                json.dumps(
+                    [
+                        {
+                            "directory": str(probe.resources.owned.path),
+                            "processes": [
+                                {
+                                    "process_id": managed.process_id,
+                                    "root_pid": managed.scope.root_pid,
+                                    "cleanup_status": managed.cleanup_status,
+                                    "remaining": managed.scope.remaining()[:16],
+                                    "unattributed": [
+                                        asdict(p)
+                                        for p in list(managed.scope.unattributed.values())[:16]
+                                    ],
+                                    "unattributed_count": len(managed.scope.unattributed),
+                                }
+                                for managed in probe.manager._managed_processes.values()
+                            ],
+                        }
+                        for probe in self._recovered_preflights.values()
+                        if probe.pending
+                    ]
+                )
+            )
+            raise error from BaseExceptionGroup("preflight recovery cleanup failures", failures)
+
     def restore_cleanups(self, records: list[dict]) -> None:
         # SQLite/event payloads are display/audit data, not process or deletion
         # authority. Discover even crashes that never emitted a cleanup event.
@@ -605,6 +685,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         if self._recovery_checked:
             return
         try:
+            self._discover_preflights()
             restored = []
             for entry in self.coordinator.snapshots():
                 # Run-private roots identify this host-selected state area;
@@ -613,6 +694,14 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                     Path(path).is_relative_to(self.state_root)
                     for path in entry["binding"]["rules"]["write_roots"]
                 ) or owner_alive(entry["owner"]):
+                    continue
+                if any(
+                    Path(path).is_relative_to(probe.manager.state_root)
+                    for probe in self._recovered_preflights.values()
+                    for path in entry["binding"]["rules"]["write_roots"]
+                ):
+                    # Only a separately authenticated resource manifest may
+                    # delegate this exact child state area to its own manager.
                     continue
                 reference = self.coordinator.reference(entry["binding"])
                 restored.append(cleanup_record(self, entry.get("recovery"), reference))
@@ -626,9 +715,16 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 self._managed_processes[record["process_id"]].scope.sid = None
                 self._recovered_processes.add(record["process_id"])
             self._recovery_checked = True
-        except Exception:
+        except Exception as exc:
             self._recovery_error = True
-            raise
+            if isinstance(exc, SandboxError):
+                raise
+            raise SandboxError(
+                SandboxErrorCode.CLEANUP_FAILED,
+                f"沙箱恢复记录不能认证: {str(exc)[:1500]}",
+                stage="recovery",
+                executed=False,
+            ) from exc
 
     def _restore_launch(self, record: dict) -> PreparedLaunch:
         metadata = record["launch_metadata"]
@@ -704,7 +800,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         try:
             await self._recovery_gate.aclose()
         finally:
-            await self._preflight_gate.aclose()
+            try:
+                await self._preflight_gate.aclose()
+            finally:
+                await self._close_recovered_preflights()
 
     async def _after_close(self) -> None:
         if self._recovery_error:
