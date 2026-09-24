@@ -53,6 +53,28 @@ async def native_target(request, record_property, monkeypatch):
         return result
 
     monkeypatch.setattr(_ProbeTarget, "poll_process", record_probe_failure)
+    poll_business = NativeSandboxExecutionTarget.poll_process
+
+    async def record_business_failure(manager, *args, **kwargs):
+        result = await poll_business(manager, *args, **kwargs)
+        if result.status in (ProcessStatus.FAILED, ProcessStatus.CLEANUP_FAILED):
+            record_property(
+                "business_failure",
+                json.dumps(
+                    {
+                        "process_id": result.process_id,
+                        "status": result.status.value,
+                        "returncode": result.returncode,
+                        "cleanup_status": result.cleanup_status,
+                        "termination_reason": result.termination_reason,
+                        "output_complete": result.output_complete,
+                        "truncated": result.truncated,
+                    }
+                ),
+            )
+        return result
+
+    monkeypatch.setattr(NativeSandboxExecutionTarget, "poll_process", record_business_failure)
     request.node.stash[EXPECTED_UNRESOLVED] = set()
     runtime = os.environ.get("BOT_TEST_SANDBOX_RUNTIME")
     if not runtime:
@@ -453,8 +475,25 @@ console.log(JSON.stringify(checks.map(f=>{try{f();return false}catch{return true
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("phase", ["prepared", "registered", "changed_runtime", "removed_control"])
-async def test_native_host_crash_recovers_only_protected_identity(native_target, phase):
+@pytest.mark.parametrize(
+    "phase",
+    [
+        "prepared",
+        "registered",
+        "changed_runtime",
+        "removed_control",
+        "startup",
+        "command",
+        "worker",
+        "stream",
+        "stream_close",
+        "close",
+        "cancel",
+    ],
+)
+async def test_native_host_crash_recovers_only_protected_identity(
+    native_target, phase, monkeypatch
+):
     from copy import deepcopy
 
     import psutil
@@ -463,6 +502,15 @@ async def test_native_host_crash_recovers_only_protected_identity(native_target,
     from bot.sandbox.recovery import cleanup_record
 
     target, work, _ = native_target
+    automatic = phase in {
+        "startup",
+        "command",
+        "worker",
+        "stream",
+        "stream_close",
+        "close",
+        "cancel",
+    }
     host = victim = None
     restored = False
     try:
@@ -480,7 +528,7 @@ async def test_native_host_crash_recovers_only_protected_identity(native_target,
             str(target.runtime.root),
             str(work),
             str(target.state_root),
-            phase,
+            "registered" if automatic else phase,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -494,13 +542,103 @@ async def test_native_host_crash_recovers_only_protected_identity(native_target,
         if phase == "removed_control":
             assert packet["phase"] == "registered"
             packet = json.loads(await asyncio.wait_for(host.stdout.readline(), 15))
-        assert packet["phase"] == ("registered" if phase == "changed_runtime" else phase)
+        assert packet["phase"] == (
+            "registered" if phase == "changed_runtime" or automatic else phase
+        )
         host.kill()  # This exact disposable host is owned by this test.
         await asyncio.wait_for(host.wait(), 10)
         entry = next(
             e for e in target.coordinator.snapshots() if e["binding"]["id"] == packet["lease"]["id"]
         )
         journal = entry["recovery"]
+        if automatic:
+            old_run = Path(journal["metadata"]["run_directory"]["path"])
+            assert old_run.exists()
+            assert not target._managed_processes and not target._recovery_checked
+            if phase == "startup":
+                await asyncio.gather(target.prepare_run(), target.prepare_run())
+            elif phase == "close":
+                await target.aclose()
+            elif phase == "cancel":
+                entered, release = asyncio.Event(), asyncio.Event()
+                terminate = target.terminate_process
+                attempts = []
+
+                async def held_cleanup(*args, **kwargs):
+                    attempts.append(args[0])
+                    entered.set()
+                    await release.wait()
+                    return await terminate(*args, **kwargs)
+
+                monkeypatch.setattr(target, "terminate_process", held_cleanup)
+                pending = asyncio.create_task(target.prepare_run())
+                try:
+                    await asyncio.wait_for(entered.wait(), 10)
+                    pending.cancel()
+                    await asyncio.sleep(0)
+                    pending.cancel()
+                    assert not pending.done()
+                finally:
+                    release.set()
+                    with pytest.raises(asyncio.CancelledError):
+                        await pending
+                assert attempts == [packet["process_id"]]
+                assert target._preflight_gate.task is None
+                await target.prepare_run()
+                assert attempts == [packet["process_id"]]
+            else:
+                view = invocation(target, work, run="fresh-after-crash")
+                try:
+                    if phase == "worker":
+                        result = await view.worker_operation("read", {"path": "business-started"})
+                        assert result.success and result.output == "1"
+                    else:
+                        spec = ProcessSpec(
+                            argv=[
+                                str(target.runtime.root / "node/bin/node"),
+                                "-e",
+                                "console.log('fresh')"
+                                + (";setInterval(()=>{},1000)" if phase == "stream_close" else ""),
+                            ],
+                            cwd=work,
+                        )
+                        if phase == "command":
+                            process_id = await view.start_process(spec)
+                            result = await view.poll_process(process_id, wait_seconds=10)
+                            assert (
+                                result.status == ProcessStatus.COMPLETED
+                                and result.stdout == "fresh\n"
+                            )
+                        elif phase == "stream_close":
+                            stream = view.execute(spec)
+                            try:
+                                assert (await anext(stream)).data == "fresh\n"
+                            finally:
+                                await stream.aclose()
+                            fresh = (await view.list_processes())[0]
+                            assert fresh.status == ProcessStatus.CANCELLED
+                            assert fresh.cleanup_status == "observed_empty"
+                        else:
+                            events = [event async for event in view.execute(spec)]
+                            assert any(event.data == "fresh\n" for event in events)
+                            assert events[-1].returncode == 0
+                finally:
+                    view.release_invocation()
+            restored = True
+            assert not old_run.exists() and not target.has_live_processes
+            assert (work / "business-started").read_text() == "1"
+            assert psutil.Process(victim.pid).create_time() == victim_identity
+            assert not any(
+                e["binding"]["id"] == packet["lease"]["id"] for e in target.coordinator.snapshots()
+            )
+            if phase != "close":
+                with pytest.raises(SandboxError, match="旧 Run"):
+                    target.bind_scope(
+                        session_id="crash-session", run_id="crash-run", tool_call_id="new"
+                    )
+                recovered = target._managed_processes[packet["process_id"]]
+                assert recovered.cleanup_status == "observed_empty" and recovered.process.cut_off
+            return
         if phase == "prepared":
             with pytest.raises(SandboxError, match="持久化窗口"):
                 target.restore_cleanups([])
@@ -572,7 +710,7 @@ async def test_native_host_crash_recovers_only_protected_identity(native_target,
         guard.update(Inventory({reused.pid: reused}, set()))
         assert reused.pid not in guard.live and guard.unknown
         with pytest.raises(SandboxError) as blocked:
-            await target.ensure_ready()
+            target.bind_scope(session_id="fresh", run_id="fresh", tool_call_id="blocked")
         assert blocked.value.stage == "recovery"
         result = await target.terminate_process(snapshot.process_id)
         assert result.cleanup_status == "observed_empty", result
@@ -745,10 +883,11 @@ async def test_invocation_rejects_identity_spoof_and_discards_unstarted_scope(na
         with pytest.raises(SandboxError, match="不能替换"):
             await owner.start_process(raw)
         target.discard_scope(raw.scope)
-        # Creating but never iterating a stream reserves a scope. Releasing
-        # the view must discard it and must prevent invocation-ID replay.
+        # A lazy stream cannot bind an OS policy before async recovery. It
+        # holds no filesystem lease, but releasing its view still burns the
+        # invocation ID and must reject replay before any startup side effect.
         stream = owner.execute(spec)
-        assert len(target._bindings) == 1
+        assert not target._bindings and target._preflight_gate.task is None
         owner.release_invocation()
         await stream.aclose()
         assert not target._bindings and not target.has_live_processes
@@ -756,6 +895,7 @@ async def test_invocation_rejects_identity_spoof_and_discards_unstarted_scope(na
         try:
             with pytest.raises(SandboxError, match="不能重复"):
                 await replay.start_process(spec)
+            assert target._preflight_gate.task is None
         finally:
             replay.release_invocation()
         with pytest.raises(SandboxError, match="子工作区"):
@@ -784,12 +924,12 @@ console.log(JSON.stringify({readDenied,writeDenied}));"""
             assert json.loads(result.stdout) == {"readDenied": True, "writeDenied": readonly}
         finally:
             owner.release_invocation()
-        for update in ({"read_only": not readonly}, {"denied_paths": ()}):
+        for attempt, update in enumerate(({"read_only": not readonly}, {"denied_paths": ()})):
             changed = invocation(
                 target,
                 work,
                 run=str(readonly),
-                call="changed",
+                call=f"changed-{attempt}",
                 **({"read_only": readonly, "denied_paths": (protected,)} | update),
             )
             try:

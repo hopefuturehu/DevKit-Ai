@@ -7,8 +7,10 @@ root identity remains unresolved after host death: guessing a PID is forbidden.
 
 from __future__ import annotations
 
+import asyncio
 import math
 import re
+from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import asdict
 
@@ -28,6 +30,66 @@ _METADATA = (
     "admission_lease",
     "capabilities",
 )
+
+
+class RecoveryGate:
+    """One recovery attempt; cancelling a waiter never cancels old cleanup."""
+
+    def __init__(self, recover: Callable[[], Awaitable[None]]):
+        self.recover = recover
+        self.task: asyncio.Task | None = None
+        self.closed = False
+
+    @property
+    def live(self) -> bool:
+        return self.task is not None and not self.task.done()
+
+    @property
+    def failed(self) -> bool:
+        return bool(
+            self.task is not None
+            and self.task.done()
+            and (self.task.cancelled() or self.task.exception() is not None)
+        )
+
+    def _start(self) -> asyncio.Task:
+        if self.task is None:
+            self.task = asyncio.create_task(self.recover())
+        return self.task
+
+    @staticmethod
+    async def _settle(task: asyncio.Task) -> bool:
+        cancelled = False
+        while not task.done():
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                break
+        return cancelled
+
+    async def ensure(self) -> None:
+        if self.closed:
+            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "启动恢复入口已关闭")
+        task = self._start()
+        cancelled = await self._settle(task)
+        task.result()  # Cleanup failure takes precedence over caller cancellation.
+        if cancelled:
+            raise asyncio.CancelledError
+        if self.closed:
+            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "恢复期间执行环境已关闭")
+
+    async def aclose(self) -> None:
+        self.closed = True
+        task = self._start()  # Even an unused target may own crash leftovers.
+        cancelled = await self._settle(task)
+        if not task.cancelled():
+            task.exception()
+        # Backend close retries its normal cleanup and verifies final resource
+        # state. A cached startup failure is never permission to start a Run.
+        if cancelled:
+            raise asyncio.CancelledError
 
 
 def prepared(target, spec, launch, baseline, owner: dict) -> dict:

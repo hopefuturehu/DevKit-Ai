@@ -48,6 +48,8 @@ class Runtime:
 
     def close(self) -> None:
         if not self._closed:
+            if getattr(self.target, "requires_confinement", False):
+                raise RuntimeError("原生执行环境需要 await runtime.aclose() 完成启动恢复与资源清理")
             if self.subagents.has_live_tasks:
                 raise RuntimeError("存在运行中的后台子 Agent，请使用 await runtime.aclose()")
             if self.target.has_live_processes:
@@ -134,7 +136,11 @@ def build_runtime(
             )
 
     target.cleanup_observer = record_cleanup
-    target.restore_cleanups(store.unresolved_process_cleanups(target.cleanup_scope))
+    # Confined backends restore from their protected journal in prepare_run;
+    # audit rows must not become startup authority or fail construction before
+    # the async target lifecycle and structured Run error handling are available.
+    if not target.requires_confinement:
+        target.restore_cleanups(store.unresolved_process_cleanups(target.cleanup_scope))
     builtin_agents = Path(__file__).resolve().parents[1] / "assets" / "agents"
     try:
         project_agent_path = config.project_agent_path(workspace)

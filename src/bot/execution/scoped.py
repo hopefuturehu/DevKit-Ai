@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -53,7 +54,7 @@ class NativeInvocationTarget(ExecutionTarget):
         if self._closed:
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工具调用作用域已释放")
 
-    def _prepare_spec(self, spec: ProcessSpec) -> ProcessSpec:
+    def _validate_spec(self, spec: ProcessSpec) -> None:
         self._check_open()
         identity = self._identity
         if (
@@ -62,6 +63,10 @@ class NativeInvocationTarget(ExecutionTarget):
             or spec.scope is not None
         ):
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工具不能替换调用身份或策略引用")
+
+    def _prepare_spec(self, spec: ProcessSpec) -> ProcessSpec:
+        self._validate_spec(spec)
+        identity = self._identity
         self._bind()
         return spec.model_copy(
             deep=True,
@@ -95,6 +100,7 @@ class NativeInvocationTarget(ExecutionTarget):
     ):
         from bot.sandbox.client import execute_worker
 
+        await self.prepare_run()
         self._bind()
         assert self._scope is not None
         argv, request = self._target.prepare_worker(
@@ -128,10 +134,29 @@ class NativeInvocationTarget(ExecutionTarget):
         self._check_open()
         return await self._target.probe(executables)
 
+    async def prepare_run(self) -> None:
+        self._check_open()
+        if self._scope is None:
+            identity = self._identity
+            self._target.check_call_available(
+                identity.session_id, identity.run_id, identity.tool_call_id
+            )
+        await self._target.prepare_run()
+        self._check_open()
+
     def execute(self, spec: ProcessSpec) -> AsyncIterator[ProcessEvent]:
-        return self._target.execute(self._prepare_spec(spec))
+        return self._execute(spec)
+
+    async def _execute(self, spec: ProcessSpec) -> AsyncIterator[ProcessEvent]:
+        self._validate_spec(spec)
+        await self.prepare_run()
+        async with aclosing(self._target.execute(self._prepare_spec(spec))) as stream:
+            async for event in stream:
+                yield event
 
     async def start_process(self, spec: ProcessSpec) -> str:
+        self._validate_spec(spec)
+        await self.prepare_run()
         return await self._target.start_process(self._prepare_spec(spec))
 
     async def poll_process(
@@ -176,6 +201,8 @@ class NativeInvocationTarget(ExecutionTarget):
         self._closed = True
         if self._scope is not None:
             self._target.discard_scope(self._scope)
+        identity = self._identity
+        self._target.retire_invocation(identity.session_id, identity.run_id, identity.tool_call_id)
 
     async def aclose(self) -> None:
         # A tool view cannot shut down another tool's processes or the runtime.

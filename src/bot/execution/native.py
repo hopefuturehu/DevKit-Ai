@@ -89,13 +89,16 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         self._recovery_error = False
         self._recovery_checked = False
         self._recovered_processes: set[str] = set()
+        self._retired_runs: set[tuple[str, str]] = set()
         super().__init__(
             max_managed_processes=config.agent.max_managed_processes,
             cleanup=config.agent.process_cleanup,
             strict_process_scope=True,
         )
         from bot.sandbox.preflight import NativePreflight, StartupGate
+        from bot.sandbox.recovery import RecoveryGate
 
+        self._recovery_gate = RecoveryGate(self._recover_startup)
         self._preflight_gate = StartupGate(
             lambda: NativePreflight(
                 self.runtime, self.state_root, self.config.agent.process_cleanup
@@ -108,16 +111,21 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             self._recovery_error
             or bool(self._leases)
             or super().has_live_processes
+            or self._recovery_gate.live
             or self._preflight_gate.live
         )
 
     def _check_recovery(self) -> None:
         if not self._recovery_checked:
             self.restore_cleanups([])
-        if any(
-            pid in self._managed_processes
-            and self._managed_process_alive(self._managed_processes[pid])
-            for pid in self._recovered_processes
+        if (
+            self._recovery_gate.live
+            or self._recovery_gate.failed
+            or any(
+                pid in self._managed_processes
+                and self._managed_process_alive(self._managed_processes[pid])
+                for pid in self._recovered_processes
+            )
         ):
             raise SandboxError(
                 SandboxErrorCode.CLEANUP_FAILED,
@@ -158,10 +166,48 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
     async def ensure_ready(self):
         if self._closed or self._recovery_error:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "原生执行环境不可用")
-        self._check_recovery()
         self._state_identity.verify()
         self._inspect_current_runtime()
+        await self._recovery_gate.ensure()
+        if self._closed:
+            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "执行环境已关闭")
         return await self._preflight_gate.ensure()
+
+    async def prepare_run(self) -> None:
+        await self.ensure_ready()
+
+    async def _recover_startup(self) -> None:
+        try:
+            if self._recovery_error:
+                raise ValueError("恢复身份此前未能确认，不能自动重试")
+            self.restore_cleanups([])
+            processes = sorted(self._recovered_processes)
+            results = await asyncio.gather(
+                *(
+                    self.terminate_process(pid, reason="新任务开始前回收已认证的崩溃残留")
+                    for pid in processes
+                ),
+                return_exceptions=True,
+            )
+            if any(
+                isinstance(result, BaseException) or result.cleanup_status != "observed_empty"
+                for result in results
+            ):
+                raise ValueError("崩溃残留清理未确认，保留资源和占用")
+            # Never reuse a crashed Run's private HOME/tmp/cache for new work.
+            # Every recovered call has released its lease before removing these.
+            for key in sorted(self._retired_runs):
+                run = self._runs.get(key)
+                if run is not None:
+                    run.directory.remove()
+                    del self._runs[key]
+        except Exception as exc:
+            raise SandboxError(
+                SandboxErrorCode.CLEANUP_FAILED,
+                f"启动恢复未完成: {str(exc)[:1500]}",
+                stage="startup_recovery",
+                executed=False,
+            ) from exc
 
     async def start_process(self, spec: ProcessSpec) -> str:
         spec = ProcessSpec.model_validate(spec.model_dump()).model_copy(
@@ -252,6 +298,17 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             del self._bindings[scope]
             self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
 
+    def retire_invocation(self, session_id: str, run_id: str, tool_call_id: str) -> None:
+        """A released lazy stream must not make its caller identity reusable."""
+        self._used_calls.add((session_id, run_id, tool_call_id))
+
+    def check_call_available(self, session_id: str, run_id: str, tool_call_id: str) -> None:
+        call = (session_id, run_id, tool_call_id)
+        if call in self._used_calls or any(
+            (s.session_id, s.run_id, s.tool_call_id) == call for s in self._bindings
+        ):
+            raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "调用作用域不能重复使用")
+
     def bind_scope(
         self,
         *,
@@ -271,13 +328,13 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             raise SandboxError(
                 SandboxErrorCode.CONFIG_INVALID, "调用必须绑定 session/run/tool 标识"
             )
-        call = (session_id, run_id, tool_call_id)
-        if call in self._used_calls or any(
-            (s.session_id, s.run_id, s.tool_call_id) == call for s in self._bindings
-        ):
-            raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "调用作用域不能重复使用")
+        self.check_call_available(session_id, run_id, tool_call_id)
         self._state_identity.verify()
         key = (session_id, run_id)
+        if key in self._retired_runs:
+            raise SandboxError(
+                SandboxErrorCode.CONFIG_INVALID, "已恢复的旧 Run 不能复用，请创建新 Run"
+            )
         if key not in self._runs:
             owned = OwnedDirectory.create(self.state_root, prefix="run-")
             try:
@@ -622,6 +679,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             metadata["admission_lease"], recovery=record["recovery_journal"]
         )
         self._runs[key] = restored_run
+        self._retired_runs.add(key)
         self._leases[scope] = lease
         self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
 
@@ -643,7 +701,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         )
 
     async def _before_close(self) -> None:
-        await self._preflight_gate.aclose()
+        try:
+            await self._recovery_gate.aclose()
+        finally:
+            await self._preflight_gate.aclose()
 
     async def _after_close(self) -> None:
         if self._recovery_error:

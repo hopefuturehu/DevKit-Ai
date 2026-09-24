@@ -18,6 +18,7 @@ class _FailingSubagents:
 
 class _TrackingTarget:
     has_live_processes = False
+    requires_confinement = False
 
     def __init__(self) -> None:
         self.closed = False
@@ -65,6 +66,73 @@ async def test_runtime_cleans_processes_when_subagent_shutdown_fails(tmp_path: P
 
     assert target.closed
     assert not store.closed
+
+
+@pytest.mark.asyncio
+async def test_confined_runtime_requires_async_close_even_without_live_processes(tmp_path):
+    class Subagents:
+        has_live_tasks = False
+
+        async def shutdown(self):
+            pass
+
+    target = _TrackingTarget()
+    target.requires_confinement = True
+    store = _TrackingStore()
+    runtime = Runtime(
+        config=None,
+        workspace=tmp_path,
+        catalog=None,
+        skills=None,
+        tools=None,
+        target=target,
+        context=None,
+        store=store,
+        compactor=None,
+        runner=None,
+        subagents=Subagents(),
+    )
+    with pytest.raises(RuntimeError, match="启动恢复"):
+        runtime.close()
+    assert not store.closed and not target.closed
+    await runtime.aclose()
+    assert store.closed and target.closed
+
+
+@pytest.mark.asyncio
+async def test_runtime_defers_confined_recovery_and_never_reads_audit_authority(
+    tmp_path, monkeypatch
+):
+    import bot.cli.runtime as construction
+    from bot.execution import LocalExecutionTarget
+    from bot.sessions import SQLiteSessionStore
+
+    class Confined(LocalExecutionTarget):
+        @property
+        def requires_confinement(self):
+            return True
+
+        def restore_cleanups(self, records):
+            pytest.fail("confined recovery must run in the asynchronous backend lifecycle")
+
+    def forbidden_audit(*args):
+        pytest.fail("audit events must not be read as confined cleanup authority")
+
+    target = Confined()
+    monkeypatch.setattr(construction, "create_execution_target", lambda config: target)
+    monkeypatch.setattr(SQLiteSessionStore, "unresolved_process_cleanups", forbidden_audit)
+    (tmp_path / ".env").write_text("BOT_MODEL_API_KEY=test-key\n")
+    runtime = construction.build_runtime(
+        workspace=tmp_path,
+        config_overrides={
+            "model": {"name": "mock", "base_url": "https://unused"},
+            "memory": {"enabled": False},
+            "storage": {"state_path": str(tmp_path / "state.db")},
+        },
+    )
+    assert runtime.target is target
+    await runtime.aclose()
+    assert runtime._closed
 
 
 @pytest.mark.asyncio

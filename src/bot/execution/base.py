@@ -96,6 +96,10 @@ class EnvironmentCapabilities(BaseModel):
 
 
 class ExecutionTarget(ABC):
+    async def prepare_run(self) -> None:
+        """Finish backend startup/recovery before model or auxiliary work."""
+        return None
+
     async def worker_operation(
         self,
         operation: str,

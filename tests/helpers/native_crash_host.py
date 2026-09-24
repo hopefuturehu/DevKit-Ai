@@ -43,7 +43,7 @@ async def main():
                 argv=[
                     str(Path(runtime) / "node/bin/node"),
                     "-e",
-                    "require('fs').writeFileSync('business-started','yes');"
+                    "require('fs').appendFileSync('business-started','1');"
                     "console.log('ready');setInterval(()=>{},1000)",
                 ],
                 cwd=Path(work),

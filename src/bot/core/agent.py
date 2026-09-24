@@ -513,8 +513,6 @@ class AgentRunner:
         session_id = request.session_id or self.store.create_session(self.workspace)
         self.store.ensure_session(session_id, self.workspace)
         run_id = request.run_id or uuid4().hex
-        if self.memory_extractor is not None:
-            self.memory_extractor.schedule(exclude_run_id=run_id)
         if session_id in self._steering_queues:
             raise RuntimeError(f"会话 {session_id} 已有运行中的任务")
         mode = self.store.claim_skill_context_mode(session_id, self.config.skills.context_mode)
@@ -610,9 +608,8 @@ class AgentRunner:
         run_id: str,
         skill_state: RunSkillState,
     ) -> RunResult:
-        if self.subagent_controller is not None:
-            await self.subagent_controller.start()
         wall_time_limit = self.config.agent.max_wall_time_seconds
+        execution_ready = False
         try:
             self.store.start_run(session_id, run_id)
             self._recoveries[run_id] = RecoveryController(
@@ -656,6 +653,12 @@ class AgentRunner:
                 self._run_timeouts[run_id] = timeout
                 if remaining is not None and remaining <= 0:
                     raise TimeoutError("任务期限已到")
+                await self.execution_target.prepare_run()
+                execution_ready = True
+                if self.subagent_controller is not None:
+                    await self.subagent_controller.start()
+                if self.memory_extractor is not None:
+                    self.memory_extractor.schedule(exclude_run_id=run_id)
                 result = await self._run_loop(
                     request, session_id=session_id, run_id=run_id, skill_state=skill_state
                 )
@@ -708,7 +711,7 @@ class AgentRunner:
                     status=status,
                     reason_code=termination_reason,
                     message=error,
-                    model_finalizer=termination_reason == "runtime_timeout",
+                    model_finalizer=execution_ready and termination_reason == "runtime_timeout",
                     metadata={"cleanup_failures": cleanup_failures},
                 ),
             )
@@ -743,6 +746,25 @@ class AgentRunner:
                 output_tokens=usage.get("output_tokens", 0),
                 cost_usd=usage.get("cost_usd"),
             )
+        except SandboxError as exc:
+            result = await self._finalize_termination(
+                session_id=session_id,
+                run_id=run_id,
+                skill_state=skill_state,
+                termination=_RunTermination(
+                    status="failed",
+                    reason_code=exc.code.value,
+                    message=str(exc),
+                    model_finalizer=False,
+                    metadata={
+                        "sandbox": {
+                            "reason_code": exc.code.value,
+                            "stage": exc.stage,
+                            "executed": exc.executed,
+                        }
+                    },
+                ),
+            )
         except Exception as exc:
             error = str(exc)
             result = await self._finalize_termination(
@@ -753,6 +775,7 @@ class AgentRunner:
                     status="failed",
                     reason_code="runtime_error",
                     message=error,
+                    model_finalizer=execution_ready,
                 ),
             )
         if self.subagent_controller is not None and result.status != "completed":
