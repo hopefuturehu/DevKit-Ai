@@ -14,6 +14,7 @@ import pytest_asyncio
 from bot.config.models import AppConfig
 from bot.execution.base import ProcessSpec, ProcessStatus
 from bot.execution.native import NativeSandboxExecutionTarget
+from bot.sandbox.coordination import AdmissionCoordinator
 from bot.sandbox.models import SandboxError, SandboxErrorCode
 from bot.sandbox.resources import OwnedDirectory
 from bot.tools.base import ToolAnnotations, ToolContext
@@ -201,8 +202,9 @@ async def test_native_timeout_and_cancel_preserve_cleanup_contract(
         assert managed.process.root_exited.is_set() and not result.remaining_processes
         assert target.has_live_processes
         assert Path(result.execution_metadata["control_directory"]["path"]).is_dir()
-        with pytest.raises(RuntimeError, match="process_cleanup_incomplete"):
+        with pytest.raises(SandboxError) as blocked:
             await target.start_process(scoped_spec(target, work, [node, "-e", "0"], call="next"))
+        assert blocked.value.stage == "admission_conflict" and blocked.value.executed is False
         record_property("unattributed_count", len(managed.scope.unattributed))
         request.node.stash[EXPECTED_UNRESOLVED].add(pid)
         return
@@ -237,6 +239,190 @@ console.log(JSON.stringify({home:process.env.HOME,denied}));""",
         assert output["denied"]
         homes.append(output["home"])
     assert homes[0] != homes[1] and not (work / "forbidden").exists()
+
+
+@pytest_asyncio.fixture
+async def native_peers(record_property):
+    runtime = os.environ.get("BOT_TEST_SANDBOX_RUNTIME")
+    if not runtime:
+        if os.environ.get("BOT_REQUIRE_NATIVE_SANDBOX") == "1":
+            pytest.fail("release validation requires BOT_TEST_SANDBOX_RUNTIME")
+        pytest.skip("native runtime not selected")
+    owned = OwnedDirectory.create(Path("/tmp").resolve(), prefix="bot-native-peers-")
+    managers = []
+
+    def create(work):
+        work.mkdir(exist_ok=True)
+        target = NativeSandboxExecutionTarget(
+            AppConfig.model_validate({"sandbox": {"mode": "required"}}),
+            workspace=work,
+            runtime_root=Path(runtime),
+            state_root=owned.path / f"runs-{len(managers)}",
+        )
+        managers.append(target)
+        return target
+
+    try:
+        yield owned.path, create, Path(runtime).resolve() / "node/bin/node"
+    finally:
+        errors = []
+        for target in managers:
+            try:
+                await target.aclose()
+            except Exception as exc:
+                errors.append(exc)
+                record_property(
+                    "unresolved_peer",
+                    json.dumps([p.model_dump(mode="json") for p in await target.list_processes()]),
+                )
+        if errors:
+            record_property("retained_test_root", str(owned.path))
+            raise ExceptionGroup("native peer cleanup incomplete; resources retained", errors)
+        owned.remove()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["writer", "readers", "disjoint"])
+async def test_native_instances_share_admission_across_state_roots(native_peers, kind):
+    root, create, node = native_peers
+    first_work = root / "first"
+    second_work = root / "second" if kind == "disjoint" else first_work
+    first, second = create(first_work), create(second_work)
+    assert first.state_root != second.state_root
+    assert first.coordinator.identity == second.coordinator.identity
+    # Complete both independent startup probes before exercising simultaneous
+    # business scopes; the probe itself never uses these workspaces.
+    await first.ensure_ready()
+    await second.ensure_ready()
+    first_spec = scoped_spec(
+        first,
+        first_work,
+        [node, "-e", "console.log('ready');process.stdin.resume()"],
+        interactive=True,
+        readonly=kind == "readers",
+    )
+    first_lease = first._bindings[first_spec.scope].lease
+    first_id = await first.start_process(first_spec)
+    async with asyncio.timeout(10):
+        while "ready" not in (await first.poll_process(first_id, consume_output=False)).stdout:  # noqa: ASYNC110 - native handshake
+            await asyncio.sleep(0.02)
+    if kind == "writer":
+        with pytest.raises(SandboxError) as failure:
+            scoped_spec(second, second_work, [node, "-e", "0"])
+        assert failure.value.stage == "admission_conflict" and failure.value.executed is False, str(
+            failure.value
+        )
+        assert not second._bindings and not second.has_live_processes
+        first_lease.verify()
+        await first.send_process_input(first_id, "", eof=True)
+        assert (
+            await first.poll_process(first_id, wait_seconds=10)
+        ).status == ProcessStatus.COMPLETED
+        assert first_lease.released
+    second_spec = scoped_spec(
+        second, second_work, [node, "-e", "console.log('second')"], readonly=kind == "readers"
+    )
+    second_lease = second._bindings[second_spec.scope].lease
+    second_id = await second.start_process(second_spec)
+    result = await second.poll_process(second_id, wait_seconds=10)
+    assert result.status == ProcessStatus.COMPLETED and result.stdout == "second\n", result
+    assert second_lease.released
+    if kind != "writer":
+        first_lease.verify()
+        assert (await first.poll_process(first_id)).status == ProcessStatus.RUNNING
+        await first.send_process_input(first_id, "", eof=True)
+        assert (
+            await first.poll_process(first_id, wait_seconds=10)
+        ).status == ProcessStatus.COMPLETED
+        assert first_lease.released
+
+
+@pytest.mark.asyncio
+async def test_native_cleanup_failure_retains_shared_lease_until_verified_retry(
+    native_target, monkeypatch
+):
+    target, work, node = native_target
+    spec = scoped_spec(target, work, [node, "-e", "process.stdin.resume()"], interactive=True)
+    resolved = target._bindings[spec.scope]
+    process_id = await target.start_process(spec)
+    snapshot = await target.poll_process(process_id)
+    control = Path(snapshot.execution_metadata["control_directory"]["path"])
+    remove = OwnedDirectory.remove
+
+    def deny_cleanup(directory):
+        if directory.path == control:
+            raise OSError("synthetic control resource cleanup failure")
+        return remove(directory)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(OwnedDirectory, "remove", deny_cleanup)
+        await target.send_process_input(process_id, "", eof=True)
+        result = await target.poll_process(process_id, wait_seconds=10)
+        assert result.status == ProcessStatus.CLEANUP_FAILED, result
+        assert result.cleanup_status == "unknown" and target.has_live_processes
+        assert control.is_dir() and not resolved.lease.released
+        resolved.lease.verify()
+        with pytest.raises(SandboxError) as failure:
+            AdmissionCoordinator().acquire(resolved.policy)
+        assert failure.value.stage == "admission_conflict"
+    # Remove only the injected resource failure. The normal lifecycle still
+    # has to obtain a fresh process inventory before it can release the lease.
+    retried = await target.terminate_process(process_id)
+    assert retried.cleanup_status == "observed_empty", retried
+    assert not target.has_live_processes and resolved.lease.released
+    next_lease = AdmissionCoordinator().acquire(resolved.policy)
+    next_lease.release()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stage", ["prepare", "spawn"])
+async def test_native_unstarted_failures_release_shared_lease(native_target, monkeypatch, stage):
+    target, work, node = native_target
+    await target.ensure_ready()
+    spec = scoped_spec(
+        target,
+        work,
+        [node, "-e", "require('fs').writeFileSync('unexpected','bad')"],
+        env={"LD_PRELOAD": "/synthetic-library"} if stage == "prepare" else {},
+    )
+    resolved = target._bindings[spec.scope]
+    if stage == "spawn":
+
+        async def fail_spawn(*args, **kwargs):
+            raise OSError("synthetic spawn failure")
+
+        monkeypatch.setattr(asyncio.get_running_loop(), "subprocess_exec", fail_spawn)
+    with pytest.raises(SandboxError if stage == "prepare" else OSError):
+        await target.start_process(spec)
+    assert resolved.lease.released and not target._bindings
+    assert not target.has_live_processes and not (work / "unexpected").exists()
+    next_lease = AdmissionCoordinator().acquire(resolved.policy)
+    next_lease.release()
+
+
+@pytest.mark.asyncio
+async def test_native_business_cannot_read_or_modify_admission_registry(native_target):
+    target, work, node = native_target
+    spec = scoped_spec(
+        target,
+        work,
+        [
+            node,
+            "-e",
+            """const fs=require('fs'), root=process.argv[1];
+const checks=[()=>fs.readdirSync(root),()=>fs.readFileSync(root+'/mutex'),
+()=>fs.writeFileSync(root+'/forged','bad'),()=>fs.unlinkSync(root+'/mutex')];
+console.log(JSON.stringify(checks.map(f=>{try{f();return false}catch{return true}})));""",
+            target.coordinator.root,
+        ],
+    )
+    lease = target._bindings[spec.scope].lease
+    process_id = await target.start_process(spec)
+    result = await target.poll_process(process_id, wait_seconds=10)
+    assert result.status == ProcessStatus.COMPLETED, result
+    assert json.loads(result.stdout) == [True] * 4
+    assert not (target.coordinator.root / "forged").exists()
+    assert (target.coordinator.root / "mutex").is_file() and lease.released
 
 
 class ProbeCli(SubprocessCliTool):

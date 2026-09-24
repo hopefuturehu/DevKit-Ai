@@ -609,3 +609,46 @@ Linux 证据导出后已回收验证容器。完整结果见
 该增量尚未覆盖 ELF/Mach-O 传递依赖、动态加载及搜索路径、全部配置来源或共享缓存签名。
 并发工作区准入、恢复、doctor 实时入口、P4/P5 和 macOS 观察式进程归属问题继续推进。
 六阶段未完成，生产 required 与 allowlist 仍关闭。
+
+## P1/P2 跨进程工作区准入（2026-09-24）
+
+Native 现在在工作区扫描前取得持久占用，覆盖实际策略的读取、写入与拒绝子树。相交的读写或
+写写调用返回 `SANDBOX_UNAVAILABLE / admission_conflict / executed=false`；读取共享、相互
+独立的区域可以并行。Run 私有 HOME/tmp/cache 也计入写区域，因此同一 Run 的调用会保守串行。
+父工作区明确排除的 worktree 子树可以单独占用，但本次不交付 P4 worktree 委派或 Git broker。
+
+同一宿主 UID 固定使用规范 `/tmp/bot-native-admission-<uid>`，不按 HOME、workspace 或 state_root
+分区。注册表要求当前用户拥有的私有真实目录，记录与永久 mutex 文件要求独立 0600 普通文件。
+有界 JSON、目录/文件身份、摘要和宿主 PID/启动时间用于发现替换或错误接管。短时非阻塞
+`flock` 只保护记录事务；业务进程运行期间靠持久记录保留区域，不长期占用系统文件锁。
+这符合 [Linux flock](https://www.man7.org/linux/man-pages/man2/flock.2.html) 与
+[Apple flock](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/flock.2.html)
+的协作锁语义，不约束未参与该协议的宿主写入者。
+
+扫描失败、未启动作用域撤销、启动准备/派发失败会沿资源清理路径释放占用。运行中取消、超时
+或正常退出则必须确认进程和调用控制资源清理后才释放；清理失败继续保留配额与持久占用。
+目标进程不能读取、创建或删除注册表文件。宿主退出后记录不会自动过期，恢复必须匹配注册表
+身份和不可变占用摘要，并确认原宿主身份已不再存活。转移的是清理记账，不能据此认领任意
+进程、重启任务或判断后代已退出；完整崩溃恢复认证仍属于 S15 门槛。
+
+Linux 首轮 **206 passed、1 failed**，失败是跨实例写冲突的错误阶段。SRT 在写调用期间为缺失
+的 `.git` 建立保护用挂载占位文件；原 resolver 在取得占用前检查 `.git` 类型，错误地把竞争调用
+判为需要 Git broker 的工作树。已把这项检查移到取得占用后，且失败时释放未启动占用；真正的
+Git 元数据间接引用仍拒绝。首轮和诊断失败分别保存，不改写成通过。
+
+修正后 Linux ARM64 非 root 整组 **208 passed，无 skip**；macOS 整组 **206 passed、2 failed、
+2 teardown errors**，新增 7 项原生准入测试在两平台均通过。macOS 一项只读调用在收尾时遇到
+1 个无法归属的进程；另一项 Agent 接线测试在启动自检时遇到 12 个，业务目标尚未启动。
+两者均返回 cleanup_failed/unknown，分别保留测试根目录及占用记录。后续只读检查时这些 PID
+已不存在，未据此追认原清理成功，也未删除记录、资源或按名称接管进程。原整轮仍记为失败。
+
+准入与 resolver 单元组合 **54 passed**，进程生命周期组合 **102 passed**，启动资源/状态/
+配置相邻组合 **72 passed**。最终 wheel 的 128 个 Python 文件和 5 个运行时资产与源码逐字节
+一致，Linux 实际安装内容一致；本次没有改变 Node/SRT 资产。Linux 导出报告并确认只剩
+init/sleep 后已回收容器，其注册表最终只剩永久 mutex。完整证据见
+[准入协调验证记录](../data/native-sandbox-admission-coordination.json)。
+
+该实现仍是协作式协调，不能锁住任意宿主程序；注册表竞争拒绝而不自动重放业务，缺少完整
+恢复元数据的崩溃可能保守留下占用。完整恢复、动态依赖证明、doctor 实时入口、P4 broker 与
+全部外围入口、P5 任务/性能/发布验收继续按原计划推进。六阶段尚未完成，required 和 allowlist
+仍关闭。

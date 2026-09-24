@@ -16,6 +16,7 @@ from bot.sandbox.models import SandboxError, SandboxErrorCode, SandboxPolicy
 
 if TYPE_CHECKING:
     from bot.config.models import AppConfig
+    from bot.sandbox.coordination import AdmissionCoordinator, AdmissionLease
 
 
 def validate_security_context(config: AppConfig) -> SandboxConfig:
@@ -66,6 +67,7 @@ class RunDirectories:
 class ResolvedSandbox:
     policy: SandboxPolicy
     admission: WorkspaceAdmission
+    lease: AdmissionLease | None = None
 
 
 def _paths(values) -> tuple[Path, ...]:
@@ -102,6 +104,7 @@ def resolve_policy(
     protected_paths: tuple[Path, ...] = (),
     git_metadata_roots: tuple[Path, ...] = (),
     loader_control_paths: tuple[Path, ...] = (),
+    coordinator: AdmissionCoordinator | None = None,
 ) -> ResolvedSandbox:
     """Resolve a host-selected workspace. No model-supplied policy is accepted.
 
@@ -153,8 +156,6 @@ def resolve_policy(
         # The worktree broker must resolve external gitdir/commondir using its
         # own confined, bounded protocol. Do not follow repository-controlled
         # metadata to read arbitrary host files in this trusted resolver.
-        if git.is_file() and not git_metadata_roots:
-            raise ValueError("工作树 .git 文件需要可信管理作用域提供 Git 元数据目录")
         metadata = _paths(git_metadata_roots)
         if any(not root.is_dir() for root in metadata):
             raise ValueError("Git 元数据目录不存在")
@@ -233,13 +234,12 @@ def resolve_policy(
             for control in loader_controls
         ):
             raise ValueError("任务写目录不能覆盖加载器控制路径")
-        admission = inspect_roots(mutable_read, excluded=denied_read)
         policy = SandboxPolicy(
             workspace=workspace,
             read_roots=_paths([*mutable_read, *runtime_roots, *metadata, *owned]),
             write_roots=final_writes,
-            deny_read=_denials([*denied_read, *admission.hardlink_denies]),
-            deny_write=_denials([*denied_write, *admission.hardlink_denies]),
+            deny_read=denied_read,
+            deny_write=denied_write,
             protected_paths=protected,
             network_mode=network,
             allowed_domains=domains,
@@ -248,6 +248,34 @@ def resolve_policy(
             temp_dir=directories.temp,
             cache_dir=directories.cache,
         )
-        return ResolvedSandbox(policy, admission)
+        # Reserve before scanning. Other cooperating writers remain excluded
+        # until this call's process AND resources have been confirmed clear.
+        lease = coordinator.acquire(policy) if coordinator is not None else None
+        try:
+            # An active Linux writer may temporarily have an SRT-created .git
+            # mount placeholder. Check only after obtaining the reservation;
+            # otherwise a competing call misclassifies that transient state.
+            if git.is_file() and not git_metadata_roots:
+                raise ValueError("工作树 .git 文件需要可信管理作用域提供 Git 元数据目录")
+            admission = inspect_roots(mutable_read, excluded=denied_read)
+            policy = policy.model_copy(
+                update={
+                    "deny_read": _denials([*denied_read, *admission.hardlink_denies]),
+                    "deny_write": _denials([*denied_write, *admission.hardlink_denies]),
+                }
+            )
+            return ResolvedSandbox(policy, admission, lease)
+        except BaseException:
+            if lease is not None:
+                try:
+                    lease.release()
+                except Exception as exc:
+                    raise SandboxError(
+                        SandboxErrorCode.CLEANUP_FAILED,
+                        "未启动调用的准入占用未能释放",
+                        stage="admission_release",
+                        executed=False,
+                    ) from exc
+            raise
     except (OSError, UnicodeError, ValueError) as exc:
         raise SandboxError(SandboxErrorCode.CONFIG_INVALID, str(exc)) from exc

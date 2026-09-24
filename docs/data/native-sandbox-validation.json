@@ -525,5 +525,102 @@
     ],
     "initial_failures_preserved": true,
     "units_passed": 136
+  },
+  "admission_coordination_validation": {
+    "artifact": "docs/data/native-sandbox-admission-coordination.json",
+    "sha256": "ebe517b09c6b4c034284f6939ae04648145597c4cadfb15a5966f5758d936c7d",
+    "stage_complete": false,
+    "required_execution_enabled": false,
+    "allowlist_enabled": false,
+    "native_cooperative_admission_delivered": true,
+    "p4_brokers_coordinated": false,
+    "full_s15_recovery_complete": false,
+    "initial_failures_preserved": true,
+    "reports": {
+      "linux_initial": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "207",
+          "time": "170.466",
+          "timestamp": "2026-09-24T04:10:50.550715+00:00",
+          "hostname": "d8082422cf6a"
+        }
+      ],
+      "linux_diagnostic": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "1",
+          "time": "7.730",
+          "timestamp": "2026-09-24T04:14:17.357953+00:00",
+          "hostname": "d8082422cf6a"
+        }
+      ],
+      "linux_final": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "208",
+          "time": "174.070",
+          "timestamp": "2026-09-24T04:16:08.049896+00:00",
+          "hostname": "d8082422cf6a"
+        }
+      ],
+      "macos_final": [
+        {
+          "name": "pytest",
+          "errors": "2",
+          "failures": "2",
+          "skipped": "0",
+          "tests": "210",
+          "time": "148.928",
+          "timestamp": "2026-09-24T12:20:36.765480+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "units_final": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "54",
+          "time": "0.424",
+          "timestamp": "2026-09-24T12:15:34.133882+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "lifecycle": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "102",
+          "time": "10.837",
+          "timestamp": "2026-09-24T12:07:29.561973+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ],
+      "adjacent": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "72",
+          "time": "0.829",
+          "timestamp": "2026-09-24T12:17:16.070929+08:00",
+          "hostname": "MacBook-Air.local"
+        }
+      ]
+    }
   }
 }

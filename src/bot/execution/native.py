@@ -20,6 +20,7 @@ from uuid import uuid4
 from bot.config.models import AppConfig
 from bot.execution.base import EnvironmentCapabilities, ExecutionTarget, ProcessSpec, ProcessStatus
 from bot.execution.local import LocalExecutionTarget, PreparedLaunch
+from bot.sandbox.coordination import AdmissionCoordinator
 from bot.sandbox.launch_status import LaunchStatusPipe
 from bot.sandbox.models import ExecutionScope, SandboxError, SandboxErrorCode
 from bot.sandbox.policy import (
@@ -71,6 +72,14 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 )
         self.state_root.mkdir(mode=0o700, parents=True, exist_ok=True)
         self._state_identity = DirectoryIdentity.capture(self.state_root)
+        self.coordinator = AdmissionCoordinator()
+        if any(
+            root.is_relative_to(self.coordinator.root) or self.coordinator.root.is_relative_to(root)
+            for root in (self.workspace, self.runtime.root, self.state_root)
+        ):
+            raise SandboxError(
+                SandboxErrorCode.CONFIG_INVALID, "准入注册表不能与工作区或运行时重叠"
+            )
         self._runs: dict[tuple[str, str], _Run] = {}
         self._bindings: dict[ExecutionScope, ResolvedSandbox] = {}
         self._worker_calls: set[ExecutionScope] = set()
@@ -134,19 +143,28 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         spec = ProcessSpec.model_validate(spec.model_dump()).model_copy(
             update={"cwd": spec.cwd.resolve()}
         )
-        self._bound_policy(spec).admission.verify()
-        await self.ensure_ready()
-        return await super().start_process(spec)
+        resolved = self._bound_policy(spec)
+        try:
+            resolved.admission.verify()
+            await self.ensure_ready()
+            return await super().start_process(spec)
+        except BaseException:
+            # A binding is removed only once launch resources take ownership.
+            # Releasing a still-bound reservation cannot discard a live call.
+            if spec.scope in self._bindings:
+                self.discard_scope(spec.scope)
+            raise
 
     @property
     def progress_scope(self) -> str:
         from bot.core.termination.identity import fingerprint
 
         return fingerprint(
-            "native-srt-managed-v6-loader-controls1",
+            "native-srt-managed-v7-admission-leases1",
             str(self.workspace),
             str(self.runtime.root),
             str(self.state_root),
+            self.coordinator.identity.record(),
             self.runtime.capabilities.model_dump(mode="json"),
             self._runtime_fingerprint,
             self.runtime.worker.manifest_sha256 if self.runtime.worker else None,
@@ -203,7 +221,11 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
 
     def discard_scope(self, scope: ExecutionScope) -> None:
         self._worker_calls.discard(scope)
-        if self._bindings.pop(scope, None) is not None:
+        resolved = self._bindings.get(scope)
+        if resolved is not None:
+            if resolved.lease is not None:
+                resolved.lease.release()
+            del self._bindings[scope]
             self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
 
     def bind_scope(
@@ -218,7 +240,9 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         """Trusted host API, invoked after tool authorization, never a model argument."""
         if self._closed or self._recovery_error:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "执行环境已关闭或存在未解决的恢复记录")
-        if not all((session_id, run_id, tool_call_id)):
+        if not all(
+            isinstance(value, str) and value for value in (session_id, run_id, tool_call_id)
+        ):
             raise SandboxError(
                 SandboxErrorCode.CONFIG_INVALID, "调用必须绑定 session/run/tool 标识"
             )
@@ -253,8 +277,13 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 *self.runtime.host.read_roots,
             ),
             loader_control_paths=self.runtime.loader.protected_write_paths,
+            coordinator=self.coordinator,
             read_only=read_only,
-            protected_paths=(*run.denied_paths, *self.runtime.worker.denied_roots),
+            protected_paths=(
+                *run.denied_paths,
+                *self.runtime.worker.denied_roots,
+                self.coordinator.root,
+            ),
         )
         scope = ExecutionScope(
             session_id=session_id,
@@ -319,6 +348,9 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         if not spec.cwd.is_relative_to(scope.workspace):
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工作目录超出调用工作区")
         resolved = self._bindings[scope]
+        if resolved.lease is None:
+            raise SandboxError(SandboxErrorCode.UNAVAILABLE, "原生调用缺少共享准入占用")
+        resolved.lease.verify()
         if any(spec.cwd.is_relative_to(path) for path in resolved.policy.deny_read):
             raise SandboxError(SandboxErrorCode.CONFIG_INVALID, "工作目录位于禁止读取区域")
         return resolved
@@ -369,6 +401,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         def release():
             startup.close()
             control.remove()
+            resolved.lease.release()
             self._startups.pop(scope, None)
 
         return PreparedLaunch(
@@ -387,6 +420,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 "executed": None,
                 "launch_status": {"state": "waiting", "stage": "launcher_status"},
                 "purpose": "worker" if scope in self._worker_calls else "command",
+                "admission_lease": resolved.lease.record(),
                 "capabilities": self.sandbox_capabilities.model_dump(mode="json"),
             },
             release=release,
@@ -513,9 +547,15 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 or current.denied_paths != restored_run.denied_paths
             ):
                 raise ValueError("同一 Run 的恢复目录或策略不一致")
+        lease = self.coordinator.recover(metadata["admission_lease"])
         self._runs[key] = restored_run
         self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
-        return PreparedLaunch(tuple(spec.argv), {}, metadata=metadata, release=control.remove)
+
+        def release():
+            control.remove()
+            lease.release()
+
+        return PreparedLaunch(tuple(spec.argv), {}, metadata=metadata, release=release)
 
     async def probe(self, executables: list[str] | None = None) -> EnvironmentCapabilities:
         # Fixed search locations only. Availability is not proof that a command
@@ -533,6 +573,8 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
     async def _after_close(self) -> None:
         if self._recovery_error:
             raise RuntimeError("process_cleanup_incomplete: 沙箱恢复身份未确认，保留资源")
+        for scope in tuple(self._bindings):
+            self.discard_scope(scope)
         for run in self._runs.values():
             run.directory.remove()
         self._runs.clear()

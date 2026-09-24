@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from bot.config.models import AppConfig
+from bot.sandbox.coordination import AdmissionCoordinator
 from bot.sandbox.models import ExecutionScope, SandboxError
 from bot.sandbox.policy import RunDirectories, resolve_policy
 
@@ -310,3 +311,83 @@ def test_host_issued_git_metadata_is_readonly(layout, tmp_path):
     policy = resolve(git_metadata_roots=(external,)).policy
     assert external in policy.read_roots and external in policy.deny_write
     assert external not in policy.write_roots
+
+
+def test_shared_reservation_precedes_scan_and_survives_until_release(layout, monkeypatch):
+    from bot.sandbox import policy as module
+
+    _, work, _, directories, resolve = layout
+    coordinator = AdmissionCoordinator(work.parent / "registry")
+    other = AdmissionCoordinator(coordinator.root)
+    second_policy = resolve(directories=directories("second")).policy
+    scan = module.inspect_roots
+    observations = []
+
+    def observe(*args, **kwargs):
+        with pytest.raises(SandboxError) as failure:
+            other.acquire(second_policy)
+        observations.append(failure.value.stage)
+        return scan(*args, **kwargs)
+
+    monkeypatch.setattr(module, "inspect_roots", observe)
+    result = resolve(coordinator=coordinator)
+    try:
+        assert observations == ["admission_conflict"]
+        result.lease.verify()
+        with pytest.raises(SandboxError, match="占用"):
+            other.acquire(second_policy)
+    finally:
+        result.lease.release()
+    second = other.acquire(second_policy)
+    second.release()
+
+
+def test_scan_failure_releases_unstarted_reservation(layout, monkeypatch):
+    from bot.sandbox import policy as module
+
+    _, work, _, _, resolve = layout
+    coordinator = AdmissionCoordinator(work.parent / "registry")
+    policy = resolve().policy
+
+    def failed_scan(*args, **kwargs):
+        raise OSError("synthetic scan failure")
+
+    monkeypatch.setattr(module, "inspect_roots", failed_scan)
+    with pytest.raises(SandboxError, match="synthetic scan failure"):
+        resolve(coordinator=coordinator)
+    assert not list(coordinator.root.glob("lease-*.json"))
+    lease = coordinator.acquire(policy)
+    lease.release()
+
+
+def test_occupied_region_is_rejected_before_inspecting_transient_git_placeholder(layout):
+    _, work, _, directories, resolve = layout
+    coordinator = AdmissionCoordinator(work.parent / "registry")
+    first = resolve(coordinator=coordinator)
+    (work / ".git").touch()
+    try:
+        with pytest.raises(SandboxError) as failure:
+            resolve(coordinator=coordinator, directories=directories("second"))
+        assert failure.value.stage == "admission_conflict"
+    finally:
+        first.lease.release()
+    # Once the region is free, a genuine .git indirection still requires a
+    # broker grant and rejection must release the unstarted reservation.
+    with pytest.raises(SandboxError, match="可信管理作用域"):
+        resolve(coordinator=coordinator)
+    assert not list(coordinator.root.glob("lease-*.json"))
+
+
+def test_invalid_policy_does_not_reserve_or_scan(layout, monkeypatch):
+    from bot.sandbox import policy as module
+
+    _, work, _, _, resolve = layout
+    coordinator = AdmissionCoordinator(work.parent / "registry")
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("invalid policy must be rejected before admission")
+
+    monkeypatch.setattr(coordinator, "acquire", unexpected)
+    monkeypatch.setattr(module, "inspect_roots", unexpected)
+    with pytest.raises(SandboxError, match="加载器控制"):
+        resolve(coordinator=coordinator, loader_control_paths=(work / "future-control",))
