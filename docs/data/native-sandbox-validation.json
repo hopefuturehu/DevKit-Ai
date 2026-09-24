@@ -430,5 +430,53 @@
       }
     ],
     "initial_failures_preserved": true
+  },
+  "host_executable_validation": {
+    "artifact": "docs/data/native-sandbox-host-executables.json",
+    "sha256": "1856cc602b9920ec059254bdfff9920cd244bc36b1f14599689d529a4e58939a",
+    "stage_complete": false,
+    "required_execution_enabled": false,
+    "allowlist_enabled": false,
+    "fixed_host_executable_manifest_delivered": true,
+    "dynamic_loader_attested": false,
+    "macos_final": [
+      {
+        "name": "pytest",
+        "errors": "1",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "148",
+        "time": "95.378",
+        "timestamp": "2026-09-24T11:17:27.434688+08:00",
+        "hostname": "MacBook-Air.local"
+      }
+    ],
+    "macos_worker_recheck": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "1",
+        "time": "9.282",
+        "timestamp": "2026-09-24T11:19:53.119713+08:00",
+        "hostname": "MacBook-Air.local"
+      }
+    ],
+    "linux_final": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "147",
+        "time": "131.285",
+        "timestamp": "2026-09-24T03:14:34.278437+00:00",
+        "hostname": "0e06fe6cbce1"
+      }
+    ],
+    "changed_units_passed": 104,
+    "adjacent_unrestricted_passed": 57,
+    "initial_failures_preserved": true
   }
 }

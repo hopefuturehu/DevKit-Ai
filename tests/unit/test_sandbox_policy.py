@@ -85,6 +85,30 @@ def test_control_symlink_name_and_target_are_both_protected(layout, tmp_path):
     assert config.state_path(work) == target
 
 
+def test_runtime_alias_preserves_linux_guard_for_writable_link_directory(
+    layout, tmp_path, monkeypatch
+):
+    from bot.sandbox.srt import compile_srt_config
+
+    config, _, runtime, _, resolve = layout
+    executable = runtime / "helper"
+    executable.touch()
+    extra = tmp_path.resolve() / "extra"
+    alias = extra / "alternatives/helper"
+    alias.parent.mkdir(parents=True)
+    alias.symlink_to(executable)
+    config = config.model_copy(
+        update={"sandbox": config.sandbox.model_copy(update={"write_roots": (extra,)})}
+    )
+    policy = resolve(config=config, runtime_read_roots=(runtime, alias)).policy
+    assert executable in policy.deny_write and alias in policy.deny_write
+    monkeypatch.setattr("bot.sandbox.srt.platform.system", lambda: "Linux")
+    settings = compile_srt_config(policy)["filesystem"]
+    assert str(alias.parent) in settings["denyRead"]
+    assert str(alias.parent) in settings["denyWrite"]
+    assert str(extra) not in settings["denyWrite"]
+
+
 def test_existing_hardlink_alias_is_in_both_os_deny_sets(layout, tmp_path):
     _, work, _, _, resolve = layout
     sentinel = tmp_path / "sentinel"

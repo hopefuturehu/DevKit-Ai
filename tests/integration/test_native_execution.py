@@ -619,7 +619,9 @@ async def test_native_file_tools_share_os_boundary_and_hide_worker_controls(nati
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("asset", ["node/bin/node", "node_modules/zod/package.json"])
+@pytest.mark.parametrize(
+    "asset", ["node/bin/node", "node_modules/zod/package.json", "host-executables.json"]
+)
 async def test_installed_runtime_tamper_refuses_launch_before_target_runs(
     native_target, tmp_path, asset
 ):

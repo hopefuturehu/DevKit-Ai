@@ -534,3 +534,37 @@ Linux 报告导出并确认仅剩容器 init/保持进程后，已回收本次�
 macOS 高 FD 夹具兼容修正发生在该 Linux 整轮之后，Linux 分支仍使用 256，生产源码与 wheel
 没有改变。本增量不代表 P2 或六阶段完成；macOS 归属问题、系统辅助程序/动态加载依赖证明、
 并发准入、恢复及完整 P4/P5 仍需推进，required 工厂和 allowlist 保持关闭。
+
+## P0/P1 系统辅助程序完整性（2026-09-24）
+
+显式安装新增 `host-executables.json`：固定 `/bin/sh`、`/bin/bash`、`/usr/bin/env`、
+`/usr/bin/which`，以及 macOS 的 `/usr/bin/sandbox-exec` 或 Linux 的 `/usr/bin/bwrap`、
+`/usr/bin/socat`、`/usr/bin/rg`、`/usr/bin/true`。不再从 Homebrew、`/usr/local/bin` 或继承
+的 PATH 发现替代程序。固定位置缺依赖时安装失败；旧安装缺少清单时必须显式重装到新目录，
+执行路径不自动补装或迁移。
+
+安装器仅读取这些候选程序，建立摘要，不通过运行它们证明可信。检查包含真实文件、管理员
+所有权、写权限、硬链接数量、有界读取以及读取前后身份；同时遍历中间符号链接和父目录。
+首次检查重新核对内容，后续启动复核缓存的文件、链接及父目录身份。清单摘要纳入安装记录和
+Native 恢复身份。运行时只读策略保留链接名称及最终目标，Linux 对可写区域中的链接父目录
+继续生成保护规则，避免仅限制最终 inode、却允许替换链接入口。
+
+两平台均完成显式安装。Linux ARM64 使用 UID/GID 65534 和最终 wheel，**147 passed，无 skip**。
+macOS 整轮 **146 passed、1 failed、1 teardown error**：文件工具用例在自检期间发现 6 个
+无法归属的进程，业务 worker 尚未启动，清理返回 unknown。只读身份复核时 2 个 PID 已不存在，
+其余相同启动时间的进程名称为 transparencyd、followupd、ProtectedCloudKeySyncing、
+mdworker_shared；名称与后续消失均不构成原清理成功或接管进程的证据。失败目录仍保留，
+没有认领、终止这些进程或放宽判断。该文件工具用例单独复核 **1 passed**，不能据此把整轮
+改记为通过。
+
+变更相关单元组合 **104 passed**；配置、准入及启动资源组合在正常 macOS 权限下 **57 passed**。
+后者在外层受限沙箱中的首次运行有 55 passed、2 failed，原记录单独保存。新回归覆盖内容篡改、
+等字节替换、链接改指向/循环、可写父目录、PATH 冒充、旧清单拒绝及安装失败不发布半成品。
+真实集成用例确认安装清单遭修改时业务副作用不会发生。最终 wheel 的 126 个 Python 文件及
+5 个运行时资产与源码一致，Linux 实际安装内容也逐字节一致；报告导出并核对进程后已回收容器。
+
+该清单记录管理员已安装的程序字节，不证明其发行来源，也不覆盖动态库、加载器配置、完整
+解释器链、ACL、操作系统或内核完整性。运行时元数据有效仍不等于隔离 enforced。动态加载依赖、
+并发准入与恢复、doctor 实时入口、P4/P5 和 macOS 观察式清理的可用性限制继续保留为门槛。
+生产 required 与 allowlist 仍关闭。源码、安装、完整结果及失败现场见
+[系统辅助程序验证证据](../data/native-sandbox-host-executables.json)。

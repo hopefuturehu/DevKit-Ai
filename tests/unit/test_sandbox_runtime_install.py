@@ -7,6 +7,7 @@ import json
 import subprocess
 import tarfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -34,6 +35,19 @@ def source(tmp_path, monkeypatch):
         return "synthetic-worker-record"
 
     monkeypatch.setattr(installer, "install_worker", fake_worker)
+    module_loader = installer.installer_module
+
+    def fake_host(root, *, workspace):
+        raw = b"synthetic-host-manifest"
+        (root / "host-executables.json").write_bytes(raw)
+        return hashlib.sha256(raw).hexdigest()
+
+    host_module = SimpleNamespace(seal_host_executables=fake_host)
+    monkeypatch.setattr(
+        installer,
+        "installer_module",
+        lambda name: host_module if name == "host_runtime" else module_loader(name),
+    )
     return root
 
 
@@ -103,7 +117,8 @@ def test_npm_failure_does_not_publish_partial_runtime(source, tmp_path, monkeypa
     assert not list(tmp_path.glob(".bot-runtime-install-*"))
 
 
-def test_install_uses_lock_and_isolated_npm_config(source, tmp_path, monkeypatch):
+@pytest.mark.parametrize("host_available", [True, False])
+def test_install_uses_lock_and_isolated_npm_config(source, tmp_path, monkeypatch, host_available):
     data = archive_for(source)
     monkeypatch.setattr(installer.urllib.request, "urlopen", lambda *a, **kw: io.BytesIO(data))
     monkeypatch.setenv("NODE_OPTIONS", "--require=/untrusted/injection.js")
@@ -121,9 +136,26 @@ def test_install_uses_lock_and_isolated_npm_config(source, tmp_path, monkeypatch
 
     monkeypatch.setattr(installer.subprocess, "run", install_npm)
     monkeypatch.setattr(installer.subprocess, "check_output", lambda *a, **kw: "v24.14.0\n")
+    if not host_available:
+
+        def unavailable(*args, **kwargs):
+            raise ValueError("untrusted host executable")
+
+        monkeypatch.setattr(
+            installer.installer_module("host_runtime"), "seal_host_executables", unavailable
+        )
+        with pytest.raises(ValueError, match="untrusted host"):
+            installer.install(tmp_path / "installed")
+        assert not (tmp_path / "installed").exists()
+        assert not list(tmp_path.glob(".bot-runtime-install-*"))
+        return
     destination = installer.install(tmp_path / "installed")
     record = json.loads((destination / "installation.json").read_text())
     assert record["platform"] == "linux-arm64"
+    assert (
+        record["host_executables_sha256"]
+        == hashlib.sha256((destination / "host-executables.json").read_bytes()).hexdigest()
+    )
     assert (destination / "bwrap-launcher.sh").stat().st_mode & 0o111
     assert (
         record["source_hashes"]["bwrap-launcher.sh"]

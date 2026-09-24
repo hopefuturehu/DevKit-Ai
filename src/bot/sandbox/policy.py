@@ -185,7 +185,7 @@ def resolve_policy(
         ]
         protected = _denials([*controls, *secrets])
         denied_read = _denials([*protected, worktrees_path, private.parent])
-        denied_write = _denials([*protected, worktrees_path, *runtime_roots, *git_roots])
+        denied_write = _denials([*protected, worktrees_path, *runtime_read_roots, *git_roots])
         if _inside(workspace, protected):
             raise ValueError("工作区位于受保护路径内")
         mutable_read = _paths([workspace, *sandbox.read_roots, *sandbox.write_roots])

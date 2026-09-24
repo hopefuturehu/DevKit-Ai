@@ -15,6 +15,16 @@ import stat
 from dataclasses import dataclass
 from pathlib import Path
 
+from bot.sandbox.host_runtime import (
+    MANIFEST_LIMIT as HOST_MANIFEST_LIMIT,
+)
+from bot.sandbox.host_runtime import (
+    MANIFEST_NAME as HOST_MANIFEST_NAME,
+)
+from bot.sandbox.host_runtime import (
+    HostExecutables,
+    inspect_host_executables,
+)
 from bot.sandbox.models import SandboxCapabilities
 from bot.sandbox.runtime_integrity import RuntimeTree, inspect_tree, read_installed
 from bot.sandbox.worker_runtime import WorkerRuntime, inspect_worker
@@ -55,6 +65,7 @@ class RuntimeInspection:
     errors: tuple[str, ...] = ()
     worker: WorkerRuntime | None = None
     tree: RuntimeTree | None = None
+    host: HostExecutables | None = None
 
     @property
     def metadata_valid(self) -> bool:
@@ -67,6 +78,7 @@ def inspect_runtime(
     root: Path | None = None,
     worker_snapshot: WorkerRuntime | None = None,
     tree_snapshot: RuntimeTree | None = None,
+    host_snapshot: HostExecutables | None = None,
 ) -> RuntimeInspection:
     root = (root or Path("~/.bot/sandbox/runtime")).expanduser().resolve()
     workspace = workspace.resolve()
@@ -75,6 +87,7 @@ def inspect_runtime(
     node_version = srt_version = None
     worker = None
     tree = None
+    host = None
     try:
         if platform.system() not in {"Darwin", "Linux"}:
             raise ValueError("原生沙箱首版只支持 macOS/Linux")
@@ -135,24 +148,13 @@ def inspect_runtime(
             manifest_sha256=record["worker_python_sha256"],
             previous=worker_snapshot,
         )
-        dependencies = (
-            ("sandbox-exec",) if platform.system() == "Darwin" else ("bwrap", "socat", "rg")
+        host = inspect_host_executables(
+            read_installed(root, HOST_MANIFEST_NAME, limit=HOST_MANIFEST_LIMIT),
+            manifest_sha256=record["host_executables_sha256"],
+            workspace=workspace,
+            previous=host_snapshot,
         )
-        for name in dependencies:
-            # These are host installation locations, never the caller's PATH.
-            path = next(
-                (
-                    (Path(directory) / name).resolve()
-                    for directory in ("/usr/bin", "/bin", "/opt/homebrew/bin", "/usr/local/bin")
-                    if (Path(directory) / name).is_file()
-                    and os.access(Path(directory) / name, os.X_OK)
-                ),
-                None,
-            )
-            if path is None or path.is_relative_to(workspace):
-                errors.append(f"缺少工作区外的系统依赖: {name}")
-            else:
-                executables[name] = path
+        executables.update((name, state.canonical) for name, state in host.executables)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         errors.append(f"运行时元数据检查失败: {exc}")
     status = "unavailable" if errors else "unverified"
@@ -170,5 +172,5 @@ def inspect_runtime(
         evidence=("metadata inspection only; isolation probes not run",),
     )
     return RuntimeInspection(
-        root, capabilities, tuple(sorted(executables.items())), tuple(errors), worker, tree
+        root, capabilities, tuple(sorted(executables.items())), tuple(errors), worker, tree, host
     )

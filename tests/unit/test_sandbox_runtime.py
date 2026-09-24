@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 
@@ -7,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bot.cli.app import app
+from bot.sandbox import host_runtime
 from bot.sandbox.runtime import RUNTIME_ASSET_NAMES, inspect_runtime, runtime_asset
 from bot.sandbox.runtime_integrity import seal_runtime
 
@@ -59,6 +61,19 @@ def installation(tmp_path, monkeypatch):
     node.parent.mkdir(parents=True)
     node.touch(mode=0o700)
     record["runtime_files_sha256"] = seal_runtime(root, workspace=workspace)
+    helpers = tmp_path / "system-bin"
+    helpers.mkdir(mode=0o700)
+    paths = {}
+    for name in host_runtime.fixed_executables():
+        path = helpers / name
+        path.write_text("#!/bin/sh\nexit 0\n")
+        path.chmod(0o700)
+        paths[name] = path
+    monkeypatch.setattr(host_runtime, "SYSTEM_OWNER", os.getuid())
+    monkeypatch.setattr(host_runtime, "fixed_executables", lambda: paths)
+    record["host_executables_sha256"] = host_runtime.seal_host_executables(
+        root, workspace=workspace
+    )
     (root / "installation.json").write_text(json.dumps(record))
     return workspace, root, lock
 
@@ -71,8 +86,7 @@ def test_matching_metadata_never_claims_enforcement_or_runs_a_binary(installatio
 
     monkeypatch.setattr(subprocess, "run", unexpected)
     inspection = inspect_runtime(workspace, root=root)
-    # A Linux test runner lacks sandbox-exec; the metadata still records the
-    # version but correctly reports the OS dependency as unavailable.
+    assert inspection.metadata_valid and inspection.host is not None
     assert inspection.capabilities.backend_version == lock["srt_version"]
     assert inspection.capabilities.node_version == lock["node_version"]
     assert inspection.capabilities.file_read in {"unverified", "unavailable"}
@@ -80,6 +94,30 @@ def test_matching_metadata_never_claims_enforcement_or_runs_a_binary(installatio
     assert inspection.capabilities.process_isolation != "enforced"
     assert inspection.capabilities.resource_limits == "unavailable"
     assert dict(inspection.executables)["node"] == root / "node/bin/node"
+
+
+def test_missing_host_manifest_requires_explicit_reinstallation(installation):
+    workspace, root, _ = installation
+    path = root / host_runtime.MANIFEST_NAME
+    path.unlink()
+    inspection = inspect_runtime(workspace, root=root)
+    assert not inspection.metadata_valid and not path.exists()
+    assert inspection.capabilities.file_read == "unavailable"
+
+
+def test_cached_runtime_rejects_changed_system_executable(installation):
+    workspace, root, _ = installation
+    initial = inspect_runtime(workspace, root=root)
+    assert initial.metadata_valid
+    dict(initial.host.executables)["sh"].canonical.write_text("#!/bin/sh\nexit 91\n")
+    changed = inspect_runtime(
+        workspace,
+        root=root,
+        host_snapshot=initial.host,
+        worker_snapshot=initial.worker,
+        tree_snapshot=initial.tree,
+    )
+    assert not changed.metadata_valid and "身份" in changed.errors[0]
 
 
 @pytest.mark.parametrize(

@@ -127,6 +127,9 @@ def install(destination: Path, *, worker_python: Path | None = None) -> Path:
         if version != f"v{lock['node_version']}":
             raise ValueError("installed Node version does not match lock")
         tree_digest = installer_module("runtime_integrity").seal_runtime(root, workspace=workspace)
+        host_digest = installer_module("host_runtime").seal_host_executables(
+            root, workspace=workspace
+        )
         hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in assets}
         (root / "installation.json").write_text(
             json.dumps(
@@ -136,6 +139,7 @@ def install(destination: Path, *, worker_python: Path | None = None) -> Path:
                     "node": version,
                     "worker_python_sha256": worker_digest,
                     "runtime_files_sha256": tree_digest,
+                    "host_executables_sha256": host_digest,
                 },
                 indent=2,
             )
