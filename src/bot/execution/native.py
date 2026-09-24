@@ -117,6 +117,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             worker_snapshot=self.runtime.worker,
             tree_snapshot=self.runtime.tree,
             host_snapshot=self.runtime.host,
+            loader_snapshot=self.runtime.loader,
         )
         if not inspection.metadata_valid or inspection != self.runtime:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "运行时安装记录已改变或缺少依赖")
@@ -142,7 +143,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         from bot.core.termination.identity import fingerprint
 
         return fingerprint(
-            "native-srt-managed-v5-host-executables1",
+            "native-srt-managed-v6-loader-controls1",
             str(self.workspace),
             str(self.runtime.root),
             str(self.state_root),
@@ -151,6 +152,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             self.runtime.worker.manifest_sha256 if self.runtime.worker else None,
             self.runtime.tree.manifest_sha256 if self.runtime.tree else None,
             self.runtime.host.manifest_sha256 if self.runtime.host else None,
+            self.runtime.loader.manifest_sha256 if self.runtime.loader else None,
         )
 
     @property
@@ -250,6 +252,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 *self.runtime.worker.read_roots,
                 *self.runtime.host.read_roots,
             ),
+            loader_control_paths=self.runtime.loader.protected_write_paths,
             read_only=read_only,
             protected_paths=(*run.denied_paths, *self.runtime.worker.denied_roots),
         )

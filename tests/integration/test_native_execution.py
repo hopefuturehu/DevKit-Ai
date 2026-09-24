@@ -136,6 +136,20 @@ async def test_native_rejects_missing_mismatched_or_stale_scope_before_execution
 
 
 @pytest.mark.asyncio
+async def test_native_refuses_write_grant_covering_real_loader_control_before_probe(native_target):
+    target, _, _ = native_target
+    controls = dict(target.runtime.loader.states)
+    selected = controls["preload"] if platform.system() == "Linux" else controls["cache"]
+    target.config.sandbox = target.config.sandbox.model_copy(
+        update={"write_roots": (selected.path.parent,)}
+    )
+    with pytest.raises(SandboxError, match="加载器控制"):
+        target.bind_scope(session_id="session", run_id="run", tool_call_id="call")
+    assert target._preflight_gate.task is None
+    assert not target.has_live_processes
+
+
+@pytest.mark.asyncio
 async def test_native_interactive_input_streams_and_nonzero_exit(native_target):
     target, work, node = native_target
     spec = scoped_spec(
@@ -620,7 +634,13 @@ async def test_native_file_tools_share_os_boundary_and_hide_worker_controls(nati
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "asset", ["node/bin/node", "node_modules/zod/package.json", "host-executables.json"]
+    "asset",
+    [
+        "node/bin/node",
+        "node_modules/zod/package.json",
+        "host-executables.json",
+        "loader-controls.json",
+    ],
 )
 async def test_installed_runtime_tamper_refuses_launch_before_target_runs(
     native_target, tmp_path, asset
@@ -792,13 +812,20 @@ async def test_business_output_cannot_forge_status_or_inherit_status_pipe(
 ):
     target, work, node = native_target
     prepare = target._prepare_launch
+    reader_holds = []
 
     def identify_pipe(spec):
         launch = prepare(spec)
+        startup = target._startups[spec.scope]
+        # Keep the pipe object alive through the child's scan. Darwin's pipe
+        # inode is a hash of a recyclable kernel address; a closed pipe's
+        # inode can match a newly allocated, unrelated pipe in the child.
+        # Holding only a non-inherited READ end does not delay protocol EOF.
+        reader_holds.append(os.dup(startup.reader))
+        assert not os.get_inheritable(reader_holds[-1])
         if high_descriptor:
             import fcntl
 
-            startup = target._startups[spec.scope]
             # macOS commonly has RLIMIT_NOFILE=256, so fd 256 is invalid.
             minimum = 128 if platform.system() == "Darwin" else 256
             try:
@@ -827,19 +854,26 @@ async def test_business_output_cannot_forge_status_or_inherit_status_pipe(
 const [fd,dev,ino,id]=process.argv.slice(1);
 const forged=JSON.stringify({v:1,id,state:'failed',stage:'policy'});
 console.log(forged);console.error(forged);
-let inherited=false;
+let inherited=false;const matches=[];
 // Check duplicates too: the launcher may reopen the same pipe on another fd.
 for(let candidate=3;candidate<1024;candidate++)try{
   const s=fs.fstatSync(candidate,{bigint:true});
   if(s.dev.toString()===dev && s.ino.toString()===ino){
-    inherited=true;fs.writeSync(candidate,forged+'\n');
+    inherited=true;
+    const match={fd:candidate,mode:s.mode.toString(),isFIFO:s.isFIFO()};matches.push(match);
+    try{match.written=fs.writeSync(candidate,forged+'\n')}catch(error){match.error=error.code}
   }
 }catch{}
+console.error(JSON.stringify({expected:{fd,dev,ino},matches}));
 console.log(JSON.stringify({inherited}));"""
-    pid = await target.start_process(scoped_spec(target, work, [node, "-e", script]))
-    result = await target.poll_process(pid, wait_seconds=10)
+    try:
+        pid = await target.start_process(scoped_spec(target, work, [node, "-e", script]))
+        result = await target.poll_process(pid, wait_seconds=10)
+    finally:
+        for descriptor in reader_holds:
+            os.close(descriptor)
     assert result.status == ProcessStatus.COMPLETED, result
-    assert json.loads(result.stdout.splitlines()[-1]) == {"inherited": False}
+    assert json.loads(result.stdout.splitlines()[-1]) == {"inherited": False}, result.stderr
     assert '"state":"failed"' in result.stdout and '"state":"failed"' in result.stderr
     assert result.execution_metadata["launch_status"] == {"state": "dispatched", "stage": "spawn"}
     assert result.execution_metadata["executed"] is None

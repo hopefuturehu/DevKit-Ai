@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import types
 import urllib.request
 from pathlib import Path
 
@@ -26,8 +27,14 @@ SOURCE = Path(__file__).resolve().parents[1] / "runtime" / "sandbox"
 
 
 def installer_module(name: str):
-    source = Path(__file__).resolve().parents[1] / f"src/bot/sandbox/{name}.py"
-    spec = importlib.util.spec_from_file_location(f"bot_installer_{name}", source)
+    directory = Path(__file__).resolve().parents[1] / "src/bot/sandbox"
+    package_name = "bot_sandbox_installer"
+    if package_name not in sys.modules:
+        package = types.ModuleType(package_name)
+        package.__path__ = [str(directory)]
+        sys.modules[package_name] = package
+    source = directory / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"{package_name}.{name}", source)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -130,6 +137,9 @@ def install(destination: Path, *, worker_python: Path | None = None) -> Path:
         host_digest = installer_module("host_runtime").seal_host_executables(
             root, workspace=workspace
         )
+        loader_digest = installer_module("loader_controls").seal_loader_controls(
+            root, workspace=workspace
+        )
         hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in assets}
         (root / "installation.json").write_text(
             json.dumps(
@@ -140,6 +150,7 @@ def install(destination: Path, *, worker_python: Path | None = None) -> Path:
                     "worker_python_sha256": worker_digest,
                     "runtime_files_sha256": tree_digest,
                     "host_executables_sha256": host_digest,
+                    "loader_controls_sha256": loader_digest,
                 },
                 indent=2,
             )

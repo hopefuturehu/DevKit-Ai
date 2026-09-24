@@ -478,5 +478,52 @@
     "changed_units_passed": 104,
     "adjacent_unrestricted_passed": 57,
     "initial_failures_preserved": true
+  },
+  "loader_control_validation": {
+    "artifact": "docs/data/native-sandbox-loader-controls.json",
+    "sha256": "450cd6ca40dd2f8a8347ee619649ebc6c14b969d0ea9876cccbed4c2be6510a3",
+    "stage_complete": false,
+    "required_execution_enabled": false,
+    "allowlist_enabled": false,
+    "loader_control_write_ceiling_delivered": true,
+    "transitive_dynamic_library_integrity_complete": false,
+    "linux_final": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "181",
+        "time": "133.341",
+        "timestamp": "2026-09-24T03:35:14.677763+00:00",
+        "hostname": "1bf0117e8951"
+      }
+    ],
+    "macos_final": [
+      {
+        "name": "pytest",
+        "errors": "1",
+        "failures": "2",
+        "skipped": "0",
+        "tests": "182",
+        "time": "101.670",
+        "timestamp": "2026-09-24T11:38:01.969521+08:00",
+        "hostname": "MacBook-Air.local"
+      }
+    ],
+    "macos_affected_after_fd_fixture_fix": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "3",
+        "time": "7.943",
+        "timestamp": "2026-09-24T11:43:17.712151+08:00",
+        "hostname": "MacBook-Air.local"
+      }
+    ],
+    "initial_failures_preserved": true,
+    "units_passed": 136
   }
 }

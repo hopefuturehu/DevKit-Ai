@@ -43,10 +43,20 @@ def source(tmp_path, monkeypatch):
         return hashlib.sha256(raw).hexdigest()
 
     host_module = SimpleNamespace(seal_host_executables=fake_host)
+
+    def fake_loader(root, *, workspace):
+        raw = b"synthetic-loader-manifest"
+        (root / "loader-controls.json").write_bytes(raw)
+        return hashlib.sha256(raw).hexdigest()
+
+    modules = {
+        "host_runtime": host_module,
+        "loader_controls": SimpleNamespace(seal_loader_controls=fake_loader),
+    }
     monkeypatch.setattr(
         installer,
         "installer_module",
-        lambda name: host_module if name == "host_runtime" else module_loader(name),
+        lambda name: modules[name] if name in modules else module_loader(name),
     )
     return root
 
@@ -117,8 +127,10 @@ def test_npm_failure_does_not_publish_partial_runtime(source, tmp_path, monkeypa
     assert not list(tmp_path.glob(".bot-runtime-install-*"))
 
 
-@pytest.mark.parametrize("host_available", [True, False])
-def test_install_uses_lock_and_isolated_npm_config(source, tmp_path, monkeypatch, host_available):
+@pytest.mark.parametrize("unavailable_control", [None, "host", "loader"])
+def test_install_uses_lock_and_isolated_npm_config(
+    source, tmp_path, monkeypatch, unavailable_control
+):
     data = archive_for(source)
     monkeypatch.setattr(installer.urllib.request, "urlopen", lambda *a, **kw: io.BytesIO(data))
     monkeypatch.setenv("NODE_OPTIONS", "--require=/untrusted/injection.js")
@@ -136,15 +148,18 @@ def test_install_uses_lock_and_isolated_npm_config(source, tmp_path, monkeypatch
 
     monkeypatch.setattr(installer.subprocess, "run", install_npm)
     monkeypatch.setattr(installer.subprocess, "check_output", lambda *a, **kw: "v24.14.0\n")
-    if not host_available:
+    if unavailable_control:
 
         def unavailable(*args, **kwargs):
-            raise ValueError("untrusted host executable")
+            raise ValueError("untrusted runtime control")
 
-        monkeypatch.setattr(
-            installer.installer_module("host_runtime"), "seal_host_executables", unavailable
+        module, function = (
+            ("host_runtime", "seal_host_executables")
+            if unavailable_control == "host"
+            else ("loader_controls", "seal_loader_controls")
         )
-        with pytest.raises(ValueError, match="untrusted host"):
+        monkeypatch.setattr(installer.installer_module(module), function, unavailable)
+        with pytest.raises(ValueError, match="untrusted runtime"):
             installer.install(tmp_path / "installed")
         assert not (tmp_path / "installed").exists()
         assert not list(tmp_path.glob(".bot-runtime-install-*"))
@@ -155,6 +170,10 @@ def test_install_uses_lock_and_isolated_npm_config(source, tmp_path, monkeypatch
     assert (
         record["host_executables_sha256"]
         == hashlib.sha256((destination / "host-executables.json").read_bytes()).hexdigest()
+    )
+    assert (
+        record["loader_controls_sha256"]
+        == hashlib.sha256((destination / "loader-controls.json").read_bytes()).hexdigest()
     )
     assert (destination / "bwrap-launcher.sh").stat().st_mode & 0o111
     assert (

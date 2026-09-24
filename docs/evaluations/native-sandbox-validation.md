@@ -568,3 +568,44 @@ mdworker_shared；名称与后续消失均不构成原清理成功或接管进�
 并发准入与恢复、doctor 实时入口、P4/P5 和 macOS 观察式清理的可用性限制继续保留为门槛。
 生产 required 与 allowlist 仍关闭。源码、安装、完整结果及失败现场见
 [系统辅助程序验证证据](../data/native-sandbox-host-executables.json)。
+
+## P0/P1 加载器配置与写权限边界（2026-09-24）
+
+系统可执行文件的摘要不覆盖加载配置。Linux 的库解析还使用 `/etc/ld.so.cache`，系统
+`/etc/ld.so.preload` 会影响程序启动；不能仅靠去掉 LD_* 环境变量处理。
+依据：[Linux 动态加载器手册](https://www.man7.org/linux/man-pages/man8/ld.so.8.html)。
+
+显式安装新增 `loader-controls.json`。Linux 记录库缓存、ld.so.conf 及其配置目录的内容摘要和
+文件身份，要求 ld.so.preload 不存在（空文件或悬空链接也拒绝）。macOS 校验 `/usr/lib/dyld`
+内容，并记录 System/Library、Preboot Cryptex 和旧版位置下已知 dyld 缓存目录的身份与条目。
+**共享缓存载荷未做内容摘要或签名验证**，不把它标为完整动态库证明。缺失路径记录最近已有父
+目录，配置/缓存条目新增、删除、替换或权限变化均使后续检查失效，不自动采用新状态。
+
+Native 把这些控制路径及符号链接目标传入 resolver；任何任务写根只要覆盖或进入该区域，
+在工作区扫描和原生探测前就拒绝。规则也覆盖尚未创建的控制文件，避免依靠 Linux 对不存在
+路径的挂载来保护它。保护只添加写限制，不为任务开放原始共享缓存或其父目录的读取。
+清单摘要纳入恢复身份；旧安装缺少清单时要求显式重装。安装器的标准库辅助模块现使用独立
+包命名空间，允许相对导入而不加载 bot 应用。
+
+两端安装成功，相关单元组合 **136 passed**。Linux ARM64 非 root 整组 **181 passed，无 skip**；
+macOS 整组 **179 passed、2 failed、1 teardown error**。一项启动失败用例因为两个无法归属的新
+进程返回 cleanup_failed/unknown，优先级高于测试预期的 launch_failed；可信状态仍明确记录
+executed=false。只读复核时两个 PID 已不存在，原目录仍保留，不能追认原清理完成。
+
+另一项高 FD 检查匹配到了业务 Node 的 fd 5；定向诊断看到该 FD 可写，但可信管道此前已得到
+EOF 和恰好两帧，未收到伪造数据。XNU 的管道 inode 来自内核地址哈希，可在对象销毁后复用，
+原测试在管道释放后仅比较 dev/inode，存在误匹配窗口。
+依据：[XNU 管道 stat 与对象回收实现](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_pipe.c)。
+测试现保留一个不继承的读端直到目标扫描结束，使管道对象存活，且不阻塞写端关闭后的 EOF；
+继续扫描所有 FD 副本并尝试伪造状态，没有放宽断言或修改生产通道。普通 FD、高 FD 和启动
+失败的定向复核 **3 passed**。另以主动继承 FD 128 的正向对照确认扫描仍能发现真实继承，
+且写入确实到达原管道。Python 简化分配循环未复现复用，原生失败与诊断仍分别保留。
+
+最终 wheel 的 127 个 Python 文件与 5 个运行时资产均核对一致，Linux 实际安装内容一致。
+FD 夹具修正晚于 Linux 与 macOS 整轮，原测试摘要单列保存；生产代码和 wheel 没有改变。
+Linux 证据导出后已回收验证容器。完整结果见
+[加载器控制验证证据](../data/native-sandbox-loader-controls.json)。
+
+该增量尚未覆盖 ELF/Mach-O 传递依赖、动态加载及搜索路径、全部配置来源或共享缓存签名。
+并发工作区准入、恢复、doctor 实时入口、P4/P5 和 macOS 观察式进程归属问题继续推进。
+六阶段未完成，生产 required 与 allowlist 仍关闭。

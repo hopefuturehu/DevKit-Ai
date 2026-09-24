@@ -109,6 +109,27 @@ def test_runtime_alias_preserves_linux_guard_for_writable_link_directory(
     assert str(extra) not in settings["denyWrite"]
 
 
+@pytest.mark.parametrize("exists", [False, True])
+def test_loader_controls_reject_covering_write_grants_even_before_file_creation(layout, exists):
+    _, work, _, _, resolve = layout
+    control = work / "system/ld.so.preload"
+    control.parent.mkdir()
+    if exists:
+        control.touch()
+    with pytest.raises(SandboxError, match="加载器控制"):
+        resolve(loader_control_paths=(control,))
+    readonly = resolve(loader_control_paths=(control,), read_only=True).policy
+    assert control in readonly.deny_write
+
+
+def test_loader_alias_cannot_hide_a_write_overlap(layout, tmp_path):
+    _, work, _, _, resolve = layout
+    alias = tmp_path.resolve() / "loader-alias"
+    alias.symlink_to(work)
+    with pytest.raises(SandboxError, match="加载器控制"):
+        resolve(loader_control_paths=(alias / "future-preload",))
+
+
 def test_existing_hardlink_alias_is_in_both_os_deny_sets(layout, tmp_path):
     _, work, _, _, resolve = layout
     sentinel = tmp_path / "sentinel"

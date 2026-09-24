@@ -101,6 +101,7 @@ def resolve_policy(
     read_only: bool = False,
     protected_paths: tuple[Path, ...] = (),
     git_metadata_roots: tuple[Path, ...] = (),
+    loader_control_paths: tuple[Path, ...] = (),
 ) -> ResolvedSandbox:
     """Resolve a host-selected workspace. No model-supplied policy is accepted.
 
@@ -185,7 +186,10 @@ def resolve_policy(
         ]
         protected = _denials([*controls, *secrets])
         denied_read = _denials([*protected, worktrees_path, private.parent])
-        denied_write = _denials([*protected, worktrees_path, *runtime_read_roots, *git_roots])
+        loader_controls = _denials(loader_control_paths)
+        denied_write = _denials(
+            [*protected, worktrees_path, *runtime_read_roots, *git_roots, *loader_controls]
+        )
         if _inside(workspace, protected):
             raise ValueError("工作区位于受保护路径内")
         mutable_read = _paths([workspace, *sandbox.read_roots, *sandbox.write_roots])
@@ -219,11 +223,21 @@ def resolve_policy(
                     network = "deny"
         if any(_inside(root, denied_read) for root in (*mutable_read, *runtime_roots, *metadata)):
             raise ValueError("读取根目录不能重新开放受保护区域")
+        final_writes = _paths([*(() if readonly else writable), *owned])
+        # An absent file cannot reliably be protected by a Linux bind mount.
+        # Reject overlapping write grants before compiling either OS policy;
+        # no task may create/replace a future loader configuration or cache.
+        if any(
+            control.is_relative_to(root) or root.is_relative_to(control)
+            for root in final_writes
+            for control in loader_controls
+        ):
+            raise ValueError("任务写目录不能覆盖加载器控制路径")
         admission = inspect_roots(mutable_read, excluded=denied_read)
         policy = SandboxPolicy(
             workspace=workspace,
             read_roots=_paths([*mutable_read, *runtime_roots, *metadata, *owned]),
-            write_roots=_paths([*(() if readonly else writable), *owned]),
+            write_roots=final_writes,
             deny_read=_denials([*denied_read, *admission.hardlink_denies]),
             deny_write=_denials([*denied_write, *admission.hardlink_denies]),
             protected_paths=protected,

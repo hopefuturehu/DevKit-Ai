@@ -25,6 +25,16 @@ from bot.sandbox.host_runtime import (
     HostExecutables,
     inspect_host_executables,
 )
+from bot.sandbox.loader_controls import (
+    MANIFEST_LIMIT as LOADER_MANIFEST_LIMIT,
+)
+from bot.sandbox.loader_controls import (
+    MANIFEST_NAME as LOADER_MANIFEST_NAME,
+)
+from bot.sandbox.loader_controls import (
+    LoaderControls,
+    inspect_loader_controls,
+)
 from bot.sandbox.models import SandboxCapabilities
 from bot.sandbox.runtime_integrity import RuntimeTree, inspect_tree, read_installed
 from bot.sandbox.worker_runtime import WorkerRuntime, inspect_worker
@@ -66,6 +76,7 @@ class RuntimeInspection:
     worker: WorkerRuntime | None = None
     tree: RuntimeTree | None = None
     host: HostExecutables | None = None
+    loader: LoaderControls | None = None
 
     @property
     def metadata_valid(self) -> bool:
@@ -79,6 +90,7 @@ def inspect_runtime(
     worker_snapshot: WorkerRuntime | None = None,
     tree_snapshot: RuntimeTree | None = None,
     host_snapshot: HostExecutables | None = None,
+    loader_snapshot: LoaderControls | None = None,
 ) -> RuntimeInspection:
     root = (root or Path("~/.bot/sandbox/runtime")).expanduser().resolve()
     workspace = workspace.resolve()
@@ -88,6 +100,7 @@ def inspect_runtime(
     worker = None
     tree = None
     host = None
+    loader = None
     try:
         if platform.system() not in {"Darwin", "Linux"}:
             raise ValueError("原生沙箱首版只支持 macOS/Linux")
@@ -155,6 +168,12 @@ def inspect_runtime(
             previous=host_snapshot,
         )
         executables.update((name, state.canonical) for name, state in host.executables)
+        loader = inspect_loader_controls(
+            read_installed(root, LOADER_MANIFEST_NAME, limit=LOADER_MANIFEST_LIMIT),
+            manifest_sha256=record["loader_controls_sha256"],
+            workspace=workspace,
+            previous=loader_snapshot,
+        )
     except (OSError, ValueError, KeyError, TypeError) as exc:
         errors.append(f"运行时元数据检查失败: {exc}")
     status = "unavailable" if errors else "unverified"
@@ -172,5 +191,12 @@ def inspect_runtime(
         evidence=("metadata inspection only; isolation probes not run",),
     )
     return RuntimeInspection(
-        root, capabilities, tuple(sorted(executables.items())), tuple(errors), worker, tree, host
+        root,
+        capabilities,
+        tuple(sorted(executables.items())),
+        tuple(errors),
+        worker,
+        tree,
+        host,
+        loader,
     )

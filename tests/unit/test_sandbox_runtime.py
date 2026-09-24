@@ -8,7 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bot.cli.app import app
-from bot.sandbox import host_runtime
+from bot.sandbox import host_runtime, loader_controls
 from bot.sandbox.runtime import RUNTIME_ASSET_NAMES, inspect_runtime, runtime_asset
 from bot.sandbox.runtime_integrity import seal_runtime
 
@@ -74,6 +74,14 @@ def installation(tmp_path, monkeypatch):
     record["host_executables_sha256"] = host_runtime.seal_host_executables(
         root, workspace=workspace
     )
+    loader_config = helpers / "loader.conf"
+    loader_config.write_text("synthetic loader config")
+    monkeypatch.setattr(
+        loader_controls, "fixed_controls", lambda: {"config": (loader_config, "file")}
+    )
+    record["loader_controls_sha256"] = loader_controls.seal_loader_controls(
+        root, workspace=workspace
+    )
     (root / "installation.json").write_text(json.dumps(record))
     return workspace, root, lock
 
@@ -118,6 +126,30 @@ def test_cached_runtime_rejects_changed_system_executable(installation):
         tree_snapshot=initial.tree,
     )
     assert not changed.metadata_valid and "身份" in changed.errors[0]
+
+
+def test_cached_runtime_rejects_changed_loader_configuration(installation):
+    workspace, root, _ = installation
+    initial = inspect_runtime(workspace, root=root)
+    assert initial.metadata_valid
+    initial.loader.states[0][1].path.write_text("changed loader configuration")
+    changed = inspect_runtime(
+        workspace,
+        root=root,
+        worker_snapshot=initial.worker,
+        tree_snapshot=initial.tree,
+        host_snapshot=initial.host,
+        loader_snapshot=initial.loader,
+    )
+    assert not changed.metadata_valid and "加载器" in changed.errors[0]
+
+
+def test_missing_loader_manifest_is_not_created_implicitly(installation):
+    workspace, root, _ = installation
+    manifest = root / loader_controls.MANIFEST_NAME
+    manifest.unlink()
+    assert not inspect_runtime(workspace, root=root).metadata_valid
+    assert not manifest.exists()
 
 
 @pytest.mark.parametrize(
