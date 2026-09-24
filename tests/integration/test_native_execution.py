@@ -6,6 +6,7 @@ import os
 import platform
 import shutil
 import sqlite3
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,7 @@ from bot.execution.base import ProcessSpec, ProcessStatus
 from bot.execution.native import NativeSandboxExecutionTarget
 from bot.sandbox.coordination import AdmissionCoordinator
 from bot.sandbox.models import SandboxError, SandboxErrorCode
-from bot.sandbox.resources import OwnedDirectory
+from bot.sandbox.resources import DirectoryIdentity, OwnedDirectory
 from bot.tools.base import ToolAnnotations, ToolContext
 from bot.tools.builtins import RunCommandTool, RunShellTool
 from bot.tools.subprocess_adapter import SubprocessCliTool
@@ -25,7 +26,33 @@ EXPECTED_UNRESOLVED = pytest.StashKey[set[str]]()
 
 
 @pytest_asyncio.fixture
-async def native_target(request, record_property):
+async def native_target(request, record_property, monkeypatch):
+    from bot.sandbox.preflight import _ProbeTarget
+
+    poll = _ProbeTarget.poll_process
+
+    async def record_probe_failure(probe, *args, **kwargs):
+        result = await poll(probe, *args, **kwargs)
+        if result.status in (ProcessStatus.FAILED, ProcessStatus.CLEANUP_FAILED):
+            record_property(
+                "probe_failure",
+                json.dumps(
+                    {
+                        "process_id": result.process_id,
+                        "status": result.status.value,
+                        "returncode": result.returncode,
+                        "cleanup_status": result.cleanup_status,
+                        "termination_reason": result.termination_reason,
+                        "output_complete": result.output_complete,
+                        "truncated": result.truncated,
+                        "launch_status": result.execution_metadata.get("launch_status"),
+                        "launch_error": result.execution_metadata.get("launch_error"),
+                    }
+                ),
+            )
+        return result
+
+    monkeypatch.setattr(_ProbeTarget, "poll_process", record_probe_failure)
     request.node.stash[EXPECTED_UNRESOLVED] = set()
     runtime = os.environ.get("BOT_TEST_SANDBOX_RUNTIME")
     if not runtime:
@@ -423,6 +450,176 @@ console.log(JSON.stringify(checks.map(f=>{try{f();return false}catch{return true
     assert json.loads(result.stdout) == [True] * 4
     assert not (target.coordinator.root / "forged").exists()
     assert (target.coordinator.root / "mutex").is_file() and lease.released
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["prepared", "registered", "changed_runtime", "removed_control"])
+async def test_native_host_crash_recovers_only_protected_identity(native_target, phase):
+    from copy import deepcopy
+
+    import psutil
+
+    from bot.execution.process_scope import Inventory, ProcessIdentity
+    from bot.sandbox.recovery import cleanup_record
+
+    target, work, _ = native_target
+    host = victim = None
+    restored = False
+    try:
+        victim = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-S",
+            "-c",
+            "import time;time.sleep(60)",
+            start_new_session=True,
+        )
+        victim_identity = psutil.Process(victim.pid).create_time()
+        host = await asyncio.create_subprocess_exec(
+            sys.executable,
+            str(Path(__file__).parents[1] / "helpers/native_crash_host.py"),
+            str(target.runtime.root),
+            str(work),
+            str(target.state_root),
+            phase,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
+        )
+        packet = await asyncio.wait_for(host.stdout.readline(), 30)
+        if not packet:
+            error = await asyncio.wait_for(host.stderr.read(), 5)
+            pytest.fail(f"disposable host failed before crash barrier: {error.decode()[:6000]}")
+        packet = json.loads(packet)
+        if phase == "removed_control":
+            assert packet["phase"] == "registered"
+            packet = json.loads(await asyncio.wait_for(host.stdout.readline(), 15))
+        assert packet["phase"] == ("registered" if phase == "changed_runtime" else phase)
+        host.kill()  # This exact disposable host is owned by this test.
+        await asyncio.wait_for(host.wait(), 10)
+        entry = next(
+            e for e in target.coordinator.snapshots() if e["binding"]["id"] == packet["lease"]["id"]
+        )
+        journal = entry["recovery"]
+        if phase == "prepared":
+            with pytest.raises(SandboxError, match="持久化窗口"):
+                target.restore_cleanups([])
+            assert target.has_live_processes and target._recovery_error
+            assert not (work / "business-started").exists()
+            assert any(
+                e["binding"]["id"] == packet["lease"]["id"] for e in target.coordinator.snapshots()
+            )
+            # This fixture alone has stronger evidence than a production
+            # recovery: its trusted helper was stopped inside _before_spawn
+            # and could not return to the fork site. Reclaim only these exact
+            # never-started resources; no production stale-record reaper exists.
+            lease = target.coordinator.recover(packet["lease"], recovery=journal)
+            for key in ("control_directory", "run_directory"):
+                OwnedDirectory(DirectoryIdentity(**journal["metadata"][key])).remove()
+            lease.release()
+            target._recovery_error = False
+            target._recovery_checked = True
+            restored = True
+            return
+        if phase == "removed_control":
+            assert not Path(journal["metadata"]["control_directory"]["path"]).exists()
+        else:
+            assert (
+                psutil.Process(journal["root"]["pid"]).create_time()
+                == journal["root"]["start_time"]
+            )
+        if phase == "changed_runtime":
+            fingerprint = target._runtime_fingerprint
+            target._runtime_fingerprint = (*fingerprint, ("synthetic-upgrade", "0" * 64))
+            with pytest.raises(SandboxError, match="运行时身份"):
+                target.restore_cleanups([])
+            assert target.has_live_processes and not target._managed_processes
+            unchanged = next(
+                e
+                for e in target.coordinator.snapshots()
+                if e["binding"]["id"] == packet["lease"]["id"]
+            )
+            assert unchanged["owner"] == entry["owner"]
+            # Restore the original trusted runtime identity only to perform
+            # fixture cleanup; the rejected upgrade never acquires authority.
+            target._runtime_fingerprint = fingerprint
+            target._recovery_error = False
+        # An audit event supplies the victim's real PID/birth and otherwise
+        # plausible metadata. It must never redirect cleanup to that process.
+        forged = cleanup_record(target, journal, packet["lease"])
+        forged.update(
+            scope_root_pid=victim.pid,
+            known_processes=[
+                {
+                    "pid": victim.pid,
+                    "start_time": victim_identity,
+                    "ppid": os.getpid(),
+                    "sid": victim.pid,
+                }
+            ],
+        )
+        target.restore_cleanups([forged])
+        restored = True
+        snapshot = (await target.list_processes())[0]
+        assert snapshot.process_id == packet["process_id"]
+        assert snapshot.remaining_processes[0]["pid"] == journal["root"]["pid"]
+        assert not snapshot.output_complete
+        # During host downtime, a different session may reuse the old SID and
+        # lose its leader too. A matching number must never grant signal
+        # authority over this unrelated, newly born orphan.
+        guard = deepcopy(target._managed_processes[snapshot.process_id].scope)
+        reused = ProcessIdentity(victim.pid, victim_identity + 1, 1, journal["root"]["pid"])
+        guard.update(Inventory({reused.pid: reused}, set()))
+        assert reused.pid not in guard.live and guard.unknown
+        with pytest.raises(SandboxError) as blocked:
+            await target.ensure_ready()
+        assert blocked.value.stage == "recovery"
+        result = await target.terminate_process(snapshot.process_id)
+        assert result.cleanup_status == "observed_empty", result
+        assert not target.has_live_processes
+        assert psutil.Process(victim.pid).create_time() == victim_identity
+        assert not any(
+            e["binding"]["id"] == packet["lease"]["id"] for e in target.coordinator.snapshots()
+        )
+    finally:
+        for child in (host, victim):
+            if child is not None and child.returncode is None:
+                child.kill()
+                await asyncio.wait_for(child.wait(), 10)
+        if host is not None and not restored:
+            # A failed assertion must not hide a crashed host's registered
+            # process from fixture teardown. Unknown recovery retains the root.
+            target.restore_cleanups([])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["registry", "durability"])
+async def test_post_spawn_journal_failure_never_claims_nonexecution(
+    native_target, monkeypatch, failure
+):
+    target, work, node = native_target
+    spec = scoped_spec(target, work, [node, "-e", "setInterval(()=>{},1000)"])
+    lease = target._bindings[spec.scope].lease
+    save = lease.save_recovery
+
+    def fail_registered(value):
+        if value["phase"] == "registered" and failure == "registry":
+            raise SandboxError(
+                SandboxErrorCode.UNAVAILABLE, "synthetic registry rejection", executed=False
+            )
+        save(value)
+        if value["phase"] == "registered":
+            raise OSError("synthetic durability failure after publication")
+
+    monkeypatch.setattr(lease, "save_recovery", fail_registered)
+    with pytest.raises(SandboxError) as error:
+        await target.start_process(spec)
+    assert error.value.stage == "recovery_journal" and error.value.executed is None
+    snapshot = (await target.list_processes())[0]
+    assert snapshot.cleanup_status == "observed_empty"
+    assert snapshot.execution_metadata["executed"] is None
+    assert snapshot.execution_metadata["launch_error"]["executed"] is None
+    assert lease.released and not target.has_live_processes
 
 
 class ProbeCli(SubprocessCliTool):
@@ -882,6 +1079,9 @@ async def test_preflight_failure_never_runs_business_command_or_retries(
         )
         monkeypatch.setattr(
             preflight._ProbeTarget, "_after_start", LocalExecutionTarget._after_start
+        )
+        monkeypatch.setattr(
+            preflight._ProbeTarget, "_before_spawn", LocalExecutionTarget._before_spawn
         )
     elif failure == "protocol":
         monkeypatch.setattr(preflight, "_CHECK_JS", "console.log('{}')")

@@ -186,6 +186,11 @@ class LocalExecutionTarget(ManagedExecutionTarget):
                 async with asyncio.timeout(self.cleanup.total_timeout_seconds):
                     baseline = await self._inventory.read()
             launch = self._prepare_launch(spec)
+            try:
+                self._before_spawn(spec, launch, baseline)
+            except BaseException:
+                launch.release_resources()
+                raise
             protocol = ProcessTransport(spec.output_limit_bytes)
             spawning = asyncio.create_task(
                 asyncio.get_running_loop().subprocess_exec(
@@ -258,6 +263,10 @@ class LocalExecutionTarget(ManagedExecutionTarget):
 
     async def _after_start(self, process_id: str) -> None:
         """Backend-specific trusted startup handshake, after cleanup registration."""
+        return None
+
+    def _before_spawn(self, spec: ProcessSpec, launch: PreparedLaunch, baseline) -> None:
+        """Optional durable preparation, before any process can be created."""
         return None
 
     def _prepare_launch(self, spec: ProcessSpec) -> PreparedLaunch:

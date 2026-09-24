@@ -20,7 +20,7 @@ from uuid import uuid4
 from bot.config.models import AppConfig
 from bot.execution.base import EnvironmentCapabilities, ExecutionTarget, ProcessSpec, ProcessStatus
 from bot.execution.local import LocalExecutionTarget, PreparedLaunch
-from bot.sandbox.coordination import AdmissionCoordinator
+from bot.sandbox.coordination import AdmissionCoordinator, AdmissionLease, owner_alive
 from bot.sandbox.launch_status import LaunchStatusPipe
 from bot.sandbox.models import ExecutionScope, SandboxError, SandboxErrorCode
 from bot.sandbox.policy import (
@@ -85,7 +85,10 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         self._worker_calls: set[ExecutionScope] = set()
         self._used_calls: set[tuple[str, str, str]] = set()
         self._startups: dict[ExecutionScope, LaunchStatusPipe] = {}
+        self._leases: dict[ExecutionScope, AdmissionLease] = {}
         self._recovery_error = False
+        self._recovery_checked = False
+        self._recovered_processes: set[str] = set()
         super().__init__(
             max_managed_processes=config.agent.max_managed_processes,
             cleanup=config.agent.process_cleanup,
@@ -101,7 +104,27 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
 
     @property
     def has_live_processes(self) -> bool:
-        return super().has_live_processes or self._preflight_gate.live
+        return (
+            self._recovery_error
+            or bool(self._leases)
+            or super().has_live_processes
+            or self._preflight_gate.live
+        )
+
+    def _check_recovery(self) -> None:
+        if not self._recovery_checked:
+            self.restore_cleanups([])
+        if any(
+            pid in self._managed_processes
+            and self._managed_process_alive(self._managed_processes[pid])
+            for pid in self._recovered_processes
+        ):
+            raise SandboxError(
+                SandboxErrorCode.CLEANUP_FAILED,
+                "恢复的调用尚未确认清理，不能启动新调用",
+                stage="recovery",
+                executed=False,
+            )
 
     @property
     def sandbox_capabilities(self):
@@ -135,6 +158,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
     async def ensure_ready(self):
         if self._closed or self._recovery_error:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "原生执行环境不可用")
+        self._check_recovery()
         self._state_identity.verify()
         self._inspect_current_runtime()
         return await self._preflight_gate.ensure()
@@ -160,7 +184,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         from bot.core.termination.identity import fingerprint
 
         return fingerprint(
-            "native-srt-managed-v7-admission-leases1",
+            "native-srt-managed-v8-recovery-journal1",
             str(self.workspace),
             str(self.runtime.root),
             str(self.state_root),
@@ -240,6 +264,7 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         """Trusted host API, invoked after tool authorization, never a model argument."""
         if self._closed or self._recovery_error:
             raise SandboxError(SandboxErrorCode.UNAVAILABLE, "执行环境已关闭或存在未解决的恢复记录")
+        self._check_recovery()
         if not all(
             isinstance(value, str) and value for value in (session_id, run_id, tool_call_id)
         ):
@@ -397,12 +422,14 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
         del self._bindings[scope]
         self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
         self._startups[scope] = startup
+        self._leases[scope] = resolved.lease
 
         def release():
             startup.close()
             control.remove()
             resolved.lease.release()
             self._startups.pop(scope, None)
+            self._leases.pop(scope, None)
 
         return PreparedLaunch(
             argv,
@@ -428,11 +455,31 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             after_spawn=startup.after_spawn,
         )
 
+    def _before_spawn(self, spec: ProcessSpec, launch: PreparedLaunch, baseline) -> None:
+        from bot.sandbox.recovery import prepared
+
+        lease = self._leases[spec.scope]
+        lease.save_recovery(prepared(self, spec, launch, baseline, lease.owner))
+
     async def _after_start(self, process_id: str) -> None:
         managed = self._managed_process(process_id)
         startup = self._startups.get(managed.spec.scope)
         metadata = managed.launch.metadata
         try:
+            from bot.sandbox.recovery import registered
+
+            lease = self._leases[managed.spec.scope]
+            try:
+                lease.save_recovery(registered(lease.recovery, managed))
+            except Exception as failure:
+                # A registry error's pre-admission executed=False cannot be
+                # reused after spawn: the target may already have dispatched.
+                raise SandboxError(
+                    SandboxErrorCode.LAUNCH_FAILED,
+                    "根进程恢复身份写入失败，必须先回收已创建的进程",
+                    stage="recovery_journal",
+                    executed=None,
+                ) from failure
             if startup is None:
                 raise SandboxError(
                     SandboxErrorCode.LAUNCH_FAILED,
@@ -493,16 +540,35 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 startup.close()
 
     def restore_cleanups(self, records: list[dict]) -> None:
-        # Recovery may preserve cleanup authority, never a permission to launch
-        # a new command. Invalid native records block further execution.
+        # SQLite/event payloads are display/audit data, not process or deletion
+        # authority. Discover even crashes that never emitted a cleanup event.
+        from bot.sandbox.recovery import cleanup_record
+
+        del records
+        if self._recovery_checked:
+            return
         try:
-            if any(
-                record.get("launch_metadata", {}).get("backend") == "srt"
-                and record.get("cleanup_scope") != self.cleanup_scope
-                for record in records
-            ):
-                raise ValueError("原生清理记录来自其他运行时身份；需要先解决旧资源")
-            super().restore_cleanups(records)
+            restored = []
+            for entry in self.coordinator.snapshots():
+                # Run-private roots identify this host-selected state area;
+                # workspace overlap alone is not ownership of another manager.
+                if not any(
+                    Path(path).is_relative_to(self.state_root)
+                    for path in entry["binding"]["rules"]["write_roots"]
+                ) or owner_alive(entry["owner"]):
+                    continue
+                reference = self.coordinator.reference(entry["binding"])
+                restored.append(cleanup_record(self, entry.get("recovery"), reference))
+            # Validate every journal before transferring any owner. Local's
+            # restore hook rechecks resource identities before taking a lease.
+            for record in restored:
+                super().restore_cleanups([record])
+                # A numeric session can be reused while the host was absent,
+                # including after its new leader already exited. Recovery may
+                # follow verified identities/parents, never that stale SID.
+                self._managed_processes[record["process_id"]].scope.sid = None
+                self._recovered_processes.add(record["process_id"])
+            self._recovery_checked = True
         except Exception:
             self._recovery_error = True
             raise
@@ -535,7 +601,12 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
             or not owned.path.name.startswith("run-")
         ):
             raise ValueError("沙箱恢复目录超出可信资源区域")
-        control.identity.verify()
+        if not control.path.exists() and not control.path.is_symlink():
+            # A crash may occur after successful control removal but before
+            # lease release. Absence grants no process-cleanup conclusion.
+            control.removed = True
+        else:
+            control.identity.verify()
         owned.identity.verify()
         key = (scope.session_id, scope.run_id)
         restored_run = _Run(owned, metadata["read_only"], tuple(map(Path, denied_paths)))
@@ -547,13 +618,17 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
                 or current.denied_paths != restored_run.denied_paths
             ):
                 raise ValueError("同一 Run 的恢复目录或策略不一致")
-        lease = self.coordinator.recover(metadata["admission_lease"])
+        lease = self.coordinator.recover(
+            metadata["admission_lease"], recovery=record["recovery_journal"]
+        )
         self._runs[key] = restored_run
+        self._leases[scope] = lease
         self._used_calls.add((scope.session_id, scope.run_id, scope.tool_call_id))
 
         def release():
             control.remove()
             lease.release()
+            self._leases.pop(scope, None)
 
         return PreparedLaunch(tuple(spec.argv), {}, metadata=metadata, release=release)
 
@@ -573,6 +648,8 @@ class NativeSandboxExecutionTarget(LocalExecutionTarget):
     async def _after_close(self) -> None:
         if self._recovery_error:
             raise RuntimeError("process_cleanup_incomplete: 沙箱恢复身份未确认，保留资源")
+        if self._leases:
+            raise RuntimeError("process_cleanup_incomplete: 启动或恢复资源仍有未释放的准入占用")
         for scope in tuple(self._bindings):
             self.discard_scope(scope)
         for run in self._runs.values():

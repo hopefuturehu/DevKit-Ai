@@ -16,6 +16,7 @@ import os
 import re
 import stat
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
@@ -51,6 +52,15 @@ def _binding_hash(binding: dict) -> str:
 
 def _owner() -> dict:
     return {"pid": os.getpid(), "started": psutil.Process().create_time(), "claim": uuid4().hex}
+
+
+def owner_alive(owner: dict) -> bool:
+    try:
+        return psutil.Process(owner["pid"]).create_time() == owner["started"]
+    except psutil.NoSuchProcess:
+        return False
+    except psutil.AccessDenied as exc:
+        raise _error("无法确认原准入所有者身份") from exc
 
 
 def _file(info: os.stat_result) -> tuple:
@@ -107,13 +117,20 @@ def conflicts(first: dict, second: dict) -> bool:
 
 def _validate(record: dict, lease_id: str) -> None:
     try:
-        if not isinstance(record, dict) or record.keys() != {"binding", "owner"}:
+        if not isinstance(record, dict):
             raise ValueError("record fields")
         binding, owner = record["binding"], record["owner"]
         if binding.keys() != {"v", "id", "rules"} or type(binding["v"]) is not int:
             raise ValueError("binding fields")
-        if binding["v"] != 1 or binding["id"] != lease_id:
+        if binding["v"] not in (1, 2) or binding["id"] != lease_id:
             raise ValueError("binding identity")
+        expected = {"binding", "owner"} | ({"recovery"} if binding["v"] == 2 else set())
+        if record.keys() != expected or (
+            binding["v"] == 2
+            and record["recovery"] is not None
+            and not isinstance(record["recovery"], dict)
+        ):
+            raise ValueError("record fields")
         rules = binding["rules"]
         if rules.keys() != {"read_roots", "write_roots", "deny_read", "deny_write"}:
             raise ValueError("rules fields")
@@ -225,8 +242,8 @@ class AdmissionCoordinator:
                 pass
 
     def acquire(self, policy: SandboxPolicy) -> AdmissionLease:
-        binding = {"v": 1, "id": uuid4().hex, "rules": _rules(policy)}
-        record = {"binding": binding, "owner": _owner()}
+        binding = {"v": 2, "id": uuid4().hex, "rules": _rules(policy)}
+        record = {"binding": binding, "owner": _owner(), "recovery": None}
         _validate(record, binding["id"])
         if any(
             _intersects(region, (self.root, ()))
@@ -235,20 +252,7 @@ class AdmissionCoordinator:
         ):
             raise _error("调用不能访问准入注册表区域")
         with self._locked() as directory:
-            leases = []
-            with os.scandir(directory) as entries:
-                for entry in entries:
-                    match = _LEASE_NAME.fullmatch(entry.name)
-                    if match:
-                        if len(leases) >= LEASE_LIMIT:
-                            raise _error("未解决的准入记录超过限制")
-                        leases.append(match[1])
-                    elif (
-                        entry.name != "mutex"
-                        and re.fullmatch(r"\.pending-[0-9a-f]{32}", entry.name) is None
-                    ):
-                        raise _error("准入注册表包含无法识别的记录")
-            for lease_id in leases:
+            for lease_id in self._ids(directory):
                 if lease_id == binding["id"]:
                     raise _error("准入占用标识冲突")
                 other = self._read(directory, lease_id)
@@ -259,7 +263,35 @@ class AdmissionCoordinator:
             self._publish(directory, record)
         return AdmissionLease(self, binding, record["owner"])
 
-    def recover(self, metadata: dict) -> AdmissionLease:
+    def _ids(self, directory: int) -> list[str]:
+        leases = []
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                match = _LEASE_NAME.fullmatch(entry.name)
+                if match:
+                    if len(leases) >= LEASE_LIMIT:
+                        raise _error("未解决的准入记录超过限制")
+                    leases.append(match[1])
+                elif (
+                    entry.name != "mutex"
+                    and re.fullmatch(r"\.pending-[0-9a-f]{32}", entry.name) is None
+                ):
+                    raise _error("准入注册表包含无法识别的记录")
+        return leases
+
+    def snapshots(self) -> list[dict]:
+        """Trusted host inventory, never a tool-accessible record interface."""
+        with self._locked() as directory:
+            return [self._read(directory, lease_id) for lease_id in self._ids(directory)]
+
+    def reference(self, binding: dict) -> dict:
+        return {
+            "registry": self.identity.record(),
+            "id": binding["id"],
+            "binding_sha256": _binding_hash(binding),
+        }
+
+    def recover(self, metadata: dict, *, recovery: dict | None = None) -> AdmissionLease:
         if (
             not isinstance(metadata, dict)
             or metadata.keys() != {"registry", "id", "binding_sha256"}
@@ -272,19 +304,17 @@ class AdmissionCoordinator:
             record = self._read(directory, metadata["id"])
             if _binding_hash(record["binding"]) != metadata["binding_sha256"]:
                 raise _error("准入恢复记录与持久占用不一致")
-            old = record["owner"]
-            try:
-                if psutil.Process(old["pid"]).create_time() == old["started"]:
-                    raise _error("原准入所有者仍存活，不能接管其清理")
-            except psutil.NoSuchProcess:
-                pass
-            except psutil.AccessDenied as exc:
-                raise _error("无法确认原准入所有者身份") from exc
+            if recovery is not None and record.get("recovery") != recovery:
+                raise _error("恢复日志在校验后发生改变")
+            if owner_alive(record["owner"]):
+                raise _error("原准入所有者仍存活，不能接管其清理")
             # This transfers bookkeeping ownership only, never process signal
             # authority or permission to start another command.
             record["owner"] = _owner()
             self._publish(directory, record)
-        return AdmissionLease(self, record["binding"], record["owner"])
+        return AdmissionLease(
+            self, record["binding"], record["owner"], recovery=record.get("recovery")
+        )
 
 
 @dataclass
@@ -293,13 +323,10 @@ class AdmissionLease:
     binding: dict
     owner: dict
     released: bool = False
+    recovery: dict | None = None
 
     def record(self) -> dict:
-        return {
-            "registry": self.coordinator.identity.record(),
-            "id": self.binding["id"],
-            "binding_sha256": _binding_hash(self.binding),
-        }
+        return self.coordinator.reference(self.binding)
 
     def _check(self, directory: int) -> None:
         if (
@@ -309,12 +336,38 @@ class AdmissionLease:
         ):
             raise _error("准入占用已释放或不属于当前宿主")
         current = self.coordinator._read(directory, self.binding["id"])
-        if current != {"binding": self.binding, "owner": self.owner}:
+        expected = {"binding": self.binding, "owner": self.owner}
+        if self.binding["v"] == 2:
+            expected["recovery"] = self.recovery
+        if current != expected:
             raise _error("准入占用的身份或所有者已改变")
 
     def verify(self) -> None:
         with self.coordinator._locked() as directory:
             self._check(directory)
+
+    def save_recovery(self, recovery: dict) -> None:
+        if self.binding["v"] != 2:
+            raise _error("旧准入记录不能补写启动权限或恢复日志")
+        # Detach caller objects, including nested guard/metadata structures.
+        value = deepcopy(recovery)
+        record = {"binding": self.binding, "owner": self.owner, "recovery": value}
+        with self.coordinator._locked() as directory:
+            self._check(directory)
+            try:
+                self.coordinator._publish(directory, record)
+            except BaseException:
+                # rename may have committed before a directory fsync failed.
+                # Recognize only these exact bytes/owner, never rebaseline a
+                # different record. Reraise so the caller still handles the
+                # failed write, including cleanup when spawn already occurred.
+                try:
+                    if self.coordinator._read(directory, self.binding["id"]) == record:
+                        self.recovery = value
+                except Exception:
+                    pass
+                raise
+        self.recovery = value
 
     def release(self) -> None:
         if self.released:

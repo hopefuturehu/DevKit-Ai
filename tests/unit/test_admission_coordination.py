@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from bot.sandbox.coordination import AdmissionCoordinator
+from bot.sandbox.coordination import AdmissionCoordinator, AdmissionLease
 from bot.sandbox.models import SandboxError, SandboxPolicy
 
 
@@ -228,5 +228,57 @@ def test_forked_or_forged_handle_does_not_release_another_owner(layout):
     fake = replace(lease, owner={**lease.owner, "pid": os.getpid() + 1})
     with pytest.raises(SandboxError, match="不属于"):
         fake.release()
+    lease.verify()
+    lease.release()
+
+
+def test_recovery_journal_is_durable_and_detached_from_caller_objects(layout):
+    coordinator, _, policy = layout
+    lease = coordinator.acquire(policy())
+    reference = lease.record()
+    value = {"phase": "prepared", "nested": {"pid": None}}
+    lease.save_recovery(value)
+    value["nested"]["pid"] = 123
+    snapshot = AdmissionCoordinator(coordinator.root).snapshots()[0]
+    assert snapshot["recovery"] == {"phase": "prepared", "nested": {"pid": None}}
+    snapshot["recovery"]["phase"] = "forged"
+    lease.verify()
+    lease.save_recovery({"phase": "registered", "nested": {"pid": 456}})
+    assert lease.record() == reference
+    assert coordinator.snapshots()[0]["recovery"]["nested"]["pid"] == 456
+    lease.release()
+
+
+def test_legacy_lease_remains_occupied_and_cannot_gain_a_recovery_journal(layout):
+    coordinator, _, policy = layout
+    current = coordinator.acquire(policy())
+    path = coordinator.root / f"lease-{current.binding['id']}.json"
+    record = json.loads(path.read_bytes())
+    record["binding"]["v"] = 1
+    del record["recovery"]
+    path.write_text(json.dumps(record))
+    legacy = AdmissionLease(coordinator, record["binding"], record["owner"])
+    try:
+        with pytest.raises(SandboxError, match="占用"):
+            coordinator.acquire(policy())
+        with pytest.raises(SandboxError, match="旧准入"):
+            legacy.save_recovery({"phase": "registered"})
+        assert coordinator.snapshots() == [record]
+    finally:
+        legacy.release()
+
+
+def test_failed_durable_write_preserves_exact_published_identity_for_cleanup(layout, monkeypatch):
+    coordinator, _, policy = layout
+    lease = coordinator.acquire(policy())
+    publish = coordinator._publish
+
+    def published_then_failed(*args):
+        publish(*args)
+        raise OSError("synthetic directory fsync failure after rename")
+
+    monkeypatch.setattr(coordinator, "_publish", published_then_failed)
+    with pytest.raises(OSError, match="fsync"):
+        lease.save_recovery({"phase": "prepared"})
     lease.verify()
     lease.release()
